@@ -34,7 +34,7 @@ use storage::{
             edges::WriteLockedEdgeSegments,
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
-            nodes::{ArcLockedNodeSegment, WriteLockedNodeSegments},
+            nodes::{ArcNodeSegmentGuard, LockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -500,62 +500,53 @@ where
         self.graph
     }
 
-    /// Write-lock the node and edge segments created since this graph was locked
-    /// (e.g. by node or edge resolution), keeping the locks already held.
-    ///
-    /// Fails with `SegmentLockTimeout` if a new segment stays locked for
-    /// [`NEW_SEGMENT_LOCK_TIMEOUT`].
     pub fn lock_new_segments(&mut self) -> Result<(), StorageError> {
         self.lock_new_segments_within(NEW_SEGMENT_LOCK_TIMEOUT)
     }
 
-    /// [`Self::lock_new_segments`] with a custom timeout.
     pub fn lock_new_segments_within(&mut self, timeout: Duration) -> Result<(), StorageError> {
-        self.graph
-            .storage
-            .nodes()
-            .lock_new_segments(&mut self.nodes, timeout)?;
+        self.assert_all_nodes_locked();
         self.graph
             .storage
             .edges()
             .lock_new_segments(&mut self.edges, timeout)
     }
 
-    /// Write-lock the edge segments created since this graph was locked, keeping the locks
-    /// already held. Bulk loaders hand over new node segments with [`Self::extend_new`] instead.
-    pub fn lock_new_edge_segments(&mut self) -> Result<(), StorageError> {
-        self.graph
-            .storage
-            .edges()
-            .lock_new_segments(&mut self.edges, NEW_SEGMENT_LOCK_TIMEOUT)
+    pub fn extend_new(&mut self, mut new_segments: Vec<ArcNodeSegmentGuard>) {
+        let nodes = self.graph.storage.nodes();
+        // segments are pushed concurrently from several threads, so the ids arrive in any order
+        new_segments.sort_unstable_by_key(|segment| segment.segment_id());
+        for new_segment in new_segments {
+            let segment_id = new_segment.segment_id();
+            let segment = nodes
+                .get_segment(segment_id)
+                .expect("locked segment must exist");
+            self.nodes.push(LockedNodeSegment::new(
+                segment_id,
+                nodes.stats(),
+                nodes.max_segment_len(),
+                segment,
+                new_segment,
+            ));
+        }
+        self.assert_all_nodes_locked();
     }
 
-    /// Take over the node segments created and locked during a bulk load (e.g. by node
-    /// resolution).
-    ///
-    /// # Panics
-    /// If any node segment in the graph is then still not held.
-    pub fn extend_new(&mut self, new_segments: Vec<ArcLockedNodeSegment>) {
-        self.graph
-            .storage
-            .nodes()
-            .extend_new(&mut self.nodes, new_segments);
+    /// A node segment created without handing over its lock would let readers see its
+    /// uninitialised nodes.
+    fn assert_all_nodes_locked(&self) {
+        assert_eq!(
+            self.nodes.len(),
+            self.graph.storage.nodes().num_segments(),
+            "node segments were created during the bulk load without handing over their locks"
+        );
     }
 
-    /// Create the node segments up to `vid`, locked before they are published.
-    ///
-    /// For bulk loads of pre-resolved ids; replay uses [`Self::resize_segments_to_vid`].
-    pub fn grow_nodes_to_vid(&mut self, vid: VID) {
+    pub fn resize_segments_to_vid(&mut self, vid: VID) {
         let nodes = self.graph.storage.nodes();
         let (segment_id, _) = nodes.resolve_pos(vid);
         let new_segments = nodes.grow_locked(segment_id + 1);
         self.extend_new(new_segments);
-    }
-
-    pub fn resize_segments_to_vid(&mut self, vid: VID) -> Result<(), StorageError> {
-        let (segment_id, _) = self.graph.storage.nodes().resolve_pos(vid);
-        self.graph.storage().nodes().grow(segment_id + 1);
-        self.lock_new_segments()
     }
 
     pub fn resize_segments_to_eid(&mut self, eid: EID) -> Result<(), StorageError> {

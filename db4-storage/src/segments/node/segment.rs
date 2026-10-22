@@ -3,6 +3,7 @@ use crate::{
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
+    pages::locked::nodes::ArcNodeSegmentGuard,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
         HasRow, SegmentContainer,
@@ -11,7 +12,6 @@ use crate::{
     wal::LSN,
 };
 use either::Either;
-use lock_api::ArcRwLockWriteGuard;
 use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
     Direction,
@@ -516,7 +516,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     #[inline(always)]
-    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment> {
+    fn head_mut_arc(&self) -> ArcNodeSegmentGuard {
         self.inner.write_arc()
     }
 

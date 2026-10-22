@@ -31,7 +31,7 @@ use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::locked::nodes::ArcLockedNodeSegment,
+    pages::locked::nodes::ArcNodeSegmentGuard,
     pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
@@ -249,7 +249,7 @@ impl InternalAdditionOps for TemporalGraph {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcLockedNodeSegment>), Self::Error> {
+    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentGuard>), Self::Error> {
         let vid = match self.gid_resolver.get(id) {
             Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
             None => {

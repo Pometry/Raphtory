@@ -19,33 +19,18 @@ use std::{
     path::Path,
 };
 
-/// A node segment created while the bulk loader holds the graph, write-locked before the segment
-/// was published so no reader can see its uninitialised nodes.
+/// Write lock on the head of a node segment created during a bulk load, taken before the
+/// segment was published so no reader can see its uninitialised nodes.
 ///
-/// Hand it to [`WriteLockedNodeSegments`] through `NodeStorage::extend_new`.
-#[derive(Debug)]
-pub struct ArcLockedNodeSegment {
-    segment_id: usize,
-    head: ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>,
-}
-
-impl ArcLockedNodeSegment {
-    pub fn new(segment_id: usize, head: ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>) -> Self {
-        Self { segment_id, head }
-    }
-
-    #[inline(always)]
-    pub fn segment_id(&self) -> usize {
-        self.segment_id
-    }
-}
+/// Hand it over with `WriteLockedGraph::extend_new`.
+pub type ArcNodeSegmentGuard = ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>;
 
 /// The head lock of a [`LockedNodeSegment`]: borrowed for segments that existed when the graph
 /// was locked, owned for segments created and locked during the bulk load.
 #[derive(Debug)]
 pub enum LockedNodeHead<'a> {
     Borrowed(RwLockWriteGuard<'a, MemNodeSegment>),
-    Arc(ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>),
+    Arc(ArcNodeSegmentGuard),
 }
 
 impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
@@ -54,9 +39,9 @@ impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
     }
 }
 
-impl From<ArcLockedNodeSegment> for LockedNodeHead<'_> {
-    fn from(segment: ArcLockedNodeSegment) -> Self {
-        Self::Arc(segment.head)
+impl From<ArcNodeSegmentGuard> for LockedNodeHead<'_> {
+    fn from(head: ArcNodeSegmentGuard) -> Self {
+        Self::Arc(head)
     }
 }
 

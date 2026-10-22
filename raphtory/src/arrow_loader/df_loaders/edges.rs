@@ -45,7 +45,7 @@ use storage::{
     pages::{
         locked::{
             edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
-            nodes::{ArcLockedNodeSegment, LockedNodeSegment},
+            nodes::{ArcNodeSegmentGuard, LockedNodeSegment},
         },
         resolve_pos,
     },
@@ -434,7 +434,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         // the node pass may have created new edge segments
         write_locked_graph
-            .lock_new_edge_segments()
+            .lock_new_segments()
             .map_err(into_graph_err)?;
         let edge_rows_by_segment = group_rows_by_eid_segment(
             &eid_col_resolved,
@@ -498,7 +498,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
         &'a [VID],
         &'a [VID],
         Vec<(GidRef<'a>, VID)>,
-        Vec<ArcLockedNodeSegment>,
+        Vec<ArcNodeSegmentGuard>,
     ),
     GraphError,
 > {
@@ -556,7 +556,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
             }
             Ok::<_, GraphError>(new_segment_guards)
         })
-        .collect::<Result<Vec<Vec<ArcLockedNodeSegment>>, GraphError>>()?
+        .collect::<Result<Vec<Vec<ArcNodeSegmentGuard>>, GraphError>>()?
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
@@ -603,7 +603,7 @@ pub fn get_or_resolve_node_vids<
         &'c [VID],
         &'c [VID],
         Vec<(GidRef<'a>, VID)>,
-        Vec<ArcLockedNodeSegment>,
+        Vec<ArcNodeSegmentGuard>,
     ),
     GraphError,
 > {
