@@ -391,8 +391,8 @@ pub trait GraphPaths {
                 let file_name = file.name()?;
                 let data_dir = file_name.split('/').next().unwrap_or("");
 
-                if let Ok(version) = version_from_data_path(data_dir) {
-                    versions.insert(version);
+                if data_dir.starts_with(DATA_PATH) {
+                    versions.insert(version_from_data_path(data_dir)?);
                 }
             }
 
@@ -408,8 +408,8 @@ pub trait GraphPaths {
             }
 
             if let Some(name) = entry.file_name().to_str() {
-                if let Ok(version) = version_from_data_path(name) {
-                    versions.insert(version);
+                if name.starts_with(DATA_PATH) {
+                    versions.insert(version_from_data_path(name)?);
                 }
             }
         }
@@ -557,21 +557,6 @@ impl GraphFolder {
         fs::create_dir_all(&self.root)?;
 
         Ok(())
-    }
-
-    pub fn get_zip_graph_prefix(&self) -> Result<String, GraphFolderError> {
-        if self.is_zip() {
-            let mut zip = self.read_zip()?;
-            Ok([get_zip_data_path(&mut zip)?, get_zip_graph_path(&mut zip)?].join("/"))
-        } else {
-            let data_path = read_or_default_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
-            let graph_path = read_or_default_path_pointer(
-                &self.root().join(&data_path),
-                GRAPH_META_PATH,
-                GRAPH_PATH,
-            )?;
-            Ok([data_path, graph_path].join("/"))
-        }
     }
 
     fn ensure_clean_root_dir(&self) -> Result<(), GraphFolderError> {
