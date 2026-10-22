@@ -135,7 +135,7 @@ impl<'py> IntoPyObject<'py> for EdgeView<MaterializedGraph> {
         Bound::new(py, (PyMutableEdge::from(self.clone()), PyEdge::from(self)))
     }
 }
-impl_edgeviewops!(PyEdge, edge, EdgeView<DynamicGraph>, "Edge");
+impl_edgeviewops!(PyEdge, edge, EdgeView<DynamicGraph>, "Edge", "Edges");
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two nodes.

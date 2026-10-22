@@ -1,9 +1,6 @@
 use raphtory::{
     core::storage::timeindex::AsTime,
-    db::{
-        api::view::Filter,
-        graph::views::filter::model::{NodeViewFilterOps, ViewWrapOps},
-    },
+    db::{api::view::Filter, graph::views::filter::model::ViewWrapOps},
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -311,7 +308,7 @@ fn test_node_layers() {
         .add_node(0, 3, [("b", 3)], None, Some("air_nomads"))
         .unwrap();
 
-    let filter_expr = NodeFilter.layer("fire_nation").is_active();
+    let filter_expr = NodeFilter.layers("fire_nation").is_active();
     let ids = graph
         .filter(filter_expr)
         .unwrap()
@@ -336,7 +333,7 @@ fn test_unlayered_node_visible_in_all_layer_views() {
         .unwrap();
 
     let fire_view = graph
-        .filter(NodeFilter.layer("fire_nation").is_active())
+        .filter(NodeFilter.layers("fire_nation").is_active())
         .unwrap();
     let mut ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
     ids.sort();
@@ -360,7 +357,7 @@ fn test_layered_node_not_visible_in_other_layer_view() {
         .unwrap();
 
     let fire_view = graph
-        .filter(NodeFilter.layer("fire_nation").is_active())
+        .filter(NodeFilter.layers("fire_nation").is_active())
         .unwrap();
     let ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
     assert_eq!(
@@ -386,7 +383,7 @@ fn test_unlayered_node_visible_in_windowed_layer_view() {
     // Window [0, 10) covers t=5; filter to fire_nation
     let view = graph.window(0, 10);
     let fire_view = view
-        .filter(NodeFilter.layer("fire_nation").is_active())
+        .filter(NodeFilter.layers("fire_nation").is_active())
         .unwrap();
     let mut ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
     ids.sort();
@@ -399,7 +396,7 @@ fn test_unlayered_node_visible_in_windowed_layer_view() {
     // Window [10, 20) does NOT cover t=5, so no nodes should be active
     let view_out = graph.window(10, 20);
     let fire_view_out = view_out
-        .filter(NodeFilter.layer("fire_nation").is_active())
+        .filter(NodeFilter.layers("fire_nation").is_active())
         .unwrap();
     assert_eq!(
         fire_view_out.count_nodes(),

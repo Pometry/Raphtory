@@ -25,7 +25,12 @@ use crate::{
                 IntoDynamic, StaticGraphViewOps,
             },
         },
-        graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
+        graph::{
+            edge_reads::{self, EdgeAt},
+            edges::{Edges, ExplodedEdges},
+            node::NodeView,
+            views::layer_graph::LayeredGraph,
+        },
     },
     errors::{into_graph_err, GraphError},
     prelude::*,
@@ -245,7 +250,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
         T: 'graph;
     type PropType = Self;
     type Nodes = NodeView<'graph, G>;
-    type Exploded = Edges<'graph, G>;
+    type Exploded = ExplodedEdges<'graph, G>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -560,23 +565,8 @@ impl<'graph, G: GraphViewOps<'graph> + EdgePropertySchemaOps> InternalMetadataOp
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
-        if edge_valid_layer(&self.graph, self.edge) {
-            let time_semantics = self.graph.edge_time_semantics();
-            match self.edge.layer() {
-                None => time_semantics.edge_metadata(
-                    self.graph.core_edge(Either::Right(self.edge)).as_ref(),
-                    &self.graph,
-                    id,
-                ),
-                Some(layer) => time_semantics.edge_metadata(
-                    self.graph.core_edge(Either::Right(self.edge)).as_ref(),
-                    LayeredGraph::new(&self.graph, LayerIds::One(layer)),
-                    id,
-                ),
-            }
-        } else {
-            None
-        }
+        let edge = self.graph.core_edge(Either::Right(self.edge));
+        edge_reads::metadata(&self.graph, edge.as_ref(), EdgeAt::of(self.edge), id)
     }
 }
 
@@ -590,71 +580,18 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
-        if edge_valid_layer(&self.graph, self.edge) {
-            let time_semantics = self.graph.edge_time_semantics();
-            let edge = self.graph.core_edge(Either::Right(self.edge));
-            match self.edge.time() {
-                None => match self.edge.layer() {
-                    None => time_semantics.temporal_edge_prop_last(edge.as_ref(), &self.graph, id),
-                    Some(layer) => time_semantics.temporal_edge_prop_last(
-                        edge.as_ref(),
-                        LayeredGraph::new(&self.graph, LayerIds::One(layer)),
-                        id,
-                    ),
-                },
-                Some(t) => {
-                    let layer = self.edge.layer().expect("exploded edge should have layer");
-                    time_semantics.temporal_edge_prop_exploded(
-                        edge.as_ref(),
-                        &self.graph,
-                        id,
-                        t,
-                        layer,
-                    )
-                }
-            }
-        } else {
-            None
-        }
+        let edge = self.graph.core_edge(Either::Right(self.edge));
+        edge_reads::temporal_value(&self.graph, edge.as_ref(), EdgeAt::of(self.edge), id)
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
-        if edge_valid_layer(&self.graph, self.edge) {
-            let time_semantics = self.graph.edge_time_semantics();
-            let edge = self.graph.core_edge(Either::Right(self.edge));
-            let graph = &self.graph;
-            match self.edge.time() {
-                None => match self.edge.layer() {
-                    None => GenLockedIter::from(edge, move |edge| {
-                        time_semantics
-                            .temporal_edge_prop_hist(edge.as_ref(), graph, graph.layer_ids(), id)
-                            .into_dyn_boxed()
-                    })
-                    .into_dyn_boxed(),
-                    Some(layer) => {
-                        let layer_ids = LayerIds::One(layer);
-                        GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
-                            time_semantics
-                                .temporal_edge_prop_hist(edge.as_ref(), graph, layer_ids, id)
-                                .into_dyn_boxed()
-                        })
-                        .into_dyn_boxed()
-                    }
-                }
-                .map(|(t, _, v)| (t, v))
-                .into_dyn_boxed(),
-                Some(t) => {
-                    let layer = self.edge.layer().expect("Exploded edge should have layer");
-                    time_semantics
-                        .temporal_edge_prop_exploded(edge.as_ref(), &self.graph, id, t, layer)
-                        .map(|v| (t, v))
-                        .into_iter()
-                        .into_dyn_boxed()
-                }
-            }
-        } else {
-            iter::empty().into_dyn_boxed()
-        }
+        let edge = self.graph.core_edge(Either::Right(self.edge));
+        let graph = &self.graph;
+        let at = EdgeAt::of(self.edge);
+        GenLockedIter::from(edge, move |edge| {
+            edge_reads::temporal_hist(graph, edge.as_ref(), at, id)
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
