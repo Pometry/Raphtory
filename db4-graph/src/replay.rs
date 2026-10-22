@@ -64,7 +64,7 @@ where
 
         // Grab src writer and add edge data.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
-        self.resize_segments_to_vid(src_id); // Create enough segments.
+        self.resize_segments_to_vid(src_id)?; // Create enough segments.
 
         let segment = self
             .graph()
@@ -116,7 +116,7 @@ where
 
         // Grab dst writer and add edge data.
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
-        self.resize_segments_to_vid(dst_id);
+        self.resize_segments_to_vid(dst_id)?;
 
         let segment = self
             .graph()
@@ -301,7 +301,7 @@ where
 
         // Grab src writer and record deletion time.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
-        self.resize_segments_to_vid(src_id);
+        self.resize_segments_to_vid(src_id)?;
 
         let segment = self
             .graph()
@@ -350,7 +350,7 @@ where
 
         // Grab dst writer and record deletion time.
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
-        self.resize_segments_to_vid(dst_id);
+        self.resize_segments_to_vid(dst_id)?;
 
         let segment = self
             .graph()
@@ -472,7 +472,7 @@ where
 
         // Resolve segment and check LSN.
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
-        self.resize_segments_to_vid(node_id);
+        self.resize_segments_to_vid(node_id)?;
 
         let segment = self
             .graph()
@@ -539,7 +539,7 @@ where
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
-        self.resize_segments_to_vid(vid);
+        self.resize_segments_to_vid(vid)?;
 
         let segment = self
             .graph()
@@ -580,7 +580,7 @@ where
         node_type_id: usize,
     ) -> Result<(), StorageError> {
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
-        self.resize_segments_to_vid(vid);
+        self.resize_segments_to_vid(vid)?;
 
         let segment = self
             .graph()
