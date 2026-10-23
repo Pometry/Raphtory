@@ -7,6 +7,7 @@ use raphtory_api::core::storage::graph_folder::{
     make_path_pointer, DataFolder, GraphFolder, GraphMetadata, GraphPaths, Metadata,
     GRAPH_META_PATH, GRAPH_PATH,
 };
+use std::fmt::Debug;
 
 /// Build the [`GraphMetadata`] summary for a graph
 pub fn build_graph_metadata(graph: impl GraphView) -> GraphMetadata {
@@ -22,22 +23,28 @@ pub fn build_graph_metadata(graph: impl GraphView) -> GraphMetadata {
 /// metadata at it, deleting any previously-stored graph data.
 pub fn replace_graph_in_folder(
     folder: &DataFolder,
-    graph: impl ParquetEncoder + GraphView + std::fmt::Debug,
+    graph: impl ParquetEncoder + GraphView + Debug,
 ) -> Result<(), GraphError> {
     let data_path = folder.as_ref();
     let new_relative_graph_path = make_path_pointer(data_path, GRAPH_META_PATH, GRAPH_PATH)?;
+
     graph.encode_parquet(data_path.join(&new_relative_graph_path))?;
-    let meta = Metadata {
+
+    let graph_meta = Metadata {
         path: new_relative_graph_path,
         meta: build_graph_metadata(&graph),
+        src_version: None,
+        src_event_id: None,
     };
-    folder.replace_graph_path(meta)?;
+
+    folder.replace_graph_path(graph_meta)?;
+
     Ok(())
 }
 
 pub fn assert_metadata_correct<'graph>(folder: &GraphFolder, graph: &impl GraphViewOps<'graph>) {
-    let metadata = folder.read_metadata().unwrap();
-    assert_eq!(metadata.node_count, graph.count_nodes());
-    assert_eq!(metadata.edge_count, graph.count_edges());
-    assert_eq!(metadata.graph_type, graph.graph_type());
+    let metadata = folder.read_graph_meta().unwrap();
+    assert_eq!(metadata.meta.node_count, graph.count_nodes());
+    assert_eq!(metadata.meta.edge_count, graph.count_edges());
+    assert_eq!(metadata.meta.graph_type, graph.graph_type());
 }

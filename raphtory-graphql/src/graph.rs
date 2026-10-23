@@ -210,7 +210,7 @@ impl GraphWithVectors {
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
-        let graph = if graph_folder.read_metadata()?.is_diskgraph {
+        let graph = if graph_folder.read_graph_meta()?.is_diskgraph {
             blocking_load(move || {
                 MaterializedGraph::load_with_config(folder_clone.graph_folder(), args)
             })

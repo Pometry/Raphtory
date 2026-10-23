@@ -47,6 +47,14 @@ pub const DIRTY_PATH: &str = "dirty.json";
 pub struct Metadata {
     pub path: String,
     pub meta: GraphMetadata,
+
+    /// The version of the source graph this graph was derived from.
+    /// Populated on a stage operation.
+    pub src_version: Option<u32>,
+
+    /// The event id of the source graph this graph was derived from.
+    /// Populated on a stage operation.
+    pub src_event_id: Option<u32>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug)]
@@ -300,8 +308,9 @@ pub trait GraphPaths {
         }
     }
 
-    fn read_metadata(&self) -> Result<GraphMetadata, GraphFolderError> {
+    fn read_graph_meta(&self) -> Result<Metadata, GraphFolderError> {
         let mut json = String::new();
+
         if self.is_zip() {
             let mut zip = self.read_zip()?;
             let path = get_zip_meta_path(&mut zip)?;
@@ -311,11 +320,13 @@ pub trait GraphPaths {
             let mut file = File::open(self.graph_meta_path()?)?;
             file.read_to_string(&mut json)?;
         }
+
         let metadata: Metadata = serde_json::from_str(&json)?;
-        Ok(metadata.meta)
+
+        Ok(metadata)
     }
 
-    fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
+    fn write_graph_meta(&self, meta: Metadata) -> Result<(), GraphFolderError> {
         meta.write(self.graph_meta_path()?.as_ref())?;
         Ok(())
     }
@@ -367,7 +378,7 @@ pub trait GraphPaths {
             .to_millis()?)
     }
 
-    /// Version id of the active `data{id}/` directory.
+    /// Version of the active `data{id}/` directory.
     fn active_version(&self) -> Result<u64, GraphFolderError> {
         let data_path = if self.is_zip() {
             let mut zip = self.read_zip()?;
@@ -476,7 +487,7 @@ impl GraphFolder {
         self.ensure_clean_root_dir()?;
 
         let relative_data_path = self.relative_data_path()?;
-        let meta = serde_json::to_string(&RelativePath {
+        let dirty = serde_json::to_string(&RelativePath {
             path: relative_data_path.clone(),
         })?;
 
@@ -484,7 +495,7 @@ impl GraphFolder {
         let dirty_path = self.root.join(DIRTY_PATH);
         let mut dirty_file = File::create_new(&dirty_path)?;
 
-        dirty_file.write_all(meta.as_bytes())?;
+        dirty_file.write_all(dirty.as_bytes())?;
         dirty_file.sync_all()?;
 
         fs::create_dir_all(self.root.join(relative_data_path))?;
@@ -573,8 +584,7 @@ impl GraphFolder {
     }
 
     pub fn is_disk_graph(&self) -> Result<bool, GraphFolderError> {
-        let meta = self.read_metadata()?;
-        Ok(meta.is_diskgraph)
+        Ok(self.read_graph_meta()?.meta.is_diskgraph)
     }
 
     /// Creates a zip file from the folder.
@@ -706,12 +716,12 @@ impl DataFolder {
         Self { path: path.into() }
     }
 
-    pub fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
-        meta.write(&self.meta_path())?;
+    pub fn write_graph_meta(&self, graph_meta: Metadata) -> Result<(), GraphFolderError> {
+        graph_meta.write(&self.graph_meta_path())?;
         Ok(())
     }
 
-    /// Refresh the node/edge counts recorded in the metadata file, preserving the graph type.
+    /// Refresh the node/edge counts recorded in the metadata file.
     pub fn refresh_metadata(
         &self,
         graph_path: &str,
@@ -719,12 +729,12 @@ impl DataFolder {
         edge_count: usize,
     ) -> Result<(), GraphFolderError> {
         // nothing to refresh if there is no metadata file yet
-        if !self.meta_path().exists() {
+        if !self.graph_meta_path().exists() {
             return Ok(());
         }
 
         // preserve the existing graph type; a corrupt metadata file surfaces as an error here
-        let existing = self.read_metadata()?;
+        let existing = self.read_graph_meta()?;
 
         // the graph data directory must not change between updates
         let recorded_graph_path = self.relative_graph_path()?;
@@ -735,37 +745,40 @@ impl DataFolder {
             });
         }
 
-        self.write_metadata(Metadata {
+        self.write_graph_meta(Metadata {
             path: graph_path.to_string(),
             meta: GraphMetadata {
                 node_count,
                 edge_count,
-                graph_type: existing.graph_type,
-                is_diskgraph: true,
+                graph_type: existing.meta.graph_type,
+                is_diskgraph: existing.meta.is_diskgraph,
             },
+            src_version: existing.src_version,
+            src_event_id: existing.src_event_id,
         })?;
 
         Ok(())
     }
 
-    pub fn read_metadata(&self) -> Result<GraphMetadata, GraphFolderError> {
+    pub fn read_graph_meta(&self) -> Result<Metadata, GraphFolderError> {
         let mut json = String::new();
-        let mut file = File::open(self.meta_path())?;
+        let mut file = File::open(self.graph_meta_path())?;
         file.read_to_string(&mut json)?;
         let metadata: Metadata = serde_json::from_str(&json)?;
-        Ok(metadata.meta)
+
+        Ok(metadata)
     }
 
-    /// Atomically point the metadata file at the graph data described by `meta`, removing the
+    /// Atomically point the metadata file at the graph data described by `graph_meta`, removing the
     /// previously-referenced graph directory if the path changed.
     ///
     /// NOTE: this does NOT encode the graph data itself. The caller must have already written the
-    /// graph data into the directory in `meta.path` (see `replace_graph_in_folder` in `raphtory`)
-    pub fn replace_graph_path(&self, meta: Metadata) -> Result<(), GraphFolderError> {
+    /// graph data into the directory in `graph_meta.path` (see `replace_graph_in_folder` in `raphtory`)
+    pub fn replace_graph_path(&self, graph_meta: Metadata) -> Result<(), GraphFolderError> {
         let old_relative_graph_path = self.relative_graph_path()?;
-        let path_changed = meta.path != old_relative_graph_path;
+        let path_changed = graph_meta.path != old_relative_graph_path;
 
-        self.write_metadata(meta)?;
+        self.write_graph_meta(graph_meta)?;
 
         if path_changed {
             fs::remove_dir_all(self.as_ref().join(&old_relative_graph_path))?;
@@ -782,7 +795,7 @@ impl DataFolder {
         self.path.join(INDEX_PATH)
     }
 
-    pub fn meta_path(&self) -> PathBuf {
+    pub fn graph_meta_path(&self) -> PathBuf {
         self.path.join(GRAPH_META_PATH)
     }
 

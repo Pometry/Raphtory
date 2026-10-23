@@ -185,12 +185,15 @@ impl Graph {
             inner: Arc::new(Storage::new_at_path_with_config(graph_path, args)?),
         };
 
-        let meta = GraphFolderMetadata {
+        let graph_meta = GraphFolderMetadata {
             path: path.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
+            src_version: None,
+            src_event_id: None,
         };
 
-        path.write_metadata(meta)?;
+        path.write_graph_meta(graph_meta)?;
+
         Ok(graph)
     }
 

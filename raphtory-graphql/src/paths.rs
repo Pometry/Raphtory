@@ -21,7 +21,7 @@ use raphtory_api::core::storage::graph_folder::{
     WriteableGraphFolder, ROOT_RAPH_PATH,
 };
 
-/// Crash-recovery marker for an in-progress namespace or graph directory create/delete.
+/// Crash-recovery marker for an in-progress directory create/delete.
 pub(crate) const DIRTY_DIRECTORY: &str = ".dirty_directory";
 
 use std::{
@@ -100,7 +100,7 @@ pub trait ValidGraphPaths {
 
     async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
         let folder = self.graph_folder().root().to_path_buf();
-        blocking_compute(move || folder.read_metadata())
+        blocking_compute(move || folder.read_graph_meta())
             .await
             .with_path(self.local_path())
     }
@@ -267,14 +267,21 @@ impl UnlockedGraphFolder {
                 if path != self.global_path.graph_path()? {
                     return Err(InternalPathValidationError::MismatchedGraphPath);
                 }
-                let meta = Metadata {
+
+                let old_graph_meta = self.global_path.read_graph_meta()?;
+
+                let graph_meta = Metadata {
                     path: self.global_path.relative_graph_path()?,
                     meta: build_graph_metadata(&graph),
+                    src_version: old_graph_meta.src_version,
+                    src_event_id: old_graph_meta.src_event_id,
                 };
-                self.global_path.write_metadata(meta)?;
+
+                self.global_path.write_graph_meta(graph_meta)?;
             } else {
                 replace_graph_in_folder(&self.global_path.data_path()?, graph)?;
             }
+
             Ok(())
         })
     }
@@ -508,12 +515,16 @@ impl ValidWriteableGraphFolder {
                     .disk_storage_path()
                     .is_some_and(|path| path == &graph_path)
                 {
-                    let meta = Metadata {
+                    let old_graph_meta = self.global_path.read_graph_meta()?;
+
+                    let graph_meta = Metadata {
                         path: self.global_path.relative_graph_path()?,
                         meta: build_graph_metadata(&graph),
+                        src_version: old_graph_meta.src_version,
+                        src_event_id: old_graph_meta.src_event_id,
                     };
 
-                    self.global_path.write_metadata(meta)?;
+                    self.global_path.write_graph_meta(graph_meta)?;
 
                     (true, graph)
                 } else {
@@ -533,7 +544,7 @@ impl ValidWriteableGraphFolder {
 
     pub fn read_graph(&self, args: Args) -> Result<MaterializedGraph, PathValidationError> {
         self.with_internal_errors(|| {
-            if self.graph_folder().read_metadata()?.is_diskgraph {
+            if self.graph_folder().read_graph_meta()?.is_diskgraph {
                 MaterializedGraph::load_with_config(self.graph_folder(), args)
             } else {
                 MaterializedGraph::decode_with_config(self.graph_folder(), args)

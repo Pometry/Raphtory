@@ -32,10 +32,12 @@ pub trait StableEncode: StaticGraphViewOps + AdditionOps {
 impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
     fn encode_to_zip<W: Write + Seek>(&self, mut writer: ZipWriter<W>) -> Result<(), GraphError> {
         let graph_meta = build_graph_metadata(self);
+
         writer.start_file(ROOT_RAPH_PATH, SimpleFileOptions::default())?;
         writer.write_all(&serde_json::to_vec(&RelativePath {
             path: DEFAULT_DATA_PATH.to_string(),
         })?)?;
+
         writer.start_file(
             [DEFAULT_DATA_PATH, GRAPH_META_PATH].join("/"),
             SimpleFileOptions::default(),
@@ -43,10 +45,14 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         writer.write_all(&serde_json::to_vec(&Metadata {
             path: DEFAULT_GRAPH_PATH.to_string(),
             meta: graph_meta,
+            src_version: None,
+            src_event_id: None,
         })?)?;
+
         let graph_prefix = [DEFAULT_DATA_PATH, DEFAULT_GRAPH_PATH].join("/");
         self.encode_parquet_to_zip(&mut writer, graph_prefix)?;
         writer.finish()?;
+
         Ok(())
     }
 
@@ -68,12 +74,14 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
             self.encode_parquet(write_folder.graph_path()?)?;
             let data_folder = write_folder.data_path()?;
 
-            let meta = Metadata {
+            let graph_meta = Metadata {
                 path: data_folder.relative_graph_path()?,
                 meta: build_graph_metadata(self),
+                src_version: None,
+                src_event_id: None,
             };
 
-            data_folder.write_metadata(meta)?;
+            data_folder.write_graph_meta(graph_meta)?;
             let cleanup_old = true;
             write_folder.finish(cleanup_old)?;
         }
@@ -163,7 +171,9 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
         }
+
         target.init()?;
+
         let graph_prefix = get_zip_graph_path(&mut reader)?;
         let graph = Self::decode_parquet_from_zip(
             &mut reader,
@@ -171,11 +181,15 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
             graph_prefix,
             args,
         )?;
-        let meta = Metadata {
+        let graph_meta = Metadata {
             path: target.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
+            src_version: None,
+            src_event_id: None,
         };
-        target.write_metadata(meta)?;
+
+        target.write_graph_meta(graph_meta)?;
+
         Ok(graph)
     }
 
@@ -197,6 +211,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         args: Args,
     ) -> Result<Self, GraphError> {
         target.init()?;
+
         let graph = if path.is_zip() {
             let reader = path.read_zip()?;
             Self::decode_from_zip_at(reader, target, args)?
@@ -207,11 +222,16 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
                 args,
             )?
         };
-        let meta = Metadata {
+
+        let graph_meta = Metadata {
             path: target.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
+            src_version: None,
+            src_event_id: None,
         };
-        target.write_metadata(meta)?;
+
+        target.write_graph_meta(graph_meta)?;
+
         Ok(graph)
     }
 }

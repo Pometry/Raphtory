@@ -55,19 +55,21 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
         let storage = self.graph.core_graph();
         storage.flush()?;
 
-        let src_meta = self.src_folder.read_metadata()?;
+        let src_meta = self.src_folder.read_graph_meta()?;
 
         let new_meta = Metadata {
             path: self.folder.relative_graph_path()?,
             meta: GraphMetadata {
                 node_count: storage.unfiltered_num_nodes(&LayerIds::All),
                 edge_count: storage.unfiltered_num_edges(&LayerIds::All),
-                graph_type: src_meta.graph_type,
-                is_diskgraph: src_meta.is_diskgraph,
+                graph_type: src_meta.meta.graph_type,
+                is_diskgraph: src_meta.meta.is_diskgraph,
             },
+            src_version: panic!(), // FIXME: This should retrieve from self.src_graph.
+            src_event_id: panic!(),
         };
 
-        self.folder.write_metadata(new_meta)?;
+        self.folder.write_graph_meta(new_meta)?;
         let cleanup_old = false; // Keep the previous data folders around as archives.
         self.folder
             .finish(cleanup_old)
@@ -109,6 +111,7 @@ impl GraphStorage {
                 // another write could mutate the graph. Implement and use atomic lock
                 // downgrading to prevent this.
                 drop(write_locked_graph);
+
                 (ReadLockedGraph::new(graph.clone()), guard)
             }
             GraphStorage::Locked(locked_graph) => {
