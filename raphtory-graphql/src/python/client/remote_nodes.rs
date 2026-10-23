@@ -98,6 +98,38 @@ impl PyRemoteNodes {
         ))
     }
 
+    /// One page of this collection as a list of `RemoteNode` handles — the
+    /// bounded counterpart of `collect()`. At most `limit` handles, starting
+    /// `page_index * limit + offset` nodes in. Both `offset` and `page_index`
+    /// default to 0. Fires one RPC.
+    ///
+    /// A result shorter than `limit` means the collection is exhausted. Prefer
+    /// this to `collect()` on a large collection, and use it where the server
+    /// runs with bulk list endpoints disabled — `collect()` is rejected there.
+    ///
+    /// Returns handles, so a read on each fires its own RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of nodes in the page.
+    ///     offset (int, optional): additional nodes to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[RemoteNode]: at most `limit` handles.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<PyRemoteNode>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        let page = execute_async_task(
+            move || async move { nodes.page(limit, offset, page_index).await },
+        )?;
+        Ok(page.into_iter().map(PyRemoteNode::new).collect())
+    }
+
     /// Reorder this collection by an ordered list of sort keys. Multi-key
     /// sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
     ///
