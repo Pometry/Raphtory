@@ -13,10 +13,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::{
-        filtering::{GqlFilter, GqlNodeFilter, NodeFieldCondition, NodeFieldWhere},
-        property::Value,
-    },
+    model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
@@ -140,48 +137,6 @@ impl RemoteNodes {
         })
     }
 
-    /// Narrow this collection to the members in positions `start..end` — the
-    /// half-open range, as in Python slicing. An `end` at or below `start`
-    /// yields an empty collection.
-    ///
-    /// Unlike every other combinator here this is **not lazy**: a slice is
-    /// positional, and only the server knows which members fall in it, so this
-    /// fires one RPC to fetch their ids and then pins them by id. The result is
-    /// an ordinary `RemoteNodes`, so the columnar reads (`.id()`,
-    /// `.properties()`, `.degree()`, …) and traversals all chain off it as
-    /// usual, under the same view the slice was taken from.
-    ///
-    /// Order of application matters, exactly as it does for list slicing:
-    /// `.sorted(k).slice(0, n)` is the top `n` by `k`, whereas
-    /// `.slice(0, n).sorted(k)` sorts *within* an arbitrary `n`. Likewise
-    /// `.filter(f).slice(..)` slices the matching nodes, while
-    /// `.slice(..).filter(f)` keeps whichever of the sliced nodes match.
-    ///
-    /// Slicing is not a snapshot: each call is its own traversal, so concurrent
-    /// writes can shift members between slices. Pin a view (`.snapshot_at(..)`,
-    /// `.at(..)`) first if that matters.
-    pub async fn slice(&self, start: usize, end: usize) -> Result<RemoteNodes, ClientError> {
-        // An empty range has no ids to look up, so skip the round trip and go
-        // straight to the empty selection.
-        let ids = match range_to_page(start, end) {
-            None => Vec::new(),
-            Some((limit, offset)) => self.id_page(limit, offset, None).await?,
-        };
-        // Pinned by id rather than position: `select` narrows membership here
-        // only, so traversals off the slice still see the whole graph. `ctx` is
-        // untouched for the same reason `select` leaves it — a materialized
-        // member's own id already identifies it.
-        Ok(RemoteNodes {
-            path: self.path.clone(),
-            transport: self.transport.clone(),
-            expr: Arc::new(ReadExpr::SelectNodes {
-                input: self.expr.clone(),
-                filter: id_in_filter(ids),
-            }),
-            ctx: self.ctx.clone(),
-        })
-    }
-
     /// Reorder this collection by the given sort keys (lexicographic — ties
     /// on the first key break to the second, etc.). Returns a new
     /// `RemoteNodes` handle carrying the sort; the RPC only fires on a
@@ -299,8 +254,8 @@ impl RemoteNodes {
         expect_gid_list(self.transport.execute(&op).await?, "id")
     }
 
-    /// The ids of one page of members. Fires one RPC. Internal: `page()` and
-    /// `slice()` both need to know which members fall in a range.
+    /// The ids of one page of members. Fires one RPC. Internal: `page()` needs
+    /// to know which members fall in a range.
     async fn id_page(
         &self,
         limit: usize,
@@ -475,8 +430,7 @@ impl RemoteNodes {
     /// this to `collect()` on a large collection, and use it where the server
     /// runs with bulk list endpoints disabled — `collect()` is rejected there.
     ///
-    /// Returns handles, so a read on each fires its own RPC. For a columnar
-    /// read across the page in a single request, use `slice()` instead.
+    /// Returns handles, so a read on each fires its own RPC.
     pub async fn page(
         &self,
         limit: usize,
@@ -490,37 +444,6 @@ impl RemoteNodes {
             &self.ctx,
             ids,
         ))
-    }
-}
-
-
-/// A filter matching exactly the given node ids.
-///
-/// The server resolves `id.isIn` straight to a VID set (`NodeIdFilterOp::domain`),
-/// so on a `Nodes` collection this narrows the iteration domain rather than
-/// scanning. Ids keep their JSON type — string ids stay strings, integer-indexed
-/// graphs keep integers — so `isIn` compares like against like.
-pub(crate) fn id_in_filter(ids: Vec<GID>) -> Arc<GqlFilter> {
-    let values = ids
-        .into_iter()
-        .map(|id| match id {
-            GID::U64(n) => Value::U64(n),
-            GID::Str(s) => Value::Str(s),
-        })
-        .collect();
-    Arc::new(GqlFilter::Node(GqlNodeFilter::Id(NodeFieldWhere {
-        where_: NodeFieldCondition::IsIn(Value::List(values)),
-    })))
-}
-
-/// The half-open range `start..end` as `(limit, offset)` page arguments, or
-/// `None` when the range is empty — the caller can then skip the round trip.
-pub(crate) fn range_to_page(start: usize, end: usize) -> Option<(usize, Option<usize>)> {
-    let limit = end.saturating_sub(start);
-    if limit == 0 {
-        None
-    } else {
-        Some((limit, Some(start)))
     }
 }
 

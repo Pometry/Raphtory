@@ -5,8 +5,7 @@
 //! members' ids through the same server fields (`list { id }` / `page { id }`),
 //! and materialize them into the same `RemoteNode` handles. These helpers hold
 //! that common behaviour so the two handle types only differ where they
-//! genuinely differ — `slice()`, which only `RemoteNodes` can support, lives
-//! there rather than here.
+//! genuinely differ.
 
 use crate::client::{
     op::{HandleCtx, Op, PageArgs, ReadExpr},

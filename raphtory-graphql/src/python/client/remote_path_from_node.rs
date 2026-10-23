@@ -347,8 +347,7 @@ impl PyRemotePathFromNode {
     /// this to `collect()` on a large collection, and use it where the server
     /// runs with bulk list endpoints disabled — `collect()` is rejected there.
     ///
-    /// Returns handles, so a read on each fires its own RPC. For a columnar
-    /// read across the whole page in a single request, use `slice()`.
+    /// Returns handles, so a read on each fires its own RPC.
     ///
     /// Arguments:
     ///     limit (int): maximum number of nodes in the page.

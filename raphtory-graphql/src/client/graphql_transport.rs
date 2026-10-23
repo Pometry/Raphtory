@@ -4777,6 +4777,7 @@ mod tests {
                 }),
                 filter: Arc::new(GqlFilter::Node(prop_filter("outer"))),
             }),
+            page: None,
         };
 
         let (query, vars) = render_read(&expr).unwrap();

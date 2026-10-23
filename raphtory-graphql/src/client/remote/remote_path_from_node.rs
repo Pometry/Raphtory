@@ -219,16 +219,6 @@ impl RemotePathFromNode {
 
     /// The ids of one page of members. Fires one RPC. Internal: `page()` needs
     /// to know which members fall in a range.
-    ///
-    /// Note there is deliberately no `slice()` here, unlike `RemoteNodes`. A
-    /// path is a multiset — the same node can occupy several positions (e.g.
-    /// `a.neighbours().neighbours()` can revisit `a`) — and the only way to pin
-    /// members server-side is `id.isIn`, which is set membership. Pinning the
-    /// ids at positions `0..3` re-admits *every* occurrence of those ids, so
-    /// the result is longer than the range asked for and consecutive slices
-    /// overlap rather than partition. Positions have no server-side identity to
-    /// select on, so `page()` (which returns the handles at those positions) is
-    /// the honest primitive here.
     async fn id_page(
         &self,
         limit: usize,
@@ -413,8 +403,7 @@ impl RemotePathFromNode {
     /// this to `collect()` on a large collection, and use it where the server
     /// runs with bulk list endpoints disabled — `collect()` is rejected there.
     ///
-    /// Returns handles, so a read on each fires its own RPC. For a columnar
-    /// read across the page in a single request, use `slice()` instead.
+    /// Returns handles, so a read on each fires its own RPC.
     pub async fn page(
         &self,
         limit: usize,
