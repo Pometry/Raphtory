@@ -1636,6 +1636,9 @@ pub(crate) mod data_tests {
         let g5_path = work_dir.join("shivam/investigations/g5"); // Empty dir
         let g6_path = work_dir.join("shivam/investigations/g6"); // File that is not a graph
         let g7_path = work_dir.join(".graph"); // Invalid hidden path
+
+        // Users can create graphs with the names of marker files,
+        // but the server should not confuse the parent dir as a graph.
         let g8_raph_path = work_dir.join("test/reserved/raph.json");
         let g8_dirty_path = work_dir.join("test/reserved/dirty.json");
         let g8_meta_path = work_dir.join("test/reserved/meta.json");
@@ -1667,16 +1670,16 @@ pub(crate) mod data_tests {
             .map(|folder| folder.folder.root().to_path_buf())
             .collect_vec();
 
-        assert_eq!(paths.len(), 5);
+        assert_eq!(paths.len(), 8);
         assert!(paths.contains(&g0_path));
         assert!(paths.contains(&g1_path));
         assert!(paths.contains(&g2_path));
         assert!(paths.contains(&g3_path));
         assert!(paths.contains(&g4_path));
+        assert!(paths.contains(&g8_raph_path));
+        assert!(paths.contains(&g8_dirty_path));
+        assert!(paths.contains(&g8_meta_path));
 
-        assert!(!paths.contains(&g8_raph_path));
-        assert!(!paths.contains(&g8_dirty_path));
-        assert!(!paths.contains(&g8_meta_path));
         assert!(!paths.contains(&g5_path)); // Empty folder is ignored
         assert!(!paths.contains(&g6_path)); // Non-graph folder is ignored
         assert!(!paths.contains(&g7_path)); // Hidden path is ignored
@@ -1685,16 +1688,26 @@ pub(crate) mod data_tests {
             .get_graph_unchecked("shivam/investigations/2024-12-22/g2")
             .await
             .is_ok());
+        assert!(data
+            .get_graph_unchecked("test/reserved/raph.json")
+            .await
+            .is_ok());
+        assert!(data
+            .get_graph_unchecked("test/reserved/dirty.json")
+            .await
+            .is_ok());
+        assert!(data
+            .get_graph_unchecked("test/reserved/meta.json")
+            .await
+            .is_ok());
 
         for path in [
             "some/random/path",
             ".graph",
+            // Cannot load internal directories as graphs.
             "shivam/investigations/g4/raph.json",
             "shivam/investigations/g4/data0/meta.json",
             "shivam/investigations/g4/data0/graph0",
-            "test/reserved/raph.json",
-            "test/reserved/dirty.json",
-            "test/reserved/meta.json",
         ] {
             assert!(data.get_graph_unchecked(path).await.is_err());
         }

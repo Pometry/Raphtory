@@ -18,7 +18,7 @@ use raphtory::{
 };
 use raphtory_api::core::storage::graph_folder::{
     GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, RelativePath,
-    WriteableGraphFolder, DIRTY_PATH, GRAPH_META_PATH, ROOT_RAPH_PATH,
+    WriteableGraphFolder, ROOT_RAPH_PATH,
 };
 
 /// Crash-recovery marker for an in-progress namespace or graph directory create/delete.
@@ -303,14 +303,6 @@ fn validate_component(component: Component<'_>) -> Result<&str, InvalidPathReaso
 
             if component_str.starts_with(".") {
                 Err(InvalidPathReason::HiddenPathNotAllowed)
-            } else if [ROOT_RAPH_PATH, DIRTY_PATH, GRAPH_META_PATH]
-                .iter()
-                // Case-insensitive filesystems would otherwise still collide.
-                .any(|reserved| component_str.eq_ignore_ascii_case(reserved))
-            {
-                Err(InvalidPathReason::ReservedNameNotAllowed(
-                    component_str.to_string(),
-                ))
             } else {
                 Ok(component_str)
             }

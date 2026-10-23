@@ -322,7 +322,7 @@ pub trait GraphPaths {
 
     /// Returns true if folder is occupied by a graph.
     fn has_graph(&self) -> bool {
-        self.graph_meta_path().is_ok_and(|path| path.exists())
+        self.graph_meta_path().is_ok_and(|path| path.is_file())
     }
 
     /// Initialise the data folder and metadata pointer

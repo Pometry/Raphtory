@@ -57,8 +57,6 @@ pub enum InvalidPathReason {
     PathNotParsable,
     #[error("A component of the given path was hidden")]
     HiddenPathNotAllowed,
-    #[error("'{0}' is a reserved name and cannot be used as a path component")]
-    ReservedNameNotAllowed(String),
     #[error("The path to the graph contains a subpath to an existing graph")]
     ParentIsGraph,
     #[error("Graph name cannot start with _")]

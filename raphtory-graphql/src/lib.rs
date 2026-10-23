@@ -2025,24 +2025,78 @@ mod graphql_test {
     }
 
     #[tokio::test]
-    async fn test_new_graph_rejects_reserved_path_components() {
+    async fn test_new_graph_allows_marker_file_names() {
         let tmp_dir = tempdir().unwrap();
         let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
+        // Users can create graphs with the names of marker files,
+        // but the server should not confuse the parent dir as a graph.
         let should_work = true;
-        test_new_graph(&schema, "raphs", should_work).await;
-        test_new_graph(&schema, "ns/metadata", should_work).await;
-
-        let should_work = false;
         test_new_graph(&schema, "raph.json", should_work).await;
         test_new_graph(&schema, "ns/raph.json", should_work).await;
         test_new_graph(&schema, "ns/dirty.json", should_work).await;
         test_new_graph(&schema, "ns/meta.json", should_work).await;
-        test_new_graph(&schema, "RAPH.JSON", should_work).await;
+        test_new_graph(&schema, "nested/path/raph.json/raph.json", should_work).await;
+        test_new_graph(&schema, "nested/path/dirty.json/dirty.json", should_work).await;
+        test_new_graph(&schema, "nested/path/meta.json/meta.json", should_work).await;
 
-        assert_namespace_graphs(&schema, "", vec!["raphs"], vec!["ns"]).await;
-        assert_namespace_graphs(&schema, "ns", vec!["ns/metadata"], vec![]).await;
+        // Cannot create graphs under existing graphs.
+        let should_work = false;
+        test_new_graph(&schema, "raph.json/nested", should_work).await;
+        test_new_graph(&schema, "raph.json/raph.json", should_work).await;
+        test_new_graph(&schema, "ns/raph.json/child", should_work).await;
+        test_new_graph(&schema, "ns/raph.json/raph.json", should_work).await;
+        test_new_graph(&schema, "ns/dirty.json/dirty.json", should_work).await;
+        test_new_graph(&schema, "ns/meta.json/meta.json", should_work).await;
+        test_new_graph(&schema, "ns/raph.json/data0/meta.json", should_work).await;
+
+        assert_namespace_graphs(&schema, "", vec!["raph.json"], vec!["nested", "ns"]).await;
+
+        assert_namespace_graphs(
+            &schema,
+            "ns",
+            vec!["ns/dirty.json", "ns/meta.json", "ns/raph.json"],
+            vec![],
+        )
+        .await;
+
+        // Server can distinguish graphs and marker files correctly.
+        assert_namespace_graphs(
+            &schema,
+            "nested/path",
+            vec![],
+            vec![
+                "nested/path/dirty.json",
+                "nested/path/meta.json",
+                "nested/path/raph.json",
+            ],
+        )
+        .await;
+
+        assert_namespace_graphs(
+            &schema,
+            "nested/path/raph.json",
+            vec!["nested/path/raph.json/raph.json"],
+            vec![],
+        )
+        .await;
+
+        assert_namespace_graphs(
+            &schema,
+            "nested/path/dirty.json",
+            vec!["nested/path/dirty.json/dirty.json"],
+            vec![],
+        )
+        .await;
+
+        assert_namespace_graphs(
+            &schema,
+            "nested/path/meta.json",
+            vec!["nested/path/meta.json/meta.json"],
+            vec![],
+        )
+        .await;
     }
 
     #[tokio::test]
