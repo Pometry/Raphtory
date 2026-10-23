@@ -10,7 +10,7 @@ from __future__ import annotations
 ###############################################################################
 
 from typing import *
-from raphtory import Nodes, Metadata, Prop, filter
+from raphtory import GraphView, Nodes, Metadata, Prop, filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
