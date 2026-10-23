@@ -39,11 +39,19 @@ impl EdgeAt {
         }
     }
 
-    /// A read through a layer the view does not show has no answer.
-    fn visible<G: GraphView>(self, graph: &G) -> bool {
+    /// A read through a layer the view does not show has no answer, and
+    /// neither has a read of an exploded instance through a view the instance
+    /// is outside of (a window or `at` that leaves its update out).
+    fn visible<G: GraphView>(self, graph: &G, edge: EdgeEntryRef) -> bool {
         match self {
             EdgeAt::Whole => true,
-            EdgeAt::Layer(layer) | EdgeAt::Exploded(layer, _) => graph.layer_ids().contains(&layer),
+            EdgeAt::Layer(layer) => graph.layer_ids().contains(&layer),
+            EdgeAt::Exploded(layer, t) => {
+                graph.layer_ids().contains(&layer)
+                    && graph
+                        .edge_time_semantics()
+                        .edge_is_active_exploded(edge, graph, t, layer)
+            }
         }
     }
 }
@@ -74,7 +82,7 @@ pub(crate) fn temporal_value<G: GraphView>(
     at: EdgeAt,
     id: usize,
 ) -> Option<Prop> {
-    if !at.visible(graph) {
+    if !at.visible(graph, edge) {
         return None;
     }
     let time_semantics = graph.edge_time_semantics();
@@ -98,7 +106,7 @@ pub(crate) fn temporal_hist<'a, G: GraphView>(
     at: EdgeAt,
     id: usize,
 ) -> BoxedLIter<'a, (EventTime, Prop)> {
-    if !at.visible(graph) {
+    if !at.visible(graph, edge) {
         return iter::empty().into_dyn_boxed();
     }
     let time_semantics = graph.edge_time_semantics();
@@ -131,7 +139,7 @@ pub(crate) fn metadata<G: GraphView>(
     at: EdgeAt,
     id: usize,
 ) -> Option<Prop> {
-    if !at.visible(graph) {
+    if !at.visible(graph, edge) {
         return None;
     }
     let time_semantics = graph.edge_time_semantics();
@@ -144,7 +152,7 @@ pub(crate) fn metadata<G: GraphView>(
 }
 
 pub(crate) fn is_active<G: GraphView>(graph: &G, edge: EdgeEntryRef, at: EdgeAt) -> bool {
-    if !at.visible(graph) {
+    if !at.visible(graph, edge) {
         return false;
     }
     let time_semantics = graph.edge_time_semantics();
@@ -153,12 +161,13 @@ pub(crate) fn is_active<G: GraphView>(graph: &G, edge: EdgeEntryRef, at: EdgeAt)
         EdgeAt::Layer(layer) => {
             time_semantics.edge_is_active(edge, LayeredGraph::new(graph, LayerIds::One(layer)))
         }
-        EdgeAt::Exploded(layer, t) => time_semantics.edge_is_active_exploded(edge, graph, t, layer),
+        // An instance the view shows is active in it: `visible` asked already.
+        EdgeAt::Exploded(..) => true,
     }
 }
 
 pub(crate) fn is_valid<G: GraphView>(graph: &G, edge: EdgeEntryRef, at: EdgeAt) -> bool {
-    if !at.visible(graph) {
+    if !at.visible(graph, edge) {
         return false;
     }
     let time_semantics = graph.edge_time_semantics();
@@ -172,7 +181,7 @@ pub(crate) fn is_valid<G: GraphView>(graph: &G, edge: EdgeEntryRef, at: EdgeAt) 
 }
 
 pub(crate) fn is_deleted<G: GraphView>(graph: &G, edge: EdgeEntryRef, at: EdgeAt) -> bool {
-    if !at.visible(graph) {
+    if !at.visible(graph, edge) {
         return false;
     }
     let time_semantics = graph.edge_time_semantics();

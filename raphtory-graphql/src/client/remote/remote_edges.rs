@@ -121,10 +121,10 @@ impl RemoteEdges {
         }
     }
 
-    /// Filter this collection by a filter expression. **The filter
-    /// propagates**: it applies to the current collection's membership
-    /// *and* to downstream traversals from the matching edges. For a
-    /// narrow-here-only variant, use `.select(...)`. Recorded in `ctx` so
+    /// Filter this collection by a filter expression. Every edge stays in
+    /// the collection; the filter scopes what is reached through them and
+    /// carries through later traversals. To keep only the matching edges,
+    /// use `.select(...)`. Recorded in `ctx` so
     /// members materialized via `.collect()` replay it per handle (server
     /// field `filter` on `Edge`). Lazy — no RPC.
     pub fn filter(
