@@ -103,9 +103,9 @@ pub trait InternalAdditionOps {
         &self,
         is_static: bool,
         meta: &Meta,
-        layer: LayerId,
+        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error>;
+    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error>;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -258,11 +258,11 @@ impl InternalAdditionOps for GraphStorage {
         &self,
         is_static: bool,
         meta: &Meta,
-        layer: LayerId,
+        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
+    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error> {
         self.mutable()?
-            .validate_props_with_status(is_static, meta, layer, props)
+            .validate_props_with_status(is_static, meta, resolve_layer, props)
     }
 
     fn validate_gids<'a>(
@@ -374,11 +374,11 @@ where
         &self,
         is_static: bool,
         meta: &Meta,
-        layer: LayerId,
+        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
+    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error> {
         self.base()
-            .validate_props_with_status(is_static, meta, layer, props)
+            .validate_props_with_status(is_static, meta, resolve_layer, props)
     }
 
     #[inline]

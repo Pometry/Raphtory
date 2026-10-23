@@ -433,10 +433,10 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
         let transaction_id = transaction_manager.begin_transaction();
 
-        let props_with_status = self.graph.core_graph().validate_props_with_status(
+        let (props_with_status, _) = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.node_meta(),
-            STATIC_GRAPH_LAYER_ID,
+            || Ok(STATIC_GRAPH_LAYER_ID),
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
@@ -558,12 +558,12 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 .map_err(into_graph_err)?
                 .inner(),
         };
-        let props_with_status = self
+        let (props_with_status, _) = self
             .graph
             .validate_props_with_status(
                 false,
                 self.graph.node_meta(),
-                layer_id,
+                || Ok(layer_id),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;

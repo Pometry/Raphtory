@@ -226,12 +226,11 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         )
         .map_err(into_graph_err)?;
 
-        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
-        let props_with_status = self
+        let (props_with_status, layer_id) = self
             .validate_props_with_status(
                 false,
                 self.edge_meta(),
-                layer_id,
+                || Ok(self.resolve_layer(layer)?.inner()),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
@@ -348,11 +347,11 @@ fn add_node_impl<
         None => STATIC_GRAPH_LAYER_ID,
         Some(_) => graph.resolve_layer(layer).map_err(into_graph_err)?.inner(),
     };
-    let props_with_status = graph
+    let (props_with_status, _) = graph
         .validate_props_with_status(
             false,
             graph.node_meta(),
-            layer_id,
+            || Ok(layer_id),
             props.into_iter().map(|(k, v)| (k, v.into())),
         )
         .map_err(into_graph_err)?;

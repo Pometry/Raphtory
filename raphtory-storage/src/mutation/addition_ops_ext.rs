@@ -705,7 +705,7 @@ impl InternalAdditionOps for TemporalGraph {
         layer: LayerId,
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        let props = self.validate_props_with_status(is_static, meta, layer, props)?;
+        let (props, _) = self.validate_props_with_status(is_static, meta, || Ok(layer), props)?;
         Ok(props
             .into_iter()
             .map(|maybe_new| {
@@ -719,9 +719,9 @@ impl InternalAdditionOps for TemporalGraph {
         &self,
         is_static: bool,
         meta: &Meta,
-        layer: LayerId,
+        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
+    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error> {
         let (props, mapper) = if is_static {
             let props = PropsMetaWriter::constant(meta, props)
                 .and_then(|pmw| pmw.into_props_const_with_status())
@@ -734,8 +734,9 @@ impl InternalAdditionOps for TemporalGraph {
             (props, meta.temporal_prop_mapper())
         };
         // after PropsMetaWriter has dropped its mapper locks
+        let layer = resolve_layer()?;
         mapper.mark_props_in_layer(layer, props.iter().map(|p| p.as_ref().inner().1));
-        Ok(props)
+        Ok((props, layer))
     }
 }
 

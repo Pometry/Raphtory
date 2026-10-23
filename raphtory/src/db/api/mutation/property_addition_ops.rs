@@ -62,11 +62,11 @@ impl<
         let session = self.write_session().map_err(|err| err.into())?;
         let t = time_from_input_session(&session, t)?;
 
-        let props_with_status = self
+        let (props_with_status, _) = self
             .validate_props_with_status(
                 false,
                 self.graph_props_meta(),
-                MemGraphPropSegment::DEFAULT_LAYER,
+                || Ok(MemGraphPropSegment::DEFAULT_LAYER),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
@@ -140,11 +140,11 @@ where
     let wal = graph.core_graph().wal()?;
     let transaction_id = transaction_manager.begin_transaction();
 
-    let props_with_status = graph
+    let (props_with_status, _) = graph
         .validate_props_with_status(
             true,
             graph.graph_props_meta(),
-            MemGraphPropSegment::DEFAULT_LAYER,
+            || Ok(MemGraphPropSegment::DEFAULT_LAYER),
             props.into_iter().map(|(k, v)| (k, v.into())),
         )
         .map_err(into_graph_err)?;
