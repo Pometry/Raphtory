@@ -13,7 +13,8 @@ use crate::{
 use db4_graph::TemporalGraph;
 use itertools::Either;
 use raphtory_api::core::entities::{
-    properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
+    properties::meta::{LayerPresenceRef, Meta},
+    LayerId, LayerIds, LayerVariants, EID, VID,
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
@@ -408,6 +409,54 @@ impl GraphStorage {
         match self {
             GraphStorage::Locked(storage) => storage.graph.graph_props_meta(),
             GraphStorage::Unlocked(storage) => storage.graph_props_meta(),
+        }
+    }
+
+    /// The graph's per-layer property presence bitset, may be locked or unlocked.
+    pub fn node_temporal_presence(&self) -> LayerPresenceRef<'_> {
+        match self {
+            GraphStorage::Locked(storage) => {
+                LayerPresenceRef::Locked(&storage.node_presence().temporal)
+            }
+            GraphStorage::Unlocked(storage) => {
+                LayerPresenceRef::Live(storage.node_meta().temporal_prop_mapper())
+            }
+        }
+    }
+
+    /// The graph's per-layer metadata presence bitset, may be locked or unlocked.
+    pub fn node_metadata_presence(&self) -> LayerPresenceRef<'_> {
+        match self {
+            GraphStorage::Locked(storage) => {
+                LayerPresenceRef::Locked(&storage.node_presence().metadata)
+            }
+            GraphStorage::Unlocked(storage) => {
+                LayerPresenceRef::Live(storage.node_meta().metadata_mapper())
+            }
+        }
+    }
+
+    /// The graph's per-layer property presence bitset, may be locked or unlocked.
+    pub fn edge_temporal_presence(&self) -> LayerPresenceRef<'_> {
+        match self {
+            GraphStorage::Locked(storage) => {
+                LayerPresenceRef::Locked(&storage.edge_presence().temporal)
+            }
+            GraphStorage::Unlocked(storage) => {
+                LayerPresenceRef::Live(storage.edge_meta().temporal_prop_mapper())
+            }
+        }
+    }
+
+    /// The graph's per-layer metadata presence bitset, may be locked or unlocked.
+    pub fn edge_metadata_presence(&self) -> LayerPresenceRef<'_> {
+        match self {
+            GraphStorage::Locked(storage) => {
+                LayerPresenceRef::Locked(&storage.edge_presence().metadata)
+            }
+            GraphStorage::Unlocked(storage) => {
+                LayerPresenceRef::Live(storage.edge_meta().metadata_mapper())
+            }
         }
     }
 

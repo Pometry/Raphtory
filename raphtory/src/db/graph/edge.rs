@@ -414,9 +414,10 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         let wal = self.graph.core_graph().wal()?;
         let transaction_id = transaction_manager.begin_transaction();
 
-        let props_with_status = self.graph.core_graph().validate_props_with_status(
+        let (props_with_status, _) = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.edge_meta(),
+            || Ok(input_layer_id),
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
@@ -480,11 +481,12 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         let t = time_from_input_session(&session, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
 
-        let props_with_status = self
+        let (props_with_status, _) = self
             .graph
             .validate_props_with_status(
                 false,
                 self.graph.edge_meta(),
+                || Ok(layer_id),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;

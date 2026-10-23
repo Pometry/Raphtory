@@ -21,13 +21,13 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::graph::GraphStorage,
+    graph::graph::{GraphStorage, Immutable},
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
         property_addition_ops::InternalPropertyAdditionOps,
-        EdgeWriterT, GraphPropWriterT, NodeWriterT,
+        EdgeWriterT, GraphPropWriterT, MutationError, NodeWriterT,
     },
 };
 use std::{
@@ -382,20 +382,39 @@ impl InternalAdditionOps for Storage {
         &self,
         is_static: bool,
         meta: &Meta,
+        layer: LayerId,
         prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        Ok(self.graph.validate_props(is_static, meta, prop)?)
+        Ok(self.graph.validate_props(is_static, meta, layer, prop)?)
     }
 
     fn validate_props_with_status<PN: AsRef<str>>(
         &self,
         is_static: bool,
         meta: &Meta,
+        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
-        Ok(self
-            .graph
-            .validate_props_with_status(is_static, meta, props)?)
+    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error> {
+        // the inner graph expects a MutationError from the closure, so stash the GraphError and surface it after
+        let mut layer_err = None;
+        let res = self.graph.validate_props_with_status(
+            is_static,
+            meta,
+            || {
+                resolve_layer().map_err(|err| match err {
+                    GraphError::MutationError(err) => err,
+                    err => {
+                        layer_err = Some(err);
+                        MutationError::Immutable(Immutable::ReadLockedImmutable)
+                    }
+                })
+            },
+            props,
+        );
+        match layer_err {
+            Some(err) => Err(err),
+            None => Ok(res?),
+        }
     }
 
     fn validate_gids<'a>(
