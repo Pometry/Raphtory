@@ -8,7 +8,6 @@
 //! └── data{id}/    # DataFolder (incremental id for atomic replacement)
 //!     ├── meta.json     # Metadata file (json: {path: "graph{id}", meta: {}}) pointing at the current graph folder
 //!     ├── graph{id}/    # Graph data (incremental id for atomic replacement)
-//!     ├── index/        # Search indexes (optional)
 //!     └── vectors/      # Vector embeddings (optional)
 
 use crate::{to_millis::ToMillis, GraphType};
@@ -36,8 +35,6 @@ pub const GRAPH_META_PATH: &str = "meta.json";
 /// Directory that stores graph data.
 pub const GRAPH_PATH: &str = "graph";
 pub const DEFAULT_GRAPH_PATH: &str = "graph0";
-/// Directory that stores search indexes.
-pub const INDEX_PATH: &str = "index";
 /// Directory that stores vector embeddings of the graph.
 pub const VECTORS_PATH: &str = "vectors";
 /// Temporary metadata file for atomic replacement.
@@ -261,12 +258,6 @@ pub trait GraphPaths {
         Ok(path)
     }
 
-    fn index_path(&self) -> Result<PathBuf, GraphFolderError> {
-        let mut path = self.data_path()?.path;
-        path.push(INDEX_PATH);
-        Ok(path)
-    }
-
     fn graph_path(&self) -> Result<PathBuf, GraphFolderError> {
         let mut path = self.data_path()?.path;
         path.push(self.relative_graph_path()?);
@@ -327,13 +318,13 @@ pub trait GraphPaths {
             file.read_to_string(&mut json)?;
         }
 
-        let metadata: Metadata = serde_json::from_str(&json)?;
+        let graph_meta: Metadata = serde_json::from_str(&json)?;
 
-        Ok(metadata)
+        Ok(graph_meta)
     }
 
-    fn write_graph_meta(&self, meta: Metadata) -> Result<(), GraphFolderError> {
-        meta.write(self.graph_meta_path()?.as_ref())?;
+    fn write_graph_meta(&self, graph_meta: Metadata) -> Result<(), GraphFolderError> {
+        graph_meta.write(self.graph_meta_path()?.as_ref())?;
         Ok(())
     }
 
@@ -775,9 +766,9 @@ impl DataFolder {
         let mut json = String::new();
         let mut file = File::open(self.graph_meta_path())?;
         file.read_to_string(&mut json)?;
-        let metadata: Metadata = serde_json::from_str(&json)?;
+        let graph_meta: Metadata = serde_json::from_str(&json)?;
 
-        Ok(metadata)
+        Ok(graph_meta)
     }
 
     /// Atomically point the metadata file at the graph data described by `graph_meta`, removing the
@@ -800,10 +791,6 @@ impl DataFolder {
 
     pub fn vectors_path(&self) -> PathBuf {
         self.path.join(VECTORS_PATH)
-    }
-
-    pub fn index_path(&self) -> PathBuf {
-        self.path.join(INDEX_PATH)
     }
 
     pub fn graph_meta_path(&self) -> PathBuf {

@@ -21,7 +21,7 @@ use raphtory_api::core::storage::graph_folder::{
     WriteableGraphFolder, ROOT_RAPH_PATH,
 };
 
-/// Crash-recovery marker for an in-progress directory create/delete.
+/// Crash-recovery marker for an in-progress directory operation.
 pub(crate) const DIRTY_DIRECTORY: &str = ".dirty_directory";
 
 use std::{
@@ -100,7 +100,7 @@ pub trait ValidGraphPaths {
 
     async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
         let folder = self.graph_folder().root().to_path_buf();
-        blocking_compute(move || folder.read_graph_meta())
+        blocking_compute(move || folder.read_graph_meta().map(|graph_meta| graph_meta.meta))
             .await
             .with_path(self.local_path())
     }
@@ -544,7 +544,7 @@ impl ValidWriteableGraphFolder {
 
     pub fn read_graph(&self, args: Args) -> Result<MaterializedGraph, PathValidationError> {
         self.with_internal_errors(|| {
-            if self.graph_folder().read_graph_meta()?.is_diskgraph {
+            if self.graph_folder().read_graph_meta()?.meta.is_diskgraph {
                 MaterializedGraph::load_with_config(self.graph_folder(), args)
             } else {
                 MaterializedGraph::decode_with_config(self.graph_folder(), args)

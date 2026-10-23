@@ -1278,9 +1278,15 @@ pub(crate) mod data_tests {
 
         // The persisted sidecar (what cache-miss listings read) must reflect the writes.
         let read_folder = ExistingGraphFolder::try_from(data.work_dir_read().await, path).unwrap();
-        let meta = read_folder.graph_folder().read_graph_meta().unwrap();
-        assert_eq!(meta.node_count, 3, "sidecar node_count stale after persist");
-        assert_eq!(meta.edge_count, 1, "sidecar edge_count stale after persist");
+        let graph_meta = read_folder.graph_folder().read_graph_meta().unwrap();
+        assert_eq!(
+            graph_meta.meta.node_count, 3,
+            "sidecar node_count stale after persist"
+        );
+        assert_eq!(
+            graph_meta.meta.edge_count, 1,
+            "sidecar edge_count stale after persist"
+        );
     }
 
     /// Eviction (here via `flush_and_clear`) must also persist true counts —
@@ -1309,13 +1315,13 @@ pub(crate) mod data_tests {
         data.cache.flush_and_clear();
 
         let read_folder = ExistingGraphFolder::try_from(data.work_dir_read().await, path).unwrap();
-        let meta = read_folder.graph_folder().read_graph_meta().unwrap();
+        let graph_meta = read_folder.graph_folder().read_graph_meta().unwrap();
         assert_eq!(
-            meta.node_count, 2,
+            graph_meta.meta.node_count, 2,
             "sidecar node_count stale after eviction"
         );
         assert_eq!(
-            meta.edge_count, 1,
+            graph_meta.meta.edge_count, 1,
             "sidecar edge_count stale after eviction"
         );
     }
