@@ -10,11 +10,62 @@ use crate::{
     persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
-use parking_lot::RwLockWriteGuard;
+use parking_lot::{ArcRwLockWriteGuard, RawRwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
-use std::{ops::DerefMut, path::Path};
+use std::{
+    ops::{Deref, DerefMut},
+    path::Path,
+};
+
+/// Write lock on the head of a node segment created during a bulk load, taken before the
+/// segment was published so no reader can see its uninitialised nodes.
+///
+/// Hand it over with `WriteLockedGraph::extend_new`.
+pub type ArcNodeSegmentGuard = ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>;
+
+/// The head lock of a [`LockedNodeSegment`]: borrowed for segments that existed when the graph
+/// was locked, owned for segments created and locked during the bulk load.
+#[derive(Debug)]
+pub enum LockedNodeHead<'a> {
+    Borrowed(RwLockWriteGuard<'a, MemNodeSegment>),
+    Arc(ArcNodeSegmentGuard),
+}
+
+impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
+    fn from(head: RwLockWriteGuard<'a, MemNodeSegment>) -> Self {
+        Self::Borrowed(head)
+    }
+}
+
+impl From<ArcNodeSegmentGuard> for LockedNodeHead<'_> {
+    fn from(head: ArcNodeSegmentGuard) -> Self {
+        Self::Arc(head)
+    }
+}
+
+impl Deref for LockedNodeHead<'_> {
+    type Target = MemNodeSegment;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Borrowed(head) => head,
+            Self::Arc(head) => head,
+        }
+    }
+}
+
+impl DerefMut for LockedNodeHead<'_> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Self::Borrowed(head) => head,
+            Self::Arc(head) => head,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct LockedNodeSegment<'a, NS> {
@@ -22,7 +73,7 @@ pub struct LockedNodeSegment<'a, NS> {
     max_page_len: u32,
     layer_counter: &'a GraphStats,
     segment: &'a NS,
-    head: RwLockWriteGuard<'a, MemNodeSegment>,
+    head: LockedNodeHead<'a>,
 }
 
 impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
@@ -31,14 +82,14 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
         layer_counter: &'a GraphStats,
         max_page_len: u32,
         segment: &'a NS,
-        head: RwLockWriteGuard<'a, MemNodeSegment>,
+        head: impl Into<LockedNodeHead<'a>>,
     ) -> Self {
         Self {
             id,
             layer_counter,
             max_page_len,
             segment,
-            head,
+            head: head.into(),
         }
     }
 

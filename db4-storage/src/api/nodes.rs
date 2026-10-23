@@ -34,7 +34,7 @@ use crate::{
     LocalPOS,
     error::StorageError,
     generic_time_ops::LayerIter,
-    pages::node_store::increment_and_clamp,
+    pages::{locked::nodes::ArcNodeSegmentGuard, node_store::increment_and_clamp},
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
@@ -216,6 +216,8 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn segment_id(&self) -> usize;
 
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>;
+
+    fn head_mut_arc(&self) -> ArcNodeSegmentGuard;
 
     fn head(&self) -> RwLockReadGuard<'_, MemNodeSegment>;
 

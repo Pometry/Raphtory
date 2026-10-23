@@ -3,6 +3,7 @@ use crate::{
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
+    pages::locked::nodes::ArcNodeSegmentGuard,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
         HasRow, SegmentContainer,
@@ -512,6 +513,11 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     #[inline(always)]
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
         self.inner.read_arc_recursive()
+    }
+
+    #[inline(always)]
+    fn head_mut_arc(&self) -> ArcNodeSegmentGuard {
+        self.inner.write_arc()
     }
 
     #[inline(always)]

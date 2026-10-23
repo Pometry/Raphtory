@@ -27,7 +27,7 @@ use std::{
     hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::pages::resolve_pos;
+use storage::pages::{locked::nodes::ArcNodeSegmentGuard, resolve_pos};
 
 pub mod edge_props;
 pub mod edges;
@@ -283,32 +283,33 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<FxDashMap<GidRef<'a>, VID>, GraphError> {
+) -> Result<(FxDashMap<GidRef<'a>, VID>, Vec<ArcNodeSegmentGuard>), GraphError> {
     resolve_nodes_with_cache_generic(
         cols_to_resolve,
         |vid: &VID, idx, col_idx| {
             resolved_cols[col_idx][idx].store(vid.0, Ordering::Relaxed);
         },
         |gid, _, _| {
-            let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
-            Ok(vid.inner())
+            let (vid, guards) =
+                unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+            Ok((vid.inner(), guards))
         },
     )
 }
 
-fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
+fn resolve_nodes_with_cache_generic<'a, V: Send + Sync, B: Send + Sync>(
     cols_to_resolve: &[&'a NodeCol],
     update_fn: impl Fn(&V, usize, usize) + Send + Sync,
-    new_fn: impl Fn(GidRef<'a>, usize, usize) -> Result<V, GraphError> + Send + Sync,
-) -> Result<FxDashMap<GidRef<'a>, V>, GraphError> {
+    new_fn: impl Fn(GidRef<'a>, usize, usize) -> Result<(V, Vec<B>), GraphError> + Send + Sync,
+) -> Result<(FxDashMap<GidRef<'a>, V>, Vec<B>), GraphError> {
     let gid_str_cache: dashmap::DashMap<GidRef<'_>, V, _> = FxDashMap::default();
     let hasher_factory = gid_str_cache.hasher().clone();
 
-    gid_str_cache
+    let new_seg_guards = gid_str_cache
         .shards()
         .par_iter()
         .enumerate()
-        .try_for_each(|(shard_idx, shard)| {
+        .map(|(shard_idx, shard)| {
             let mut shard_guard = shard.write();
 
             // Create hasher function for this shard
@@ -316,6 +317,8 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
 
             let hasher_fn =
                 |tuple: &(GidRef<'_>, SharedValue<V>)| -> u64 { hasher_factory.hash_one(tuple.0) };
+
+            let mut segment_guards = vec![];
 
             for (col_id, node_col) in cols_to_resolve.iter().enumerate() {
                 // Process src_col sequentially for this shard
@@ -332,7 +335,8 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
                         let v = value.get();
                         update_fn(v, row, col_id);
                     } else {
-                        let v = new_fn(gid, row, col_id)?;
+                        let (v, new_seg_guards) = new_fn(gid, row, col_id)?;
+                        segment_guards.extend(new_seg_guards);
 
                         update_fn(&v, row, col_id);
                         let data = (gid, SharedValue::new(v));
@@ -341,10 +345,19 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
                 }
             }
 
-            Ok::<(), GraphError>(())
-        })?;
+            Ok::<_, GraphError>(segment_guards)
+        })
+        .collect::<Result<Vec<Vec<B>>, GraphError>>()?;
 
-    Ok(gid_str_cache)
+    let new_seg_guards = new_seg_guards
+        .into_iter()
+        .reduce(|mut a, b| {
+            a.extend(b);
+            a
+        })
+        .unwrap_or_default();
+
+    Ok((gid_str_cache, new_seg_guards))
 }
 
 pub(crate) fn group_rows_by_vid_segment(

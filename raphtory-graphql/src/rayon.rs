@@ -114,7 +114,7 @@ mod deadlock_tests {
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
-        test_pool_lock(43871, |lock| {
+        test_pool_lock(|lock| {
             COMPUTE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock();
             });
@@ -124,7 +124,7 @@ mod deadlock_tests {
 
     #[tokio::test]
     async fn test_deadlock_in_write_pool() {
-        test_pool_lock(43872, |lock| {
+        test_pool_lock(|lock| {
             WRITE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock();
             });
@@ -132,13 +132,14 @@ mod deadlock_tests {
         .await;
     }
 
-    async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
+    async fn test_pool_lock(pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let _serial = super::TEST_SERIAL.lock();
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
-        let _running = server.start_with_port(port).await.unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
         tokio::time::sleep(Duration::from_secs(1)).await; // this is to wait for the server to be up
         let lock = Arc::new(Mutex::new(()));
         let _guard = lock.lock();

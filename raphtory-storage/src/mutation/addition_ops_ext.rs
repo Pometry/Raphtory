@@ -31,7 +31,10 @@ use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
+    pages::{
+        locked::nodes::ArcNodeSegmentGuard, node_page::writer::NodeWriters, resolve_pos,
+        session::EdgeWriteSession,
+    },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
@@ -245,105 +248,20 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(id)
     }
 
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        match id {
-            NodeRef::External(id) => {
-                let id = match self.gid_resolver.get_or_init(id)? {
-                    MaybeInit::VID(vid) => MaybeNew::Existing(vid),
-                    MaybeInit::Init(init) => {
-                        let (seg, pos) = self.storage().nodes().reserve_free_pos(
-                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
-                        );
-                        let vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
-                        init.init(vid)?;
-                        MaybeNew::New(vid)
-                    }
-                };
-                Ok(id)
-            }
-            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
-        }
-    }
-
-    fn resolve_and_update_node_and_type(
+    unsafe fn bulk_load_resolve_node(
         &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        let vid = self.resolve_node(id)?;
-        let (segment_id, local_pos) = self.storage().nodes().resolve_pos(vid.inner());
-        let mut writer = self.storage().nodes().writer(segment_id);
-
-        let node_type_id = match node_type {
-            None => {
-                if let Some(gid) = id.as_gid_ref() {
-                    writer.store_node_id(local_pos, gid.to_owned());
-                }
-
-                MaybeNew::Existing(DEFAULT_NODE_TYPE_ID)
-            }
-            Some(node_type) => {
-                let existing_type_id = writer
-                    .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
-                    .into_u64();
-
-                match existing_type_id {
-                    None => {
-                        let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
-
-                        writer.store_node_id_and_node_type(
-                            local_pos,
-                            id.as_gid_ref(),
-                            node_type_id.inner(),
-                        );
-
-                        node_type_id
-                    }
-                    Some(existing_type_id) => {
-                        // Node types cannot be changed once set.
-                        // Fail if trying to set a different type_id.
-                        let node_type_id = self
-                            .node_meta()
-                            .get_node_type_id(node_type)
-                            .filter(|&node_type_id| node_type_id == existing_type_id as usize)
-                            .ok_or(MutationError::NodeTypeError)?;
-
-                        MaybeNew::Existing(node_type_id)
-                    }
-                }
-            }
-        };
-
-        Ok(vid.map(|_| (vid, node_type_id)))
-    }
-
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
-        let vid = self.resolve_node(id)?.inner();
-        let node_type_id = match node_type {
-            Some(node_type) => self
-                .node_meta()
-                .get_or_create_node_type_id(node_type)
-                .inner(),
-            None => DEFAULT_NODE_TYPE_ID,
-        };
-        Ok((vid, node_type_id))
-    }
-
-    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
+        id: GidRef<'_>,
+    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentGuard>), Self::Error> {
         let vid = match self.gid_resolver.get(id) {
-            Some(vid) => MaybeNew::Existing(vid),
+            Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
             None => {
-                let (seg, pos) = self
+                let (seg, pos, new_locks) = self
                     .storage()
                     .nodes()
                     .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
                 let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
                 self.gid_resolver.set(id, new_vid)?;
-                MaybeNew::New(new_vid)
+                (MaybeNew::New(new_vid), new_locks)
             }
         };
 
