@@ -11,7 +11,7 @@
 //!     ├── index/        # Search indexes (optional)
 //!     └── vectors/      # Vector embeddings (optional)
 
-use crate::{core::input::input_node::parse_u64_strict, to_millis::ToMillis, GraphType};
+use crate::{to_millis::ToMillis, GraphType};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -54,7 +54,7 @@ pub struct Metadata {
 
     /// The event id of the source graph this graph was derived from.
     /// Populated on a stage operation.
-    pub src_event_id: Option<u32>,
+    pub src_event_id: Option<u64>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug)]
@@ -127,17 +127,17 @@ pub enum GraphFolderError {
 pub fn validate_path_pointer(relative_path: &str, prefix: &str) -> Result<(), GraphFolderError> {
     relative_path
         .strip_prefix(prefix) // should have the prefix
-        .and_then(parse_u64_strict) // the remainder should be the id
+        .and_then(|version| version.parse::<u32>().ok()) // the remainder should be the version number
         .ok_or_else(|| GraphFolderError::InvalidRelativePath(relative_path.to_string()))?;
 
     Ok(())
 }
 
-pub fn version_from_data_path(path: &str) -> Result<u64, GraphFolderError> {
+pub fn version_from_data_path(path: &str) -> Result<u32, GraphFolderError> {
     validate_path_pointer(path, DATA_PATH)?;
 
     path.strip_prefix(DATA_PATH)
-        .and_then(parse_u64_strict)
+        .and_then(|version| version.parse::<u32>().ok())
         .ok_or_else(|| GraphFolderError::InvalidRelativePath(path.to_string()))
 }
 
@@ -172,18 +172,24 @@ pub fn make_path_pointer(
     file_name: &str,
     prefix: &str,
 ) -> Result<String, GraphFolderError> {
-    let mut id = read_path_pointer(base_path, file_name, prefix)?
-        .and_then(|path| {
-            path.strip_prefix(prefix)
-                .and_then(|id| id.parse::<usize>().ok())
-        })
-        .map_or(0, |id| id + 1);
+    let mut version = match read_path_pointer(base_path, file_name, prefix)? {
+        Some(path) => path
+            .strip_prefix(prefix)
+            .and_then(|version| version.parse::<u32>().ok())
+            .and_then(|version| version.checked_add(1))
+            .ok_or_else(|| GraphFolderError::InvalidRelativePath(path))?,
+        None => 0,
+    };
 
-    let mut path = format!("{prefix}{id}");
+    let mut path = format!("{prefix}{version}");
     while base_path.join(&path).exists() {
-        id += 1;
-        path = format!("{prefix}{id}");
+        version = version
+            .checked_add(1)
+            .ok_or_else(|| GraphFolderError::InvalidRelativePath(path.clone()))?;
+
+        path = format!("{prefix}{version}");
     }
+
     Ok(path)
 }
 
@@ -378,8 +384,13 @@ pub trait GraphPaths {
             .to_millis()?)
     }
 
+    fn version(&self, path: &str) -> Result<u32, GraphFolderError> {
+        // version_from_graph_path(path)
+        todo!()
+    }
+
     /// Version of the active `data{id}/` directory.
-    fn active_version(&self) -> Result<u64, GraphFolderError> {
+    fn active_version(&self) -> Result<u32, GraphFolderError> {
         let data_path = if self.is_zip() {
             let mut zip = self.read_zip()?;
             get_zip_data_path(&mut zip)?
@@ -392,7 +403,7 @@ pub trait GraphPaths {
     }
 
     /// All `data{id}/` versions under the graph root.
-    fn all_versions(&self) -> Result<Vec<u64>, GraphFolderError> {
+    fn all_versions(&self) -> Result<Vec<u32>, GraphFolderError> {
         if self.is_zip() {
             let mut zip = self.read_zip()?;
             let mut versions = BTreeSet::new();
