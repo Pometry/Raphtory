@@ -30,7 +30,7 @@ use crate::{
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps,
+    mutation::InheritMutationOps, stage::Stage,
 };
 use rayon::prelude::*;
 use std::{
@@ -53,6 +53,14 @@ pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
 
+impl From<Storage> for Graph {
+    fn from(inner: Storage) -> Self {
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+}
+
 impl From<Arc<Storage>> for Graph {
     fn from(inner: Arc<Storage>) -> Self {
         Self { inner }
@@ -62,7 +70,7 @@ impl From<Arc<Storage>> for Graph {
 impl From<GraphStorage> for Graph {
     fn from(inner: GraphStorage) -> Self {
         Self {
-            inner: Arc::new(Storage::from_inner(inner)),
+            inner: Arc::new(Storage::from(inner)),
         }
     }
 }
@@ -120,6 +128,7 @@ impl Graph {
     /// use raphtory::prelude::Graph;
     /// let g = Graph::new();
     /// ```
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         // TODO: This should return a Result.
         Self::new_with_config(Args::default()).unwrap()
@@ -246,10 +255,6 @@ impl Graph {
         })
     }
 
-    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
-        Self { inner }
-    }
-
     /// Return a read-only handle to this graph. Mutations on the returned
     /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
     /// `TemporalGraph` is shared — this is not a snapshot.
@@ -264,9 +269,8 @@ impl Graph {
         }
     }
 
-    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
-        let inner = Arc::new(Storage::from_inner(graph_storage));
-        Self { inner }
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self).map_err(GraphError::from)
     }
 
     pub fn event_graph(&self) -> Graph {
@@ -275,7 +279,7 @@ impl Graph {
 
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_storage(self.inner.clone())
+        PersistentGraph::from(self.inner.clone())
     }
 }
 

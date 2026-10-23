@@ -85,6 +85,8 @@
 //! We are always looking for contributors to help us improve the library.
 //! If you are interested in contributing, please see
 //! our [GitHub repository](https://github.com/Raphtory/raphtory)
+#![allow(clippy::module_inception)]
+
 pub mod algorithms;
 pub mod db;
 pub mod graphgen;
@@ -95,9 +97,6 @@ pub mod python;
 
 #[cfg(feature = "io")]
 pub mod graph_loader;
-
-#[cfg(feature = "vectors")]
-pub mod vectors;
 
 #[cfg(feature = "io")]
 pub mod io;
@@ -158,7 +157,7 @@ pub mod prelude {
 
     pub use storage::{
         persist::{args::ArgsOps, config::ConfigOps},
-        Args, Config,
+        Args,
     };
 
     #[cfg(feature = "io")]

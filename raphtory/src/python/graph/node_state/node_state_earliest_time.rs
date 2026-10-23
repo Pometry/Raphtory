@@ -387,16 +387,7 @@ impl EarliestDateTimeView {
             return Err(PyErr::from(err));
         }
         // make the Result be on the outside, not inside the NodeState
-        let op: ArrowMap<
-            Map<
-                ArrowMap<
-                    Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
-                    DateTimeStruct,
-                >,
-                Option<DateTime<Utc>>,
-            >,
-            DateTimeStruct,
-        > = self
+        let op: ArrowMap<Map<EarliestDateTime, Option<DateTime<Utc>>>, DateTimeStruct> = self
             .inner
             .op
             .clone()

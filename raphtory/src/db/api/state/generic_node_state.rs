@@ -129,6 +129,15 @@ where
         .collect()
 }
 
+// Maps the name of each node-containing column to its output type and, if known, the graph its nodes belong to.
+pub type NodeCols<'graph> = HashMap<
+    String,
+    (
+        NodeStateOutputType,
+        Option<Arc<dyn BoxableGraphView + 'graph>>,
+    ),
+>;
+
 // Then, using node_cols, the values which are actually nodes get converted into the correct NodeStateOutput variant.
 pub type TransformedPropMap<'graph, G> = IndexMap<String, NodeStateOutput<'graph, G>>;
 
@@ -208,13 +217,7 @@ pub struct GenericNodeState<'graph, G> {
     pub(crate) keys: Index<VID>,
     // Data structure mapping which columns are node-containing and, if so, which graph they belong to
     // note: maybe change that Option<G> to a Option<Box<dyn GraphViewOps>> or something
-    pub node_cols: HashMap<
-        String,
-        (
-            NodeStateOutputType,
-            Option<Arc<dyn BoxableGraphView + 'graph>>,
-        ),
-    >,
+    pub node_cols: NodeCols<'graph>,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -315,15 +318,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         base_graph: G,
         values: RecordBatch,
         keys: Index<VID>,
-        node_cols: Option<
-            HashMap<
-                String,
-                (
-                    NodeStateOutputType,
-                    Option<Arc<dyn BoxableGraphView + 'graph>>,
-                ),
-            >,
-        >,
+        node_cols: Option<NodeCols<'graph>>,
     ) -> Self {
         Self {
             base_graph,
@@ -513,7 +508,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         let mut batch: Option<RecordBatch> = None;
         let mut schema = self.values.schema();
 
-        if id_column.is_some() {
+        if let Some(id_column) = id_column {
             let ids: Vec<String> = self
                 .nodes()
                 .id()
@@ -526,11 +521,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             for field in &self.values.schema().fields().clone() {
                 builder.push(field.clone())
             }
-            builder.push(Arc::new(Field::new(
-                id_column.unwrap(),
-                DataType::LargeUtf8,
-                false,
-            )));
+            builder.push(Arc::new(Field::new(id_column, DataType::LargeUtf8, false)));
             schema = Arc::new(Schema::new(builder.finish().fields));
 
             let mut columns = self.values.columns().to_vec();
@@ -552,7 +543,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
 
     // Auxiliary function to merge columns of merging GenericNodeStates
     fn merge_columns(
-        col_name: &String,
+        col_name: &str,
         tgt_idx_set: &Index<VID>, // index set of the merged GenricNodeState
         tgt_idx_set_len: usize,
         lh: &Index<VID>,
@@ -565,11 +556,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         let iter = tgt_idx_set.iter();
         let mut idx_builder = UInt64Builder::with_capacity(tgt_idx_set_len);
         let left_col = lh_batch.column_by_name(col_name);
-        let left_len = if left_col.is_some() {
-            left_col.unwrap().len()
-        } else {
-            0
-        };
+        let left_len = left_col.map_or(0, |col| col.len());
         let right_col = rh_batch.column_by_name(col_name);
         let cat = match (left_col, right_col) {
             (Some(l), Some(r)) => &concat(&[l.as_ref(), r.as_ref()]).unwrap(),
@@ -836,7 +823,7 @@ impl<
     pub fn get_groups(&self, cols: Vec<String>) -> Result<Vec<(T, Nodes<'graph, G>)>, GraphError> {
         let num_rows = self.state.values().num_rows();
         if num_rows == 0 {
-            return Ok(vec![].into());
+            return Ok(vec![]);
         }
 
         let schema = self.state.values().schema_ref();
@@ -922,7 +909,6 @@ where
 }
 
 impl<
-        'a,
         'graph,
         V: NodeStateValue + 'graph,
         T: Clone + Sync + Send + 'graph,
@@ -1183,15 +1169,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         values: Vec<V>,
         index: Index<VID>,
-        node_cols: Option<
-            HashMap<
-                String,
-                (
-                    NodeStateOutputType,
-                    Option<Arc<dyn BoxableGraphView + 'graph>>,
-                ),
-            >,
-        >,
+        node_cols: Option<NodeCols<'graph>>,
     ) -> Self {
         Self::new_from_eval_with_index_mapped(graph, values, index, |v| v, node_cols)
     }
@@ -1201,15 +1179,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         values: Vec<R>,
         index: Index<VID>,
         map: impl Fn(R) -> V,
-        node_cols: Option<
-            HashMap<
-                String,
-                (
-                    NodeStateOutputType,
-                    Option<Arc<dyn BoxableGraphView + 'graph>>,
-                ),
-            >,
-        >,
+        node_cols: Option<NodeCols<'graph>>,
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
         //let fields = Vec::<Field>::from_type::<V>(TracingOptions::default()).unwrap();
@@ -1246,15 +1216,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     pub fn new_from_eval<V: NodeStateValue>(
         graph: G,
         values: Vec<V>,
-        node_cols: Option<
-            HashMap<
-                String,
-                (
-                    NodeStateOutputType,
-                    Option<Arc<dyn BoxableGraphView + 'graph>>,
-                ),
-            >,
-        >,
+        node_cols: Option<NodeCols<'graph>>,
     ) -> Self {
         Self::new_from_eval_mapped(graph, values, |v| v, node_cols)
     }
@@ -1269,15 +1231,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         values: Vec<R>,
         map: impl Fn(R) -> V,
-        node_cols: Option<
-            HashMap<
-                String,
-                (
-                    NodeStateOutputType,
-                    Option<Arc<dyn BoxableGraphView + 'graph>>,
-                ),
-            >,
-        >,
+        node_cols: Option<NodeCols<'graph>>,
     ) -> Self {
         let index = Index::for_graph(graph.clone());
         Self::new_from_eval_with_index_mapped(graph.clone(), values, index, map, node_cols)
@@ -1288,15 +1242,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     pub fn new_from_values(
         graph: G,
         values: impl Into<RecordBatch>,
-        node_cols: Option<
-            HashMap<
-                String,
-                (
-                    NodeStateOutputType,
-                    Option<Arc<dyn BoxableGraphView + 'graph>>,
-                ),
-            >,
-        >,
+        node_cols: Option<NodeCols<'graph>>,
     ) -> Self {
         let index = Index::for_graph(&graph);
         Self::new(
@@ -1312,15 +1258,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         values: impl IntoIterator<Item = (VID, R)>,
         map: impl Fn(R) -> V,
-        node_cols: Option<
-            HashMap<
-                String,
-                (
-                    NodeStateOutputType,
-                    Option<Arc<dyn BoxableGraphView + 'graph>>,
-                ),
-            >,
-        >,
+        node_cols: Option<NodeCols<'graph>>,
     ) -> Self {
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         Self::new_from_map_with_schema(graph, values, map, node_cols, fields)
@@ -1331,15 +1269,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         values: impl IntoIterator<Item = (VID, R)>,
         map: impl Fn(R) -> V,
-        node_cols: Option<
-            HashMap<
-                String,
-                (
-                    NodeStateOutputType,
-                    Option<Arc<dyn BoxableGraphView + 'graph>>,
-                ),
-            >,
-        >,
+        node_cols: Option<NodeCols<'graph>>,
         fields: Vec<FieldRef>,
     ) -> Self {
         let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = values
@@ -1444,9 +1374,9 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
         // Convert to rows
-        let rows = converter.convert_columns(&sort_columns).map_err(|e| {
-            GraphError::IOErrorMsg(format!("Failed to convert to rows: {}", e).into())
-        })?;
+        let rows = converter
+            .convert_columns(&sort_columns)
+            .map_err(|e| GraphError::IOErrorMsg(format!("Failed to convert to rows: {}", e)))?;
 
         // Create indices and sort by row comparison and use this to reorder keys
         let mut indices: Vec<u32> = (0..self.values.num_rows() as u32).collect();

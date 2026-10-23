@@ -51,6 +51,13 @@ pub enum GQLError {
     Arc(#[from] Arc<Self>),
 }
 
+#[cfg(feature = "vectors")]
+impl From<raphtory_vectors::errors::VectorError> for GQLError {
+    fn from(error: raphtory_vectors::errors::VectorError) -> Self {
+        GQLError::GraphError(error.into())
+    }
+}
+
 #[cfg(test)]
 mod graphql_test {
     use crate::{
@@ -280,7 +287,7 @@ mod graphql_test {
         let data = res.data.into_json().unwrap();
         assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
 
-        fn sort_properties(properties: &mut Vec<Value>) {
+        fn sort_properties(properties: &mut [Value]) {
             properties.sort_by(|a, b| {
                 let a_type = a["propertyType"].as_str().unwrap_or("");
                 let b_type = b["propertyType"].as_str().unwrap_or("");
@@ -681,7 +688,7 @@ mod graphql_test {
         assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
         let data = res.data.into_json().unwrap();
 
-        fn sorted_unique<'a>(v: &'a Value) -> Vec<&'a Value> {
+        fn sorted_unique(v: &Value) -> Vec<&Value> {
             let mut out: Vec<&Value> = v["unique"].as_array().unwrap().iter().collect();
             // serde_json::Value has a deterministic total order for same-typed values
             // and groups by type for mixed inputs — fine for this test.

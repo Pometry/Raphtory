@@ -58,6 +58,7 @@ pub(crate) fn convert_py_schema(
     }).transpose()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_nodes_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -107,6 +108,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edges_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
@@ -149,6 +151,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_node_metadata_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -188,6 +191,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
@@ -224,6 +228,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
@@ -472,8 +477,8 @@ fn collect_csv_paths(path: &PathBuf) -> Result<Vec<PathBuf>, GraphError> {
 }
 
 // Load from CSV files using arrow-csv
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_nodes_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
@@ -522,8 +527,8 @@ pub(crate) fn load_nodes_from_csv_path<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edges_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
@@ -564,8 +569,8 @@ pub(crate) fn load_edges_from_csv_path<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_node_metadata_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
@@ -604,8 +609,8 @@ pub(crate) fn load_node_metadata_from_csv_path<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edge_metadata_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
@@ -642,8 +647,8 @@ pub(crate) fn load_edge_metadata_from_csv_path<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edge_deletions_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,

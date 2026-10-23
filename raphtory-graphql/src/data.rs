@@ -53,7 +53,7 @@ use walkdir::WalkDir;
 #[cfg(feature = "vectors")]
 use {
     crate::model::graph::vectorised_graph::GqlVectorisedGraph,
-    raphtory::vectors::{
+    raphtory_vectors::{
         cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
         vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
@@ -589,7 +589,7 @@ impl Data {
     ) -> Result<(), GQLError> {
         let template = template.clone();
         self.index_folder(folder, move |graph, path| async move {
-            graph.vectorise(model, template, Some(&path), true).await
+            Ok(graph.vectorise(model, template, Some(&path), true).await?)
         })
         .await
     }
@@ -605,7 +605,9 @@ impl Data {
     ) -> Result<(), GQLError> {
         let template = template.clone();
         self.index_folder(folder, move |graph, path| async move {
-            graph.vectorise_missing(model, template, &path, true).await
+            Ok(graph
+                .vectorise_missing(model, template, &path, true)
+                .await?)
         })
         .await
     }
@@ -1368,7 +1370,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_failed_vectorise_reports_and_keeps_the_index() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 
@@ -1465,7 +1467,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_vectorise_after_reading_a_reloaded_graph() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 
@@ -1556,7 +1558,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_eviction_reloads_vectorised_graph() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 
@@ -1699,7 +1701,6 @@ pub(crate) mod data_tests {
         let paths = data
             .get_all_graph_folders()
             .await
-            .into_iter()
             .map(|folder| folder.folder.root().to_path_buf())
             .collect_vec();
 

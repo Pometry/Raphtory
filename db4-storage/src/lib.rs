@@ -23,7 +23,7 @@ use crate::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
         },
-        node_type_index::{MemNodeTypeEntry, NodeTypeIndexView},
+        node_type_index::MemNodeTypeEntry,
     },
 };
 use parking_lot::RwLock;
@@ -55,7 +55,7 @@ pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type GS<P> = GraphPropSegmentView<P>;
-pub type NTI<P> = NodeTypeIndexView<P>;
+pub type NTI = <Extension as PersistenceStrategy>::NTI;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
 pub type Wal = <Extension as PersistenceStrategy>::Wal;
@@ -145,6 +145,30 @@ pub mod error {
 
         #[error("Graph requires WAL recovery; load with WAL enabled")]
         RecoveryRequired,
+
+        #[error(
+            "Bulk load timed out locking new {kind} segment {segment_id}: a reader or an \
+             unguarded writer is holding it. The batch in progress may be partially applied."
+        )]
+        SegmentLockTimeout {
+            kind: SegmentKind,
+            segment_id: usize,
+        },
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SegmentKind {
+        Node,
+        Edge,
+    }
+
+    impl std::fmt::Display for SegmentKind {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                SegmentKind::Node => f.write_str("node"),
+                SegmentKind::Edge => f.write_str("edge"),
+            }
+        }
     }
 
     impl StorageError {
@@ -181,12 +205,12 @@ impl From<LocalPOS> for usize {
 }
 
 impl LocalPOS {
-    pub fn as_vid(self, page_id: usize, max_page_len: u32) -> VID {
-        VID(page_id * (max_page_len as usize) + (self.0 as usize))
+    pub fn as_vid(self, segment_id: usize, max_page_len: u32) -> VID {
+        VID(segment_id * (max_page_len as usize) + (self.0 as usize))
     }
 
-    pub fn as_eid(self, page_id: usize, max_page_len: u32) -> EID {
-        EID(page_id * (max_page_len as usize) + (self.0 as usize))
+    pub fn as_eid(self, segment_id: usize, max_page_len: u32) -> EID {
+        EID(segment_id * (max_page_len as usize) + (self.0 as usize))
     }
 
     pub fn as_index(self) -> usize {

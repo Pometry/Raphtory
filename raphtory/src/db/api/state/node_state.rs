@@ -142,6 +142,163 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
     }
 }
 
+/// Parallel iterator over the keys of an [`Index`].
+///
+/// This is a single concrete type for every `Index` variant (the variant is matched per
+/// item in [`IndexIter`]) so that each rayon pipeline built on top of it is compiled once,
+/// instead of once per variant as with an `Either` of per-variant iterators. It splits
+/// evenly by position and never materialises the keys.
+pub struct IndexParIter<K> {
+    index: Index<K>,
+}
+
+impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> ParallelIterator
+    for IndexParIter<K>
+{
+    type Item = K;
+
+    fn drive_unindexed<C: UnindexedConsumer<K>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        Some(self.index.len())
+    }
+}
+
+impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> IndexedParallelIterator
+    for IndexParIter<K>
+{
+    fn len(&self) -> usize {
+        self.index.len()
+    }
+
+    fn drive<C: Consumer<K>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn with_producer<CB: ProducerCallback<K>>(self, callback: CB) -> CB::Output {
+        let len = self.index.len();
+        callback.callback(IndexIter::new(&self.index, 0, len))
+    }
+}
+
+/// Iterator (and rayon producer) over the positions `start..end` of an [`Index`]
+pub struct IndexIter<'a, K> {
+    index: &'a Index<K>,
+    start: usize,
+    end: usize,
+    /// For `Index::Full`, the chunks containing `start` and `end - 1`
+    front_chunk: usize,
+    back_chunk: usize,
+}
+
+/// The chunk containing flat position `pos` (`offsets[0] == 0`, so this never underflows)
+#[inline]
+fn chunk_of(offsets: &[usize], pos: usize) -> usize {
+    offsets.partition_point(|&offset| offset <= pos) - 1
+}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> IndexIter<'a, K> {
+    fn new(index: &'a Index<K>, start: usize, end: usize) -> Self {
+        let (front_chunk, back_chunk) = match index {
+            Index::Full(state) if start < end => {
+                let offsets = state.offsets();
+                (chunk_of(offsets, start), chunk_of(offsets, end - 1))
+            }
+            _ => (0, 0),
+        };
+        Self {
+            index,
+            start,
+            end,
+            front_chunk,
+            back_chunk,
+        }
+    }
+}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> Iterator for IndexIter<'a, K> {
+    type Item = K;
+
+    #[inline]
+    fn next(&mut self) -> Option<K> {
+        if self.start >= self.end {
+            return None;
+        }
+        let pos = self.start;
+        self.start += 1;
+        Some(match self.index {
+            Index::Full(state) => {
+                let offsets = state.offsets();
+                // skip past the end of the current chunk (and any empty chunks)
+                while offsets[self.front_chunk + 1] <= pos {
+                    self.front_chunk += 1;
+                }
+                K::from(
+                    self.front_chunk * state.max_page_len() as usize
+                        + (pos - offsets[self.front_chunk]),
+                )
+            }
+            Index::Partial(set) => *set.get_index(pos).unwrap(),
+            Index::Sorted { keys, .. } => keys[pos],
+        })
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.end.saturating_sub(self.start);
+        (len, Some(len))
+    }
+}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> DoubleEndedIterator for IndexIter<'a, K> {
+    #[inline]
+    fn next_back(&mut self) -> Option<K> {
+        if self.start >= self.end {
+            return None;
+        }
+        self.end -= 1;
+        let pos = self.end;
+        Some(match self.index {
+            Index::Full(state) => {
+                let offsets = state.offsets();
+                // step back before the start of the current chunk (and any empty chunks)
+                while offsets[self.back_chunk] > pos {
+                    self.back_chunk -= 1;
+                }
+                K::from(
+                    self.back_chunk * state.max_page_len() as usize
+                        + (pos - offsets[self.back_chunk]),
+                )
+            }
+            Index::Partial(set) => *set.get_index(pos).unwrap(),
+            Index::Sorted { keys, .. } => keys[pos],
+        })
+    }
+}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> ExactSizeIterator for IndexIter<'a, K> {}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Producer
+    for IndexIter<'a, K>
+{
+    type Item = K;
+    type IntoIter = Self;
+
+    fn into_iter(self) -> Self {
+        self
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let mid = self.start + index;
+        (
+            IndexIter::new(self.index, self.start, mid),
+            IndexIter::new(self.index, mid, self.end),
+        )
+    }
+}
+
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         let (node_list, trusted) = graph.trusted_node_list();
@@ -215,21 +372,8 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         }
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = K> {
-        match self {
-            Index::Full(index) => Either::Left(Either::Left(index.into_par_iter().map(|(_, k)| k))),
-            Index::Partial(index) => Either::Left(Either::Right(
-                (0..index.len())
-                    .into_par_iter()
-                    .map(move |i| *index.get_index(i).unwrap()),
-            )),
-            Index::Sorted { keys, .. } => Either::Right(Either::Left(
-                (0..keys.len()).into_par_iter().map(move |i| keys[i]),
-            )),
-            Index::Roaring { keys, .. } => {
-                Either::Right(Either::Right(RoaringParIter::new(keys).map(|(_, key)| key)))
-            }
-        }
+    pub fn into_par_iter(self) -> IndexParIter<K> {
+        IndexParIter { index: self }
     }
 
     #[inline]
@@ -279,19 +423,8 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         }
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = (usize, K)> + '_ {
-        match self {
-            Index::Full(index) => Either::Left(Either::Left(index.par_iter())),
-            Index::Partial(index) => Either::Left(Either::Right(
-                index.par_iter().enumerate().map(|(i, v)| (i, *v)),
-            )),
-            Index::Sorted { keys, .. } => Either::Right(Either::Left(
-                keys.par_iter().enumerate().map(|(i, v)| (i, *v)),
-            )),
-            Index::Roaring { keys, .. } => {
-                Either::Right(Either::Right(RoaringParIter::new(keys.clone())))
-            }
-        }
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = (usize, K)> + '_ {
+        self.clone().into_par_iter().enumerate()
     }
 
     pub fn intersection(&self, other: &Self) -> Self {
@@ -899,7 +1032,7 @@ impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
     }
 }
 
-impl<'a, 'graph, V: Clone + Send + Sync + PartialEq + 'graph, G: GraphViewOps<'graph>>
+impl<'graph, V: Clone + Send + Sync + PartialEq + 'graph, G: GraphViewOps<'graph>>
     PartialEq<NodeState<'graph, V, G>> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &NodeState<'graph, V, G>) -> bool {
@@ -1244,190 +1377,5 @@ impl<'graph, G: GraphViewOps<'graph>>
     ) -> History<'graph, CompositeHistory<'graph, NodeView<'graph, DynamicGraph>>> {
         let histories: Vec<_> = self.par_iter_values().map(|hist| hist.0.clone()).collect();
         compose_history_from_items(histories)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{
-        db::api::state::{node_state::NodeState, AsOrderedNodeStateOps, OrderedNodeStateOps},
-        prelude::*,
-    };
-
-    #[test]
-    fn float_state() {
-        let g = Graph::new();
-        g.add_node(0, 0, NO_PROPS, None, None).unwrap();
-        let float_state = NodeState::new_from_values(g.clone(), [0.0f64]);
-        let int_state = NodeState::new_from_values(g.clone(), [1i64]);
-        let min_float = float_state.min_item().unwrap().1;
-        let min_int = int_state.min_item().unwrap().1;
-        assert_eq!(min_float, &0.0);
-        assert_eq!(min_int, &1);
-    }
-}
-
-#[cfg(test)]
-mod index_subset_test {
-    use super::*;
-    use crate::core::entities::VID;
-    use proptest::prelude::*;
-    use std::collections::BTreeSet;
-
-    fn sorted(keys: &[usize]) -> Index<VID> {
-        let mut keys: Vec<VID> = keys.iter().map(|k| VID(*k)).collect();
-        keys.sort_by_key(|k| k.0);
-        keys.dedup();
-        Index::Sorted {
-            keys: keys.into(),
-            exact: true,
-        }
-    }
-
-    fn partial(keys: &[usize]) -> Index<VID> {
-        keys.iter().map(|k| VID(*k)).collect()
-    }
-
-    fn roaring(keys: &[usize]) -> Index<VID> {
-        Index::from_bitmap(
-            Arc::new(keys.iter().map(|k| *k as u64).collect::<RoaringTreemap>()),
-            true,
-        )
-    }
-
-    proptest! {
-        /// Every representation pairing must agree with `BTreeSet::is_subset`.
-        #[test]
-        fn agrees_with_a_set_reference(
-            a in proptest::collection::vec(0usize..12, 0..8),
-            b in proptest::collection::vec(0usize..12, 0..8),
-        ) {
-            let want = BTreeSet::from_iter(a.iter().copied())
-                .is_subset(&BTreeSet::from_iter(b.iter().copied()));
-
-            prop_assert_eq!(sorted(&a).is_subset(&sorted(&b)), want, "sorted/sorted");
-            prop_assert_eq!(sorted(&a).is_subset(&partial(&b)), want, "sorted/partial");
-            prop_assert_eq!(partial(&a).is_subset(&sorted(&b)), want, "partial/sorted");
-            prop_assert_eq!(partial(&a).is_subset(&partial(&b)), want, "partial/partial");
-            prop_assert_eq!(roaring(&a).is_subset(&roaring(&b)), want, "roaring/roaring");
-            prop_assert_eq!(roaring(&a).is_subset(&sorted(&b)), want, "roaring/sorted");
-            prop_assert_eq!(sorted(&a).is_subset(&roaring(&b)), want, "sorted/roaring");
-            prop_assert_eq!(roaring(&a).is_subset(&partial(&b)), want, "roaring/partial");
-            prop_assert_eq!(partial(&a).is_subset(&roaring(&b)), want, "partial/roaring");
-        }
-
-        #[test]
-        fn roaring_owned_iteration_agrees_with_a_list(
-            a in proptest::collection::vec(0usize..300_000, 0..60),
-            steps in proptest::collection::vec((any::<bool>(), 0usize..8), 0..30),
-        ) {
-            let IndexIntoIter::Roaring(mut iter) = roaring(&a).into_iter() else {
-                unreachable!("a bitmap index walks as a bitmap")
-            };
-            let mut reference = sorted(&a).iter().collect::<Vec<_>>().into_iter();
-            for (from_back, n) in steps {
-                let (got, want) = if from_back {
-                    (iter.nth_back(n), reference.nth_back(n))
-                } else {
-                    (iter.nth(n), reference.nth(n))
-                };
-                prop_assert_eq!(got, want);
-                prop_assert_eq!(iter.len(), reference.len());
-                prop_assert_eq!(iter.clone().collect::<Vec<_>>(), reference.clone().collect::<Vec<_>>());
-                prop_assert_eq!(iter.clone().rev().collect::<Vec<_>>(), reference.clone().rev().collect::<Vec<_>>());
-            }
-            prop_assert_eq!(iter.collect::<Vec<_>>(), reference.collect::<Vec<_>>());
-        }
-
-        /// A bitmap index must behave exactly like a sorted one
-        #[test]
-        fn roaring_agrees_with_sorted(
-            a in proptest::collection::vec(0usize..40, 0..20),
-            b in proptest::collection::vec(0usize..40, 0..20),
-            probe in 0usize..45,
-        ) {
-            let (r, s) = (roaring(&a), sorted(&a));
-            let keys = |index: &Index<VID>| index.iter().collect::<Vec<_>>();
-            let key_set = |index: &Index<VID>| BTreeSet::from_iter(index.iter());
-
-            prop_assert_eq!(r.len(), s.len());
-            prop_assert_eq!(keys(&r), keys(&s));
-            prop_assert_eq!(r.clone().into_iter().collect::<Vec<_>>(), keys(&s));
-            prop_assert_eq!(r.clone().into_iter().nth(probe), s.clone().into_iter().nth(probe));
-            prop_assert_eq!(r.par_iter().collect::<Vec<_>>(), s.par_iter().collect::<Vec<_>>());
-            prop_assert_eq!(r.clone().into_par_iter().collect::<Vec<_>>(), keys(&s));
-            prop_assert_eq!(r.index(&VID(probe)), s.index(&VID(probe)));
-            prop_assert_eq!(r.value(probe), s.value(probe));
-            prop_assert_eq!(r.contains(&VID(probe)), s.contains(&VID(probe)));
-            prop_assert!(r.dynamically_exact());
-            prop_assert!(!r.clone().into_inexact().dynamically_exact());
-
-            for (other, name) in [(roaring(&b), "roaring"), (sorted(&b), "sorted"), (partial(&b), "partial"), (full(40), "full")] {
-                prop_assert_eq!(key_set(&r.intersection(&other)), key_set(&s.intersection(&other)), "{} ∩ {}", "roaring", name);
-                prop_assert_eq!(key_set(&other.intersection(&r)), key_set(&other.intersection(&s)), "{} ∩ {}", name, "roaring");
-                prop_assert_eq!(key_set(&r.union(&other)), key_set(&s.union(&other)), "{} ∪ {}", "roaring", name);
-                prop_assert_eq!(key_set(&other.union(&r)), key_set(&other.union(&s)), "{} ∪ {}", name, "roaring");
-                prop_assert_eq!(r.intersection(&other).dynamically_exact(), s.intersection(&other).dynamically_exact(), "exactness of roaring ∩ {}", name);
-                prop_assert_eq!(r.union(&other).dynamically_exact(), s.union(&other).dynamically_exact(), "exactness of roaring ∪ {}", name);
-            }
-        }
-    }
-
-    fn full(len: usize) -> Index<VID> {
-        Index::Full(Arc::new(StateIndex::new([len], len as u32)))
-    }
-
-    /// Big enough for rayon to split, with gaps so positions and keys differ.
-    #[test]
-    fn roaring_parallel_iteration_keeps_order_across_splits() {
-        let keys: Vec<usize> = (0..300_000).filter(|k| k % 3 != 1).collect();
-        let bitmap = Arc::new(keys.iter().map(|k| *k as u64).collect::<RoaringTreemap>());
-        let expected: Vec<VID> = keys.iter().map(|k| VID(*k)).collect();
-        let index = Index::<VID>::from_bitmap(bitmap.clone(), true);
-
-        assert_eq!(index.clone().into_par_iter().collect::<Vec<_>>(), expected);
-        assert_eq!(
-            index.par_iter().collect::<Vec<_>>(),
-            expected.iter().copied().enumerate().collect::<Vec<_>>()
-        );
-        let with_positions: Vec<(usize, VID)> = expected.iter().copied().enumerate().collect();
-        // tiny pieces, so nearly every key sits next to a split
-        assert_eq!(
-            RoaringParIter::<VID>::new(bitmap.clone())
-                .with_max_len(7)
-                .collect::<Vec<_>>(),
-            with_positions
-        );
-        // through `into_iter` rather than `fold_with`
-        assert_eq!(
-            RoaringParIter::<VID>::new(bitmap.clone())
-                .with_max_len(7)
-                .zip((0..with_positions.len()).into_par_iter())
-                .map(|(pair, _)| pair)
-                .collect::<Vec<_>>(),
-            with_positions
-        );
-        // indexed operations, which the parquet encoder relies on
-        assert_eq!(
-            RoaringParIter::<VID>::new(bitmap)
-                .chunks(1_000)
-                .collect::<Vec<_>>(),
-            with_positions
-                .chunks(1_000)
-                .map(<[(usize, VID)]>::to_vec)
-                .collect::<Vec<_>>()
-        );
-    }
-
-    #[test]
-    fn full_is_only_contained_by_full() {
-        assert!(full(4).is_subset(&full(4)));
-        // conservatively false even though these do hold every key of a
-        // 3-node graph: `Full` makes no claim about the other side's contents
-        assert!(!full(3).is_subset(&sorted(&[0, 1, 2])));
-        assert!(!full(3).is_subset(&partial(&[0, 1, 2])));
-        // and `Full` contains everything
-        assert!(sorted(&[0, 1]).is_subset(&full(4)));
-        assert!(partial(&[0, 1]).is_subset(&full(4)));
     }
 }

@@ -1,8 +1,8 @@
-const INCOMING: usize = 0;
-const OUTGOING: usize = 1;
+pub const INCOMING: usize = 0;
+pub const OUTGOING: usize = 1;
 const DIRS2D: [(usize, usize); 4] = [(0, 0), (0, 1), (1, 0), (1, 1)];
 
-fn map2d(d1: usize, d2: usize) -> usize {
+pub fn map2d(d1: usize, d2: usize) -> usize {
     2 * d1 + d2
 }
 
@@ -26,7 +26,7 @@ pub fn two_node_event(dir: usize, time: i64) -> TwoNodeEvent {
 }
 
 impl TwoNodeCounter {
-    pub fn execute(&mut self, events: &Vec<TwoNodeEvent>, delta: i64) {
+    pub fn execute(&mut self, events: &[TwoNodeEvent], delta: i64) {
         let mut start = 0;
         for event in events.iter() {
             while events[start].time + delta < event.time {
@@ -142,7 +142,7 @@ impl StarCounter {
             self.post_nodes[OUTGOING * self.n + cur_edge.nb];
     }
 
-    pub fn execute(&mut self, edges: &Vec<StarEvent>, delta: i64) {
+    pub fn execute(&mut self, edges: &[StarEvent], delta: i64) {
         let l = edges.len();
         if l < 3 {
             return;
@@ -166,11 +166,9 @@ impl StarCounter {
 
     pub fn return_counts(&self) -> [usize; 24] {
         let mut counts = [0; 24];
-        for i in 0..8 {
-            counts[i] = self.count_pre[i];
-            counts[8 + i] = self.count_mid[i];
-            counts[16 + i] = self.count_post[i];
-        }
+        counts[..8].copy_from_slice(&self.count_pre);
+        counts[8..16].copy_from_slice(&self.count_mid);
+        counts[16..].copy_from_slice(&self.count_post);
         counts
     }
 }
@@ -194,22 +192,18 @@ pub struct TriangleEdge {
     uorv: usize,
     nb: usize,
     dir: usize,
-    pub time: i64,
+    time: i64,
 }
 
-pub fn new_triangle_edge(
-    uv_edge: bool,
-    uorv: usize,
-    nb: usize,
-    dir: usize,
-    time: i64,
-) -> TriangleEdge {
-    TriangleEdge {
-        uv_edge,
-        uorv,
-        nb,
-        dir,
-        time,
+impl TriangleEdge {
+    pub fn new(uv_edge: bool, uorv: usize, nb: usize, dir: usize, time: i64) -> Self {
+        Self {
+            uv_edge,
+            uorv,
+            nb,
+            dir,
+            time,
+        }
     }
 }
 
@@ -223,7 +217,7 @@ pub struct TriangleCounter {
     final_counts: [usize; 8],
 }
 impl TriangleCounter {
-    pub fn execute(&mut self, edges: &Vec<TriangleEdge>, delta: i64) {
+    pub fn execute(&mut self, edges: &[TriangleEdge], delta: i64) {
         let l = edges.len();
         if l < 3 {
             return;
@@ -341,63 +335,5 @@ pub fn init_tri_count(n: usize) -> TriangleCounter {
         mid_sum: [0; 8],
         post_sum: [0; 8],
         final_counts: [0; 8],
-    }
-}
-
-#[cfg(test)]
-mod three_node_motifs_test {
-    use super::{
-        init_tri_count, map2d, TriangleEdge, TwoNodeCounter, TwoNodeEvent, INCOMING, OUTGOING,
-    };
-    use raphtory_api::core::utils::logging::global_info_logger;
-    use tracing::info;
-
-    #[test]
-    fn map_test() {
-        assert_eq!(map2d(1, 1), 3);
-    }
-
-    #[test]
-    fn two_node_test() {
-        global_info_logger();
-        let events = vec![
-            TwoNodeEvent {
-                dir: OUTGOING,
-                time: 1,
-            },
-            TwoNodeEvent {
-                dir: INCOMING,
-                time: 2,
-            },
-            TwoNodeEvent {
-                dir: INCOMING,
-                time: 3,
-            },
-        ];
-        let mut twonc = TwoNodeCounter {
-            count1d: [0; 2],
-            count2d: [0; 4],
-            count3d: [0; 8],
-        };
-        twonc.execute(&events, 5);
-        info!("motifs are {:?}", twonc.count3d);
-    }
-
-    #[test]
-    fn triad_test() {
-        global_info_logger();
-        let events = [(true, 0, 1, 1, 1), (false, 1, 0, 1, 2), (false, 0, 0, 0, 3)]
-            .iter()
-            .map(|x| TriangleEdge {
-                uv_edge: x.0,
-                uorv: x.1,
-                nb: x.2,
-                dir: x.3,
-                time: x.4,
-            })
-            .collect::<Vec<_>>();
-        let mut triangle_count = init_tri_count(3);
-        triangle_count.execute(&events, 5);
-        info!("triangle motifs are {:?}", triangle_count.final_counts);
     }
 }

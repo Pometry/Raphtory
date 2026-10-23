@@ -66,7 +66,6 @@ impl GqlEdge {
     /// Returns a view of Edge containing all layers in the list of names.
     ///
     /// Errors if any of the layers do not exist.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -78,7 +77,6 @@ impl GqlEdge {
     /// Returns a view of Edge containing all layers except the excluded list of names.
     ///
     /// Errors if any of the layers do not exist.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -90,7 +88,6 @@ impl GqlEdge {
     /// Returns a view of Edge containing the specified layer.
     ///
     /// Errors if any of the layers do not exist.
-
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> GqlEdge {
         self.ee.valid_layers(name).into()
     }
@@ -98,7 +95,6 @@ impl GqlEdge {
     /// Returns a view of Edge containing all layers except the excluded layer specified.
     ///
     /// Errors if any of the layers do not exist.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -115,7 +111,6 @@ impl GqlEdge {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     pub async fn rolling(
         &self,
         #[graphql(
@@ -148,7 +143,6 @@ impl GqlEdge {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     pub async fn expanding(
         &self,
         #[graphql(
@@ -172,7 +166,6 @@ impl GqlEdge {
     /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
     ///
     /// For persistent graphs, any edge which exists at any point during the window will be included. You may want to restrict this to only edges that are present at the end of the window using the is_valid function.
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -182,7 +175,6 @@ impl GqlEdge {
     }
 
     /// Creates a view of the Edge including all events at a specified time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -201,7 +193,6 @@ impl GqlEdge {
     /// Creates a view of the Edge including all events that are valid at time.
     ///
     /// This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -217,7 +208,6 @@ impl GqlEdge {
     }
 
     /// Creates a view of the Edge including all events before a specified end (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -226,7 +216,6 @@ impl GqlEdge {
     }
 
     /// Creates a view of the Edge including all events after a specified start (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -235,7 +224,6 @@ impl GqlEdge {
     }
 
     /// Set the start of the window.
-
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -245,7 +233,6 @@ impl GqlEdge {
     }
 
     /// Set the end of the window.
-
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -255,7 +242,6 @@ impl GqlEdge {
     }
 
     /// Takes a specified selection of views and applies them in given order.
-
     pub async fn apply_views(
         &self,
         #[graphql(
@@ -482,7 +468,6 @@ impl GqlEdge {
 
     /// Apply an edge filter in place, returning an edge view whose properties /
     /// metadata / history are restricted to the matching subset.
-
     pub async fn filter(
         &self,
         #[graphql(
@@ -507,7 +492,6 @@ impl GqlEdge {
     /// `{timestamp, eventId}` to select an exact event when several share a
     /// timestamp. Errors if the edge has no matching event under the current
     /// view.
-
     pub async fn event(
         &self,
         #[graphql(

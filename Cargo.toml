@@ -7,7 +7,6 @@ members = [
     "examples/custom-gql-apis",
     "python",
     "raphtory-graphql",
-    "raphtory-auth-noop",
     "raphtory-server",
     "raphtory-api",
     "raphtory-core",
@@ -16,7 +15,8 @@ members = [
     "raphtory-tests",
     "raphtory-itertools",
     "drop-logging",
-    "raphtory-graphql-tests"
+    "raphtory-graphql-tests",
+    "raphtory-vectors",
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -67,6 +67,7 @@ raphtory-api = { version = "0.18.0", path = "raphtory-api", default-features = f
 raphtory-api-macros = { version = "0.18.0", path = "raphtory-api-macros", default-features = false }
 raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features = false }
 raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
+raphtory-vectors = { version = "0.18.0", path = "raphtory-vectors", default-features = false }
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
 drop-logging = { version = "0.18.0", path = "drop-logging" }
@@ -75,7 +76,7 @@ async-graphql-poem = "7.2.1"
 dynamic-graphql = "0.10.2"
 derive_more = "2.1.1"
 tikv-jemallocator = "0.7.0"
-reqwest = { version = "0.13.4", default-features = false, features = [
+reqwest = { version = "0.13.5", default-features = false, features = [
     "multipart",
     "json",
     "rustls",
@@ -122,7 +123,7 @@ lock_api = { version = "0.4.14", features = ["arc_lock", "serde"] }
 dashmap = { version = "6.1.0", features = ["serde", "rayon"] }
 glam = "0.33.0"
 quad-rand = "0.2.3"
-zip = "8.6.0"
+zip = "9.0"
 bzip2 = "0.6.1"
 async-trait = "0.1.89"
 async-openai = "0.28.3"
@@ -133,7 +134,7 @@ kdam = "0.6.4"
 hashbrown = { version = "0.17.1" }
 pretty_assertions = "1.4.1"
 streaming-stats = "0.2.3"
-proptest = "1.11.0"
+proptest = "=1.11.0"
 proptest-derive = "0.8.0"
 criterion = "0.8.2"
 crossbeam-channel = "0.5.15"
@@ -207,7 +208,3 @@ inventory = "0.3.24"
 [workspace.dependencies.storage]
 package = "db4-storage"
 path = "db4-storage"
-
-[workspace.dependencies.auth]
-package = "raphtory-auth-noop"
-path = "raphtory-auth-noop"

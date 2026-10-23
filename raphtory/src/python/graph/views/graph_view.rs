@@ -461,3 +461,33 @@ impl Repr for PyGraphView {
         }
     }
 }
+
+/// Document template argument of `GraphView.vectorise`: `True` to use the default template,
+/// `False` to skip the entity type, or a custom (minijinja) template string.
+#[derive(FromPyObject)]
+pub enum TemplateConfig {
+    Bool(bool),
+    String(String),
+    // re-enable the code below to be able to customise the erro message
+    // #[pyo3(transparent)]
+    // CatchAll(Bound<'py, PyAny>), // This extraction never fails
+}
+
+impl TemplateConfig {
+    pub fn get_template_or(self, default: &str) -> Option<String> {
+        match self {
+            Self::Bool(vectorise) => {
+                if vectorise {
+                    Some(default.to_owned())
+                } else {
+                    None
+                }
+            }
+            Self::String(custom_template) => Some(custom_template),
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, Self::Bool(false))
+    }
+}
