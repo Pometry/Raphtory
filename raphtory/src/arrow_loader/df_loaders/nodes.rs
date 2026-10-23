@@ -31,7 +31,7 @@ use std::{
     sync::{atomic::Ordering, mpsc},
 };
 use storage::{
-    api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
+    api::nodes::NodeSegmentOps,
     pages::locked::{
         node_type_index::WriteLockedNodeTypeIndex,
         nodes::{ArcNodeSegmentGuard, LockedNodeSegment, WriteLockedNodeSegments},
@@ -388,7 +388,7 @@ pub fn load_node_props_from_df<
             .map_err(into_graph_err)
     })?;
 
-    let resolve_nodes = node_type_ids_col.is_some() && node_id_index.is_some();
+    let pre_resolved = node_type_ids_col.is_some() && node_id_index.is_some();
 
     #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
@@ -412,7 +412,7 @@ pub fn load_node_props_from_df<
             })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_gid_index)?;
-        if resolve_nodes {
+        if pre_resolved {
             node_col.validate(graph, LoadError::InvalidNodeError)?;
         }
         // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
@@ -437,7 +437,7 @@ pub fn load_node_props_from_df<
                 is_materializing,
             )?;
 
-        if resolve_nodes && !node_col_resolved.is_empty() {
+        if pre_resolved && !node_col_resolved.is_empty() {
             let index = &mut write_locked_graph.node_type_index;
             populate_node_type_index(
                 node_col_resolved
@@ -452,16 +452,16 @@ pub fn load_node_props_from_df<
         // node resolution may have created new node segments
         write_locked_graph.extend_new(new_segment_guards);
 
-        // pre-resolved ids may point past the segments we have
-        // We assume this is fast enough
-        // let max_vid = node_col_resolved
-        //     .iter()
-        //     .filter(|vid| vid.is_initialised())
-        //     .map(|vid| vid.index())
-        //     .max()
-        //     .map(VID)
-        //     .unwrap_or(VID(0));
-        // write_locked_graph.resize_segments_to_vid(max_vid);
+        if pre_resolved {
+            let max_vid = node_col_resolved
+                .iter()
+                .filter(|vid| vid.is_initialised())
+                .map(|vid| vid.index())
+                .max()
+                .map(VID)
+                .unwrap_or(VID(0));
+            write_locked_graph.resize_segments_to_vid(max_vid);
+        }
 
         write_locked_graph
             .nodes
@@ -485,7 +485,7 @@ pub fn load_node_props_from_df<
 
                         writer.store_node_id_and_node_type(pos, Some(gid), *node_type);
 
-                        if resolve_nodes {
+                        if pre_resolved {
                             // because we don't call resolve_node above
                             writer.increment_seg_num_nodes()
                         }

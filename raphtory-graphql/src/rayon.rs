@@ -124,7 +124,7 @@ mod deadlock_tests {
 
     #[tokio::test]
     async fn test_deadlock_in_write_pool() {
-        test_pool_lock( |lock| {
+        test_pool_lock(|lock| {
             WRITE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock();
             });
