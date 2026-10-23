@@ -20,6 +20,10 @@ use raphtory_api::core::storage::graph_folder::{
     GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, RelativePath,
     WriteableGraphFolder, DIRTY_PATH, GRAPH_META_PATH, ROOT_RAPH_PATH,
 };
+
+/// Crash-recovery marker for an in-progress namespace or graph directory create/delete.
+pub(crate) const DIRTY_DIRECTORY: &str = ".dirty_directory";
+
 use std::{
     cmp::Ordering,
     fs,
@@ -693,7 +697,7 @@ fn validate_relative_path(relative_path: &Path) -> Result<(), InternalPathValida
 fn read_dirty_relative_path(
     base_path: &Path,
 ) -> Result<Option<String>, InternalPathValidationError> {
-    let mut file = match File::open(base_path.join(DIRTY_PATH)) {
+    let mut file = match File::open(base_path.join(DIRTY_DIRECTORY)) {
         Ok(file) => file,
         Err(error) => {
             return match error.kind() {
@@ -702,10 +706,12 @@ fn read_dirty_relative_path(
             }
         }
     };
+
     let mut json_string = String::new();
     file.read_to_string(&mut json_string)?;
     let path: RelativePath = serde_json::from_str(&json_string)?;
     validate_relative_path(path.path.as_ref())?;
+
     Ok(Some(path.path))
 }
 
@@ -723,7 +729,7 @@ pub(crate) fn ensure_clean_folder(base_path: &Path) -> Result<(), InternalPathVa
                 warn!("Found dirty file with invalid path: {error}, cleaning...")
             }
         }
-        let dirty_path = base_path.join(DIRTY_PATH);
+        let dirty_path = base_path.join(DIRTY_DIRECTORY);
 
         if dirty_path.is_file() {
             fs::remove_file(dirty_path)?;
@@ -749,7 +755,7 @@ pub(crate) fn mark_dirty(path: &Path) -> Result<PathBuf, InternalPathValidationE
         .ok_or(InternalPathValidationError::MissingParent)?;
 
     ensure_clean_folder(parent)?;
-    let dirty_file_path = parent.join(DIRTY_PATH);
+    let dirty_file_path = parent.join(DIRTY_DIRECTORY);
     let mut dirty_file = File::create_new(&dirty_file_path)?;
     dirty_file.write_all(&serde_json::to_vec(&RelativePath { path: cleanup_path })?)?;
 
