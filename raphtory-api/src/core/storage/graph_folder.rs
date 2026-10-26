@@ -324,7 +324,7 @@ pub trait GraphPaths {
         self.graph_meta_path().is_ok_and(|path| path.is_file())
     }
 
-    /// Initialise the data folder and metadata pointer
+    /// Initialise the data folder and metadata pointer.
     fn init(&self) -> Result<(), GraphFolderError> {
         if self.root().is_dir() {
             let non_empty = self.root().read_dir()?.next().is_some();
@@ -391,8 +391,13 @@ pub trait GraphPaths {
 
             for i in 0..zip.len() {
                 let file = zip.by_index(i)?;
-                let file_name = file.name()?;
-                let data_dir = file_name.split('/').next().unwrap_or("");
+                let Some(path) = file.enclosed_name() else {
+                    continue;
+                };
+
+                let Some(data_dir) = path.iter().next().and_then(|s| s.to_str()) else {
+                    continue;
+                };
 
                 if data_dir.starts_with(DATA_PATH) {
                     versions.insert(parse_path_pointer(data_dir, DATA_PATH)?);
