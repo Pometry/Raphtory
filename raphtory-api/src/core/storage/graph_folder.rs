@@ -119,6 +119,9 @@ pub enum GraphFolderError {
 
     #[error("Graph path in metadata changed from {recorded:?} to {actual:?}")]
     GraphPathChanged { recorded: String, actual: String },
+
+    #[error("version {0} does not exist")]
+    VersionNotFound(u32),
 }
 
 /// Parses and validates a path pointer of the form `{prefix}{version}`.
@@ -368,13 +371,30 @@ pub trait GraphPaths {
 
     /// Parse the version from a path to a `graph{id}` directory.
     fn version(&self, graph_path: &str) -> Result<u32, GraphFolderError> {
-        // version_from_graph_path(path)
-        todo!()
+        let name = Path::new(graph_path)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| GraphFolderError::InvalidGraphPath(PathBuf::from(graph_path)))?;
+
+        let version = parse_path_pointer(name, GRAPH_PATH)?;
+
+        Ok(version)
     }
 
     /// Return the source version of the graph at the given `graph{id}` path.
-    fn src_version(&self, graph_path: &str) -> Result<u32, GraphFolderError> {
-        todo!()
+    fn src_version(&self, graph_path: &str) -> Result<Option<u32>, GraphFolderError> {
+        let data_path = Path::new(graph_path)
+            .parent()
+            .ok_or_else(|| GraphFolderError::InvalidGraphPath(PathBuf::from(graph_path)))?;
+        let graph_meta_path = data_path.join(GRAPH_META_PATH);
+
+        let mut file = File::open(graph_meta_path)?;
+        let mut json = String::new();
+        file.read_to_string(&mut json)?;
+
+        let graph_meta: Metadata = serde_json::from_str(&json)?;
+
+        Ok(graph_meta.src_version)
     }
 
     /// Version of the active `data{id}/` directory.
@@ -424,8 +444,15 @@ pub trait GraphPaths {
         Ok(versions.into_iter().collect())
     }
 
+    /// Set the active version of this graph directory to `version`.
     fn set_active_version(&self, version: u32) -> Result<(), GraphFolderError> {
-        todo!()
+        if !self.all_versions()?.contains(&version) {
+            return Err(GraphFolderError::VersionNotFound(version));
+        }
+
+        let mut graph_meta = self.read_graph_meta()?;
+        graph_meta.src_version = Some(version);
+        self.write_graph_meta(graph_meta)
     }
 }
 
