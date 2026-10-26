@@ -127,7 +127,6 @@ impl RemotePathFromNode {
         })
     }
 
-
     /// Traverse one further hop to the neighbours (both directions) of this
     /// path, as a flat `RemotePathFromNode`. Lazy — no RPC.
     pub fn neighbours(&self) -> RemotePathFromNode {

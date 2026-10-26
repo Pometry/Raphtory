@@ -363,12 +363,10 @@ impl PyRemotePathFromNode {
         page_index: Option<usize>,
     ) -> Result<Vec<PyRemoteNode>, ClientError> {
         let path = Arc::clone(&self.path);
-        let page = execute_async_task(
-            move || async move { path.page(limit, offset, page_index).await },
-        )?;
+        let page =
+            execute_async_task(move || async move { path.page(limit, offset, page_index).await })?;
         Ok(page.into_iter().map(PyRemoteNode::new).collect())
     }
-
 
     /// Materialize this collection as a list of `RemoteNode` handles. Fires
     /// one RPC. Each returned node is rebased under the same view chain

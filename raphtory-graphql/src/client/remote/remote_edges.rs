@@ -1,7 +1,10 @@
 use super::view_ops::remote_view_ops;
 use crate::{
     client::{
-        op::{EdgePin, EdgeSortBy, Fanout, HandleCtx, HandleOp, InputTime, Op, PageArgs, ReadExpr, ViewOp, list_or_page_key},
+        op::{
+            list_or_page_key, EdgePin, EdgeSortBy, Fanout, HandleCtx, HandleOp, InputTime, Op,
+            PageArgs, ReadExpr, ViewOp,
+        },
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
         remote_path_from_node::RemotePathFromNode,
@@ -417,17 +420,15 @@ impl RemoteEdges {
 
     /// Shared worker for `collect()` and `page()`: identical materialization,
     /// differing only in whether the server's `list` or `page(...)` field is read.
-    async fn collect_page(
-        &self,
-        page: Option<PageArgs>,
-    ) -> Result<Vec<RemoteEdge>, ClientError> {
+    async fn collect_page(&self, page: Option<PageArgs>) -> Result<Vec<RemoteEdge>, ClientError> {
         match self.ctx.fanout() {
             None => {
                 let op = Op::Read(ReadExpr::EdgesList {
                     input: self.expr.clone(),
                     page: page.clone(),
                 });
-                let pairs = expect_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
+                let pairs =
+                    expect_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
                 Ok(pairs
                     .into_iter()
                     .map(|(src, dst)| {
@@ -447,8 +448,10 @@ impl RemoteEdges {
                     input: self.expr.clone(),
                     page: page.clone(),
                 });
-                let records =
-                    expect_exploded_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
+                let records = expect_exploded_edge_list(
+                    self.transport.execute(&op).await?,
+                    list_or_page_key(&page),
+                )?;
                 Ok(records
                     .into_iter()
                     .map(|(src, dst, time, event_id, layer)| {
@@ -476,8 +479,10 @@ impl RemoteEdges {
                     input: self.expr.clone(),
                     page: page.clone(),
                 });
-                let records =
-                    expect_exploded_layers_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
+                let records = expect_exploded_layers_edge_list(
+                    self.transport.execute(&op).await?,
+                    list_or_page_key(&page),
+                )?;
                 Ok(records
                     .into_iter()
                     .map(|(src, dst, layer)| {

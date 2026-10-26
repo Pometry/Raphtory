@@ -1,7 +1,10 @@
 use super::view_ops::remote_view_ops;
 use crate::{
     client::{
-        op::{EdgePin, Fanout, HandleCtx, HandleOp, InputTime, Op, PageArgs, ReadExpr, ViewOp, list_or_page_key},
+        op::{
+            list_or_page_key, EdgePin, Fanout, HandleCtx, HandleOp, InputTime, Op, PageArgs,
+            ReadExpr, ViewOp,
+        },
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
         remote_path_from_graph::RemotePathFromGraph,
@@ -432,7 +435,10 @@ impl RemoteNestedEdges {
                     input: self.expr.clone(),
                     page: page.clone(),
                 });
-                let nested = expect_nested_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
+                let nested = expect_nested_edge_list(
+                    self.transport.execute(&op).await?,
+                    list_or_page_key(&page),
+                )?;
                 Ok(nested
                     .into_iter()
                     .map(|row| {
@@ -456,8 +462,10 @@ impl RemoteNestedEdges {
                     input: self.expr.clone(),
                     page: page.clone(),
                 });
-                let nested =
-                    expect_nested_exploded_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
+                let nested = expect_nested_exploded_edge_list(
+                    self.transport.execute(&op).await?,
+                    list_or_page_key(&page),
+                )?;
                 Ok(nested
                     .into_iter()
                     .map(|row| {

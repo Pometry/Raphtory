@@ -7,11 +7,11 @@
 use crate::{
     client::{
         op::{
-            AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
-            AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
-            DeleteEdgeAtTime, EdgeSortBy, InputTime, NodeSortBy, list_or_page_key, Op, PageArgs, ReadExpr, SetNodeType,
-            SortByTime, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, ViewOp,
-            WriteOp,
+            list_or_page_key, AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata,
+            AddGraphProperty, AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode,
+            DeleteEdge, DeleteEdgeAtTime, EdgeSortBy, InputTime, NodeSortBy, Op, PageArgs,
+            ReadExpr, SetNodeType, SortByTime, UpdateEdgeMetadata, UpdateGraphMetadata,
+            UpdateNodeMetadata, ViewOp, WriteOp,
         },
         properties_to_input,
         remote_client::RemoteClient,
@@ -625,7 +625,6 @@ fn render_read(
     };
     Ok((query, vars.vars))
 }
-
 
 /// Render a collection list terminal: the `list` field, or `page(...)` when
 /// paged, wrapping `selection`.
@@ -1601,12 +1600,20 @@ fn render_read_into(
         // the outer `list` opens one net brace, inner groups self-balance.
         ReadExpr::ExplodedEdgesList { input, page } => {
             render_read_into(input, vars, out)?;
-            render_list_or_page(page, "src { id } dst { id } time { timestamp eventId } layerName", out)?;
+            render_list_or_page(
+                page,
+                "src { id } dst { id } time { timestamp eventId } layerName",
+                out,
+            )?;
         }
         // Nested variant of `ExplodedEdgesList` — mirrors `NestedEdgesList`.
         ReadExpr::NestedExplodedEdgesList { input, page } => {
             render_read_into(input, vars, out)?;
-            render_list_or_page(page, "list { src { id } dst { id } time { timestamp eventId } layerName }", out)?;
+            render_list_or_page(
+                page,
+                "list { src { id } dst { id } time { timestamp eventId } layerName }",
+                out,
+            )?;
         }
         // Layer-exploded members — `(src, dst, layer)` per member (no time).
         ReadExpr::ExplodedLayersEdgesList { input, page } => {

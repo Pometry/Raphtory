@@ -371,9 +371,8 @@ impl PyRemoteEdges {
         page_index: Option<usize>,
     ) -> Result<Vec<PyRemoteEdge>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        let result = execute_async_task(
-            move || async move { edges.page(limit, offset, page_index).await },
-        )?;
+        let result =
+            execute_async_task(move || async move { edges.page(limit, offset, page_index).await })?;
         Ok(result.into_iter().map(PyRemoteEdge::new).collect())
     }
 

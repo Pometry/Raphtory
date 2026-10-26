@@ -124,9 +124,8 @@ impl PyRemoteNodes {
         page_index: Option<usize>,
     ) -> Result<Vec<PyRemoteNode>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        let page = execute_async_task(
-            move || async move { nodes.page(limit, offset, page_index).await },
-        )?;
+        let page =
+            execute_async_task(move || async move { nodes.page(limit, offset, page_index).await })?;
         Ok(page.into_iter().map(PyRemoteNode::new).collect())
     }
 
