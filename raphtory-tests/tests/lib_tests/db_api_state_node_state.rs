@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use raphtory::{
-        db::api::state::{NodeState, AsOrderedNodeStateOps, OrderedNodeStateOps},
+        db::api::state::{AsOrderedNodeStateOps, NodeState, OrderedNodeStateOps},
         prelude::*,
     };
 
@@ -20,12 +20,11 @@ mod test {
 
 #[cfg(test)]
 mod index_subset_test {
-    use raphtory::{core::entities::VID, db::api::state::*};
     use proptest::prelude::*;
+    use raphtory::{core::entities::VID, db::api::state::*};
     use rayon::prelude::*;
     use roaring::RoaringTreemap;
-    use std::collections::BTreeSet;
-    use std::sync::Arc;
+    use std::{collections::BTreeSet, sync::Arc};
     use storage::state::StateIndex;
 
     fn sorted(keys: &[usize]) -> Index<VID> {
