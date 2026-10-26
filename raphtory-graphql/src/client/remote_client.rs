@@ -410,7 +410,6 @@ impl RemoteClient {
 mod tests {
     use super::*;
     use crate::server::GraphServer;
-    use raphtory::db::api::storage::storage::Config;
     use tempfile::tempdir;
     use tokio::net::{TcpStream, UnixListener};
 
@@ -437,7 +436,7 @@ mod tests {
     #[tokio::test]
     async fn client_and_remote_graph_work_over_unix_socket() {
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().join("graphs"), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().join("graphs"), None, Args::default())
             .await
             .unwrap();
         let running = server.start_with_port(0).await.unwrap();
