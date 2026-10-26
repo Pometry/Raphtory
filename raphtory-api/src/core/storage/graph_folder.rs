@@ -121,28 +121,20 @@ pub enum GraphFolderError {
     GraphPathChanged { recorded: String, actual: String },
 }
 
-pub fn validate_path_pointer(relative_path: &str, prefix: &str) -> Result<(), GraphFolderError> {
+/// Parses and validates a path pointer of the form `{prefix}{version}`.
+/// Returns the version number if successful.
+pub fn parse_path_pointer(relative_path: &str, prefix: &str) -> Result<u32, GraphFolderError> {
     relative_path
         .strip_prefix(prefix) // should have the prefix
         .and_then(|version| version.parse::<u32>().ok()) // the remainder should be the version number
-        .ok_or_else(|| GraphFolderError::InvalidRelativePath(relative_path.to_string()))?;
-
-    Ok(())
-}
-
-pub fn version_from_data_path(path: &str) -> Result<u32, GraphFolderError> {
-    validate_path_pointer(path, DATA_PATH)?;
-
-    path.strip_prefix(DATA_PATH)
-        .and_then(|version| version.parse::<u32>().ok())
-        .ok_or_else(|| GraphFolderError::InvalidRelativePath(path.to_string()))
+        .ok_or_else(|| GraphFolderError::InvalidRelativePath(relative_path.to_string()))
 }
 
 fn read_path_from_file(mut file: impl Read, prefix: &str) -> Result<String, GraphFolderError> {
     let mut value = String::new();
     file.read_to_string(&mut value)?;
     let path: RelativePath = serde_json::from_str(&value)?;
-    validate_path_pointer(&path.path, prefix)?;
+    parse_path_pointer(&path.path, prefix)?;
     Ok(path.path)
 }
 
@@ -170,10 +162,8 @@ pub fn make_path_pointer(
     prefix: &str,
 ) -> Result<String, GraphFolderError> {
     let mut version = match read_path_pointer(base_path, file_name, prefix)? {
-        Some(path) => path
-            .strip_prefix(prefix)
-            .and_then(|version| version.parse::<u32>().ok())
-            .and_then(|version| version.checked_add(1))
+        Some(path) => parse_path_pointer(&path, prefix)?
+            .checked_add(1)
             .ok_or_else(|| GraphFolderError::InvalidRelativePath(path))?,
         None => 0,
     };
@@ -195,7 +185,8 @@ pub fn read_or_default_path_pointer(
     file_name: &str,
     prefix: &str,
 ) -> Result<String, GraphFolderError> {
-    Ok(read_path_pointer(base_path, file_name, prefix)?.unwrap_or_else(|| prefix.to_owned() + "0"))
+    let default = format!("{prefix}0");
+    Ok(read_path_pointer(base_path, file_name, prefix)?.unwrap_or(default))
 }
 
 pub fn get_zip_data_path<R: Read + Seek>(
@@ -375,29 +366,28 @@ pub trait GraphPaths {
             .to_millis()?)
     }
 
-    fn version(&self, path: &str) -> Result<u32, GraphFolderError> {
+    /// Parse the version from a path to a `graph{id}` directory.
+    fn version(&self, graph_path: &str) -> Result<u32, GraphFolderError> {
         // version_from_graph_path(path)
+        todo!()
+    }
+
+    /// Return the source version of the graph at the given `graph{id}` path.
+    fn src_version(&self, graph_path: &str) -> Result<u32, GraphFolderError> {
         todo!()
     }
 
     /// Version of the active `data{id}/` directory.
     fn active_version(&self) -> Result<u32, GraphFolderError> {
-        let data_path = if self.is_zip() {
-            let mut zip = self.read_zip()?;
-            get_zip_data_path(&mut zip)?
-        } else {
-            read_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?
-                .ok_or_else(|| GraphFolderError::InvalidGraphPath(self.root_raph_path()))?
-        };
-
-        version_from_data_path(&data_path)
+        parse_path_pointer(&self.relative_data_path()?, DATA_PATH)
     }
 
     /// All `data{id}/` versions under the graph root.
     fn all_versions(&self) -> Result<Vec<u32>, GraphFolderError> {
+        let mut versions = BTreeSet::new();
+
         if self.is_zip() {
             let mut zip = self.read_zip()?;
-            let mut versions = BTreeSet::new();
 
             for i in 0..zip.len() {
                 let file = zip.by_index(i)?;
@@ -405,29 +395,32 @@ pub trait GraphPaths {
                 let data_dir = file_name.split('/').next().unwrap_or("");
 
                 if data_dir.starts_with(DATA_PATH) {
-                    versions.insert(version_from_data_path(data_dir)?);
+                    versions.insert(parse_path_pointer(data_dir, DATA_PATH)?);
                 }
             }
 
             return Ok(versions.into_iter().collect());
-        }
+        } else {
+            for entry in fs::read_dir(self.root())? {
+                let entry = entry?;
 
-        let mut versions = BTreeSet::new();
-        for entry in fs::read_dir(self.root())? {
-            let entry = entry?;
+                if !entry.file_type()?.is_dir() {
+                    continue;
+                }
 
-            if !entry.file_type()?.is_dir() {
-                continue;
-            }
-
-            if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with(DATA_PATH) {
-                    versions.insert(version_from_data_path(name)?);
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.starts_with(DATA_PATH) {
+                        versions.insert(parse_path_pointer(name, DATA_PATH)?);
+                    }
                 }
             }
         }
 
         Ok(versions.into_iter().collect())
+    }
+
+    fn set_active_version(&self, version: u32) -> Result<(), GraphFolderError> {
+        todo!()
     }
 }
 
@@ -458,9 +451,9 @@ impl GraphFolder {
         }
     }
 
-    /// Create a [`GraphFolder`] from a path to a `graph{id}/` directory.
+    /// Create a [`GraphFolder`] from a path to a `graph{id}` directory.
     pub fn from_graph_path(graph_path: impl AsRef<Path>) -> Result<Self, GraphFolderError> {
-        // Layout is GraphFolder/data{id}/graph{id}/, so root is the grandparent of `graph_path`.
+        // Layout is GraphFolder/data{id}/graph{id}, so root is the grandparent of `graph_path`.
         let graph_path = graph_path.as_ref();
         let root = graph_path
             .parent()
