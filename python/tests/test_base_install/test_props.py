@@ -294,3 +294,34 @@ def test_decimal_list_rejects_mixed_scales():
     expect_unify_error(
         lambda: Prop.list([Prop.decimal("1.25"), Prop.decimal("2.5")]).dtype()
     )
+
+
+def _as_list(value):
+    return value.tolist() if hasattr(value, "tolist") else list(value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [[1, "a"], ["a", 1], [1, 1.5], [[1], ["a"]], [1, True]],
+)
+def test_mixed_type_list_property_raises_instead_of_panicking(value):
+    g = Graph()
+    # a TypeError that names the two types, never a PanicException; the error keeps its
+    # class through add_node rather than being flattened into a generic Exception
+    with pytest.raises(TypeError, match="list elements have mixed types"):
+        g.add_node(1, "n", properties={"mixed": value})
+    with pytest.raises(TypeError, match="list elements have mixed types"):
+        g.add_edge(1, "a", "b", properties={"mixed": value})
+    with pytest.raises(TypeError, match="list elements have mixed types"):
+        g.add_metadata({"mixed": value})
+    # nothing was written by the failed calls
+    assert g.count_nodes() == 0
+
+
+@pytest.mark.parametrize(
+    "value", [[1, 2, 3], [], ["a", "b"], [[1, 2], [3, 4]], [1.5, 2.5], [True, False]]
+)
+def test_uniform_list_property_still_loads(value):
+    g = Graph()
+    g.add_node(1, "n", properties={"lst": value})
+    assert _as_list(g.node("n").properties.get("lst")) == value

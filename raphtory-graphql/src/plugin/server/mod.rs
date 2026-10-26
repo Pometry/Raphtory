@@ -2,8 +2,6 @@
 //!
 //! The interface comes in two parts, the `ServerPlugin` trait which defines the constructor for the
 //! `ServerExtension` which defines the hook that is called during server initialisation.
-//!
-//!
 
 use crate::{
     config::app_config::AppConfigFieldName,

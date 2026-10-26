@@ -93,9 +93,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Returns true if the node has any updates within the current window, otherwise false.
     fn is_active(
         &self,
-    ) -> Self::ValueType<
-        ops::ArrowMap<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>, IsActiveRow>,
-    >;
+    ) -> Self::ValueType<ops::ArrowMapped<ops::HistoryOp<'graph, Self::Graph>, bool, IsActiveRow>>;
 
     /// Get a view of the temporal properties of this node.
     ///

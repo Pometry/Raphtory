@@ -37,10 +37,10 @@ use raphtory::{
 use raphtory_api::core::Direction;
 use raphtory_benchmark::algobench_common::{
     first_node_id, graph_benchmark, graph_benchmark_with_setup,
-    large_dense_random_attachment_graph, large_random_attachment_graph,
-    medium_random_attachment_filtered, medium_random_attachment_graph,
-    medium_random_attachment_layered, medium_random_attachment_subgraph,
-    medium_typed_random_attachment_graph, medium_weighted_random_attachment_graph,
+    large_dense_random_attachment_graph, medium_random_attachment_filtered,
+    medium_random_attachment_graph, medium_random_attachment_layered,
+    medium_random_attachment_subgraph, medium_typed_random_attachment_graph,
+    medium_weighted_random_attachment_graph,
 };
 
 pub fn graphgen_clustering_coeff(c: &mut Criterion) {
@@ -151,7 +151,7 @@ pub fn graphgen_label_propagation(c: &mut Criterion) {
         5,
         10,
         medium_random_attachment_graph,
-        |graph, _| label_propagation(graph, 20, Some([1; 32]), None),
+        |graph, _| label_propagation(graph, 20, Some(1), None, (), None, None).unwrap(),
     );
 }
 
@@ -341,7 +341,7 @@ pub fn graphgen_temporal_bipartite_projection(c: &mut Criterion) {
         5,
         10,
         medium_typed_random_attachment_graph,
-        |graph, _| temporal_bipartite_projection(graph, 1, "Right".to_string()),
+        |graph, _| temporal_bipartite_projection(graph, 1, "Right").unwrap(),
     );
 }
 

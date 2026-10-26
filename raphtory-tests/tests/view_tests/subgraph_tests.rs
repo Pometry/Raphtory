@@ -3,7 +3,7 @@ use itertools::Itertools;
 use proptest::{proptest, sample::subsequence};
 use raphtory::{
     algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
-    db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+    db::graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
     prelude::*,
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
@@ -160,7 +160,7 @@ fn materialize_proptest_failure() {
     let graph = Graph::from(build_graph(&graph_f));
     let subgraph = graph.subgraph([1]);
     let nodes = subgraph.default_layer().nodes().id().collect_vec();
-    dbg!(nodes);
+    assert!(nodes.is_empty());
     assert_eq!(subgraph.default_layer().count_nodes(), 0);
     assert_eq!(subgraph.count_edges(), 1);
     let materialised = subgraph.materialize().unwrap();

@@ -1,3 +1,4 @@
+use parking_lot::{lock_api::ArcMutexGuard, Mutex, RawMutex, RwLockWriteGuard};
 use raphtory_api::core::{
     entities::{
         self,
@@ -16,11 +17,13 @@ use std::{
     ops::Deref,
     path::Path,
     sync::{atomic::AtomicUsize, Arc},
+    time::Duration,
 };
 use storage::{
     api::{
         edges::EdgeSegmentOps,
         graph_props::GraphPropSegmentOps,
+        node_type_index::NodeTypeIndexOps,
         nodes::{LockedNSSegment, NodeRefOps, NodeSegmentOps},
     },
     dir::GraphDir,
@@ -28,14 +31,14 @@ use storage::{
     pages::{
         layer_counter::GraphStats,
         locked::{
-            edges::WriteLockedEdgePages, graph_props::WriteLockedGraphPropPages,
-            nodes::WriteLockedNodePages,
+            edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropSegment,
+            node_type_index::WriteLockedNodeTypeIndex, nodes::WriteLockedNodeSegments,
         },
     },
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
-    Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
+    Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
 
 mod replay;
@@ -48,20 +51,15 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    // mapping between logical and physical ids
-    pub logical_to_physical: Arc<GIDResolver>,
+    // TODO: Move resolver inside storage?
+    /// Stores mapping between logical to physical node IDs.
+    pub gid_resolver: Arc<GIDResolver>,
     pub round_robin_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
-}
-
-impl Default for TemporalGraph<Extension> {
-    fn default() -> Self {
-        let config = Config::default();
-        let graph_dir = None;
-        Self::new(Extension::new(config, graph_dir).unwrap()).unwrap()
-    }
+    /// Exclusive lock held while this graph is being staged for writes.
+    stage_lock: Arc<Mutex<()>>,
 }
 
 impl<EXT> TemporalGraph<EXT>
@@ -85,7 +83,7 @@ where
         let graph_props_meta = Meta::new_for_graph_props();
 
         Self::new_with_meta(
-            Some(path.as_ref().into()),
+            Some(path.as_ref()),
             node_meta,
             edge_meta,
             graph_props_meta,
@@ -94,15 +92,15 @@ where
     }
 
     pub fn new_with_meta(
-        graph_dir: Option<GraphDir>,
+        graph_dir: Option<&Path>,
         node_meta: Meta,
         edge_meta: Meta,
         graph_meta: Meta,
         ext: EXT,
     ) -> Result<Self, StorageError> {
-        let mut graph_dir = graph_dir;
+        let mut graph_dir = graph_dir.map(GraphDir::from);
 
-        // Short-circuit graph_dir to None if disk storage is not enabled
+        // Ignore graph_dir so in-memory graphs avoid creating files on disk.
         if !Extension::disk_storage_enabled() {
             graph_dir = None;
         }
@@ -117,27 +115,23 @@ where
             .first()
             .and_then(GidType::from_prop_type);
 
-        let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
-        let logical_to_physical = match gid_resolver_dir {
+        let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver());
+        let gid_resolver = match gid_resolver_dir {
             Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir, id_type)?,
             None => GIDResolver::new()?,
         }
         .into();
 
-        let storage: Layer<EXT> = Layer::new_with_meta(
-            graph_dir.as_ref().map(|p| p.path()),
-            node_meta,
-            edge_meta,
-            graph_meta,
-            ext,
-        );
+        let storage: Layer<EXT> =
+            Layer::new_with_meta(graph_dir.clone(), node_meta, edge_meta, graph_meta, ext)?;
 
         Ok(Self {
             graph_dir,
-            logical_to_physical,
+            gid_resolver,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
             round_robin_counter: AtomicUsize::new(0),
+            stage_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -156,11 +150,11 @@ where
     }
 
     fn load_inner(path: impl AsRef<Path>, ext: EXT, read_only: bool) -> Result<Self, StorageError> {
-        let path = path.as_ref();
-        let storage = Layer::load(path, ext)?;
+        let graph_dir = GraphDir::from(path.as_ref());
+        let storage = Layer::load(graph_dir.clone(), ext)?;
         let id_type = storage.nodes().id_type();
 
-        let gid_resolver_dir = path.join("gid_resolver");
+        let gid_resolver_dir = graph_dir.gid_resolver();
         let resolver = if read_only {
             GIDResolver::new_readonly_with_path(&gid_resolver_dir, id_type)?
         } else {
@@ -168,17 +162,22 @@ where
         };
 
         Ok(Self {
-            graph_dir: Some(path.into()),
+            graph_dir: Some(graph_dir),
             round_robin_counter: AtomicUsize::new(0),
-            logical_to_physical: resolver.into(),
+            gid_resolver: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
+            stage_lock: Arc::new(Mutex::new(())),
         })
     }
 
+    pub fn is_dirty(&self) -> bool {
+        self.storage.is_dirty()
+    }
+
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.storage.flush()?;
-        self.logical_to_physical.flush()
+        self.gid_resolver.flush()?;
+        self.storage.flush()
     }
 
     pub fn vacuum(&self) -> Result<(), StorageError> {
@@ -211,17 +210,17 @@ where
     pub fn resolve_node_ref(&self, node: NodeRef) -> Option<VID> {
         let vid = match node {
             NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
+            NodeRef::External(GidRef::U64(gid)) => self.gid_resolver.get_u64(gid),
             NodeRef::External(GidRef::Str(string)) => self
-                .logical_to_physical
+                .gid_resolver
                 .get_str(string)
-                .or_else(|| self.logical_to_physical.get_u64(string.id())),
+                .or_else(|| self.gid_resolver.get_u64(string.id())),
         }?;
 
         // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
         let nodes = self.storage().nodes();
-        let (page_id, pos) = nodes.resolve_pos(vid);
-        let node_page = nodes.get_segment(page_id)?;
+        let (segment_id, pos) = nodes.resolve_pos(vid);
+        let node_page = nodes.get_segment(segment_id)?;
 
         if pos.0 < node_page.num_nodes() {
             Some(vid)
@@ -428,7 +427,35 @@ where
     pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
+
+    /// Returns `None` if another thread is already staging this graph.
+    pub fn try_stage_guard(&self) -> Option<ArcMutexGuard<RawMutex, ()>> {
+        self.stage_lock.try_lock_arc()
+    }
+
+    /// Copy flushed data into `dst`.
+    ///
+    /// Creates `dst` if it does not exist. Callers must ensure all writes
+    /// to be copied are on disk before calling this method.
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+        let dst = GraphDir::from(dst);
+
+        self.gid_resolver.copy_to(dst.gid_resolver())?;
+        self.storage.copy_to(dst.path())?;
+
+        if let Some(src) = self.graph_dir() {
+            self.extension().copy_to(src, dst.path())?;
+        }
+
+        Ok(())
+    }
 }
+
+/// How long a bulk load waits to lock a segment created during the load. Nothing should hold
+/// such a segment while the bulk load lock is held exclusively, so timing out means a reader
+/// or an unguarded writer has it.
+pub const NEW_SEGMENT_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
@@ -438,10 +465,13 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    pub nodes: WriteLockedNodePages<'a, NS<EXT>>,
-    pub edges: WriteLockedEdgePages<'a, ES<EXT>>,
-    pub graph_props: WriteLockedGraphPropPages<'a, GS<EXT>>,
+    pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
+    pub node_type_index: WriteLockedNodeTypeIndex<EXT::NTI>,
+    pub edges: WriteLockedEdgeSegments<'a, ES<EXT>>,
+    pub graph_props: WriteLockedGraphPropSegment<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
+    // Declared last so it is released after the segment locks.
+    _bulk_load: RwLockWriteGuard<'a, ()>,
 }
 
 impl<'a, EXT> WriteLockedGraph<'a, EXT>
@@ -451,12 +481,16 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
+    /// Takes the bulk load write guard first, waiting for regular updates in flight to finish.
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
+        let bulk_load = graph.storage.bulk_load_exclusive();
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),
+            node_type_index: graph.storage.node_type_index().write_locked(),
             edges: graph.storage.edges().write_locked(),
             graph_props: graph.storage.graph_props().write_locked(),
             graph,
+            _bulk_load: bulk_load,
         }
     }
 
@@ -464,18 +498,37 @@ where
         self.graph
     }
 
-    pub fn resize_segments_to_vid(&mut self, vid: VID) {
-        let (segment_id, _) = self.graph.storage.nodes().resolve_pos(vid);
-        self.graph.storage().nodes().grow(segment_id + 1);
-        std::mem::take(&mut self.nodes);
-        self.nodes = self.graph.storage.nodes().write_locked();
+    /// Write-lock the node and edge segments created since this graph was locked
+    /// (e.g. by node or edge resolution), keeping the locks already held.
+    ///
+    /// Fails with `SegmentLockTimeout` if a new segment stays locked for
+    /// [`NEW_SEGMENT_LOCK_TIMEOUT`].
+    pub fn lock_new_segments(&mut self) -> Result<(), StorageError> {
+        self.lock_new_segments_within(NEW_SEGMENT_LOCK_TIMEOUT)
     }
 
-    pub fn resize_segments_to_eid(&mut self, eid: EID) {
+    /// [`Self::lock_new_segments`] with a custom timeout.
+    pub fn lock_new_segments_within(&mut self, timeout: Duration) -> Result<(), StorageError> {
+        self.graph
+            .storage
+            .nodes()
+            .lock_new_segments(&mut self.nodes, timeout)?;
+        self.graph
+            .storage
+            .edges()
+            .lock_new_segments(&mut self.edges, timeout)
+    }
+
+    pub fn resize_segments_to_vid(&mut self, vid: VID) -> Result<(), StorageError> {
+        let (segment_id, _) = self.graph.storage.nodes().resolve_pos(vid);
+        self.graph.storage().nodes().grow(segment_id + 1);
+        self.lock_new_segments()
+    }
+
+    pub fn resize_segments_to_eid(&mut self, eid: EID) -> Result<(), StorageError> {
         let (segment_id, _) = self.graph.storage.edges().resolve_pos(eid);
         self.graph.storage().edges().grow(segment_id + 1);
-        std::mem::take(&mut self.edges);
-        self.edges = self.graph.storage.edges().write_locked();
+        self.lock_new_segments()
     }
 
     pub fn edge_stats(&self) -> &Arc<GraphStats> {
@@ -484,5 +537,18 @@ where
 
     pub fn node_stats(&self) -> &Arc<GraphStats> {
         self.graph.storage().nodes().stats()
+    }
+
+    /// Flush dirty in-memory segments to disk using the existing segment write locks.
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.graph.storage.save_config()?;
+
+        self.graph.gid_resolver.flush()?;
+        self.nodes.flush()?;
+        self.node_type_index.flush()?;
+        self.edges.flush()?;
+        self.graph_props.flush()?;
+
+        self.graph.storage.refresh_metadata()
     }
 }

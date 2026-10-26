@@ -1,10 +1,8 @@
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
-    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
+    db::graph::assertions::{assert_graph_equal, assert_graph_equal_timestamps},
     prelude::*,
-    // test_storage,
-    // test_utils::{build_edge_list, build_graph_from_edge_list},
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use raphtory_storage::core_ops::CoreGraphOps;

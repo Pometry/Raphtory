@@ -7,11 +7,11 @@ mod prop_type;
 mod prop_unwrap;
 mod serde;
 
+pub mod prop_hashable;
 #[cfg(feature = "template")]
 mod template;
 
 pub use arrow::*;
-
 pub use prop_array::*;
 pub use prop_enum::*;
 pub use prop_ref_enum::*;

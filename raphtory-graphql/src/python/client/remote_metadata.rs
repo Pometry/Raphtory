@@ -558,7 +558,7 @@ impl PyRemoteTemporalProperty {
     ///
     /// Returns:
     ///     Optional[PropValue]: the mean of all updates, or `None` if not numeric or empty.
-    pub fn mean(&self) -> Result<Option<Prop>, ClientError> {
+    pub fn mean(&self) -> Result<Option<f64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.mean().await })
     }
@@ -567,7 +567,7 @@ impl PyRemoteTemporalProperty {
     ///
     /// Returns:
     ///     Optional[PropValue]: the mean of all updates, or `None` if not numeric or empty.
-    pub fn average(&self) -> Result<Option<Prop>, ClientError> {
+    pub fn average(&self) -> Result<Option<f64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.average().await })
     }

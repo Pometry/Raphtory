@@ -120,7 +120,7 @@ jobs:
             rm $FILE
             ln -s /usr/local/bin/protoc /usr/bin/protoc
       - name: Upload wheels to gh artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pyartifacts-linux-${{ matrix.target }}
           path: ./python/dist
@@ -154,7 +154,7 @@ jobs:
           rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pyartifacts-windows-${{ matrix.target }}
           path: ./python/dist
@@ -198,7 +198,7 @@ jobs:
           rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pyartifacts-macos-${{ matrix.target }}
           path: ./python/dist

@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use proptest::proptest;
 use raphtory::{
-    db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+    db::graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
     prelude::*,
 };
 use raphtory_api::core::entities::GID;
@@ -27,7 +27,7 @@ fn test_node_explicit_node_additions() {
     let layer = [];
     let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
     let g = Graph::from(build_graph(&graph_f));
-    let g_layer = g.valid_layers(layer.clone());
+    let g_layer = g.valid_layers(layer);
 
     assert_graph_equal(&g_layer, &g_layer_expected);
 }
@@ -38,7 +38,7 @@ fn test_failure() {
     let layer = ["_default", "b"];
     let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
     let g = Graph::from(build_graph(&graph_f));
-    let g_layer = g.valid_layers(layer.clone());
+    let g_layer = g.valid_layers(layer);
 
     assert_graph_equal(&g_layer, &g_layer_expected);
 }
@@ -49,7 +49,7 @@ fn test_failure2() {
     let layer = ["_default", "b"];
     let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
     let g = Graph::from(build_graph(&graph_f));
-    let g_layer = g.valid_layers(layer.clone());
+    let g_layer = g.valid_layers(layer);
 
     assert_graph_equal(&g_layer, &g_layer_expected);
 }
@@ -60,7 +60,7 @@ fn test_failure3() {
     let layer = ["_default", "b"];
     let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
     let g = Graph::from(build_graph(&graph_f));
-    let g_layer = g.valid_layers(layer.clone());
+    let g_layer = g.valid_layers(layer);
 
     assert_graph_equal(&g_layer, &g_layer_expected);
 }
@@ -81,7 +81,7 @@ fn test_node_layer_visibility_under_valid_layers() {
     let layer = ["b"];
     let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
     let g = Graph::from(build_graph(&graph_f));
-    let g_layer = g.valid_layers(layer.clone());
+    let g_layer = g.valid_layers(layer);
 
     assert_graph_equal(&g_layer, &g_layer_expected);
 }

@@ -20,7 +20,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{IntoPropMap, Prop, PropMap, PropType},
+    entities::properties::prop::{IntoPropMap, Prop, PropArray, PropMap, PropType},
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
@@ -36,6 +36,52 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
+
+// `Int` can't be used for `u64`: async-graphql validates every `Int` input with
+// the first integer type registered (`i32`, which only checks `is_i64`), so
+// values above `i64::MAX` are rejected before `u64` parsing runs.
+
+/// 64 bit unsigned integer, accepting the full `0..=18446744073709551615` range.
+///
+/// Accepts a JSON number, or a decimal string for clients that can't represent
+/// large integers exactly (e.g. JavaScript beyond 2^53).
+#[derive(Scalar, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[graphql(name = "UInt64")]
+#[serde(transparent)]
+pub struct GqlU64(pub u64);
+
+impl ScalarValue for GqlU64 {
+    fn from_value(value: GqlValue) -> Result<Self, Error> {
+        match value {
+            GqlValue::Number(n) => n.as_u64().map(GqlU64).ok_or_else(|| {
+                Error::new("UInt64 must be an integer in 0..=18446744073709551615.")
+            }),
+            GqlValue::String(s) => s
+                .parse()
+                .map(GqlU64)
+                .map_err(|_| Error::new("UInt64 must be an integer in 0..=18446744073709551615.")),
+            _ => Err(Error::new(
+                "Expected UInt64 as a non-negative Int or a decimal String.",
+            )),
+        }
+    }
+
+    fn to_value(&self) -> GqlValue {
+        GqlValue::Number(Number::from(self.0))
+    }
+}
+
+impl Display for GqlU64 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl From<u64> for GqlU64 {
+    fn from(value: u64) -> Self {
+        GqlU64(value)
+    }
+}
 
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -109,7 +155,7 @@ pub enum Value {
     /// 32 bit unsigned integer.
     U32(u32),
     /// 64 bit unsigned integer.
-    U64(u64),
+    U64(GqlU64),
     /// 32 bit signed integer.
     I32(i32),
     /// 64 bit signed integer.
@@ -235,7 +281,7 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
         Value::U8(n) => Ok(Prop::U8(n)),
         Value::U16(n) => Ok(Prop::U16(n)),
         Value::U32(n) => Ok(Prop::U32(n)),
-        Value::U64(n) => Ok(Prop::U64(n)),
+        Value::U64(n) => Ok(Prop::U64(n.0)),
         Value::I32(n) => Ok(Prop::I32(n)),
         Value::I64(n) => Ok(Prop::I64(n)),
         Value::F32(n) => Ok(Prop::F32(n)),
@@ -249,7 +295,7 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
                 .into_iter()
                 .map(value_to_prop)
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(Prop::List(prop_list.into()))
+            Ok(Prop::List(PropArray::try_from(prop_list)?))
         }
         Value::Object(object) => {
             let prop_map: PropMap = object
@@ -279,10 +325,8 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     }
 }
 
-impl TryFrom<&Prop> for Value {
-    type Error = GraphError;
-
-    fn try_from(prop: &Prop) -> Result<Self, Self::Error> {
+impl From<&Prop> for Value {
+    fn from(prop: &Prop) -> Self {
         prop_to_value(prop)
     }
 }
@@ -290,13 +334,13 @@ impl TryFrom<&Prop> for Value {
 /// A `Prop` from the engine → GQL wire `Value`. Mirror of [`value_to_prop`];
 /// non-lossy for scalars. Naive datetimes truncate to millisecond precision —
 /// the server's time parser accepts at most 3 fractional digits.
-fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
-    Ok(match p {
+fn prop_to_value(p: &Prop) -> Value {
+    match p {
         Prop::Str(s) => Value::Str(s.to_string()),
         Prop::U8(v) => Value::U8(*v),
         Prop::U16(v) => Value::U16(*v),
         Prop::U32(v) => Value::U32(*v),
-        Prop::U64(v) => Value::U64(*v),
+        Prop::U64(v) => Value::U64(GqlU64(*v)),
         Prop::I32(v) => Value::I32(*v),
         Prop::I64(v) => Value::I64(*v),
         Prop::F32(v) if !v.is_finite() => Value::F32Special(SpecialFloat::of(*v as f64)),
@@ -307,26 +351,20 @@ fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
         Prop::NDTime(v) => Value::NDTime(v.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()),
         Prop::DTime(v) => Value::DTime(v.to_rfc3339()),
         Prop::Decimal(v) => Value::Decimal(v.to_string()),
-        Prop::List(arr) => {
-            let items: Result<Vec<Value>, GraphError> =
-                arr.iter().map(|p| prop_to_value(&p)).collect();
-            Value::List(items?)
-        }
+        Prop::List(arr) => Value::List(arr.iter().map(|p| prop_to_value(&p)).collect()),
         Prop::Map(map) => {
             // Map props are insertion-ordered, so iteration order is already
             // deterministic and survives the wire round-trip.
             let entries = map
                 .iter()
-                .map(|(k, v)| {
-                    Ok(ObjectEntry {
-                        key: k.to_string(),
-                        value: prop_to_value(v)?,
-                    })
+                .map(|(k, v)| ObjectEntry {
+                    key: k.to_string(),
+                    value: prop_to_value(v),
                 })
-                .collect::<Result<Vec<_>, GraphError>>()?;
+                .collect();
             Value::Object(entries)
         }
-    })
+    }
 }
 
 #[derive(Clone, Debug, Scalar)]
@@ -389,12 +427,11 @@ pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
             .collect::<Result<Vec<(String, Prop)>, Error>>()?
             .into_prop_map()),
         GqlValue::String(s) => Ok(Prop::Str(s.into())),
-        GqlValue::List(arr) => Ok(Prop::List(
+        GqlValue::List(arr) => Ok(Prop::List(PropArray::try_from(
             arr.into_iter()
                 .map(gql_to_prop)
-                .collect::<Result<Vec<Prop>, Error>>()?
-                .into(),
-        )),
+                .collect::<Result<Vec<Prop>, Error>>()?,
+        )?)),
         _ => Err(Error::new("Unable to convert")),
     }
 }
@@ -584,7 +621,6 @@ impl GqlTemporalProperty {
 
     /// The value at or before time `t` (latest update on or before `t`). Returns null
     /// if no update exists on or before `t`.
-
     pub async fn at(
         &self,
         #[graphql(
@@ -617,7 +653,6 @@ impl GqlTemporalProperty {
     }
 
     /// Collapses runs of consecutive-equal updates into a single `(time, value)` pair.
-
     pub async fn ordered_dedupe(
         &self,
         #[graphql(
@@ -755,7 +790,6 @@ impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
 impl GqlProperties {
     /// Look up a single property by key. Returns null if no property with that key
     /// exists in the current view.
-
     pub async fn get(
         &self,
         #[graphql(desc = "The property name.")] key: String,
@@ -766,7 +800,6 @@ impl GqlProperties {
     }
 
     /// Returns true if a property with the given key exists in this view.
-
     pub async fn contains(
         &self,
         #[graphql(desc = "The property name to look up.")] key: String,
@@ -777,7 +810,6 @@ impl GqlProperties {
     /// The data-type of the property's latest value by key, as its `PropType`
     /// display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
     /// the key isn't present. Mirrors the local `Properties.get_dtype_of`.
-
     pub async fn get_dtype_of(
         &self,
         #[graphql(desc = "The property name.")] key: String,
@@ -800,7 +832,6 @@ impl GqlProperties {
     }
 
     /// Snapshot of property values, one `{key, value}` entry per property.
-
     pub async fn values(
         &self,
         #[graphql(
@@ -838,7 +869,6 @@ impl GqlProperties {
 impl GqlMetadata {
     /// Look up a single metadata value by key. Returns null if no metadata with that
     /// key exists.
-
     pub async fn get(
         &self,
         #[graphql(desc = "The metadata name.")] key: String,
@@ -849,7 +879,6 @@ impl GqlMetadata {
     }
 
     /// Returns true if a metadata entry with the given key exists.
-
     pub async fn contains(
         &self,
         #[graphql(desc = "The metadata name to look up.")] key: String,
@@ -864,7 +893,6 @@ impl GqlMetadata {
     }
 
     /// All metadata values as `{key, value}` entries.
-
     pub(crate) async fn values(
         &self,
         #[graphql(
@@ -896,7 +924,6 @@ impl GqlMetadata {
 impl GqlTemporalProperties {
     /// Look up a single temporal property by key. Returns null if there's no temporal
     /// property with that key.
-
     pub async fn get(
         &self,
         #[graphql(desc = "The property name.")] key: String,
@@ -905,7 +932,6 @@ impl GqlTemporalProperties {
     }
 
     /// Returns true if a temporal property with the given key exists.
-
     pub async fn contains(
         &self,
         #[graphql(desc = "The property name to look up.")] key: String,
@@ -928,7 +954,6 @@ impl GqlTemporalProperties {
 
     /// All temporal properties, each as a `TemporalProperty` with its full timeline
     /// available. Use `history`, `values`, `latest`, `at`, etc. on each entry.
-
     pub async fn values(
         &self,
         #[graphql(
@@ -995,7 +1020,7 @@ mod value_serde_tests {
         .collect();
         let prop = Prop::Map(Arc::new(map));
 
-        let value = Value::try_from(&prop).unwrap();
+        let value = Value::from(&prop);
         let Value::Object(entries) = &value else {
             panic!("expected Object, got {value:?}");
         };
@@ -1020,7 +1045,7 @@ mod value_serde_tests {
             (f64::INFINITY, SpecialFloat::Infinity),
             (f64::NEG_INFINITY, SpecialFloat::NegInfinity),
         ] {
-            let value = Value::try_from(&Prop::F64(input)).unwrap();
+            let value = Value::from(&Prop::F64(input));
             let Value::F64Special(s) = &value else {
                 panic!("expected F64Special, got {value:?}");
             };
@@ -1032,7 +1057,7 @@ mod value_serde_tests {
             assert!(back.is_nan() == input.is_nan() && (input.is_nan() || back == input));
         }
 
-        let value = Value::try_from(&Prop::F32(f32::NEG_INFINITY)).unwrap();
+        let value = Value::from(&Prop::F32(f32::NEG_INFINITY));
         assert_eq!(
             serde_json::to_value(&value).unwrap(),
             serde_json::json!({ "f32Special": "NEG_INFINITY" })
@@ -1044,7 +1069,7 @@ mod value_serde_tests {
 
         // Finite floats keep the plain numeric form.
         assert_eq!(
-            serde_json::to_value(Value::try_from(&Prop::F64(1.5)).unwrap()).unwrap(),
+            serde_json::to_value(Value::from(&Prop::F64(1.5))).unwrap(),
             serde_json::json!({ "f64": 1.5 })
         );
     }
@@ -1057,7 +1082,7 @@ mod value_serde_tests {
         use chrono::NaiveDateTime;
 
         let dt: NaiveDateTime = "2020-01-01T00:00:00.123456".parse().unwrap();
-        let value = Value::try_from(&Prop::NDTime(dt)).unwrap();
+        let value = Value::from(&Prop::NDTime(dt));
         let Value::NDTime(s) = &value else {
             panic!("expected NDTime, got {value:?}");
         };

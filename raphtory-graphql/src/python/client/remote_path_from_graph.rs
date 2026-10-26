@@ -10,7 +10,7 @@ use crate::{
         remote_path_from_node::PyRemotePathFromNode,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use pyo3::{pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
@@ -58,12 +58,10 @@ impl PyRemotePathFromGraph {
     ///     RemotePathFromGraph: a new collection with the filter applied.
     ///
     /// Raises:
-    ///     ValueError: if the filter cannot be represented as a GraphQL
-    ///         `NodeFilter`.
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.into_tree();
         Ok(PyRemotePathFromGraph::new(self.path.filter(tree)?))
     }
 
@@ -82,10 +80,11 @@ impl PyRemotePathFromGraph {
     /// Raises:
     ///     Exception: if the expression tests edges rather than nodes — the
     ///         same error the local `PathFromGraph.__getitem__` raises.
-    ///     ValueError: if the filter cannot be sent over the wire.
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
         Ok(PyRemotePathFromGraph::new(
-            self.path.select(node_subscript(&filter)?)?,
+            self.path.select(node_subscript(filter)?)?,
         ))
     }
 
@@ -246,7 +245,7 @@ impl PyRemotePathFromGraph {
     ///
     /// Returns:
     ///   list[list[int]]: the per-node degrees grouped per source node.
-    pub fn degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+    pub fn degree(&self) -> Result<Vec<Vec<u64>>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.degree().await })
     }
@@ -255,7 +254,7 @@ impl PyRemotePathFromGraph {
     ///
     /// Returns:
     ///   list[list[int]]: the per-node in-degrees grouped per source node.
-    pub fn in_degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+    pub fn in_degree(&self) -> Result<Vec<Vec<u64>>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.in_degree().await })
     }
@@ -264,7 +263,7 @@ impl PyRemotePathFromGraph {
     ///
     /// Returns:
     ///   list[list[int]]: the per-node out-degrees grouped per source node.
-    pub fn out_degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+    pub fn out_degree(&self) -> Result<Vec<Vec<u64>>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.out_degree().await })
     }
@@ -274,7 +273,7 @@ impl PyRemotePathFromGraph {
     ///
     /// Returns:
     ///   list[list[int]]: the per-node edge history counts grouped per source node.
-    pub fn edge_history_count(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+    pub fn edge_history_count(&self) -> Result<Vec<Vec<u64>>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.edge_history_count().await })
     }

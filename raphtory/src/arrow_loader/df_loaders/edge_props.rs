@@ -6,13 +6,13 @@ use kdam::BarExt;
 use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView},
-        df_loaders::{
-            edges::{get_or_resolve_node_vids, store_node_ids, ColumnNames},
-            process_shared_properties,
-        },
+        df_loaders::{edges::ColumnNames, process_shared_properties},
         layer_col::lift_layer_col,
+        node_col::NodeCol,
         prop_handler::*,
+        LOAD_POOL,
     },
+    core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     prelude::*,
@@ -37,13 +37,13 @@ use std::{
 };
 use storage::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    pages::locked::{edges::LockedEdgePage, nodes::LockedNodePage},
+    pages::locked::{edges::LockedEdgeSegment, nodes::LockedNodeSegment},
     Extension,
 };
 use tracing::error;
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl IntoIterator<Item = Result<DFChunk, GraphError>>>,
     column_names: ColumnNames,
     resolve_nodes: bool,
@@ -88,6 +88,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut dst_col_resolved: Vec<VID> = vec![];
     let mut eid_col_resolved: Vec<EID> = vec![];
 
+    // held for the whole load
+    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
     for chunk in df_view.chunks {
         let df = chunk?;
         let metadata_cols =
@@ -100,8 +103,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let src_col = df.node_col(src_index)?;
         let dst_col = df.node_col(dst_index)?;
         if resolve_nodes {
-            src_col.validate(graph, LoadError::MissingSrcError)?;
-            dst_col.validate(graph, LoadError::MissingDstError)?;
+            src_col.validate(graph, LoadError::InvalidSrcError)?;
+            dst_col.validate(graph, LoadError::InvalidDstError)?;
         }
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_id_values = layer_id_index
@@ -114,7 +117,10 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .transpose()?;
         let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
 
-        let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
+        // Metadata can only be attached to an edge that exists, so its endpoints must exist too:
+        // look the ids up, never create them. Resolving the whole chunk before taking the write
+        // lock means a row naming an unknown node fails before the graph is touched.
+        let (src_vids, dst_vids) = lookup_node_vids(
             graph,
             src_index,
             dst_index,
@@ -126,30 +132,22 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             &dst_col,
         )?;
 
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
         eid_col_resolved.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
         let WriteLockedGraph { nodes, .. } = &mut write_locked_graph;
 
-        // Generate all edge_ids + add outbound edges
+        // Find the edge id of every row
         nodes.par_iter_mut().try_for_each(|locked_page| {
             // Zip all columns for iteration.
             let zip = izip!(src_vids.iter(), dst_vids.iter());
             add_and_resolve_outbound_edges(&eid_col_shared, locked_page, zip)?;
-            // resolve_nodes=false
-            // assumes we are loading our own graph, via the parquet loaders,
-            // so previous calls have already stored the node ids and types
-            if resolve_nodes {
-                store_node_ids(&gid_str_cache, locked_page);
-            }
             Ok::<_, GraphError>(())
         })?;
 
-        drop(write_locked_graph);
-
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        write_locked_graph
+            .lock_new_segments()
+            .map_err(into_graph_err)?;
 
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
             let zip = izip!(
@@ -168,7 +166,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df_prefetch<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+pub fn load_edges_metadata_from_df_prefetch<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     column_names: ColumnNames,
     resolve_nodes: bool,
@@ -182,44 +182,93 @@ pub fn load_edges_from_df_prefetch<G: StaticGraphViewOps + PropertyAdditionOps +
         chunks,
         num_rows,
     } = df_view;
-    rayon::scope(|s| {
-        let (tx, rx) = mpsc::sync_channel(2);
-
-        s.spawn(move |_| {
-            let sender = tx;
-            for chunk in chunks {
-                if let Err(e) = sender.send(chunk) {
-                    error!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
-                    break;
-                }
-            }
-        });
+    let mut result: Result<(), GraphError> = Ok(());
+    LOAD_POOL.in_place_scope(|s| {
+        let (sender, rx) = mpsc::sync_channel(2);
 
         let df_view_prefetch = DFView {
             names,
             chunks: rx,
             num_rows,
         };
+        let result = &mut result;
 
-        load_edges_from_df(
-            df_view_prefetch,
-            column_names,
-            resolve_nodes,
-            metadata,
-            shared_metadata,
-            layer,
-            graph,
-        )?;
-        Ok::<(), GraphError>(())
-    })?;
+        s.spawn(move |_| {
+            *result = load_edges_metadata_from_df(
+                        df_view_prefetch,
+                        column_names,
+                        resolve_nodes,
+                        metadata,
+                        shared_metadata,
+                        layer,
+                        graph,
+                    );
+        });
 
-    Ok(())
+        for chunk in chunks {
+            if let Err(e) = sender.send(chunk) {
+                error!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
+                break;
+            }
+        }
+    });
+
+    result
+}
+
+/// Resolve the `src` and `dst` columns of a chunk to VIDs without creating any node.
+///
+/// With `resolve_nodes` the columns hold node ids and every one of them must already be in the
+/// graph; the first that is not fails the load with `GraphError::NodeMissingError`, naming it.
+/// Without it the columns hold VIDs written by our own parquet encoder and are used as they are.
+#[allow(clippy::too_many_arguments)]
+fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
+    graph: &G,
+    src_index: usize,
+    dst_index: usize,
+    src_col_resolved: &'a mut Vec<VID>,
+    dst_col_resolved: &'a mut Vec<VID>,
+    resolve_nodes: bool,
+    df: &'b DFChunk,
+    src_col: &'a NodeCol,
+    dst_col: &'a NodeCol,
+) -> Result<(&'c [VID], &'c [VID]), GraphError> {
+    if resolve_nodes {
+        src_col_resolved.resize(src_col.len(), VID::default());
+        dst_col_resolved.resize(src_col.len(), VID::default());
+        for (col, resolved) in [
+            (src_col, &mut *src_col_resolved),
+            (dst_col, &mut *dst_col_resolved),
+        ] {
+            col.par_iter()
+                .zip_eq(resolved.par_iter_mut())
+                .try_for_each(|(gid, vid)| {
+                    *vid = graph
+                        .internalise_node(gid.as_node_ref())
+                        .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?;
+                    Ok::<(), GraphError>(())
+                })?;
+        }
+        Ok((src_col_resolved.as_slice(), dst_col_resolved.as_slice()))
+    } else {
+        let srcs = df.chunk[src_index]
+            .as_primitive_opt::<UInt64Type>()
+            .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[src_index].data_type().clone()))?
+            .values()
+            .as_ref();
+        let dsts = df.chunk[dst_index]
+            .as_primitive_opt::<UInt64Type>()
+            .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[dst_index].data_type().clone()))?
+            .values()
+            .as_ref();
+        Ok((bytemuck::cast_slice(srcs), bytemuck::cast_slice(dsts)))
+    }
 }
 
 #[inline(never)]
 fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
     eid_col_shared: &&mut [AtomicUsize],
-    locked_page: &mut LockedNodePage<'_, NS>,
+    locked_page: &mut LockedNodeSegment<'_, NS>,
     zip: impl Iterator<Item = (&'a VID, &'a VID)>,
 ) -> Result<(), LoadError> {
     let writer = locked_page.writer();
@@ -241,7 +290,7 @@ fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>
 fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     shared_metadata: &[(usize, Prop)],
     metadata_cols: &PropCols,
-    shard: &mut LockedEdgePage<'_, ES>,
+    shard: &mut LockedEdgeSegment<'_, ES>,
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, &'a usize)>,
 ) {
     let mut c_props = Vec::new();

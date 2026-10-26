@@ -4,7 +4,7 @@ use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::view::{materialize_impl, MaterializedGraph},
-        graph::graph::assert_graph_equal_timestamps,
+        graph::assertions::assert_graph_equal_timestamps,
     },
     io::parquet_loaders::{
         get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
@@ -282,7 +282,7 @@ fn get_parquet_decode_time(
     let _parquet_graph = MaterializedGraph::decode_parquet(
         &parquet_path,
         Some(&decode_graph_path),
-        sf10_extension_config,
+        sf10_extension_config.into(),
     )
     .unwrap();
     let parquet_decode_elapsed = parquet_decode_start.elapsed();
@@ -373,7 +373,7 @@ fn get_parquet_df_loader_time(
     drop(sf10_graph);
 
     let replay_graph =
-        Graph::new_at_path_with_config(load_graph_path, sf10_extension_config).unwrap();
+        Graph::new_at_path_with_config(load_graph_path, sf10_extension_config.into()).unwrap();
     println!("Starting SF10 parquet loader replay at {}", Local::now());
     let parquet_load_start = Instant::now();
 

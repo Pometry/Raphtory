@@ -13,6 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         name: Checkout
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -20,9 +22,10 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          cache-all-crates: true
-      - uses: ./.github/actions/setup_rust
-        name: Setup Rust
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: python-build-fast
+          # Restore only: this job finishes first and would save a thin cache before the heavier job sharing the key
+          save-if: false
       - name: Set up pnpm
         uses: pnpm/action-setup@v6.0.9
         with:
@@ -33,6 +36,7 @@ jobs:
       - name: Run stress test
         env:
           RUST_BACKTRACE: 1
+          CARGO_BUILD_JOBS: 3
         run: |
           cargo build --package raphtory-server --bin raphtory-server --profile=build-fast
           ./target/build-fast/raphtory-server server --work-dir graphs &
@@ -40,7 +44,7 @@ jobs:
           make stress-test
       - name: Upload k6 report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stress-test-report
           path: graphql-bench/stress-test-report.html

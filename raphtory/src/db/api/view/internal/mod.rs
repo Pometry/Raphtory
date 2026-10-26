@@ -31,7 +31,7 @@ mod wrapped_graph;
 pub use edge_filter_ops::*;
 pub use filter::*;
 pub use filter_ops::*;
-pub use into_dynamic::{IntoDynHop, IntoDynamic};
+pub use into_dynamic::{IntoDynGraphArc, IntoDynHop, IntoDynamic};
 pub use list_ops::*;
 pub use materialize::*;
 pub use node_filter_ops::*;
@@ -86,9 +86,9 @@ impl<
 {
 }
 
-pub trait GraphView: BoxableGraphView + Sized + Clone {}
+pub trait GraphView: BoxableGraphView + Sized + Clone + IntoDynGraphArc {}
 
-impl<T: BoxableGraphView + Sized + Clone> GraphView for T {}
+impl<T: BoxableGraphView + Sized + Clone + IntoDynGraphArc> GraphView for T {}
 
 impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 
@@ -144,7 +144,8 @@ impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
     }
 }
 
-/// Trait for marking a graph view as immutable to avoid conflicts when implementing conversions for mutable and immutable views
+/// Trait for marking a graph view as immutable to avoid conflicts when implementing conversions
+/// for mutable and immutable views.
 pub trait Immutable {}
 
 pub enum DynOrMutableGraph {
@@ -230,43 +231,12 @@ impl InheritNodeHistoryFilter for DynamicGraph {}
 
 impl InheritEdgeHistoryFilter for DynamicGraph {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritViewOps for &'graph1 G {}
+impl<G: GraphView> InheritViewOps for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritStorageOps for &'graph1 G {}
+impl<G: ?Sized> Static for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritNodeHistoryFilter for &'graph1 G {}
+impl<G: GraphView> InheritStorageOps for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritEdgeHistoryFilter for &'graph1 G {}
+impl<G: GraphView> InheritNodeHistoryFilter for &G {}
 
-#[cfg(test)]
-mod test {
-    use crate::{
-        db::{
-            api::{
-                mutation::AdditionOps,
-                view::{internal::BoxableGraphView, *},
-            },
-            graph::graph::Graph,
-        },
-        prelude::{NodeStateOps, NO_PROPS},
-    };
-    use itertools::Itertools;
-    use std::sync::Arc;
-
-    #[test]
-    fn test_boxing() {
-        // this tests that a boxed graph actually compiles
-        let g = Graph::new();
-        g.add_node(0, 1u64, NO_PROPS, None, None).unwrap();
-        let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
-        assert_eq!(
-            boxed
-                .nodes()
-                .id()
-                .iter_values()
-                .filter_map(|v| v.as_u64())
-                .collect_vec(),
-            vec![1]
-        );
-    }
-}
+impl<G: GraphView> InheritEdgeHistoryFilter for &G {}

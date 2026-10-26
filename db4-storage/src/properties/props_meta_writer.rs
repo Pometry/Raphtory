@@ -1,7 +1,7 @@
 use either::Either;
 use raphtory_api::core::{
     entities::properties::{
-        meta::{LockedPropMapper, Meta, PropMapper},
+        meta::{LockedPropMapper, Meta, PropMapper, PropWithStatus},
         prop::{Prop, unify_types},
     },
     storage::dict_mapper::MaybeNew,
@@ -136,9 +136,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
     }
 
     /// Returns temporal prop names, prop ids and prop values, along with their MaybeNew status.
-    pub fn into_props_temporal_with_status(
-        self,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, StorageError> {
+    pub fn into_props_temporal_with_status(self) -> Result<Vec<PropWithStatus<PN>>, StorageError> {
         self.into_props_inner_with_status(PropType::Temporal)
     }
 
@@ -147,9 +145,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
     }
 
     /// Returns constant prop names, prop ids and prop values, along with their MaybeNew status.
-    pub fn into_props_const_with_status(
-        self,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, StorageError> {
+    pub fn into_props_const_with_status(self) -> Result<Vec<PropWithStatus<PN>>, StorageError> {
         self.into_props_inner_with_status(PropType::Constant)
     }
 
@@ -168,7 +164,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
     pub fn into_props_inner_with_status(
         self,
         prop_type: PropType,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, StorageError> {
+    ) -> Result<Vec<PropWithStatus<PN>>, StorageError> {
         match self {
             Self::NoChange { props } => Ok(props
                 .into_iter()
@@ -269,7 +265,7 @@ mod test {
     #[test]
     fn complex_props_meta_writer() {
         let meta = Meta::default();
-        let prop_list_map = Prop::list([Prop::map([("a", 1)]), Prop::map([("b", 2f64)])]);
+        let prop_list_map = Prop::list([Prop::map([("a", 1)]), Prop::map([("b", 2f64)])]).unwrap();
         let props = vec![("a", prop_list_map.clone())];
 
         let writer = PropsMetaWriter::temporal(&meta, props.into_iter()).unwrap();

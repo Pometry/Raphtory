@@ -65,13 +65,15 @@ export async function navigateInSavedGraphs(
             break;
         case 'split-button':
             await clickSavedGraphsGraph(page, graphName);
-            await page.getByRole('link', { name: 'Open' }).first().click();
+            // exact: substring matching once clicked a nav link whose accessible
+            // name merely contained "Open" — and opened it in a new tab.
+            await page.getByRole('link', { name: 'Open', exact: true }).first().click();
             break;
         case 'preview-graph':
             await clickSavedGraphsGraph(page, graphName);
             await page
                 .getByRole('region', { name: 'Graph preview' })
-                .getByRole('link', { name: 'Open' })
+                .getByRole('link', { name: 'Open', exact: true })
                 .click();
             break;
     }

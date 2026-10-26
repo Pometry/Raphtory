@@ -15,7 +15,7 @@ use raphtory::{
 use raphtory_api::core::{
     entities::properties::{
         meta::STATIC_GRAPH_LAYER_NAME,
-        prop::{PropType, DECIMAL_MAX},
+        prop::{PropArray, PropType, DECIMAL_MAX},
     },
     storage::{
         arc_str::{ArcStr, OptionAsStr},
@@ -41,6 +41,9 @@ use std::{
     sync::Arc,
 };
 
+/// Count of each temporal property value per timestamp, keyed by property name.
+type TPropCounts = HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>>;
+
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
 }
@@ -55,74 +58,80 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
     };
 
     // compare histories as multiset as order for values with the same timestamp is ambiguous!
-    let get_fixture_t_prop_counts =
-        |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let mut grouped: HashMap<ArcStr, HashMap<i64, HashMap<Prop, usize>>> = HashMap::new();
-            for (t, props) in t_props {
-                for (k, v) in props {
-                    grouped.entry(ArcStr::from(k.as_str()))
-                        .or_default().entry(*t).or_default().entry(v.clone()).and_modify(|v| *v += 1).or_insert(1);
-                }
+    let get_fixture_t_prop_counts = |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> TPropCounts {
+        let mut grouped: HashMap<ArcStr, HashMap<i64, HashMap<Prop, usize>>> = HashMap::new();
+        for (t, props) in t_props {
+            for (k, v) in props {
+                grouped
+                    .entry(ArcStr::from(k.as_str()))
+                    .or_default()
+                    .entry(*t)
+                    .or_default()
+                    .entry(v.clone())
+                    .and_modify(|v| *v += 1)
+                    .or_insert(1);
             }
-            grouped.into_iter().map(|(key, value)| (key, value.into_iter().sorted_by_key(|(t, _)| *t).collect())).collect()
-        };
+        }
+        grouped
+            .into_iter()
+            .map(|(key, value)| (key, value.into_iter().sorted_by_key(|(t, _)| *t).collect()))
+            .collect()
+    };
 
-    let get_node_t_prop_map =
-        |node: &NodeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
-                .properties()
-                .temporal()
-                .iter()
-                .filter(|(_, props)| !props.is_empty())
-                .map(|(key, values)| {
-                    let runs = values
-                        .iter()
-                        .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
-                        .coalesce(|(lt, mut lv), (rt, rv)| {
-                            if lt.t() == rt.t() {
-                                for (v, count) in rv {
-                                    lv.entry(v).and_modify(|c| *c += count).or_insert(count);
-                                }
-                                Ok((lt, lv))
-                            } else {
-                                Err(((lt, lv), (rt, rv)))
+    let get_node_t_prop_map = |node: &NodeView<&Graph>| -> TPropCounts {
+        let out: TPropCounts = node
+            .properties()
+            .temporal()
+            .iter()
+            .filter(|(_, props)| !props.is_empty())
+            .map(|(key, values)| {
+                let runs = values
+                    .iter()
+                    .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
+                    .coalesce(|(lt, mut lv), (rt, rv)| {
+                        if lt.t() == rt.t() {
+                            for (v, count) in rv {
+                                lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                             }
-                        })
-                        .map(|(t, v)| (t.t(), v))
-                        .collect();
-                    (key, runs)
-                })
-                .collect();
-            out
-        };
-    let get_edge_t_prop_counts =
-        |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
-                .properties()
-                .temporal()
-                .iter()
-                .filter(|(_, props)| !props.is_empty())
-                .map(|(key, values)| {
-                    let runs = values
-                        .iter()
-                        .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
-                        .coalesce(|(lt, mut lv), (rt, rv)| {
-                            if lt.t() == rt.t() {
-                                for (v, count) in rv {
-                                    lv.entry(v).and_modify(|c| *c += count).or_insert(count);
-                                }
-                                Ok((lt, lv))
-                            } else {
-                                Err(((lt, lv), (rt, rv)))
+                            Ok((lt, lv))
+                        } else {
+                            Err(((lt, lv), (rt, rv)))
+                        }
+                    })
+                    .map(|(t, v)| (t.t(), v))
+                    .collect();
+                (key, runs)
+            })
+            .collect();
+        out
+    };
+    let get_edge_t_prop_counts = |edge: &EdgeView<&Graph>| -> TPropCounts {
+        let out: TPropCounts = edge
+            .properties()
+            .temporal()
+            .iter()
+            .filter(|(_, props)| !props.is_empty())
+            .map(|(key, values)| {
+                let runs = values
+                    .iter()
+                    .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
+                    .coalesce(|(lt, mut lv), (rt, rv)| {
+                        if lt.t() == rt.t() {
+                            for (v, count) in rv {
+                                lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                             }
-                        })
-                        .map(|(t, v)| (t.t(), v))
-                        .collect();
-                    (key, runs)
-                })
-                .collect();
-            out
-        };
+                            Ok((lt, lv))
+                        } else {
+                            Err(((lt, lv), (rt, rv)))
+                        }
+                    })
+                    .map(|(t, v)| (t.t(), v))
+                    .collect();
+                (key, runs)
+            })
+            .collect();
+        out
+    };
 
     // collect expected sets from fixture
     let mut expected_node_histories: HashMap<u64, Vec<i64>> = fixture
@@ -506,7 +515,7 @@ pub fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
             })
             .boxed(),
         PropType::List(p_type) => proptest::collection::vec(prop(p_type), 0..10)
-            .prop_map(|props| Prop::List(props.into()))
+            .prop_map(|props| Prop::List(PropArray::try_from(props).unwrap()))
             .boxed(),
         PropType::Map(p_types) => {
             let key_val: Vec<_> = p_types
@@ -534,16 +543,29 @@ pub fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
                 .prop_map(move |int| Prop::Decimal(BigDecimal::new(int.into(), scale)))
                 .boxed()
         }
-        _ => todo!(),
+
+        PropType::Empty => {
+            panic!("empty type cannot be generated")
+        }
+        PropType::U16 => any::<u16>().prop_map(Prop::U16).boxed(),
+        PropType::I32 => any::<i32>().prop_map(Prop::I32).boxed(),
+        PropType::U32 => any::<u32>().prop_map(Prop::U32).boxed(),
+        PropType::U64 => any::<u64>().prop_map(Prop::U64).boxed(),
+        PropType::F32 => any::<f32>().prop_map(Prop::F32).boxed(),
     }
 }
 
 pub fn prop_type(nested_prop_size: usize) -> impl Strategy<Value = PropType> {
     let leaf = proptest::sample::select(&[
         PropType::Str,
+        PropType::I32,
         PropType::I64,
+        PropType::F32,
         PropType::F64,
         PropType::U8,
+        PropType::U16,
+        PropType::U32,
+        PropType::U64,
         PropType::Bool,
         PropType::DTime,
         PropType::NDTime,
@@ -1086,7 +1108,7 @@ pub(crate) fn build_graph_from_edge_list_with_event_id<'a>(
 }
 
 pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
-    let g = Arc::new(Storage::default());
+    let g = Arc::new(Storage::new_with_config(Args::default()).unwrap());
     apply_graph_fixture(&g, graph_fix, 0);
     g
 }
@@ -1133,7 +1155,7 @@ pub fn apply_graph_fixture<
 }
 
 pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
-    let g = Arc::new(Storage::default());
+    let g = Arc::new(Storage::new_with_config(Args::default()).unwrap());
     let mut counter = 0usize;
     let actual_layer_set: HashSet<_> = graph_fix
         .edges()

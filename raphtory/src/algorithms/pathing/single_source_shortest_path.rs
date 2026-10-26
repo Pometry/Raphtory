@@ -6,7 +6,10 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
-        api::state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+        api::{
+            state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+            view::internal::NodeList,
+        },
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
@@ -41,7 +44,7 @@ impl PathState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Index::from_iter(value.path),
+                NodeList::from(Index::from_iter(value.path)),
             ),
         }
     }

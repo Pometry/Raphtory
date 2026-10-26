@@ -28,7 +28,7 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::db::api::storage::storage::Config;
+use raphtory::db::api::storage::storage::Args;
 use serde_json::json;
 use std::{
     error::Error,
@@ -64,11 +64,12 @@ use url::ParseError;
 #[cfg(feature = "vectors")]
 use {
     crate::{paths::ExistingGraphFolder, GQLError},
-    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+    raphtory_vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
 use crate::plugin::server::PluginRegistrationError;
 pub use config::ConfigError;
+use poem::listener::TcpAcceptor;
 
 pub const DEFAULT_PORT: u16 = 1736;
 
@@ -121,7 +122,6 @@ type SchemaDataInjector = Arc<
 >;
 
 /// A struct for defining and running a Raphtory GraphQL server
-#[derive(Clone)]
 pub struct GraphServer {
     data: Data,
     work_dir: PathBuf,
@@ -139,7 +139,7 @@ impl GraphServer {
     pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
-        graph_config: Config,
+        graph_args: Args,
     ) -> Result<Self, ServerError> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
@@ -149,7 +149,7 @@ impl GraphServer {
             max_concurrent_loads: config.concurrency.max_concurrent_loads,
         });
         let extensions = config.extensions.clone();
-        let data = Data::new(work_dir.as_path(), &config, graph_config);
+        let data = Data::new(work_dir.as_path(), &config, graph_args);
         let server = Self {
             work_dir,
             data,
@@ -255,9 +255,12 @@ impl GraphServer {
 
     /// Start the server on the default port and return a handle to it.
     /// If the default port is in use,
-    pub async fn start(&self) -> IoResult<RunningGraphServer> {
-        match self.start_with_port(DEFAULT_PORT).await {
-            Ok(server) => Ok(server),
+    pub async fn start(self) -> IoResult<RunningGraphServer> {
+        match TcpListener::bind(format!("0.0.0.0:{DEFAULT_PORT}"))
+            .into_acceptor()
+            .await
+        {
+            Ok(acceptor) => self.start_with_acceptor(acceptor).await,
             Err(err) => {
                 if matches!(err.kind(), ErrorKind::AddrInUse) {
                     warn!("Default port {DEFAULT_PORT} already in use, retrying with port=0");
@@ -270,19 +273,24 @@ impl GraphServer {
     }
 
     /// Start the server on the given port and return a handle to it.
-    pub async fn start_with_port(&self, port: u16) -> IoResult<RunningGraphServer> {
+    pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
         let acceptor = TcpListener::bind(format!("0.0.0.0:{port}"))
             .into_acceptor()
             .await?;
-        // set up opentelemetry first of all
+        self.start_with_acceptor(acceptor).await
+    }
+    async fn start_with_acceptor(self, acceptor: TcpAcceptor) -> IoResult<RunningGraphServer> {
+        // Setup opentelemetry tracing and logging providers.
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.service_name.clone();
         let tp = config.tracing.tracer_provider().await?;
-        // Create the base registry
-        let registry = Registry::default().with(filter).with(
-            fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
-        );
+
+        // Create the base registry.
+        let registry = Registry::default()
+            .with(filter)
+            .with(fmt::layer().pretty().with_span_events(FmtSpan::NONE));
+
         match tp.clone() {
             Some((span, log)) => {
                 registry
@@ -292,14 +300,14 @@ impl GraphServer {
                     )
                     .with(OpenTelemetryTracingBridge::new(&log))
                     .try_init()
-                    .unwrap_or_else(|err| error!("Failed to initialise tracer provider: {err}"));
+                    .unwrap_or_else(|err| warn!("Failed to initialise tracing subscriber: {err}"));
             }
             None => {
                 registry.try_init().ok();
             }
         };
 
-        let work_dir = self.work_dir();
+        let work_dir = self.work_dir().to_path_buf();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
@@ -339,12 +347,12 @@ impl GraphServer {
         })
     }
 
-    pub async fn build_schema(&self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
+    pub async fn build_schema(self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
         let schema_cfg = &self.config.schema;
 
         let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins)
-            .data(self.data.clone())
-            .data(self.config.concurrency.clone());
+            .data(self.data)
+            .data(self.config.concurrency);
 
         for inject in &self.schema_data {
             schema_builder = inject(schema_builder);
@@ -377,22 +385,20 @@ impl GraphServer {
     }
 
     async fn generate_endpoint(
-        &self,
+        self,
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+        let config = self.config.clone();
+        let key_resolver = self.key_resolver.clone();
         let schema = self.build_schema(tracer).await?;
 
         let app = Route::new()
             .nest(
                 "/",
                 PublicFilesEndpoint::new(
-                    self.config.public_dir.clone(),
-                    self.config.schema.disable_ui,
-                    AuthenticatedGraphQL::new(
-                        schema,
-                        self.config.clone(),
-                        self.key_resolver.clone(),
-                    ),
+                    config.public_dir.clone(),
+                    config.schema.disable_ui,
+                    AuthenticatedGraphQL::new(schema, config, key_resolver),
                 ),
             )
             .at("/health", get(health))
@@ -494,13 +500,12 @@ async fn server_termination(
         _ = terminate => {},
         _ = internal_terminate => {},
     }
+    // Stop global tracing exporters on server shutdown, except for when running
+    // integration tests, where they are reused across multiple tests.
     #[cfg(not(feature = "integration-test"))]
     match tp {
         None => {}
         Some((tp, lp)) => {
-            /* Avoid shutting down global tracing exporters on server shutdown during integration tests
-               since they are reused across multiple tests.
-            */
             tokio::task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
@@ -521,17 +526,16 @@ async fn server_termination(
 mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
-    use raphtory::db::api::storage::storage::Config;
+    use raphtory::prelude::Args;
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
 
     #[cfg(feature = "vectors")]
-    use raphtory::{
-        prelude::*,
-        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-    };
+    use raphtory::prelude::*;
+    #[cfg(feature = "vectors")]
+    use raphtory_vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 
     #[tokio::test]
     async fn test_public_dir_serves_index_for_subpages() {
@@ -545,7 +549,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -570,7 +574,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -631,7 +635,7 @@ mod server_tests {
     async fn test_batch_size_limit_enforced() {
         let work_dir = tempdir().unwrap();
         // Default config: max_batch_size defaults to 10.
-        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let running = server.start_with_port(0).await.unwrap();
@@ -649,7 +653,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -666,7 +670,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -688,7 +692,7 @@ mod server_tests {
     async fn test_server_start_stop() {
         global_info_logger();
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         info!("Calling start at time {}", Local::now());
@@ -707,7 +711,7 @@ mod server_tests {
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let template = DocumentTemplate {

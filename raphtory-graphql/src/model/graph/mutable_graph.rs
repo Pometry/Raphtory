@@ -185,7 +185,6 @@ impl GqlMutableGraph {
 
     /// Look up an existing node for mutation. Returns null if the node doesn't
     /// exist; use `addNode` or `createNode` to create one.
-
     pub async fn node(
         &self,
         #[graphql(desc = "Node id.")] name: GqlNodeId,
@@ -195,7 +194,6 @@ impl GqlMutableGraph {
 
     /// Add a new node or append an update to an existing one. Upsert semantics:
     /// no error if the node already exists — properties and type are merged.
-
     pub async fn add_node(
         &self,
         #[graphql(desc = "Time of the event.")] time: GqlTimeInput,
@@ -238,7 +236,6 @@ impl GqlMutableGraph {
 
     /// Create a new node or fail if it already exists. Strict alternative to
     /// `addNode` — use this when you want to detect collisions.
-
     pub async fn create_node(
         &self,
         #[graphql(desc = "Time of the create event.")] time: GqlTimeInput,
@@ -283,7 +280,6 @@ impl GqlMutableGraph {
     /// update it carries (time/properties pairs), then optionally sets its node type
     /// and adds any metadata. On partial failure, returns a `BatchFailures` error
     /// describing which entries failed and why; otherwise returns true.
-
     pub async fn add_nodes(
         &self,
         #[graphql(
@@ -345,7 +341,6 @@ impl GqlMutableGraph {
     }
 
     /// Look up an existing edge for mutation. Returns null if no such edge exists.
-
     pub async fn edge(
         &self,
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
@@ -357,7 +352,6 @@ impl GqlMutableGraph {
     /// Add a new edge or append an update to an existing one. Upsert semantics:
     /// safe to call on an edge that already exists — creates missing endpoints if
     /// needed.
-
     pub async fn add_edge(
         &self,
         #[graphql(desc = "Time of the event.")] time: GqlTimeInput,
@@ -399,7 +393,6 @@ impl GqlMutableGraph {
     /// update it carries, then adds any metadata. On partial failure, returns a
     /// `BatchFailures` error describing which entries failed; otherwise returns
     /// true.
-
     pub async fn add_edges(
         &self,
         #[graphql(
@@ -460,7 +453,6 @@ impl GqlMutableGraph {
     /// as a tombstone (the edge becomes invalid from `time` onwards); event
     /// graphs simply log the deletion event. Creates the edge first if it did
     /// not exist.
-
     pub async fn delete_edge(
         &self,
         #[graphql(desc = "Time of the deletion.")] time: GqlTimeInput,
@@ -493,7 +485,6 @@ impl GqlMutableGraph {
 
     /// Add temporal properties to the graph itself (not a node or edge). Each
     /// call records a property update at `t`.
-
     pub async fn add_properties(
         &self,
         #[graphql(desc = "Time of the update.")] t: GqlTimeInput,
@@ -515,7 +506,6 @@ impl GqlMutableGraph {
 
     /// Add metadata to the graph itself. Errors if any of the keys already
     /// exists — use `updateMetadata` to overwrite.
-
     pub async fn add_metadata(
         &self,
         #[graphql(desc = "List of `{key, value}` pairs to set as metadata.")] properties: Vec<
@@ -535,7 +525,6 @@ impl GqlMutableGraph {
 
     /// Update metadata of the graph itself, overwriting any existing values for
     /// the given keys.
-
     pub async fn update_metadata(
         &self,
         #[graphql(desc = "List of `{key, value}` pairs to upsert.")] properties: Vec<
@@ -657,7 +646,6 @@ impl GqlMutableNode {
 
     /// Add metadata to this node. Errors if any of the keys already exists —
     /// use `updateMetadata` to overwrite.
-
     pub async fn add_metadata(
         &self,
         #[graphql(desc = "List of `{key, value}` pairs to set as metadata.")] properties: Vec<
@@ -678,7 +666,6 @@ impl GqlMutableNode {
 
     /// Set this node's type. Errors if the node already has a non-default
     /// type and you're trying to change it.
-
     pub async fn set_node_type(
         &self,
         #[graphql(desc = "Node-type name to assign.")] new_type: String,
@@ -697,7 +684,6 @@ impl GqlMutableNode {
 
     /// Update metadata of this node, overwriting any existing values for the
     /// given keys.
-
     pub async fn update_metadata(
         &self,
         #[graphql(desc = "List of `{key, value}` pairs to upsert.")] properties: Vec<
@@ -720,7 +706,6 @@ impl GqlMutableNode {
     }
 
     /// Append a property update to this node at a specific time.
-
     pub async fn add_updates(
         &self,
         #[graphql(desc = "Time of the update.")] time: GqlTimeInput,
@@ -799,7 +784,6 @@ impl GqlMutableEdge {
     /// Mark this edge as deleted at the given time. Persistent graphs treat this
     /// as a tombstone (the edge becomes invalid from `time` onwards); event
     /// graphs simply log the deletion event.
-
     pub async fn delete(
         &self,
         #[graphql(desc = "Time of the deletion.")] time: GqlTimeInput,
@@ -831,7 +815,6 @@ impl GqlMutableEdge {
     /// Add metadata to this edge. Errors if any of the keys already exists —
     /// use `updateMetadata` to overwrite. If this is called after `addEdge`,
     /// the layer is inherited and does not need to be specified again.
-
     pub async fn add_metadata(
         &self,
         #[graphql(desc = "List of `{key, value}` pairs to set as metadata.")] properties: Vec<
@@ -865,7 +848,6 @@ impl GqlMutableEdge {
     /// Update metadata of this edge, overwriting any existing values for the
     /// given keys. If this is called after `addEdge`, the layer is inherited
     /// and does not need to be specified again.
-
     pub async fn update_metadata(
         &self,
         #[graphql(desc = "List of `{key, value}` pairs to upsert.")] properties: Vec<
@@ -899,7 +881,6 @@ impl GqlMutableEdge {
     /// Append a property update to this edge at a specific time. If called
     /// after `addEdge`, the layer is inherited and does not need to be
     /// specified again.
-
     pub async fn add_updates(
         &self,
         #[graphql(desc = "Time of the update.")] time: GqlTimeInput,
@@ -944,13 +925,11 @@ impl GqlMutableEdge {
 mod tests {
     use super::*;
     use crate::{config::app_config::AppConfig, data::Data, paths::ExistingGraphFolder};
-    use raphtory::{
-        db::api::{storage::storage::Config, view::MaterializedGraph},
-        vectors::{
-            custom::{serve_custom_embedding, EmbeddingServer},
-            storage::OpenAIEmbeddings,
-            template::DocumentTemplate,
-        },
+    use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
+    use raphtory_vectors::{
+        custom::{serve_custom_embedding, EmbeddingServer},
+        storage::OpenAIEmbeddings,
+        template::DocumentTemplate,
     };
     use std::path::Path;
     use tempfile::TempDir;
@@ -974,7 +953,7 @@ mod tests {
     async fn create_mutable_graph(port: u16, work_dir: &Path) -> GraphTestContext {
         let graph = create_test_graph();
         let config = AppConfig::default();
-        let data = Data::new(work_dir, &config, Config::default());
+        let data = Data::new(work_dir, &config, Args::default());
 
         let graph_name = "test_graph";
 

@@ -16,7 +16,7 @@ use crate::{
     io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps, ParquetEncoder},
     python::{
-        config::PyConfig,
+        config::PyArgs,
         graph::{
             edge::PyEdge,
             io::arrow_loaders::{
@@ -55,7 +55,7 @@ use std::{
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
-///     config (Config, optional): Storage/config overrides. Defaults to None.
+///     config (dict[str, Any], optional): Storage/config overrides. Defaults to None.
 ///
 #[pyclass(name = "PersistentGraph", extends = PyGraphView, frozen, module="raphtory")]
 pub struct PyPersistentGraph {
@@ -119,23 +119,23 @@ impl PyPersistentGraph {
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): the path to persist the graph (only works with disk storage enabled)
-///     config (Config, optional): the configuration options for the graph
+///     config (dict[str, Any], optional): the configuration options for the graph
 #[pymethods]
 impl PyPersistentGraph {
     #[new]
     #[pyo3(signature = (path = None, config=None))]
     pub fn py_new(
         path: Option<PathBuf>,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
     ) -> Result<PyClassInitializer<Self>, GraphError> {
         let graph = match path {
             Some(path) => match config {
                 None => PersistentGraph::new_at_path(&path)?,
-                Some(PyConfig(config)) => PersistentGraph::new_at_path_with_config(&path, config)?,
+                Some(PyArgs(args)) => PersistentGraph::new_at_path_with_config(&path, args)?,
             },
             None => match config {
                 None => PersistentGraph::new(),
-                Some(PyConfig(config)) => PersistentGraph::new_with_config(config)?,
+                Some(PyArgs(args)) => PersistentGraph::new_with_config(args)?,
             },
         };
         Ok(PyClassInitializer::from(PyGraphView::from(graph.clone())).add_subclass(Self { graph }))
@@ -145,28 +145,26 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///     path (str | PathLike): the path of the graph folder
-    ///     config (Config, optional): specify a new config to override the values saved for the graph
-    ///                                (note that the page sizes cannot be overridden and are ignored)
-    ///     read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-    ///                                 Multiple processes can hold a read-only handle to the same
-    ///                                 graph directory concurrently. Mutating the returned graph will fail.
+    ///     config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+    ///                                (note that page sizes cannot be overridden; providing them raises an error)
+    ///     read_only (bool): open as a read-only snapshot. Defaults to False.
+    ///                       Multiple processes can hold a read-only handle to the same graph
+    ///                       directory concurrently. Mutating the returned graph will fail.
     ///
     /// Returns:
-    ///     PersistentGraph: the graph
+    ///     PersistentGraph: the graph loaded from path
     #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
     pub fn load(
         path: PathBuf,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
         read_only: bool,
     ) -> Result<PersistentGraph, GraphError> {
         match (config, read_only) {
             (None, false) => PersistentGraph::load(&path),
-            (Some(PyConfig(config)), false) => PersistentGraph::load_with_config(&path, config),
+            (Some(PyArgs(args)), false) => PersistentGraph::load_with_config(&path, args),
             (None, true) => PersistentGraph::load_read_only(&path),
-            (Some(PyConfig(config)), true) => {
-                PersistentGraph::load_read_only_with_config(&path, config)
-            }
+            (Some(PyArgs(args)), true) => PersistentGraph::load_read_only_with_config(&path, args),
         }
     }
 
@@ -303,7 +301,7 @@ impl PyPersistentGraph {
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn add_node(
         &self,
@@ -346,7 +344,7 @@ impl PyPersistentGraph {
     ///   MutableNode: the newly created node.
     ///
     /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
@@ -768,6 +766,7 @@ impl PyPersistentGraph {
     #[pyo3(
         signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_nodes(
         &self,
         data: &Bound<PyAny>,
@@ -894,6 +893,7 @@ impl PyPersistentGraph {
     #[pyo3(
         signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_edges(
         &self,
         data: &Bound<PyAny>,
@@ -1007,6 +1007,7 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(signature = (data, time, src, dst, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None))]
+    #[allow(clippy::too_many_arguments)]
     fn load_edge_deletions(
         &self,
         data: &Bound<PyAny>,
@@ -1107,6 +1108,7 @@ impl PyPersistentGraph {
     #[pyo3(
         signature = (data, id, node_type = None, node_type_col = None, metadata = None, shared_metadata = None, schema = None, csv_options = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_node_metadata(
         &self,
         data: &Bound<PyAny>,
@@ -1211,6 +1213,7 @@ impl PyPersistentGraph {
     #[pyo3(
         signature = (data, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_edge_metadata(
         &self,
         data: &Bound<PyAny>,

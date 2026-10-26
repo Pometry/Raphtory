@@ -45,8 +45,11 @@ impl<G: StaticGraphViewOps, CS: ComputeState, S: 'static, F: Clone> Clone for AT
 pub enum Job<G, CS: ComputeState, S> {
     Read(Box<dyn Task<G, CS, S> + Sync + Send>),
     Write(Box<dyn Task<G, CS, S> + Sync + Send>),
-    Check(Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'static>),
+    Check(CheckFn<CS>),
 }
+
+/// Inspects the global state after a step to decide whether to continue.
+pub type CheckFn<CS> = Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'static>;
 
 impl<G: StaticGraphViewOps, CS: ComputeState, S> Job<G, CS, S> {
     pub fn new<T: Task<G, CS, S> + Send + Sync + 'static>(t: T) -> Self {

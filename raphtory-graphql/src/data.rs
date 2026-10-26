@@ -2,12 +2,13 @@ use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
     cache::GraphCache,
-    config::app_config::AppConfig,
+    config::{app_config::AppConfig, cache_config::CacheConfig},
     graph::GraphWithVectors,
     model::{
         blocking_io,
         graph::{
-            filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
+            filter_expr_input::GqlFilter,
+            filtering::{GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
         },
@@ -24,10 +25,10 @@ use dynamic_graphql::Enum;
 use raphtory::{
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::Args,
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
-        graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
+        graph::views::property_redacted_graph::PropertyRedaction,
     },
     errors::GraphError,
     prelude::AdditionOps,
@@ -35,6 +36,7 @@ use raphtory::{
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use std::{
     cmp::Ordering,
+    collections::HashSet,
     fs, io,
     io::{Read, Seek},
     ops::Deref,
@@ -49,7 +51,7 @@ use walkdir::WalkDir;
 #[cfg(feature = "vectors")]
 use {
     crate::model::graph::vectorised_graph::GqlVectorisedGraph,
-    raphtory::vectors::{
+    raphtory_vectors::{
         cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
         vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
@@ -158,15 +160,45 @@ pub(crate) fn get_relative_path(
     Ok(path_str)
 }
 
+/// Which graphs are served read-only.
+#[derive(Debug, Clone)]
+pub(crate) enum ReadOnlyGraphs {
+    None,
+    All,
+    Only(HashSet<String>),
+}
+
+impl ReadOnlyGraphs {
+    fn from_config(cache_configs: &CacheConfig) -> Self {
+        match &cache_configs.read_only_graphs {
+            Some(graphs) => Self::Only(
+                graphs
+                    .iter()
+                    .map(|path| path.trim_matches('/').to_string())
+                    .collect(),
+            ),
+            None if cache_configs.read_only => Self::All,
+            None => Self::None,
+        }
+    }
+
+    pub(crate) fn is_read_only(&self, path: &str) -> bool {
+        match self {
+            Self::None => false,
+            Self::All => true,
+            Self::Only(graphs) => graphs.contains(path),
+        }
+    }
+}
+
 /// Inner struct with a drop implementation that cleans up the graphs
 pub struct DataInner {
     work_dir: Arc<RwLock<PathBuf>>,
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
-    pub(crate) graph_conf: Config,
-    pub(crate) read_only: bool,
-    pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
+    pub(crate) graph_args: Args,
+    pub(crate) read_only: ReadOnlyGraphs,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
 
@@ -267,7 +299,8 @@ impl WorkDirGuard {
 /// Outer data struct that wraps the inner data to make sure it is only dropped once
 #[derive(Clone)]
 pub struct Data {
-    inner: Arc<DataInner>,
+    pub inner: Arc<DataInner>,
+    pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
 impl Deref for Data {
@@ -295,9 +328,8 @@ async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, graph_args: Args) -> Self {
         let cache_configs = &configs.cache;
-
         let cache = GraphCache::new(cache_configs.capacity as usize);
 
         Self {
@@ -306,11 +338,11 @@ impl Data {
                 cache,
                 #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
-                graph_conf,
-                read_only: cache_configs.read_only,
-                auth_policy: None,
+                graph_args,
+                read_only: ReadOnlyGraphs::from_config(cache_configs),
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
+            auth_policy: None,
         }
     }
 
@@ -325,9 +357,7 @@ impl Data {
     }
 
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
-        Arc::get_mut(&mut self.inner)
-            .expect("Data is not uniquely owned when setting auth_policy")
-            .auth_policy = Some(policy);
+        self.auth_policy = Some(policy)
     }
 
     /// Returns `Ok(())` if `path` is permitted by the parquet allowlist, otherwise an error
@@ -375,6 +405,30 @@ impl Data {
             .await
     }
 
+    /// Whether `filter` can be applied to the graph at `path`. Policies use it to
+    /// tell a per-caller value that cannot be compared from a grant that is wrong:
+    /// the error says which of the two it was.
+    ///
+    /// # ⚠ Does no permission check — the caller must already have authorised `path`.
+    /// Loading and error reporting here would otherwise reveal whether a graph exists.
+    pub async fn access_filter_applies(
+        &self,
+        path: &str,
+        filter: &GqlFilter,
+    ) -> Result<(), AccessFilterError> {
+        let graph = self
+            .get_graph_unchecked(path)
+            .await
+            .map_err(AccessFilterError::Load)?
+            .graph()
+            .clone()
+            .into_dynamic();
+        let filter = filter.clone();
+        blocking_compute(move || compile_row_filter(graph, filter).map(|_| ()))
+            .await
+            .map_err(AccessFilterError::DoesNotApply)
+    }
+
     /// Test-only: direct graph load without permission checks.
     #[cfg(test)]
     pub(crate) async fn get_graph_for_test(
@@ -394,13 +448,14 @@ impl Data {
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
         let key = writeable_folder.local_path().to_owned();
-        let config = self.graph_conf.clone();
-        let read_only = self.read_only;
+        let args = self.graph_args.clone();
+        let read_only = self.read_only.is_read_only(&key);
+
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_compute(move || {
-                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, args)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
@@ -413,6 +468,7 @@ impl Data {
                 .await
             })
             .await?;
+
         Ok(())
     }
 
@@ -422,12 +478,13 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
-        let conf = self.graph_conf.clone();
+        let args = self.graph_args.clone();
+
         self.cache
             .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_io(move || {
-                    folder.write_graph_bytes(bytes, conf)?;
+                    folder.write_graph_bytes(bytes, args)?;
                     folder.finish()
                 })
                 .await
@@ -536,7 +593,7 @@ impl Data {
     ) -> Result<(), GQLError> {
         let template = template.clone();
         self.index_folder(folder, move |graph, path| async move {
-            graph.vectorise(model, template, Some(&path), true).await
+            Ok(graph.vectorise(model, template, Some(&path), true).await?)
         })
         .await
     }
@@ -552,7 +609,9 @@ impl Data {
     ) -> Result<(), GQLError> {
         let template = template.clone();
         self.index_folder(folder, move |graph, path| async move {
-            graph.vectorise_missing(model, template, &path, true).await
+            Ok(graph
+                .vectorise_missing(model, template, &path, true)
+                .await?)
         })
         .await
     }
@@ -622,17 +681,17 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let config = self.graph_conf.clone();
+        let args = self.graph_args.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
         let graph = GraphWithVectors::read_from_folder(
             &folder,
             #[cfg(feature = "vectors")]
             &cache,
-            config,
+            args,
         )
         .await?;
-        Ok(if self.read_only {
+        Ok(if self.read_only.is_read_only(folder.local_path()) {
             graph.into_read_only()
         } else {
             graph
@@ -903,35 +962,35 @@ fn apply_row_filter_sync(
     graph: DynamicGraph,
     filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
-    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
-    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
-    if let GqlFilter::And(filters) = filter {
-        // An empty `and` folds to the graph unchanged — i.e. no restriction at all. Fail closed
-        // rather than serve every row, matching `DynFilter::try_from`'s rejection of an empty
-        // combinator (which this shortcut path otherwise never reaches).
-        if filters.is_empty() {
-            error!("empty 'and' access filter restricts nothing");
-            return Err(async_graphql::Error::new(
-                "access filter could not be applied; the grant is misconfigured",
-            ));
+    compile_row_filter(graph, filter).map_err(|e| {
+        // The stage is logged with the engine's own message; the caller only learns that
+        // the grant is at fault, never what the filter said.
+        match e {
+            GraphError::InvalidGqlFilter(_) | GraphError::InvalidFilter(_) => {
+                error!(error = %e, "access filter conversion failed")
+            }
+            _ => error!(error = %e, "access filter application failed"),
         }
-        return filters
-            .into_iter()
-            .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
-    }
-    let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
-        error!(error = %e, "access filter conversion failed");
         async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
-    })?;
-    Ok(graph
-        .filter(dyn_filter)
-        .map_err(|e| {
-            error!(error = %e, "access filter application failed");
-            async_graphql::Error::new(
-                "access filter could not be applied; the grant is misconfigured",
-            )
-        })?
-        .into_dynamic())
+    })
+}
+
+/// Why a grant's row filter cannot be applied to a graph.
+#[derive(thiserror::Error, Debug)]
+pub enum AccessFilterError {
+    /// The filter does not fit the graph: a value of the wrong type for a property, say.
+    #[error("the filter does not fit the graph: {0}")]
+    DoesNotApply(#[source] GraphError),
+    /// The graph could not be loaded.
+    #[error(transparent)]
+    Load(GQLError),
+}
+
+/// The graph under a row filter. The filter means what it means everywhere
+/// else: `and` is an intersection, and a predicate that should be evaluated
+/// inside a view carries that view on its read.
+fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GraphError> {
+    Ok(graph.filter(filter)?.into_dynamic())
 }
 
 fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
@@ -1158,6 +1217,34 @@ pub(crate) mod data_tests {
     }
 
     #[tokio::test]
+    async fn test_read_only_graphs_list_supersedes_read_only() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        for name in ["locked", "ns/locked", "open"] {
+            let graph = Graph::new();
+            graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+            let path = tmp_work_dir.path().join(name);
+            fs::create_dir_all(&path).unwrap();
+            graph.encode(&path).unwrap();
+        }
+
+        let config = AppConfigBuilder::new()
+            .with_cache_read_only(true)
+            .with_cache_read_only_graphs(Some(vec!["locked".into(), "/ns/locked/".into()]))
+            .build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        for (name, read_only) in [("locked", true), ("ns/locked", true), ("open", false)] {
+            let served = data.get_graph_for_test(name).await.unwrap();
+            let served = served.graph().clone().into_events().unwrap();
+            assert_eq!(served.count_nodes(), 2);
+            assert_eq!(
+                served.add_node(1, 3, NO_PROPS, None, None).is_err(),
+                read_only,
+                "graph {name}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn test_save_graphs_to_work_dir() {
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
@@ -1265,7 +1352,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_failed_vectorise_reports_and_keeps_the_index() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 
@@ -1362,7 +1449,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_vectorise_after_reading_a_reloaded_graph() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 
@@ -1453,7 +1540,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_eviction_reloads_vectorised_graph() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 
@@ -1596,7 +1683,6 @@ pub(crate) mod data_tests {
         let paths = data
             .get_all_graph_folders()
             .await
-            .into_iter()
             .map(|folder| folder.folder.root().to_path_buf())
             .collect_vec();
 

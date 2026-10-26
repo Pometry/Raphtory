@@ -4,17 +4,21 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::Prop},
+    entities::properties::{
+        meta::Meta,
+        prop::{Prop, PropArray, PropList},
+    },
     storage::{arc_str::ArcStr, timeindex::AsTime},
 };
 use rayon::{iter::IntoParallelRefIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn extract_properties<P>(
     include_property_history: bool,
     convert_datetime: bool,
     explode: bool,
-    column_names: &Vec<String>,
+    column_names: &[String],
     is_prop_both_temp_and_const: &HashSet<String>,
     properties: &Properties<P>,
     metadata: &Metadata<P>,
@@ -35,7 +39,7 @@ pub(crate) fn extract_properties<P>(
 
     if explode {
         let mut empty_dict = HashMap::new();
-        column_names.clone().iter().for_each(|name| {
+        column_names.iter().for_each(|name| {
             let _ = empty_dict.insert(name.clone(), Prop::from(""));
         });
 
@@ -45,10 +49,9 @@ pub(crate) fn extract_properties<P>(
                 let _ = prop_time_dict.insert(start_time, empty_dict.clone());
             } else {
                 metadata.iter_filtered().for_each(|(name, prop_val)| {
-                    if !prop_time_dict.contains_key(&start_time) {
-                        let _ = prop_time_dict.insert(start_time, empty_dict.clone());
-                    }
-                    let data_dict = prop_time_dict.get_mut(&0i64).unwrap();
+                    let data_dict = prop_time_dict
+                        .entry(start_time)
+                        .or_insert_with(|| empty_dict.clone());
                     let _ = data_dict.insert(name.to_string(), prop_val);
                 })
             }
@@ -64,10 +67,9 @@ pub(crate) fn extract_properties<P>(
                 } else {
                     prop_name.to_string()
                 };
-                if !prop_time_dict.contains_key(&time) {
-                    prop_time_dict.insert(time, empty_dict.clone());
-                }
-                let data_dict = prop_time_dict.get_mut(&time).unwrap();
+                let data_dict = prop_time_dict
+                    .entry(time)
+                    .or_insert_with(|| empty_dict.clone());
                 let _ = data_dict.insert(column_name.clone(), prop_val.clone());
             });
     } else if include_property_history {
@@ -81,16 +83,22 @@ pub(crate) fn extract_properties<P>(
                 let mut prop_vec = vec![];
                 prop_view.iter().for_each(|(time, prop)| {
                     let prop_time = Prop::DTime(time.dt().unwrap());
-                    prop_vec.push(Prop::List(vec![prop_time, prop].into()))
+                    prop_vec.push(Prop::List(PropArray::Vec(PropList::new_untyped(
+                        [prop_time, prop].into(),
+                    ))))
                 });
-                let wrapped = Prop::from(prop_vec);
+                let wrapped = Prop::List(PropArray::Vec(PropList::new_untyped(prop_vec.into())));
                 let _ = properties_map.insert(column_name, wrapped);
             } else {
                 let vec_props = prop_view
                     .iter()
-                    .map(|(k, v)| Prop::from(vec![Prop::from(k.t()), v]))
+                    .map(|(k, v)| {
+                        Prop::List(PropArray::Vec(PropList::new_untyped(
+                            [Prop::from(k.t()), v].into(),
+                        )))
+                    })
                     .collect_vec();
-                let wrapped = Prop::List(vec_props.into());
+                let wrapped = Prop::List(PropArray::Vec(PropList::new_untyped(vec_props.into())));
                 let _ = properties_map.insert(column_name, wrapped);
             }
         });
@@ -134,10 +142,11 @@ pub(crate) fn get_column_names_from_props(
     is_prop_both_temp_and_const
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn create_row(
     convert_datetime: bool,
     explode: bool,
-    column_names: &Vec<String>,
+    column_names: &[String],
     properties_map: HashMap<String, Prop>,
     prop_time_dict: HashMap<i64, HashMap<String, Prop>>,
     row_header: Vec<Prop>,
@@ -180,13 +189,11 @@ pub(crate) fn create_row(
         }
 
         if convert_datetime {
-            let update_list = history
-                .iter()
-                .map(|val| Prop::DTime(val.dt().unwrap()))
-                .collect_vec();
-            row.push(Prop::from(update_list));
+            let update_list = history.iter().map(|val| Prop::DTime(val.dt().unwrap()));
+            row.push(Prop::list(update_list).expect("history has correct type"));
         } else {
-            let update_list = Prop::from(history.iter().map(|&val| Prop::from(val)).collect_vec());
+            let update_list = Prop::list(history.iter().map(|&val| Prop::from(val)))
+                .expect("history has correct type");
             row.push(update_list);
         }
         vec![row]

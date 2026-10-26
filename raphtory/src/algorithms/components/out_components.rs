@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
-            view::{Filter, NodeViewOps, StaticGraphViewOps},
+            view::{internal::NodeList, Filter, NodeViewOps, StaticGraphViewOps},
         },
         graph::{
             node::NodeView,
@@ -50,7 +50,7 @@ impl OutState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Index::from_iter(value.out_components),
+                NodeList::from(Index::from_iter(value.out_components)),
             ),
         }
     }
@@ -89,7 +89,7 @@ pub fn out_components_filtered<G, F>(
 where
     G: StaticGraphViewOps,
     F: CreateFilter + 'static,
-    F::EntityFiltered<'static, G, F::FilteredGraph<'static, G>>: StaticGraphViewOps,
+    F::FilteredGraph<'static, G>: StaticGraphViewOps,
 {
     let filtered = g.filter(filter)?;
     let ctx: Context<_, _> = (&filtered).into();
@@ -190,7 +190,7 @@ pub fn out_component_filtered<'graph, G, F>(
 where
     G: GraphViewOps<'graph>,
     F: CreateFilter + 'graph,
-    F::EntityFiltered<'graph, G, F::FilteredGraph<'graph, G>>: GraphViewOps<'graph>,
+    F::FilteredGraph<'graph, G>: GraphViewOps<'graph>,
 {
     let mut out_components = IndexMap::with_hasher(ahash::RandomState::new());
     let mut to_check_stack = VecDeque::new();

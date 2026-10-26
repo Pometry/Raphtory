@@ -1,6 +1,5 @@
 use crate::{graphql_test, test_support::setup_with_graphs};
 use async_graphql::Request;
-use serde_json::json;
 use tempfile::tempdir;
 
 #[tokio::test]

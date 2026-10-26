@@ -305,12 +305,12 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> GraphView:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> GraphView:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             GraphView: The filtered view
@@ -674,14 +674,24 @@ class GraphView(object):
         """
         Create a VectorisedGraph from the current graph.
 
+        Every node and edge is rendered into a text document by a template, and the document is what gets embedded.
+
         Args:
           model (VectorCache): Cache wrapping the embedding model used to embed documents.
-          nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
-          edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          nodes (bool | str): True to embed nodes with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each node with. Defaults to True.
+          edges (bool | str): True to embed edges with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each edge with. Defaults to True.
           verbose (bool): Enable to print logs reporting progress. Defaults to False.
 
         Returns:
           VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
+
+        Note:
+          A template string is rendered as it is, so a bare word such as `"description"` becomes the literal document `description` for every entity; to embed a property, interpolate it: `"{{ properties.description }}"`.
+
+          A node template can use `name`, `node_type`, `properties`, `metadata` and `temporal_properties` (a mapping from property name to a list of `(time, value)` pairs). An edge template can use `src` and `dst` (each with the node variables above, e.g. `src.name`), `history` (the update times), `layers`, `properties`, `metadata` and `temporal_properties`. A `datetimeformat` filter formats a timestamp, as in `{{ time|datetimeformat }}`.
+
+        Example:
+          >>> vg = g.vectorise(cache, nodes="{{ name }} is a {{ node_type }}", edges="{{ src.name }} -> {{ dst.name }}: {{ properties.description }}")
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> GraphView:
@@ -711,11 +721,13 @@ class Graph(GraphView):
 
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
-        config (Config, optional): The configuration options for the graph
+        config (dict[str, Any], optional): The configuration options for the graph
     """
 
     def __new__(
-        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+        cls,
+        path: Optional[str | PathLike] = None,
+        config: Optional[dict[str, Any]] = None,
     ) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -785,7 +797,7 @@ class Graph(GraphView):
             MutableNode: The added node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def add_properties(
@@ -809,7 +821,9 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def build_property_index(self, props: Optional[list[str]] = None) -> None:
+    def build_property_index(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
@@ -827,6 +841,10 @@ class Graph(GraphView):
                 to change what the next build considers. Defaults to None,
                 which keeps the saved selection (or indexes every supported
                 property if none was ever set).
+            index_gid (bool, optional): also index each node's id. Defaults to False.
+                Filters over the id can then be served from the index instead
+                of a scan. The id has no property name, so it cannot be named
+                in `props`. Always takes effect and is saved with the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -855,7 +873,7 @@ class Graph(GraphView):
             MutableNode: The created node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def delete_edge(
@@ -1090,6 +1108,14 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def indexed_gid(self) -> bool:
+        """
+        Whether index builds cover each node's id.
+
+        Returns:
+            bool: True when the node id is indexed.
+        """
+
     def indexed_properties(self) -> list[str]:
         """
         The node property names that index builds consider.
@@ -1114,22 +1140,22 @@ class Graph(GraphView):
     @staticmethod
     def load(
         path: str | PathLike,
-        config: Optional[Config] = None,
-        read_only: Optional[bool] = False,
+        config: Optional[dict[str, Any]] = None,
+        read_only: bool = False,
     ) -> Graph:
         """
         Load a disk graph from path
 
         Arguments:
             path (str | PathLike): the path of the graph folder
-            config (Config, optional): specify a new config to override the values saved for the graph
-                                       (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-                                        Multiple processes can hold a read-only handle to the same
-                                        graph directory concurrently. Mutating the returned graph will fail.
+            config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+                                       (note that page sizes cannot be overridden; providing them raises an error)
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently. Mutating the returned graph will fail.
 
         Returns:
-            Graph: the graph
+            Graph: the graph loaded from path
         """
 
     def load_edge_metadata(
@@ -1146,6 +1172,7 @@ class Graph(GraphView):
             | dict[str, DataType | PropType | str]
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1163,6 +1190,7 @@ class Graph(GraphView):
             layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1188,6 +1216,7 @@ class Graph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1208,6 +1237,7 @@ class Graph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1241,6 +1271,7 @@ class Graph(GraphView):
             | dict[str, DataType | PropType | str]
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1257,6 +1288,7 @@ class Graph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1283,6 +1315,7 @@ class Graph(GraphView):
         event_id: Optional[str] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1304,6 +1337,7 @@ class Graph(GraphView):
             event_id (str, optional): The column name for the secondary index. Defaults to None.
             layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
             layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1379,7 +1413,9 @@ class Graph(GraphView):
           bytes:
         """
 
-    def set_indexed_properties(self, props: Optional[list[str]] = None) -> None:
+    def set_indexed_properties(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Choose which node properties later index builds consider, without
         building now.
@@ -1389,6 +1425,7 @@ class Graph(GraphView):
                 list indexes nothing. Defaults to None, which restores
                 indexing every supported property — the way back after a
                 selection has been set.
+            index_gid (bool, optional): whether to index each node's id. Defaults to False.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1419,18 +1456,28 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def vacuum(self) -> None:
+        """
+        Trigger a compaction of the underlying storage segments if disk storage is enabled
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+        """
+
 class PersistentGraph(GraphView):
     """
     A temporal graph that allows edges and nodes to be deleted.
 
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
-        config (Config, optional): Storage/config overrides. Defaults to None.
+        config (dict[str, Any], optional): Storage/config overrides. Defaults to None.
 
     """
 
     def __new__(
-        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+        cls,
+        path: Optional[str | PathLike] = None,
+        config: Optional[dict[str, Any]] = None,
     ) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -1500,7 +1547,7 @@ class PersistentGraph(GraphView):
             None: This function does not return a value, if the operation is successful.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def add_properties(
@@ -1521,7 +1568,9 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def build_property_index(self, props: Optional[list[str]] = None) -> None:
+    def build_property_index(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
@@ -1539,6 +1588,10 @@ class PersistentGraph(GraphView):
                 to change what the next build considers. Defaults to None,
                 which keeps the saved selection (or indexes every supported
                 property if none was ever set).
+            index_gid (bool, optional): also index each node's id. Defaults to False.
+                Filters over the id can then be served from the index instead
+                of a scan. The id has no property name, so it cannot be named
+                in `props`. Always takes effect and is saved with the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1568,7 +1621,7 @@ class PersistentGraph(GraphView):
           MutableNode: the newly created node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def delete_edge(
@@ -1798,6 +1851,14 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def indexed_gid(self) -> bool:
+        """
+        Whether index builds cover each node's id.
+
+        Returns:
+            bool: True when the node id is indexed.
+        """
+
     def indexed_properties(self) -> list[str]:
         """
         The node property names that index builds consider.
@@ -1810,22 +1871,22 @@ class PersistentGraph(GraphView):
     @staticmethod
     def load(
         path: str | PathLike,
-        config: Optional[Config] = None,
-        read_only: Optional[bool] = False,
+        config: Optional[dict[str, Any]] = None,
+        read_only: bool = False,
     ) -> PersistentGraph:
         """
         Load a disk graph from path
 
         Arguments:
             path (str | PathLike): the path of the graph folder
-            config (Config, optional): specify a new config to override the values saved for the graph
-                                       (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-                                        Multiple processes can hold a read-only handle to the same
-                                        graph directory concurrently. Mutating the returned graph will fail.
+            config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+                                       (note that page sizes cannot be overridden; providing them raises an error)
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently. Mutating the returned graph will fail.
 
         Returns:
-            PersistentGraph: the graph
+            PersistentGraph: the graph loaded from path
         """
 
     def load_edge_deletions(
@@ -2147,7 +2208,9 @@ class PersistentGraph(GraphView):
           bytes:
         """
 
-    def set_indexed_properties(self, props: Optional[list[str]] = None) -> None:
+    def set_indexed_properties(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Choose which node properties later index builds consider, without
         building now.
@@ -2157,6 +2220,7 @@ class PersistentGraph(GraphView):
                 list indexes nothing. Defaults to None, which restores
                 indexing every supported property — the way back after a
                 selection has been set.
+            index_gid (bool, optional): whether to index each node's id. Defaults to False.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -2362,12 +2426,12 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Node:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Node:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Node: The filtered view
@@ -2856,12 +2920,12 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Nodes:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Nodes:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Nodes: The filtered view
@@ -3371,12 +3435,12 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> PathFromNode:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromNode:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromNode: The filtered view
@@ -3846,12 +3910,12 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> PathFromGraph:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromGraph:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromGraph: The filtered view
@@ -4406,12 +4470,12 @@ class Edge(object):
             Edges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Edge:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edge:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edge: The filtered view
@@ -4876,12 +4940,12 @@ class Edges(object):
             Edges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Edges:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edges:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edges: The filtered view
@@ -5205,6 +5269,8 @@ class Edges(object):
         """
 
 class NestedEdges(object):
+    """A list of edges per node."""
+
     def __bool__(self):
         """True if self else False"""
 
@@ -5369,28 +5435,28 @@ class NestedEdges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self) -> Edges:
+    def explode(self) -> NestedEdges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Edges:
+            NestedEdges:
         """
 
-    def explode_layers(self) -> Edges:
+    def explode_layers(self) -> NestedEdges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Edges:
+            NestedEdges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> NestedEdges:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> NestedEdges:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             NestedEdges: The filtered view

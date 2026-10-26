@@ -2997,29 +2997,27 @@ def datadir(tmpdir, request):
     return tmpdir
 
 
-# def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
-# g = Graph()
-# g.add_edge(2,"haaroon","hamza", properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-# g.add_edge(1,"ben","hamza", properties={"value":59,"value_f":11.4,"value_str":"test test test"})
-# g.add_edge(3,"ben","haaroon", properties={"value":199,"value_f":52.6,"value_str":"I gitgit awanna rock right now"})
-# g.add_edge(4,"hamza","naomi", properties={"value_str":"I wanna rock right now"})
-# assert len(index.fuzzy_search_edges("value_str:\"I wanna nock right now\"",levenshtein_distance=2)) == 2
+def test_count_temporal_edges_counts_distinct_updates_not_replays():
+    g = Graph()
+    rows = [(1, "a", "b", 10), (2, "b", "c", 11), (3, "c", "d", 12)]
+    for t, src, dst, event_id in rows:
+        g.add_edge(t, src, dst, event_id=event_id)
+    exploded = lambda g: sum(len(e.explode()) for e in g.edges)
+    assert g.count_temporal_edges() == exploded(g) == 3
 
+    # replaying the same (timestamp, event_id) updates does not add temporal edges
+    for t, src, dst, event_id in rows:
+        g.add_edge(t, src, dst, event_id=event_id)
+    assert exploded(g) == 3
+    assert g.count_temporal_edges() == 3
+    assert g.window(0, 10).count_temporal_edges() == 3
+    assert g.subgraph(["a", "b", "c", "d"]).count_temporal_edges() == 3
+    assert g.materialize().count_temporal_edges() == 3
 
-# def test_search_with_layers(): #TODO: Fix layer seearching
-# g = Graph()
-# g.add_edge(3,"haaroon","hamza",properties={"value":70,"value_f":11.3,"value_str":"abdsda2c123"},layer="1")
-# g.add_edge(4,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"},layer="2")
-# g.add_edge(5,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"},layer="3")
-# index = g.index()
-
-# need to expose actual layer searching
-# assert len(index.search_edges("layer:1")) == 1
-
-# assert len(index.search_edges("value_str:ddddd")) == 1
-# assert len(index.search_edges("value:>60")) == 2
-
-# l_g = g.layer(["1","3"])
-# l_index = l_g.index()
-# assert len(index.search_edges("value_str:ddddd")) == 1
-# assert len(index.search_edges("value:>60")) == 2
+    # five writes of one update to one edge are one temporal edge
+    h = Graph()
+    for _ in range(5):
+        h.add_edge(1, "a", "b", event_id=7)
+    assert h.count_temporal_edges() == 1
+    assert len(h.edge("a", "b").history) == 1
+    assert len(h.edge("a", "b").explode()) == 1

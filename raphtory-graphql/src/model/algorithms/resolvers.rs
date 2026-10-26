@@ -7,7 +7,7 @@ use crate::{
             outputs::{GqlMatching, GqlMotifCounts},
         },
         graph::{
-            filtering::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
+            filter_expr_input::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
             timeindex::GqlTimeInput, WindowDuration,
         },
     },
@@ -183,7 +183,7 @@ impl GqlAlgorithms {
     pub async fn in_components(
         &self,
         #[graphql(
-            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+            desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
@@ -203,7 +203,7 @@ impl GqlAlgorithms {
     pub async fn out_components(
         &self,
         #[graphql(
-            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+            desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
@@ -224,7 +224,7 @@ impl GqlAlgorithms {
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
         #[graphql(
-            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+            desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
     ) -> Result<GqlNodeState, GraphError> {
@@ -245,7 +245,7 @@ impl GqlAlgorithms {
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
         #[graphql(
-            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+            desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
     ) -> Result<GqlNodeState, GraphError> {
@@ -321,14 +321,32 @@ impl GqlAlgorithms {
     pub async fn label_propagation(
         &self,
         #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<usize>,
+        #[graphql(desc = "Seed for the tie-break draw. If unset, seeded from the OS.")]
+        seed: Option<u64>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> GqlNodeState {
-        self.run(move |graph| {
-            label_propagation(&graph, iter_count.unwrap_or(20), None, threads).into()
-        })
-        .await
+        #[graphql(
+            desc = "Relative-improvement threshold used to track convergence. Defaults to 3e-4."
+        )]
+        rel_tol: Option<f64>,
+        #[graphql(desc = "Stop after this many iterations without progress. Defaults to 10.")]
+        patience: Option<usize>,
+    ) -> Result<GqlNodeState, GraphError> {
+        Ok(self
+            .run(move |graph| {
+                label_propagation(
+                    &graph,
+                    iter_count.unwrap_or(20),
+                    seed,
+                    threads,
+                    (),
+                    rel_tol,
+                    patience,
+                )
+            })
+            .await?
+            .into())
     }
 
     /// Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).

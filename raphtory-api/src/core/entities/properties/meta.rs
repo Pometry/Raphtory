@@ -1,6 +1,8 @@
 use crate::core::{
     entities::{
-        properties::prop::{check_for_unification, unify_types, PropError, PropType},
+        properties::prop::{
+            check_for_unification, unify_types, Prop, PropError, PropType, PropTypeError,
+        },
         LayerId, LayerIds,
     },
     storage::{
@@ -20,6 +22,9 @@ use std::{
         Arc,
     },
 };
+
+/// A property as `(name, id, value)`, tagged with whether its id was newly created.
+pub type PropWithStatus<PN> = MaybeNew<(PN, usize, Prop)>;
 
 // Internal const props for node id and type.
 pub const NODE_ID_PROP_KEY: &str = "_raphtory_node_id";
@@ -48,6 +53,10 @@ impl Meta {
             .all_ids()
             .map(LayerId)
             .zip(self.layer_mapper.all_keys())
+    }
+
+    pub fn all_layer_ids(&self) -> impl Iterator<Item = LayerId> + use<'_> {
+        self.layer_mapper.all_ids().map(LayerId)
     }
 
     pub fn set_metadata_mapper(&mut self, meta: PropMapper) {
@@ -466,12 +475,12 @@ impl<'a> WriteLockedPropMapper<'a> {
         key: impl Into<ArcStr>,
         id: usize,
         dtype: PropType,
-    ) -> Result<(), PropError> {
+    ) -> Result<(), PropTypeError> {
         self.dict_mapper.set_id(key, id);
         self.set_or_unify_dtype(id, dtype)
     }
 
-    pub fn set_or_unify_dtype(&mut self, id: usize, dtype: PropType) -> Result<(), PropError> {
+    pub fn set_or_unify_dtype(&mut self, id: usize, dtype: PropType) -> Result<(), PropTypeError> {
         let dtypes = self.d_types.deref_mut();
 
         match dtypes.get_mut(id) {
@@ -762,10 +771,7 @@ mod write_locked_prop_mapper_tests {
 
         assert!(result.is_err());
 
-        if let Err(PropError {
-            expected, actual, ..
-        }) = result
-        {
+        if let Err(PropTypeError { expected, actual }) = result {
             assert_eq!(expected, PropType::U8);
             assert_eq!(actual, PropType::U16);
         } else {

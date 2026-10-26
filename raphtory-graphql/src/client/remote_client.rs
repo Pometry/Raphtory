@@ -3,7 +3,7 @@ use crate::{
     data::GqlGraphType,
     url_encode::url_decode_graph,
 };
-use raphtory::{db::api::view::MaterializedGraph, prelude::Config};
+use raphtory::{db::api::view::MaterializedGraph, prelude::Args};
 use raphtory_api::core::storage::graph_folder::GraphFolder;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
@@ -207,15 +207,14 @@ impl RemoteClient {
             mutation SendGraph($path: String!, $graph: String!, $overwrite: Boolean!) {
                 sendGraph(path: $path, graph: $graph, overwrite: $overwrite)
             }
-        "#
-        .to_owned();
+        "#;
         let variables = json!({
             "path": json!(path),
             "graph": json!(encoded_graph),
             "overwrite": json!(overwrite),
         });
 
-        let data = self.query(&query, variables).await?;
+        let data = self.query(query, variables).await?;
         match data.get("sendGraph") {
             Some(JsonValue::String(_)) => Ok(()),
             _ => Err(ClientError::InvalidResponse(format!(
@@ -374,7 +373,7 @@ impl RemoteClient {
         path: &str,
     ) -> Result<MaterializedGraph, ClientError> {
         let encoded = self.receive_graph(path).await?;
-        url_decode_graph(encoded, Config::default()).map_err(ClientError::from)
+        url_decode_graph(encoded, Args::default()).map_err(ClientError::from)
     }
 
     /// Create a new empty graph on the server.

@@ -1,6 +1,6 @@
 use crate::core::{
     entities::{
-        properties::prop::{Prop, PropArray, PropUntagged},
+        properties::prop::{Prop, PropArray, PropExact, PropUntagged},
         GID,
     },
     storage::{
@@ -86,6 +86,12 @@ pub trait Repr {
 }
 
 impl Repr for PropUntagged {
+    fn repr(&self) -> String {
+        self.0.repr()
+    }
+}
+
+impl Repr for PropExact {
     fn repr(&self) -> String {
         self.0.repr()
     }

@@ -1,7 +1,9 @@
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::api::view::{
-        internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+        internal::{
+            InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps, Static,
+        },
         Base, InheritViewOps,
     },
     errors::{into_graph_err, GraphError},
@@ -10,7 +12,7 @@ use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::Meta,
+            meta::{Meta, PropWithStatus},
             prop::{AsPropRef, Prop, PropType},
         },
         GidRef, LayerId, EID, VID,
@@ -37,17 +39,18 @@ use storage::wal::LSN;
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
-    persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, Extension,
+    persist::{args::ArgsOps, config::ConfigOps, strategy::PersistenceStrategy},
+    read_constant_graph_properties, Args, Config, Extension,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Storage {
     graph: GraphStorage,
 }
 
 impl From<GraphStorage> for Storage {
     fn from(graph: GraphStorage) -> Self {
-        Self::from_inner(graph)
+        Self { graph }
     }
 }
 
@@ -70,16 +73,13 @@ impl Base for Storage {
 }
 
 impl Storage {
-    pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
-        let ext = Extension::new(config, None)?;
+    pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
+        let ext = Extension::new(None, args.into())?;
         let temporal_graph = TemporalGraph::new(ext)?;
+
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
         })
-    }
-
-    pub(crate) fn from_inner(graph: GraphStorage) -> Self {
-        Self { graph }
     }
 
     /// Produce a read-only handle backed by the same `TemporalGraph` as
@@ -97,22 +97,20 @@ impl Storage {
 #[cfg(feature = "io")]
 mod io {
     use super::*;
-    use raphtory_storage::{graph::locked::LockedGraph, recovery_ops::RecoveryOps};
-    impl Storage {
-        pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-            let config = Config::default();
-            let ext = Extension::new(config, Some(path.as_ref()))?;
-            let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+    use raphtory_storage::{graph::locked::ReadLockedGraph, recovery_ops::RecoveryOps};
 
-            Ok(Self {
-                graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-            })
-        }
-        pub(crate) fn new_at_path_with_config(
+    impl Storage {
+        pub fn new_at_path_with_config(
             path: impl AsRef<Path>,
-            config: Config,
+            args: Args,
         ) -> Result<Self, GraphError> {
-            let ext = Extension::new(config, Some(path.as_ref()))?;
+            let path = path.as_ref();
+            std::fs::create_dir_all(path)?;
+
+            let config: Config = args.into();
+            config.save_to_dir(path)?;
+
+            let ext = Extension::new(Some(path), config)?;
             let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
             Ok(Self {
@@ -136,29 +134,30 @@ mod io {
             // when other handles are attached to the same directory.
             let temporal_graph = TemporalGraph::load_read_only(path, ext)?;
 
-            // `LockedGraph` holds read locks on the underlying segments, so
+            // `ReadLockedGraph` holds read locks on the underlying segments, so
             // every mutation entry point that goes through
             // `GraphStorage::mutable()?` errors with `ReadLockedImmutable`.
-            let locked = LockedGraph::new(Arc::new(temporal_graph));
+            let locked = ReadLockedGraph::new(Arc::new(temporal_graph));
 
             Ok(Self {
-                graph: GraphStorage::Mem(locked),
+                graph: GraphStorage::Locked(locked),
             })
         }
 
         pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
             let path = path.as_ref();
-            let ext = Extension::load(path)?;
+            let config = Config::load_from_dir(path)?;
+            let ext = Extension::load(path, config)?;
 
             Self::load_with_extension(path, ext)
         }
 
-        pub fn load_with_config(
-            path: impl AsRef<Path>,
-            config: Config,
-        ) -> Result<Self, GraphError> {
+        pub fn load_with_config(path: impl AsRef<Path>, args: Args) -> Result<Self, GraphError> {
             let path = path.as_ref();
-            let ext = Extension::load_with_config(path, config)?;
+            let config = Config::load_from_dir(path)?;
+            let config = args.apply_to_config(config)?;
+            config.save_to_dir(path)?;
+            let ext = Extension::load(path, config)?;
 
             Self::load_with_extension(path, ext)
         }
@@ -168,7 +167,8 @@ mod io {
         /// returned graph will return errors from the underlying storage.
         pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
             let path = path.as_ref();
-            let ext = Extension::load(path)?;
+            let config = Config::load_from_dir(path)?;
+            let ext = Extension::load(path, config)?;
 
             Self::load_read_only_with_extension(path, ext)
         }
@@ -178,10 +178,13 @@ mod io {
         /// returned graph will return errors from the underlying storage.
         pub fn load_read_only_with_config(
             path: impl AsRef<Path>,
-            config: Config,
+            args: Args,
         ) -> Result<Self, GraphError> {
+            // NOTE: config is explicitly not saved to disk here.
             let path = path.as_ref();
-            let ext = Extension::load_with_config(path, config)?;
+            let config = Config::load_from_dir(path)?;
+            let config = args.apply_to_config(config)?;
+            let ext = Extension::load(path, config)?;
 
             Self::load_read_only_with_extension(path, ext)
         }
@@ -202,6 +205,8 @@ impl InheritNodeHistoryFilter for Storage {}
 impl InheritEdgeHistoryFilter for Storage {}
 
 impl InheritViewOps for Storage {}
+
+impl Static for Storage {}
 
 #[derive(Clone)]
 pub struct StorageWriteSession<'a> {
@@ -387,7 +392,7 @@ impl InternalAdditionOps for Storage {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
         Ok(self
             .graph
             .validate_props_with_status(is_static, meta, props)?)

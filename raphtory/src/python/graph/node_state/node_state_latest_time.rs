@@ -434,21 +434,12 @@ impl LatestDateTimeView {
             return Err(PyErr::from(err));
         }
         // make the Result be on the outside, not inside the NodeState
-        let op: ArrowMap<
-            Map<
-                ArrowMap<
-                    Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
-                    DateTimeStruct,
-                >,
-                Option<DateTime<Utc>>,
-            >,
-            DateTimeStruct,
-        > = self
-            .inner
-            .op
-            .clone()
-            .map(|r| r.unwrap())
-            .into_arrow_node_op();
+        let op: ArrowMap<Map<LatestDateTime<DynamicGraph>, Option<DateTime<Utc>>>, DateTimeStruct> =
+            self.inner
+                .op
+                .clone()
+                .map(|r| r.unwrap())
+                .into_arrow_node_op();
         let lazy_node_state = LazyNodeState::new(op, self.inner.nodes());
         Ok(if reverse {
             lazy_node_state.sort_by_values_by(|a, b| a.cmp(b).reverse())

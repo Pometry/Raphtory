@@ -111,14 +111,14 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         state.read_ref::<A, IN, OUT, ACC>(ss, i)
     }
 
-    pub(crate) fn new(morcel_size: usize) -> Self {
+    pub fn new(morcel_size: usize) -> Self {
         MorcelComputeState {
             morcel_size,
             states: FxHashMap::default(),
         }
     }
 
-    pub(crate) fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    pub fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         ss: usize,
         key: usize,

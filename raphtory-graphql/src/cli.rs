@@ -18,7 +18,7 @@ use crate::{
     GraphServer,
 };
 use clap::{Parser, Subcommand};
-use raphtory::db::api::storage::storage::Config;
+use raphtory::db::api::storage::storage::Args as GraphArgs;
 use serde::Serialize;
 use serde_json::json;
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
@@ -56,6 +56,14 @@ pub struct ConfigArgs {
 
     #[arg(long, env = "RAPHTORY_CACHE_CAPACITY", help = help_with_default!("Cache capacity.", DEFAULT_CACHE_CAPACITY))]
     pub(crate) cache_capacity: Option<u64>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_READ_ONLY_GRAPHS",
+        value_delimiter = ',',
+        help = "Comma-separated graph paths (e.g. 'g1,ns/g2') to serve read-only; all other graphs stay writable. Supersedes cache.read_only."
+    )]
+    pub(crate) read_only_graphs: Option<Vec<String>>,
 
     #[arg(long, env = "RAPHTORY_LOG_LEVEL", help = help_with_default!("Log level.", DEFAULT_LOG_LEVEL))]
     pub(crate) log_level: Option<String>,
@@ -194,7 +202,7 @@ pub struct ConfigArgs {
     pub(crate) extensions: ArgExtensions,
 }
 
-#[derive(clap::Args, Debug, Serialize)]
+#[derive(clap::Args, Debug)]
 pub struct ServerArgs {
     #[arg(
         long,
@@ -225,7 +233,7 @@ pub struct ServerArgs {
     pub config_args: ConfigArgs,
 
     #[command(flatten)]
-    pub graph_config: Config,
+    pub graph_config: GraphArgs,
 }
 
 pub async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>
@@ -367,17 +375,22 @@ mod tests {
         assert_eq!(app_config.cache.capacity, 789);
     }
 
-    #[tokio::test]
-    async fn test_cli_parsing() {
-        // tests must be synchronized so that env variables are not modified in parallel
-        test_cli_parsing_no_arguments().await;
-        test_cli_parsing_with_config_file().await;
-        test_cli_parsing_with_env_var().await;
-        test_cli_parsing_with_command_line_arg().await;
+    #[test]
+    fn test_cli_parsing_read_only_graphs() {
+        let app_config = generate_config(vec![
+            "raphtory-server",
+            "server",
+            "--read-only-graphs",
+            "g1,ns/g2",
+        ]);
+        assert_eq!(
+            app_config.cache.read_only_graphs,
+            Some(vec!["g1".to_string(), "ns/g2".to_string()])
+        );
     }
 
     #[tokio::test]
-    async fn test_cli_parsing_extension() {
+    async fn test_cli_parsing() {
         // tests must be synchronized so that env variables are not modified in parallel
         test_cli_parsing_no_arguments().await;
         test_cli_parsing_with_config_file().await;

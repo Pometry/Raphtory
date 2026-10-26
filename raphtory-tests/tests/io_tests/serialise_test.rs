@@ -6,7 +6,7 @@ mod serialise_test {
     use raphtory::{
         db::{
             api::properties::internal::InternalMetadataOps,
-            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+            graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
         },
         prelude::*,
         serialise::metadata::assert_metadata_correct,
@@ -435,7 +435,7 @@ mod serialise_test {
         props.push(("weight", Prop::F64(75.5)));
         props.push((
             "children",
-            Prop::from(vec![Prop::Str("Bob".into()), Prop::Str("Charlie".into())]),
+            Prop::list([Prop::str("Bob"), Prop::str("Charlie")]).unwrap(),
         ));
         props.push((
             "properties",

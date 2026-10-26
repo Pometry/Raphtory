@@ -1,5 +1,3 @@
-#[cfg(feature = "io")]
-use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
@@ -15,10 +13,6 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::GraphPaths;
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::Metadata;
 use raphtory_api::{
     core::entities::properties::tprop::TPropOps,
     inherit::Base,
@@ -26,7 +20,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stage};
 use std::{
     fmt::{Display, Formatter},
     ops::Range,
@@ -34,11 +28,15 @@ use std::{
 };
 use storage::{
     api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
-    Config,
+    Args,
 };
 
 #[cfg(feature = "io")]
-use storage::{persist::strategy::PersistenceStrategy, Extension};
+use {
+    crate::serialise::metadata::build_graph_metadata,
+    raphtory_api::core::storage::graph_folder::{GraphPaths, Metadata},
+    storage::{persist::strategy::PersistenceStrategy, Extension},
+};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -46,16 +44,14 @@ use storage::{persist::strategy::PersistenceStrategy, Extension};
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by event id) is a deletion,
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
-///
-///
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
 impl Static for PersistentGraph {}
 
 impl From<GraphStorage> for PersistentGraph {
     fn from(value: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(value)))
+        Self(Arc::new(Storage::from(value)))
     }
 }
 
@@ -100,8 +96,10 @@ fn persisted_prop_value_at<'a>(
 }
 
 impl PersistentGraph {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self::default()
+        // TODO: This should return a Result.
+        Self::new_with_config(Args::default()).unwrap()
     }
 
     /// Create a new graph with config
@@ -115,10 +113,26 @@ impl PersistentGraph {
     /// ```
     /// use raphtory::prelude::*;
     ///
-    /// let g = PersistentGraph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
+    /// let g = PersistentGraph::new_with_config(Args::default().with_max_node_page_len(262144)).unwrap();
     /// ```
-    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
-        Ok(Self(Arc::new(Storage::new_with_config(config)?)))
+    pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::new_with_config(args)?)))
+    }
+
+    /// Create a new persistent graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::PersistentGraph;
+    /// let g = PersistentGraph::new_at_path("/path/to/storage");
+    /// ```
+    #[cfg(feature = "io")]
+    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Self::new_at_path_with_config(path, Args::default())
     }
 
     /// Create a new persistent graph at a specific path
@@ -135,46 +149,24 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
         }
-        path.init()?;
-        let graph = Self(Arc::new(Storage::new_at_path_with_config(
-            path.graph_path()?,
-            config,
-        )?));
-        let meta = Metadata {
-            path: path.relative_graph_path()?,
-            meta: build_graph_metadata(&graph),
-        };
-        path.write_metadata(meta)?;
-        Ok(graph)
-    }
 
-    /// Create a new persistent graph at a specific path
-    ///
-    /// # Arguments
-    /// * `path` - The path to the storage location
-    /// # Returns
-    /// A raphtory graph with storage at the specified path
-    /// # Example
-    /// ```no_run
-    /// use raphtory::prelude::PersistentGraph;
-    /// let g = PersistentGraph::new_at_path("/path/to/storage");
-    /// ```
-    #[cfg(feature = "io")]
-    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        if !Extension::disk_storage_enabled() {
-            return Err(GraphError::DiskGraphNotEnabled);
-        }
         path.init()?;
-        let graph = Self(Arc::new(Storage::new_at_path(path.graph_path()?)?));
+
+        let graph_path = path.graph_path()?;
+        let graph = Self(Arc::new(Storage::new_at_path_with_config(
+            graph_path, args,
+        )?));
+
         let meta = Metadata {
             path: path.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
         };
+
         path.write_metadata(meta)?;
         Ok(graph)
     }
@@ -196,21 +188,21 @@ impl PersistentGraph {
     /// Load a graph from a specific path overriding config
     /// # Arguments
     /// * `path` - The path to the storage location
-    /// * `config` - The new config (note that it is not possible to change page sizes)
+    /// * `config` - The new config (page sizes cannot be changed; providing them returns an error)
     /// # Returns
     /// A raphtory graph loaded from the specified path
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load("/path/to/storage");    ///
+    /// let g = Graph::load("/path/to/storage");
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::load_with_config(
             path.graph_path()?,
-            config,
+            args,
         )?)))
     }
 
@@ -224,20 +216,12 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn load_read_only_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::load_read_only_with_config(
             path.graph_path()?,
-            config,
+            args,
         )?)))
-    }
-
-    pub fn from_storage(storage: Arc<Storage>) -> Self {
-        Self(storage)
-    }
-
-    pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(internal_graph)))
     }
 
     /// Return a read-only handle to this graph. Mutations on the returned
@@ -252,10 +236,14 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
-    /// Get event graph
-    pub fn event_graph(&self) -> Graph {
-        Graph::from_storage(self.0.clone())
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self).map_err(GraphError::from)
     }
+
+    pub fn event_graph(&self) -> Graph {
+        Graph::from(self.0.clone())
+    }
+
     pub fn persistent_graph(&self) -> PersistentGraph {
         self.clone()
     }
@@ -310,6 +298,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::persistent()
     }
+
     #[inline]
     fn window_filtered(&self) -> bool {
         false
@@ -432,73 +421,5 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         } else {
             None
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::db::api::view::time::internal::InternalTimeOps;
-
-    use super::*;
-
-    #[test]
-    fn test_view_start_end() {
-        let g = PersistentGraph::new();
-        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        assert_eq!(g.start(), None);
-        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
-        assert_eq!(g.end(), None);
-        assert_eq!(g.timeline_end().map(|t| t.t()), Some(1));
-        e.delete(2, None).unwrap();
-        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
-        assert_eq!(g.timeline_end().map(|t| t.t()), Some(3));
-        let w = g.window(g.timeline_start().unwrap(), g.timeline_end().unwrap());
-        assert!(g.has_edge(1, 2));
-        assert!(w.has_edge(1, 2));
-        assert_eq!(w.start().map(|t| t.t()), Some(0));
-        assert_eq!(w.timeline_start().map(|t| t.t()), Some(0));
-        assert_eq!(w.end().map(|t| t.t()), Some(3));
-        assert_eq!(w.timeline_end().map(|t| t.t()), Some(3));
-
-        e.add_updates(4, NO_PROPS, None).unwrap();
-        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
-        assert_eq!(g.timeline_end().map(|t| t.t()), Some(5));
-    }
-    #[test]
-    fn test_materialize_window_earliest_time() {
-        let g = PersistentGraph::new();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.delete_edge(10, 1, 2, None).unwrap();
-
-        let ltg = g.latest_time_global();
-        assert_eq!(ltg, Some(10));
-
-        let wg = g.window(3, 5);
-
-        let e = wg.edge(1, 2).unwrap();
-        assert_eq!(e.earliest_time().map(|t| t.t()), Some(3));
-        assert_eq!(e.latest_time().map(|t| t.t()), Some(3));
-        let n1 = wg.node(1).unwrap();
-        assert_eq!(n1.earliest_time().unwrap().t(), 3);
-        assert_eq!(n1.latest_time().unwrap().t(), 3);
-        let n2 = wg.node(2).unwrap();
-        assert_eq!(n2.earliest_time().unwrap().t(), 3);
-        assert_eq!(n2.latest_time().unwrap().t(), 3);
-
-        let actual_lt = wg.latest_time();
-        assert_eq!(actual_lt.unwrap().t(), 3);
-
-        let actual_et = wg.earliest_time();
-        assert_eq!(actual_et.unwrap().t(), 3);
-
-        let gm = g
-            .window(3, 5)
-            .materialize()
-            .unwrap()
-            .into_persistent()
-            .unwrap();
-
-        let expected_et = gm.earliest_time();
-        assert_eq!(actual_et, expected_et);
     }
 }

@@ -60,14 +60,14 @@ mod write_guard_tests {
     };
     use async_graphql::async_trait;
     use raphtory::prelude::NO_PROPS;
-    use raphtory_api::core::entities::{properties::prop::Prop, GID};
+    use raphtory_api::core::entities::GID;
     use std::sync::Arc;
 
     struct NoRpc;
 
     #[async_trait::async_trait]
     impl Transport for NoRpc {
-        async fn execute(&self, _op: &Op) -> Result<Option<Prop>, ClientError> {
+        async fn execute(&self, _op: &Op) -> Result<serde_json::Value, ClientError> {
             panic!("a guarded write reached the transport")
         }
     }
@@ -131,7 +131,7 @@ mod write_guard_tests {
 
     #[tokio::test]
     async fn graph_writes_are_refused_on_a_viewed_handle() {
-        let g = graph(ReadExpr::Valid { input: root() }.into());
+        let g = graph(ReadExpr::Valid { input: root() });
         expect_refused("add_node", g.add_node(1, "a", NO_PROPS, None, None).await);
         expect_refused(
             "create_node",

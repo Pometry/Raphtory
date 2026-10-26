@@ -1,7 +1,4 @@
-use crate::{
-    config::app_config::AppConfig,
-    data::{gql_error_with_code, CODE_ACCESS_DENIED},
-};
+use crate::config::app_config::AppConfig;
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
@@ -469,10 +466,6 @@ pub trait ContextValidation {
 /// It also keeps the guarantee true for fields added later, which a text check would silently miss.
 #[derive(Clone, Copy, Debug)]
 pub struct ReadOnly;
-
-pub(crate) fn is_read_only(ctx: &Context<'_>) -> bool {
-    ctx.data::<ReadOnly>().is_ok()
-}
 
 impl<'a> ContextValidation for Context<'a> {
     /// Whether this context is marked [`ReadOnly`].

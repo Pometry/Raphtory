@@ -5,7 +5,8 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::{
     core::{
         entities::properties::prop::{
-            Prop, PropArray, PropArrayUnwrap, PropMap, PropType, PropUnwrap,
+            prop_hashable::HashableProp, Prop, PropArray, PropArrayUnwrap, PropMap, PropType,
+            PropUnwrap,
         },
         storage::{
             arc_str::ArcStr,
@@ -112,8 +113,17 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn unique(&self) -> Vec<Prop> {
-        let unique_props: HashSet<_> = self.values().collect();
-        unique_props.into_iter().collect()
+        let mut seen = HashSet::<HashableProp>::new();
+        self.values()
+            .filter(|v| {
+                if !seen.contains(v.as_ref()) {
+                    seen.insert(v.clone().into());
+                    true
+                } else {
+                    false
+                }
+            })
+            .collect()
     }
 
     /// Compute the sum of all property values, or `None` if the dtype is not additive or the

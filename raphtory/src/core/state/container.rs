@@ -57,7 +57,7 @@ impl<T> VecArray<T> {
 }
 
 #[inline]
-pub fn merge_2_vecs<T: Clone, F: Fn(&mut T, &T)>(v1: &mut Vec<T>, v2: &Vec<T>, f: F) {
+pub fn merge_2_vecs<T: Clone, F: Fn(&mut T, &T)>(v1: &mut Vec<T>, v2: &[T], f: F) {
     let v1_len = v1.len();
     let v2_len = v2.len();
 

@@ -6,7 +6,9 @@ use crate::{
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
+    datatypes::{
+        DataType, Date64Type, Int32Type, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type,
+    },
 };
 use either::Either;
 use itertools::Itertools;
@@ -185,20 +187,56 @@ pub enum SecondaryIndexCol {
 
 impl SecondaryIndexCol {
     /// Load a secondary index column from a dataframe.
+    ///
+    /// The column is stored as `uint64`. Other integer widths are cast, the same way the time
+    /// column accepts them; a signed column must hold no negative value and any other type is
+    /// rejected with `LoadError::InvalidSecondaryIndexType` rather than a panic.
     pub fn new_from_df(arr: &dyn Array) -> Result<Self, LoadError> {
         if arr.null_count() > 0 {
             return Err(LoadError::MissingSecondaryIndexError);
         }
 
-        Ok(SecondaryIndexCol::DataFrame(
-            arr.as_primitive::<UInt64Type>().clone(),
-        ))
+        let arr = match arr.data_type() {
+            DataType::UInt64 => arr.as_primitive::<UInt64Type>().clone(),
+            DataType::UInt32 => cast(arr, &DataType::UInt64)?
+                .as_primitive::<UInt64Type>()
+                .clone(),
+            DataType::Int64 => {
+                // arrow's default cast is "safe": a negative value would become a null, not an
+                // error, so look for one first and name it
+                if let Some(negative) = arr
+                    .as_primitive::<Int64Type>()
+                    .values()
+                    .iter()
+                    .find(|v| **v < 0)
+                {
+                    return Err(LoadError::NegativeSecondaryIndex(*negative));
+                }
+                cast(arr, &DataType::UInt64)?
+                    .as_primitive::<UInt64Type>()
+                    .clone()
+            }
+            DataType::Int32 => {
+                if let Some(negative) = arr
+                    .as_primitive::<Int32Type>()
+                    .values()
+                    .iter()
+                    .find(|v| **v < 0)
+                {
+                    return Err(LoadError::NegativeSecondaryIndex(*negative as i64));
+                }
+                cast(arr, &DataType::UInt64)?
+                    .as_primitive::<UInt64Type>()
+                    .clone()
+            }
+            other => return Err(LoadError::InvalidSecondaryIndexType(other.clone())),
+        };
+
+        Ok(SecondaryIndexCol::DataFrame(arr))
     }
 
     /// Generate a secondary index column with values from `start` to `end` (not inclusive).
     pub fn new_from_range(start: usize, end: usize) -> Self {
-        let start = start;
-        let end = end;
         SecondaryIndexCol::Range(start..end)
     }
 
@@ -226,6 +264,7 @@ impl SecondaryIndexCol {
         self.iter().max().unwrap_or(0)
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         match self {
             SecondaryIndexCol::DataFrame(arr) => arr.len(),

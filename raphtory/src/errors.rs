@@ -7,7 +7,9 @@ use itertools::Itertools;
 use parquet::errors::ParquetError;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
+        properties::prop::{
+            InvalidPropertyTypeErr, PropError, PropType, PropTypeError, PropTypeParseError,
+        },
         GidType, GID, VID,
     },
     storage::{graph_folder::GraphFolderError, timeindex::TimeError},
@@ -17,7 +19,7 @@ use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
     properties::props::{MetadataError, TPropError},
 };
-use raphtory_storage::mutation::MutationError;
+use raphtory_storage::{mutation::MutationError, stage::StageError};
 use std::{
     fmt::Debug,
     io,
@@ -34,10 +36,7 @@ use pyo3::PyErr;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
-#[cfg(feature = "vectors")]
-use crate::vectors::embeddings::EmbeddingError;
-
-#[cfg(any(feature = "vectors", feature = "io"))]
+#[cfg(feature = "io")]
 use tempfile::PersistError;
 
 #[derive(thiserror::Error, Debug)]
@@ -82,17 +81,23 @@ pub enum LoadError {
     InvalidNodeIdType(DataType),
     #[error("{0:?} not supported for time column")]
     InvalidTimestamp(DataType),
+    #[error(
+        "Only integer columns (uint64, uint32, int64, int32) are supported for event_id, got {0:?}"
+    )]
+    InvalidSecondaryIndexType(DataType),
+    #[error("event_id values must be non-negative, got {0}")]
+    NegativeSecondaryIndex(i64),
     #[error("Error during parsing of time string: {source}")]
     ParseTime {
         #[from]
         source: ParseTimeError,
     },
-    #[error("Missing value for src id")]
-    MissingSrcError,
-    #[error("Missing value for dst id")]
-    MissingDstError,
-    #[error("Missing value for node id")]
-    MissingNodeError,
+    #[error("Invalid src id column: {0}")]
+    InvalidSrcError(InvalidGIDError),
+    #[error("Invalid dst id column: {0}")]
+    InvalidDstError(InvalidGIDError),
+    #[error("Invalid node id column: {0}")]
+    InvalidNodeError(InvalidGIDError),
     #[error("Missing value for timestamp")]
     MissingTimeError,
     #[error("Missing value for secondary index")]
@@ -111,6 +116,14 @@ pub enum LoadError {
     Arrow(#[from] ArrowError),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum InvalidGIDError {
+    #[error("value missing")]
+    Missing,
+    #[error("negative value")]
+    Negative,
+}
+
 pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
     err.into()
 }
@@ -126,7 +139,7 @@ pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
 
-    #[cfg(any(feature = "io", feature = "vectors"))]
+    #[cfg(feature = "io")]
     #[error(transparent)]
     PersistError(#[from] PersistError),
 
@@ -134,7 +147,13 @@ pub enum GraphError {
     MutationError(#[from] MutationError),
 
     #[error(transparent)]
+    StageError(#[from] StageError),
+
+    #[error(transparent)]
     PropError(#[from] PropError),
+
+    #[error(transparent)]
+    PropTypeError(#[from] PropTypeError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
@@ -162,9 +181,6 @@ pub enum GraphError {
 
     #[error("Storage feature not enabled")]
     DiskGraphNotEnabled,
-
-    #[error("The stored template or embedding model differs from the one requested, so only entities missing from the index cannot be added; re-vectorise instead")]
-    VectorTemplateChanged,
 
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
@@ -202,8 +218,8 @@ pub enum GraphError {
     #[error("Node {0} does not exist")]
     NodeMissingError(GID),
 
-    #[error("Node Type Error {0}")]
-    NodeTypeError(String),
+    #[error("Node type '{0}' does not exist")]
+    NodeTypeMissingError(String),
 
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
@@ -220,7 +236,6 @@ pub enum GraphError {
     #[error("Metadata {0} does not exist")]
     MetadataMissingError(String),
 
-    // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
 
@@ -249,22 +264,6 @@ pub enum GraphError {
     #[error("Invalid epidemic seeds: {0}")]
     SeedError(#[from] SeedError),
 
-    #[cfg(feature = "vectors")]
-    #[error("Heed error: {0}")]
-    HeedError(#[from] heed::Error),
-
-    #[cfg(feature = "vectors")]
-    #[error("Heed error: {0}")]
-    LanceDbError(#[from] lancedb::Error),
-
-    #[cfg(feature = "vectors")]
-    #[error("The path {0} does not contain a vector DB")]
-    VectorDbDoesntExist(String),
-
-    #[cfg(feature = "vectors")]
-    #[error("The schema of the vector DB is invalid")]
-    InvalidVectorDbSchema,
-
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
@@ -282,17 +281,6 @@ pub enum GraphError {
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
-
-    #[cfg(feature = "vectors")]
-    #[error("Embedding operation failed")]
-    EmbeddingError {
-        #[from]
-        source: EmbeddingError,
-    },
-
-    #[cfg(feature = "vectors")]
-    #[error("Model has not been initialised with a sample, so dimension cannot be inferred. Please provide a sample embedding when initializing the model, or set the dimension explicitly in the model config.")]
-    UnresolvedModel,
 
     #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names")]
     LayerNameAPIError,
@@ -329,9 +317,6 @@ pub enum GraphError {
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
 
-    #[error("Property filtering not implemented on PersistentGraph yet")]
-    PropertyFilteringNotImplemented,
-
     #[error("Expected a {0} for {1} operator")]
     ExpectedValueForOperator(String, String),
 
@@ -341,8 +326,11 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
-    #[error("Node filter expected")]
+    #[error("Expression is not a node filter")]
     NotNodeFilter,
+
+    #[error("Expression is not an edge filter")]
+    NotEdgeFilter,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilterExpectSingleGotNone(FilterOperator),
@@ -374,9 +362,6 @@ pub enum GraphError {
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
-    #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
-    TooManyViewsSet,
-
     #[error("Invalid Value conversion")]
     InvalidValueConversion,
 
@@ -385,15 +370,6 @@ pub enum GraphError {
 
     #[error("Value cannot be empty.")]
     EmptyValue,
-
-    #[error("Filter must contain at least one filter condition.")]
-    ParsingError,
-
-    #[error("Node filter is not supported for edge filtering")]
-    NodeFilterIsNotEdgeFilter,
-
-    #[error("Only property filters are supported for exploded edge filtering")]
-    NotExplodedEdgeFilter,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
@@ -433,6 +409,11 @@ impl From<InvalidNodeId> for GraphError {
 }
 
 impl GraphError {
+    /// A filter the engine can give no meaning to.
+    pub fn invalid_filter(msg: impl Into<String>) -> Self {
+        GraphError::InvalidFilter(msg.into())
+    }
+
     pub fn no_default_layer<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         let valid_layers = graph.unique_layers().join(", ");
         GraphError::NoDefaultLayer { valid_layers }
@@ -484,23 +465,6 @@ impl From<StripPrefixError> for GraphError {
     fn from(source: StripPrefixError) -> Self {
         let location = Location::caller();
         GraphError::StripPrefixError { source, location }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::errors::GraphError;
-    use std::io;
-
-    #[test]
-    fn test_location_capture() {
-        fn inner() -> Result<(), GraphError> {
-            Err(io::Error::other(GraphError::IllegalSet("hi".to_string())))?;
-            Ok(())
-        }
-
-        let res = inner().err().unwrap();
-        println!("{}", res);
     }
 }
 

@@ -7,13 +7,13 @@ use crate::{
         remote_history::RemoteHistory,
         remote_node::RemoteNode,
         transport::{
-            expect_bool, expect_gid_list, expect_i64, expect_i64_list, expect_optional_event_time,
-            expect_optional_event_time_list, expect_optional_i64, expect_optional_string_list,
-            expect_string_list, Transport,
+            expect_gid_list, expect_node_type_list, expect_optional_event_time,
+            expect_optional_event_time_list, expect_optional_typed, expect_tagged_typed_list,
+            expect_typed, expect_typed_list, Transport,
         },
         ClientError,
     },
-    model::graph::filtering::GqlFilter,
+    model::graph::filter_expr_input::GqlFilter,
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
@@ -234,7 +234,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionNames {
             input: self.expr.clone(),
         });
-        expect_string_list(self.transport.execute(&op).await?, "name")
+        expect_tagged_typed_list(self.transport.execute(&op).await?, "name")
     }
 
     /// Columnar accessor: each node's type (`None` when unset) — mirrors the
@@ -243,7 +243,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionNodeTypes {
             input: self.expr.clone(),
         });
-        expect_optional_string_list(self.transport.execute(&op).await?, "nodeType")
+        expect_node_type_list(self.transport.execute(&op).await?, "nodeType")
     }
 
     /// Columnar accessor: each node's earliest event time — mirrors the local
@@ -252,7 +252,11 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionEarliestTime {
             input: self.expr.clone(),
         });
-        expect_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+        expect_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "earliestTime",
+            "earliestTime",
+        )
     }
 
     /// Columnar accessor: each node's latest event time — mirrors the local
@@ -261,7 +265,11 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionLatestTime {
             input: self.expr.clone(),
         });
-        expect_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+        expect_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "latestTime",
+            "latestTime",
+        )
     }
 
     /// The non-temporal metadata of this path as a columnar view — mirrors the
@@ -294,7 +302,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionDegree {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "degree")
+        expect_typed_list(self.transport.execute(&op).await?, "degree")
     }
 
     /// Terminal: the per-node in-degree of every node in this path, in order —
@@ -303,7 +311,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionInDegree {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "inDegree")
+        expect_typed_list(self.transport.execute(&op).await?, "inDegree")
     }
 
     /// Terminal: the per-node out-degree of every node in this path, in order —
@@ -312,7 +320,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionOutDegree {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "outDegree")
+        expect_typed_list(self.transport.execute(&op).await?, "outDegree")
     }
 
     /// Terminal: the per-node count of incident edge updates of every node in
@@ -321,7 +329,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionEdgeHistoryCount {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "edgeHistoryCount")
+        expect_typed_list(self.transport.execute(&op).await?, "edgeHistoryCount")
     }
 
     /// Terminal: the number of nodes in this collection. Fires one RPC.
@@ -329,7 +337,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
@@ -338,7 +346,7 @@ impl RemotePathFromNode {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),
@@ -347,7 +355,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Returns a single combined event history for all nodes reachable from

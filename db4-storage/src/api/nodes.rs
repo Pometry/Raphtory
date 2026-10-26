@@ -27,6 +27,7 @@ use std::{
         Arc,
         atomic::{AtomicU32, Ordering},
     },
+    time::Duration,
 };
 
 use crate::{
@@ -34,12 +35,14 @@ use crate::{
     error::StorageError,
     generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
-    persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
 };
-use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
+use raphtory_api::core::entities::{
+    LayerId,
+    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::prop_hashable::HashableProp},
+};
 use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
 
@@ -49,7 +52,7 @@ use rayon::prelude::*;
 #[derive(Debug, Clone, Copy)]
 pub enum PropPredicate<'a> {
     Eq(&'a Prop),
-    In(&'a std::collections::HashSet<Prop>),
+    In(&'a HashSet<HashableProp>),
     Lt(&'a Prop),
     Le(&'a Prop),
     Gt(&'a Prop),
@@ -177,8 +180,6 @@ pub struct GlobalPropCandidates {
     pub exact: bool,
 }
 
-pub type NodeTypeIndexOf<NS> = <<NS as NodeSegmentOps>::Extension as PersistenceStrategy>::NTI;
-
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
@@ -195,7 +196,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn t_len(&self) -> usize;
 
     fn load(
-        page_id: usize,
+        segment_id: usize,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: impl AsRef<Path>,
@@ -205,7 +206,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         Self: Sized;
 
     fn new(
-        page_id: usize,
+        segment_id: usize,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: Option<PathBuf>,
@@ -222,9 +223,11 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
 
+    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
+
     fn notify_write(
         &self,
-        head_lock: impl DerefMut<Target = MemNodeSegment>,
+        head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
 
     fn set_dirty(&self, dirty: bool);
@@ -236,7 +239,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         pos: LocalPOS,
         dst: impl Into<VID>,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemNodeSegment>,
+        head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
     fn get_inb_edge(
@@ -244,21 +247,28 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         pos: LocalPOS,
         src: impl Into<VID>,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemNodeSegment>,
+        head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
     fn entry(&self, pos: impl Into<LocalPOS>) -> Self::Entry<'_>;
 
     fn locked(&self) -> Self::ArcLockedSegment;
 
-    fn flush(&self) -> Result<(), StorageError>;
+    fn flush(&self) -> Result<(), StorageError> {
+        let head = self.head_mut();
+        self.flush_with_head(head)
+    }
+
+    fn flush_with_head(
+        &self,
+        head: impl DerefMut<Target = MemNodeSegment>,
+    ) -> Result<(), StorageError>;
 
     fn is_dirty(&self) -> bool;
 
-    fn vacuum(
-        &self,
-        locked_head: impl DerefMut<Target = MemNodeSegment>,
-    ) -> Result<(), StorageError>;
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
+
+    fn vacuum(&self, head: impl DerefMut<Target = MemNodeSegment>) -> Result<(), StorageError>;
 
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;

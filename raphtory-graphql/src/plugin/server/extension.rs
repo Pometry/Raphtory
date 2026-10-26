@@ -5,7 +5,6 @@ use crate::{
     GraphServer,
 };
 use clap::{ArgMatches, Command};
-use config::ConfigError;
 use indexmap::{map::IntoValues, IndexMap};
 use serde::{
     de,
@@ -164,28 +163,18 @@ impl ArgExtensions {
     }
 
     /// update or insert extensions from json map
-    pub fn update_from_json(&mut self, value: &Value) -> Result<(), ServerError> {
-        match value {
-            Value::Object(map) => {
-                for (name, value) in map {
-                    match self.0.get_mut(name) {
-                        None => {
-                            let mut ext = get_plugin(name)?.new_boxed_args();
-                            ext.update_from_json(value)?;
-                            self.push_boxed(ext);
-                        }
-                        Some(ext) => {
-                            ext.update_from_json(value)?;
-                        }
-                    }
-                }
+    pub fn update_from_json(&mut self, name: &str, value: &Value) -> Result<(), ServerError> {
+        match self.0.get_mut(name) {
+            None => {
+                let mut ext = get_plugin(name)?.new_boxed_args();
+                ext.update_from_json(value)?;
+                self.push_boxed(ext);
             }
-            _ => {
-                Err(ConfigError::Message(
-                    "expected a map for extensions".to_string(),
-                ))?;
+            Some(ext) => {
+                ext.update_from_json(value)?;
             }
         }
+
         Ok(())
     }
 }

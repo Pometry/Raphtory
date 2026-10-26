@@ -5,13 +5,44 @@ K6_IP=$(shell terraform output k6_ip | jq -r '.')
 RAPHTORY_IP=$(shell terraform output raphtory_ip | jq -r '.')
 
 
+# Logs from the last run. Nothing in here reaches the terminal on a run that worked: the server
+# and the bench are both noisy (tsc/tsup, the graph load, k6's own summary), and `--kill-others`
+# means a server that dies takes k6 down with it, so what you want is the whole lot on disk and
+# surfaced only when something breaks. process-k6-output.py prints them when it finds no results,
+# and BENCH_VERBOSE=1 prints its report on a good run too.
+#
+# The k6 log is gzipped as it is written: a long run emits a lot of progress lines, and any
+# request/response sampling that is switched on emits a whole JSON blob per sample, which reached
+# 200MB uncompressed. Read it with `gzip -dc k6.log.gz | less` (or `| tail -n 100`).
+BUILD_LOG ?= build.log
+SERVER_LOG ?= server.log
+K6_LOG ?= k6.log.gz
+
 build:
-	pnpm install --frozen-lockfile
-	pnpm build
+	@{ pnpm install --no-frozen-lockfile && pnpm build ; } > $(BUILD_LOG) 2>&1 \
+		|| { echo ">>> build failed:"; cat $(BUILD_LOG); exit 1; }
+
+# Purely informational, so nothing in here is allowed to fail.
+bench-env:
+	@echo ">>> bench environment"
+	@k6 version || echo "k6 not on PATH"
+	@python -V || true
+	@python -c 'import pandas; print("pandas", pandas.__version__)' || echo "pandas not importable"
+	@echo ">>> graphs available to the server:"
+	@ls -la data/apache 2>&1 || true
 
 bench-local: build
-	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js' || :
-	python process-k6-output.py
+	@rm -f output.csv.gz output.json $(SERVER_LOG) $(K6_LOG)
+	@$(MAKE) --no-print-directory bench-env 2>&1 | gzip > $(K6_LOG) || true
+	@k6 version > /dev/null 2>&1 || echo ">>> WARNING: k6 is not on PATH"
+	@python -c 'import pandas' > /dev/null 2>&1 \
+		|| echo ">>> WARNING: pandas is not importable, results cannot be processed"
+	@echo ">>> running the bench; $(K6_LOG) and $(SERVER_LOG) have the details"
+	@pnpm concurrently --raw --kill-others --names 'raphtory,bench' \
+		'python -u server.py > $(SERVER_LOG) 2>&1' \
+		'{ sh wait-for-server.sh && k6 run --out csv=output.csv.gz dist/bench.js ; } 2>&1 | gzip >> $(K6_LOG)' \
+		; echo ">>> concurrently exited with status $$?" | gzip >> $(K6_LOG)
+	@BENCH_SERVER_LOG=$(SERVER_LOG) BENCH_K6_LOG=$(K6_LOG) python process-k6-output.py
 
 # call this like: make bench-e2-standard-16
 bench-%:
@@ -24,6 +55,28 @@ bench: deploy push-graphs build-raphtory
 
 stress-test: build
 	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run dist/stress-test.js
+
+# Samples request/response pairs into $(SAMPLES) as JSONL (appends across runs).
+# SAMPLE_RATE is the chance of recording any given pair; failures and requests slower than
+# SLOW_MS are recorded whatever the rate, so `SAMPLE_RATE=0 make stress-test-sampled` keeps just
+# those two. The slow ones are pretty printed into $(SLOW_LOG) when the run ends.
+SAMPLES ?= samples.jsonl
+SAMPLE_RATE ?= 0.01
+SLOW_MS ?= 1000
+SLOW_LOG ?= slow_req.log
+stress-test-sampled: build
+	SAMPLE_RATE=$(SAMPLE_RATE) SLOW_MS=$(SLOW_MS) K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html \
+		k6 run --log-format=raw --console-output=$(SAMPLES) dist/stress-test.js; \
+		status=$$?; python slow_requests.py $(SAMPLES) --output $(SLOW_LOG); exit $$status
+
+# Appends the slow requests from $(SAMPLES) to $(SLOW_LOG), slowest first: the query behind the
+# max the summary reports, its variables, and whether the time went on the server (waiting) or
+# somewhere between k6 and it. Entries already in the log are skipped, so this is safe to repeat.
+# N limits how many are appended (0 = all), MIN_MS overrides the run's own SLOW_MS threshold.
+N ?= 0
+MIN_MS ?= 0
+slowest:
+	python slow_requests.py $(SAMPLES) --output $(SLOW_LOG) --top $(N) --min-ms $(MIN_MS)
 
 stress-test-multiple: build # 12 x 10m = 2h
 	for _ in $(seq 1 12); do \

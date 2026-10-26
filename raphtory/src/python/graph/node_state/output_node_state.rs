@@ -1,3 +1,5 @@
+#[cfg(feature = "datafusion")]
+use crate::errors::GraphError;
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
@@ -24,13 +26,20 @@ use crate::{
 };
 use indexmap::IndexMap;
 use pyo3::{
-    exceptions::{PyKeyError, PyTypeError},
+    exceptions::{PyKeyError, PyTypeError, PyValueError},
     pyclass, pymethods,
     types::{PyAnyMethods, PyDict, PyDictMethods, PyNotImplemented},
     Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
-use raphtory_api::core::entities::properties::prop::PropUntagged;
+use raphtory_api::core::entities::properties::prop::PropExact;
 use std::{collections::HashMap, sync::Arc};
+
+/// The shared column values of a group together with the nodes in it.
+#[cfg(feature = "datafusion")]
+type PyNodeGroup = (
+    TransformedPropMap<'static, Arc<dyn BoxableGraphView>>,
+    Nodes<'static, DynamicGraph>,
+);
 
 #[pyclass(name = "OutputNodeState", module = "raphtory.node_state", frozen)]
 pub struct PyOutputNodeState {
@@ -43,6 +52,17 @@ impl PyOutputNodeState {
             inner: TypedNodeState::new_mapped(state, GenericNodeState::get_nodes)
                 .to_output_nodestate(),
         }
+    }
+}
+
+fn parse_merge_priority(value: &str, exclude_name: &str) -> PyResult<MergePriority> {
+    match value.to_lowercase().as_str() {
+        "left" => Ok(MergePriority::Left),
+        "right" => Ok(MergePriority::Right),
+        v if v == exclude_name => Ok(MergePriority::Exclude),
+        _ => Err(PyValueError::new_err(format!(
+            "invalid merge priority {value:?}, expected one of \"left\", \"right\" or \"{exclude_name}\""
+        ))),
     }
 }
 
@@ -83,7 +103,7 @@ impl PyOutputNodeState {
                         self.inner
                             .get_by_node(node_ref)
                             .map(|l_value| {
-                                let l_value = convert_prop_map::<PropUntagged, Prop>(l_value);
+                                let l_value = convert_prop_map::<PropExact, Prop>(l_value);
                                 if let Ok(l_value_py) = l_value.into_bound_py_any(py) {
                                     l_value_py.eq(value).unwrap_or(false)
                                 } else {
@@ -222,14 +242,8 @@ impl PyOutputNodeState {
     /// Returns:
     ///     list[tuple[dict, Nodes]]: The grouped nodes
     #[cfg(feature = "datafusion")]
-    fn groups(
-        &self,
-        cols: Vec<String>,
-    ) -> Vec<(
-        TransformedPropMap<'static, Arc<dyn BoxableGraphView>>,
-        Nodes<'static, DynamicGraph>,
-    )> {
-        self.inner.get_groups(cols).unwrap()
+    fn groups(&self, cols: Vec<String>) -> Result<Vec<PyNodeGroup>, GraphError> {
+        self.inner.get_groups(cols)
     }
 
     //fn sorted_by_id(&self) -> OutputTypedNodeState<'static, DynamicGraph> {
@@ -258,6 +272,7 @@ impl PyOutputNodeState {
     /// Returns:
     ///     OutputNodeState:
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
+    #[allow(clippy::wrong_self_convention)]
     fn from_parquet(&self, file_path: String, id_column: String) -> PyResult<Self> {
         Ok(PyOutputNodeState {
             inner: OutputTypedNodeState::new_mapped(
@@ -286,39 +301,19 @@ impl PyOutputNodeState {
         column_merge_priority_map: Option<HashMap<String, String>>,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, PyErr> {
-        // hashmap of string to enum
-        let merge_priority_enum_map: HashMap<String, MergePriority> = HashMap::from([
-            ("left".to_string(), MergePriority::Left),
-            ("right".to_string(), MergePriority::Right),
-            ("union".to_string(), MergePriority::Exclude),
-        ]);
-
-        let index_merge_priority = merge_priority_enum_map
-            .get(&index_merge_priority.to_lowercase())
-            .unwrap()
-            .clone();
-        let default_column_merge_priority = merge_priority_enum_map
-            .get(&default_column_merge_priority.to_lowercase())
-            .unwrap()
-            .clone();
-        let mut column_priority_map = None;
-        if column_merge_priority_map.is_some() {
-            column_priority_map = Some(
-                column_merge_priority_map
-                    .unwrap()
-                    .into_iter()
+        // for the index, `Exclude` means taking the union of both index sets
+        let index_merge_priority = parse_merge_priority(&index_merge_priority, "union")?;
+        let default_column_merge_priority =
+            parse_merge_priority(&default_column_merge_priority, "exclude")?;
+        let column_priority_map = column_merge_priority_map
+            .map(|map| {
+                map.into_iter()
                     .map(|(col_name, merge_priority)| {
-                        (
-                            col_name,
-                            merge_priority_enum_map
-                                .get(&merge_priority.to_lowercase())
-                                .unwrap()
-                                .clone(),
-                        )
+                        Ok((col_name, parse_merge_priority(&merge_priority, "exclude")?))
                     })
-                    .collect(),
-            )
-        }
+                    .collect::<PyResult<_>>()
+            })
+            .transpose()?;
 
         let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
@@ -383,7 +378,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for NodeStateOutput<'static, DynamicGraph> {
         }
 
         if let Ok(prop) = obj.extract::<Option<Prop>>() {
-            return Ok(NodeStateOutput::Prop(prop.map(PropUntagged::from)));
+            return Ok(NodeStateOutput::Prop(prop.map(PropExact)));
         }
 
         Err(PyTypeError::new_err("Invalid type conversion"))

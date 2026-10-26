@@ -12,13 +12,21 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges: filter(expr: { edge: {
-          src: {
-            id: {
-              where: { eq: { str: "3" } }
-            }
-          }
-        } }) {
+        filterEdges: filter(expr: {
+                                    edge: {
+                                      cmp: {
+                                        op: EQ
+                                        lhs: {
+                                          read: { src: { expr: { read: { field: { name: ID } } } } }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "3"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges {
             list {
               src { name }
@@ -53,13 +61,21 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges: filter(expr: { edge: {
-          src: {
-            id: {
-              where: { eq: { u64: 1 } }
-            }
-          }
-        } }) {
+        filterEdges: filter(expr: {
+                                    edge: {
+                                      cmp: {
+                                        op: EQ
+                                        lhs: {
+                                          read: { src: { expr: { read: { field: { name: ID } } } } }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            u64: 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges {
             list {
               src { name }
@@ -86,12 +102,36 @@ def test_edges_chained_selection_with_edge_filter(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: { edge: { dst: { 
-            id: {
-              where: { eq: { u64: 2 } }
-            }
-          } } }) {
-            select(expr: { edge: { property: { name: "p2", where: { gt:{ i64: 2 } } } } }) {
+          select(expr: {
+                         edge: {
+                           cmp: {
+                             op: EQ
+                             lhs: {
+                               read: { dst: { expr: { read: { field: { name: ID } } } } }
+                             }
+                             rhs: {
+                               const: {
+                                 u64: 2
+                               }
+                             }
+                           }
+                         }
+                       }) {
+            select(expr: {
+                           edge: {
+                             cmp: {
+                               op: GT
+                               lhs: {
+                                 read: { property: { name: "p2" } }
+                               }
+                               rhs: {
+                                 const: {
+                                   i64: 2
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               list { src { name } dst { name } }
             }        
           }
@@ -121,7 +161,21 @@ def test_edges_filter_window_is_active(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: { edge: {window: {start: 1, end: 4, expr: {isActive: true}}} }) {
+          select(expr: {
+                         edge: {
+                           read: {
+                             field: {
+                               name: IS_ACTIVE
+                               views: [{
+                                 window: {
+                                   start: 1
+                                   end: 4
+                                 }
+                               }]
+                             }
+                           }
+                         }
+                       }) {
             list {
               src {
                 name
@@ -153,13 +207,38 @@ def test_edges_filter_window_is_active(graph):
     run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_edges_filter_window_is_deleted(graph):
+# `init_graph4` deletes (3, 4) without naming a layer, so the tombstone lands on
+# `_default` while the edge stays alive on `fire_nation`. An event graph reports
+# that a deletion exists; a persistent graph reports the edge as still alive,
+# because it is alive on a layer — so the two models expect different results.
+@pytest.mark.parametrize(
+    "graph,expected_edges",
+    [
+        (EVENT_GRAPH, [{"dst": {"name": "4"}, "src": {"name": "3"}}]),
+        (PERSISTENT_GRAPH, []),
+    ],
+    ids=["event", "persistent"],
+)
+def test_edges_filter_window_is_deleted(graph, expected_edges):
     query = """
     query {
       graph(path: "g") {
         edges {
-          select(expr: { edge: {window: {start: 1, end: 5, expr: {isDeleted: true}}} }) {
+          select(expr: {
+                         edge: {
+                           read: {
+                             field: {
+                               name: IS_DELETED
+                               views: [{
+                                 window: {
+                                   start: 1
+                                   end: 5
+                                 }
+                               }]
+                             }
+                           }
+                         }
+                       }) {
             list {
               src {
                 name
@@ -173,11 +252,5 @@ def test_edges_filter_window_is_deleted(graph):
       }
     }
     """
-    expected_output = {
-        "graph": {
-            "edges": {
-                "select": {"list": [{"dst": {"name": "4"}, "src": {"name": "3"}}]}
-            }
-        }
-    }
+    expected_output = {"graph": {"edges": {"select": {"list": expected_edges}}}}
     run_graphql_test(query, expected_output, graph)

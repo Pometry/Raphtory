@@ -14,7 +14,7 @@ use crate::{
     io::parquet_loaders::*,
     prelude::*,
     python::{
-        config::PyConfig,
+        config::PyArgs,
         graph::{
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
@@ -50,7 +50,7 @@ use std::{
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
-///     config (Config, optional): The configuration options for the graph
+///     config (dict[str, Any], optional): The configuration options for the graph
 #[derive(Clone)]
 #[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen, from_py_object)]
 pub struct PyGraph {
@@ -164,16 +164,16 @@ impl PyGraph {
     #[pyo3(signature = (path = None, config=None))]
     pub fn py_new(
         path: Option<PathBuf>,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
     ) -> Result<PyClassInitializer<Self>, GraphError> {
         let graph = match path {
             None => match config {
                 None => Graph::new(),
-                Some(PyConfig(config)) => Graph::new_with_config(config)?,
+                Some(PyArgs(args)) => Graph::new_with_config(args)?,
             },
             Some(path) => match config {
                 None => Graph::new_at_path(&path)?,
-                Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
+                Some(PyArgs(args)) => Graph::new_at_path_with_config(&path, args)?,
             },
         };
         Ok(PyClassInitializer::from(PyGraphView::from(graph.clone())).add_subclass(Self { graph }))
@@ -183,26 +183,26 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     path (str | PathLike): the path of the graph folder
-    ///     config (Config, optional): specify a new config to override the values saved for the graph
-    ///                                (note that the page sizes cannot be overridden and are ignored)
-    ///     read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-    ///                                 Multiple processes can hold a read-only handle to the same
-    ///                                 graph directory concurrently. Mutating the returned graph will fail.
+    ///     config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+    ///                                (note that page sizes cannot be overridden; providing them raises an error)
+    ///     read_only (bool): open as a read-only snapshot. Defaults to False.
+    ///                       Multiple processes can hold a read-only handle to the same graph
+    ///                       directory concurrently. Mutating the returned graph will fail.
     ///
     /// Returns:
-    ///     Graph: the graph
+    ///     Graph: the graph loaded from path
     #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
     pub fn load(
         path: PathBuf,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
         read_only: bool,
     ) -> Result<Graph, GraphError> {
         match (config, read_only) {
             (None, false) => Graph::load(&path),
-            (Some(PyConfig(config)), false) => Graph::load_with_config(&path, config),
+            (Some(PyArgs(args)), false) => Graph::load_with_config(&path, args),
             (None, true) => Graph::load_read_only(&path),
-            (Some(PyConfig(config)), true) => Graph::load_read_only_with_config(&path, config),
+            (Some(PyArgs(args)), true) => Graph::load_read_only_with_config(&path, args),
         }
     }
 
@@ -212,6 +212,14 @@ impl PyGraph {
     ///     None: This function does not return a value, if the operation is successful.
     pub fn flush(&self) -> Result<(), GraphError> {
         self.graph.flush()
+    }
+
+    /// Trigger a compaction of the underlying storage segments if disk storage is enabled
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    pub fn vacuum(&self) -> Result<(), GraphError> {
+        self.graph.vacuum()
     }
 
     /// Build secondary indexes over node property values to speed up
@@ -352,7 +360,7 @@ impl PyGraph {
     ///     MutableNode: The added node.
     ///
     /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
     #[pyo3(
         signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None)
     )]
@@ -396,7 +404,7 @@ impl PyGraph {
     ///     MutableNode: The created node.
     ///
     /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
@@ -809,6 +817,7 @@ impl PyGraph {
     ///     event_id (str, optional): The column name for the secondary index. Defaults to None.
     ///     layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
     ///     layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+    ///     batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -816,8 +825,9 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None, batch_size = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_nodes(
         &self,
         data: &Bound<PyAny>,
@@ -833,6 +843,7 @@ impl PyGraph {
         event_id: Option<&str>,
         layer: Option<&str>,
         layer_col: Option<&str>,
+        batch_size: Option<usize>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -885,7 +896,7 @@ impl PyGraph {
                     layer,
                     layer_col,
                     None,
-                    None,
+                    batch_size,
                     true,
                     arced_schema.clone(),
                 )?;
@@ -935,6 +946,7 @@ impl PyGraph {
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
     ///     event_id (str, optional): The column name for the secondary index. Defaults to None.
+    ///     batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -942,8 +954,9 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None)
+        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None, batch_size = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_edges(
         &self,
         data: &Bound<PyAny>,
@@ -958,6 +971,7 @@ impl PyGraph {
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
         event_id: Option<&str>,
+        batch_size: Option<usize>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -1004,7 +1018,7 @@ impl PyGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     layer,
-                    None,
+                    batch_size,
                     arced_schema.clone(),
                 )?;
             }
@@ -1048,6 +1062,7 @@ impl PyGraph {
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -1055,8 +1070,9 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, id, node_type = None, node_type_col = None, metadata = None, shared_metadata = None, schema = None, csv_options = None)
+        signature = (data, id, node_type = None, node_type_col = None, metadata = None, shared_metadata = None, schema = None, csv_options = None, batch_size = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_node_metadata(
         &self,
         data: &Bound<PyAny>,
@@ -1067,6 +1083,7 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
+        batch_size: Option<usize>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         let column_schema = convert_py_schema(schema)?;
@@ -1111,7 +1128,7 @@ impl PyGraph {
                     shared_metadata.as_ref(),
                     None,
                     None,
-                    None,
+                    batch_size,
                     arced_schema.clone(),
                 )?;
             }
@@ -1152,6 +1169,7 @@ impl PyGraph {
     ///     layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -1159,8 +1177,9 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None)
+        signature = (data, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, batch_size = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_edge_metadata(
         &self,
         data: &Bound<PyAny>,
@@ -1172,6 +1191,7 @@ impl PyGraph {
         layer_col: Option<&str>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
+        batch_size: Option<usize>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         let column_schema = convert_py_schema(schema)?;
@@ -1214,7 +1234,7 @@ impl PyGraph {
                     shared_metadata.as_ref(),
                     layer,
                     layer_col,
-                    None,
+                    batch_size,
                     arced_schema.clone(),
                     true,
                 )?;

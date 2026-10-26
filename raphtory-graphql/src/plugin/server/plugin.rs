@@ -2,7 +2,6 @@ use crate::plugin::server::{extension::ServerExtension, internal::ServerPluginIm
 use inventory::collect;
 
 /// re-export for use in macro
-#[doc(hidden)]
 pub use inventory::submit;
 
 /// Interface for defining a command-line plugin. This only defines the constructor for the actual
@@ -11,12 +10,10 @@ pub trait ServerPlugin: Clone + Send + Sync + 'static {
     type Extension: ServerExtension + clap::Args + Clone;
 
     /// Create a new plugin instance
-
     fn new(&self) -> Self::Extension;
 }
 
 /// Type used for plugin registration. Use `register_cli_plugin` instead of constructing this type
-#[doc(hidden)]
 pub struct PluginRegistration(pub fn() -> Box<dyn ServerPluginImpl>);
 
 collect!(PluginRegistration);

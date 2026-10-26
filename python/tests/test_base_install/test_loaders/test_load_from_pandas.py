@@ -71,7 +71,9 @@ def test_load_from_pandas_with_invalid_data():
     )
 
     def assertions(exc_info):
-        assert "ArrowInvalid" in str(exc_info.value)
+        # the pyarrow exception reaches the caller with its own class, not as text inside
+        # a generic Exception
+        assert exc_info.typename == "ArrowInvalid"
         assert (
             "Could not convert '3.0 KG' with type str: tried to convert to double"
             in str(exc_info.value)
@@ -89,7 +91,7 @@ def test_load_from_pandas_with_invalid_data():
     assertions(exc_info)
 
     # Optionally, you can check the exception message or type
-    assert "ArrowInvalid" in str(exc_info.value)
+    assert exc_info.typename == "ArrowInvalid"
     assert (
         "Could not convert '3.0 KG' with type str: tried to convert to double"
         in str(exc_info.value)
@@ -311,14 +313,23 @@ def test_load_from_pandas_with_types():
 
     assert g.node(666) is None
     assert g.node(3) is not None
+    # metadata for an id the graph does not have is an error, and nothing is applied
+    with pytest.raises(Exception, match="Node 666 does not exist"):
+        g.load_node_metadata(
+            nodes_meta_df,
+            "id",
+            metadata=["name", "coins"],
+        )
+    assert g.node(666) is None
+    assert g.node(3) is not None
+    assert g.node(3).metadata.get("name") is None
+
     g.load_node_metadata(
-        nodes_meta_df,
+        nodes_meta_df[nodes_meta_df["id"] != 666],
         "id",
         metadata=["name", "coins"],
     )
-
     assert g.node(666) is None
-    assert g.node(3) is not None
     assert g.node(3).metadata.get("name") == "Carol"
     assert g.node(3).metadata.get("coins") == 100
 
@@ -2040,3 +2051,117 @@ def test_load_edges_with_datetime_schema():
     assert g.edge("a", "b").properties["scheduled_at"] == datetime.datetime(
         2024, 6, 1, 9, 0, 0, tzinfo=datetime.timezone.utc
     )
+
+
+def test_failed_load_edge_metadata_leaves_the_graph_unchanged():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    rows = pd.DataFrame({"src": ["a", "x"], "dst": ["b", "y"], "m": ["t", "f"]})
+
+    # a regular exception that names the unknown node, never a PanicException
+    with pytest.raises(Exception, match="Node x does not exist"):
+        g.load_edge_metadata(rows, src="src", dst="dst", metadata=["m"])
+
+    # no phantom node was created ...
+    assert g.count_nodes() == 2
+    assert not g.has_node("x")
+    assert not g.has_node("y")
+    # ... reading every node name used to panic on the phantom ...
+    assert sorted(n.name for n in g.nodes) == ["a", "b"]
+    # ... and nothing was partially applied
+    assert g.edge("a", "b").metadata.get("m") is None
+
+
+def test_load_edge_metadata_unknown_edge_between_known_nodes_is_an_error():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    g.add_edge(1, "c", "d")
+    rows = pd.DataFrame({"src": ["a"], "dst": ["c"], "m": ["t"]})
+    with pytest.raises(Exception):
+        g.load_edge_metadata(rows, src="src", dst="dst", metadata=["m"])
+    assert g.count_nodes() == 4
+    assert sorted(n.name for n in g.nodes) == ["a", "b", "c", "d"]
+
+
+def test_load_node_metadata_unknown_node_is_an_error():
+    g = Graph()
+    g.add_node(1, "a")
+    rows = pd.DataFrame({"id": ["a", "x"], "m": ["t", "f"]})
+
+    # the two metadata loaders agree: an unknown id is an error, not a row to skip
+    with pytest.raises(Exception, match="Node x does not exist"):
+        g.load_node_metadata(rows, id="id", metadata=["m"])
+
+    assert g.count_nodes() == 1
+    assert not g.has_node("x")
+    assert g.node("a").metadata.get("m") is None
+
+
+def test_load_metadata_for_known_entities_still_works():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    g.load_node_metadata(
+        pd.DataFrame({"id": ["a", "b"], "m": ["t", "f"]}), id="id", metadata=["m"]
+    )
+    g.load_edge_metadata(
+        pd.DataFrame({"src": ["a"], "dst": ["b"], "m": ["e"]}),
+        src="src",
+        dst="dst",
+        metadata=["m"],
+    )
+    assert g.node("a").metadata.get("m") == "t"
+    assert g.node("b").metadata.get("m") == "f"
+    assert g.edge("a", "b").metadata.get("m") == "e"
+
+
+@pytest.mark.parametrize("dtype", ["uint64", "int64", "int32", "uint32"])
+def test_load_edges_event_id_integer_widths_are_accepted(dtype):
+    # a default pandas integer column is int64, so this must not need an astype
+    rows = pd.DataFrame(
+        {
+            "t": [1, 1],
+            "s": ["a", "c"],
+            "d": ["b", "d"],
+            "eid": numpy.array([10, 7], dtype=dtype),
+        }
+    )
+    g = Graph()
+    g.load_edges(rows, time="t", src="s", dst="d", event_id="eid")
+    assert g.edge("a", "b").history[0].event_id == 10
+    assert g.edge("c", "d").history[0].event_id == 7
+
+
+@pytest.mark.parametrize("dtype", ["int64", "int32"])
+def test_load_edges_negative_event_id_is_an_error(dtype):
+    rows = pd.DataFrame(
+        {
+            "t": [1, 1],
+            "s": ["a", "c"],
+            "d": ["b", "d"],
+            "eid": numpy.array([10, -3], dtype=dtype),
+        }
+    )
+    g = Graph()
+    # a regular exception, never a PanicException, and it names the value
+    with pytest.raises(Exception, match="non-negative.*-3"):
+        g.load_edges(rows, time="t", src="s", dst="d", event_id="eid")
+
+
+@pytest.mark.parametrize("values", [[1.5], ["10"]])
+def test_load_edges_non_integer_event_id_is_an_error(values):
+    rows = pd.DataFrame({"t": [1], "s": ["a"], "d": ["b"], "eid": values})
+    g = Graph()
+    with pytest.raises(
+        Exception, match="Only integer columns .* are supported for event_id"
+    ):
+        g.load_edges(rows, time="t", src="s", dst="d", event_id="eid")
+
+
+def test_load_nodes_event_id_int64_is_accepted():
+    rows = pd.DataFrame(
+        {"t": [1, 2], "id": ["a", "b"], "eid": numpy.array([5, 6], dtype="int64")}
+    )
+    g = Graph()
+    g.load_nodes(rows, time="t", id="id", event_id="eid")
+    assert g.node("a").history[0].event_id == 5
+    assert g.node("b").history[0].event_id == 6

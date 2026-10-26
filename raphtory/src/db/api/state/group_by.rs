@@ -1,7 +1,10 @@
 use super::node_state_ops::ToOwnedValue;
 use crate::{
     db::{
-        api::state::{ops::Const, Index},
+        api::{
+            state::{ops::Const, Index},
+            view::internal::NodeList,
+        },
         graph::{nodes::Nodes, views::node_subgraph::UnfilteredSubgraph},
     },
     prelude::{GraphViewOps, NodeStateOps},
@@ -42,7 +45,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    nodes.clone(),
+                    NodeList::from(nodes.clone()),
                 ),
             )
         })
@@ -85,7 +88,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    nodes.clone(),
+                    NodeList::from(nodes.clone()),
                 ),
             )
         })

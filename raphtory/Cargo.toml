@@ -14,6 +14,11 @@ readme.workspace = true
 homepage.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# Unit tests live in raphtory-tests (tests/lib_tests); building a test harness for the lib
+# would compile all of raphtory a second time.
+[lib]
+test = false
+
 [dependencies]
 raphtory-api.workspace = true
 raphtory-core.workspace = true
@@ -75,17 +80,6 @@ reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
-# vectors optional dependencies
-futures-util = { workspace = true, optional = true }
-async-trait = { workspace = true, optional = true }
-async-openai = { workspace = true, optional = true }
-minijinja = { workspace = true, optional = true }
-minijinja-contrib = { workspace = true, optional = true }
-heed = { workspace = true, optional = true }
-moka = { workspace = true, optional = true, features = ["future"] }
-lancedb = { workspace = true, optional = true }
-axum = { workspace = true, optional = true }
-
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
 numpy = { workspace = true, optional = true }
@@ -100,16 +94,14 @@ pythonize = { workspace = true, optional = true }
 csv = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true } # for vector testing
-dotenvy = { workspace = true } # for vector testing
-streaming-stats = { workspace = true }
-indoc = { workspace = true }
-proptest.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator.workspace = true
 
 [features]
 default = ["datafusion"]
+
+vectors = []
 
 # enables progress bars
 progress = ["dep:kdam"]
@@ -132,22 +124,6 @@ datafusion = [
     "dep:datafusion-physical-expr",
     "dep:datafusion-physical-plan",
     "dep:datafusion-expr-common",
-]
-
-# vectors
-vectors = [
-    "dep:futures-util",
-    "dep:async-trait",
-    "dep:async-openai",
-    "dep:minijinja",
-    "dep:minijinja-contrib",
-    "raphtory-api/template",
-    "dep:heed",
-    "dep:moka",
-    "dep:lancedb",
-    "dep:tokio", # also used for the io feature
-    "dep:tempfile",
-    "dep:axum"
 ]
 
 # Enables generating the pyo3 python bindings

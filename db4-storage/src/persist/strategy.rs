@@ -16,7 +16,7 @@ use crate::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
-        node_type_index::NodeTypeIndexView,
+        node_type_index::{MemNodeTypeIndex, NodeTypeIndexView},
     },
     wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
@@ -39,11 +39,9 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type Config: ConfigOps;
     type ControlFile: ControlFileOps;
 
-    fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;
+    fn new(graph_dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>;
 
-    fn load(graph_dir: &Path) -> Result<Self, StorageError>;
-
-    fn load_with_config(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError>;
+    fn load(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError>;
 
     fn config(&self) -> &Self::Config;
 
@@ -53,31 +51,40 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn control_file(&self) -> &Self::ControlFile;
 
-    /// Called after every write and checks memory limits to decide if a flush is needed
-    fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
-        &self,
-        node_segment: &Self::NS,
-        writer: MP,
-    ) where
-        Self: Sized;
+    fn copy_to(&self, src: &Path, dst: &Path) -> Result<(), StorageError>;
 
     /// Called after every write and checks memory limits to decide if a flush is needed
-    fn persist_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
+    fn persist_node_segment(
         &self,
-        edge_segment: &Self::ES,
-        writer: MP,
+        segment: &Self::NS,
+        head: impl DerefMut<Target = MemNodeSegment>,
     ) where
         Self: Sized;
 
-    fn persist_graph_prop_segment<MP: DerefMut<Target = MemGraphPropSegment>>(
+    /// Called after every write and checks memory limits to decide if a flush is needed
+    fn persist_edge_segment(
         &self,
-        graph_prop_segment: &Self::GS,
-        writer: MP,
+        segment: &Self::ES,
+        head: impl DerefMut<Target = MemEdgeSegment>,
     ) where
         Self: Sized;
 
-    fn persist_node_type_index(&self, node_type_index: &Self::NTI)
+    fn persist_graph_prop_segment(
+        &self,
+        segment: &Self::GS,
+        head: impl DerefMut<Target = MemGraphPropSegment>,
+    ) where
+        Self: Sized;
+
+    fn persist_node_type_index(&self, index: &Self::NTI)
     where
+        Self: Sized;
+
+    fn persist_node_type_index_with_head(
+        &self,
+        index: &Self::NTI,
+        head: impl DerefMut<Target = MemNodeTypeIndex>,
+    ) where
         Self: Sized;
 
     /// Indicates whether the strategy persists to disk or not.
@@ -92,6 +99,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     /// Called by bulk loaders to decide if a global flush should be triggered
     fn should_flush(&self) -> bool;
+
     fn should_pause(&self) -> bool;
 
     /// Resolve a node property predicate to a global candidate superset using
@@ -172,7 +180,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type Config = BaseConfig;
     type ControlFile = NoControlFile;
 
-    fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
+    fn new(_graph_dir: Option<&Path>, config: BaseConfig) -> Result<Self, StorageError> {
         Ok(Self {
             config,
             wal: NoWal,
@@ -181,11 +189,7 @@ impl PersistenceStrategy for NoOpStrategy {
         })
     }
 
-    fn load(_graph_dir: &Path) -> Result<Self, StorageError> {
-        Err(StorageError::DiskStorageNotSupported)
-    }
-
-    fn load_with_config(_graph_dir: &Path, _config: Self::Config) -> Result<Self, StorageError> {
+    fn load(_graph_dir: &Path, _config: Self::Config) -> Result<Self, StorageError> {
         Err(StorageError::DiskStorageNotSupported)
     }
 
@@ -205,31 +209,43 @@ impl PersistenceStrategy for NoOpStrategy {
         &self.control_file
     }
 
-    fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
+    fn copy_to(&self, _src: &Path, _dst: &Path) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn persist_node_segment(
         &self,
-        _node_page: &Self::NS,
-        _writer: MP,
+        _segment: &Self::NS,
+        _head: impl DerefMut<Target = MemNodeSegment>,
     ) {
         // No operation
     }
 
-    fn persist_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
+    fn persist_edge_segment(
         &self,
-        _edge_page: &Self::ES,
-        _writer: MP,
+        _segment: &Self::ES,
+        _head: impl DerefMut<Target = MemEdgeSegment>,
     ) {
         // No operation
     }
 
-    fn persist_graph_prop_segment<MP: DerefMut<Target = MemGraphPropSegment>>(
+    fn persist_graph_prop_segment(
         &self,
-        _graph_segment: &Self::GS,
-        _writer: MP,
+        _segment: &Self::GS,
+        _head: impl DerefMut<Target = MemGraphPropSegment>,
     ) {
         // No operation
     }
 
-    fn persist_node_type_index(&self, _node_type_index: &Self::NTI) {
+    fn persist_node_type_index(&self, _index: &Self::NTI) {
+        // No operation
+    }
+
+    fn persist_node_type_index_with_head(
+        &self,
+        _index: &Self::NTI,
+        _head: impl DerefMut<Target = MemNodeTypeIndex>,
+    ) {
         // No operation
     }
 

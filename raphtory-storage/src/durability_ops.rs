@@ -1,9 +1,11 @@
 use crate::{graph::graph::GraphStorage, mutation::MutationError};
-use storage::{transaction::TransactionManager, ControlFile, Wal};
+use storage::{transaction::TransactionGuard, ControlFile, Wal};
 
 /// Accessor methods for supporting durability.
 pub trait DurabilityOps {
-    fn transaction_manager(&self) -> Result<&TransactionManager, MutationError>;
+    /// Start a regular update. The guard excludes bulk loads until it is dropped, so keep it
+    /// for the whole update. Never call this from inside a bulk load: it would deadlock.
+    fn transaction_manager(&self) -> Result<TransactionGuard<'_>, MutationError>;
 
     fn wal(&self) -> Result<&Wal, MutationError>;
 
@@ -11,7 +13,7 @@ pub trait DurabilityOps {
 }
 
 impl DurabilityOps for GraphStorage {
-    fn transaction_manager(&self) -> Result<&TransactionManager, MutationError> {
+    fn transaction_manager(&self) -> Result<TransactionGuard<'_>, MutationError> {
         self.mutable()?.transaction_manager()
     }
 

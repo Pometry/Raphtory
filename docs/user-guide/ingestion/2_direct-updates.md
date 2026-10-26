@@ -4,7 +4,8 @@ Once you have a graph you can directly update it with the `add_node()` and `add_
 
 ## Adding nodes
 
-To add a node we need a unique `id` to represent it and an update `timestamp` to specify when it was added to the graph. In the below example we are going to add node `10` at timestamp `1`.
+To add a node we need a unique `id` to represent it and an update `timestamp` to specify when it was added to the graph.
+In the below example we are going to add node `10` at timestamp `1`.
 
 !!! info
 
@@ -29,7 +30,8 @@ assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal
 assert str(v) == "Node(name=10, earliest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0), latest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0))"
 ```
 
-Printing out the graph and the returned node you can see the update was successful and the earliest and latest times have been
+Printing out the graph and the returned node you can see the update was successful and the earliest and latest times
+have been
 updated. The timestamp you specified is used as the primary index of the `EventTime` object.
 
 !!! Output
@@ -73,7 +75,10 @@ assert str(e) == "Edge(source=15, target=16, earliest_time=EventTime(t=1, dt=197
     Edge(source=15, target=16, earliest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0), latest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0), layer(s)=[_default])
     ```
 
-You will notice in the output that the graph has two nodes as well as the edge. Raphtory automatically creates the source and destination nodes at the same time if they do not currently exist in the graph. This is to keep the graph consistent and avoid `hanging edges`. These nodes are empty other than the history of their edges, therefore if you apply filters to exclude all edges these empty nodes will also be excluded from your graph.
+You will notice in the output that the graph has two nodes as well as the edge. Raphtory automatically creates the
+source and destination nodes at the same time if they do not currently exist in the graph. This is to keep the graph
+consistent and avoid `hanging edges`. These nodes are empty other than the history of their edges, therefore if you
+apply filters to exclude all edges these empty nodes will also be excluded from your graph.
 
 ## Accepted ID types
 
@@ -166,14 +171,18 @@ assert str(g.node(id=10).history.dt.collect()) == "[datetime.datetime(2021, 1, 1
     [datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]
     ```
 
-In the output we can see the `history` of node `10` contains the two times at which we have added it into the graph (
-maintained in ascending order), returned in both unix epoch (integer) and datetime format.
+In the output we can see the `history` of node `10` contains the two times at which we have added it into the graph
+(maintained in ascending order), returned in both unix epoch (integer) and datetime format.
 
-Internally, the [History][raphtory.History] of events is tracked using [EventTime][raphtory.EventTime] objects. However, in this example we use the `.t` and `.dt` methods to get iterables of epochs and datetimes directly from the `History` object and collect the iterables to display simple lists.
+Internally, the [History][raphtory.History] of events is tracked using [EventTime][raphtory.EventTime] objects. However,
+in this example we use the `.t` and `.dt` methods to get iterables of epochs and datetimes directly from the `History`
+object and collect the iterables to display simple lists.
 
 ## Properties
 
-Alongside the structural update history, Raphtory can maintain the changing value of [`Properties`][raphtory.Properties] associated with nodes and edges. Both the `add_node()` and `add_edge()` functions have an optional parameter `properties` which takes a dictionary of key value pairs to be stored at the given timestamp.
+Alongside the structural update history, Raphtory can maintain the changing value of [`Properties`][raphtory.Properties]
+associated with nodes and edges. Both the `add_node()` and `add_edge()` functions have an optional parameter
+`properties` which takes a dictionary of key value pairs to be stored at the given timestamp.
 
 The graph itself may also have its own `global properties` added using the `add_properties()` function which takes only
 a `timestamp` and a `properties` dictionary.
@@ -236,7 +245,7 @@ g.add_properties(
 )
 
 # Weight list on an edge
-g.add_edge(timestamp=4, src="User 1", dst="User 2", properties={"weights": [1,2,3]})
+g.add_edge(timestamp=4, src="User 1", dst="User 2", properties={"weights": [1, 2, 3]})
 
 # Printing everything out
 v = g.node(id="User 1")
@@ -268,9 +277,11 @@ assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=EventTime(t=4
 
 ## Metadata
 
-Raphtory also provides [`metadata`][raphtory.Metadata] associated with nodes and edges which have immutable values. These are useful when you know a value won't change or is not associated with a specific time.
+Raphtory also provides [`metadata`][raphtory.Metadata] associated with nodes and edges which have immutable values.
+These are useful when you know a value won't change or is not associated with a specific time.
 
-You can use the `add_metadata()` function, which takes a single `dictionary` argument, to add metadata to a `graph`, `node` and `edge` as demonstrated below.
+You can use the `add_metadata()` function, which takes a single `dictionary` argument, to add metadata to a `graph`,
+`node` and `edge` as demonstrated below.
 
 /// tab | :fontawesome-brands-python: Python
 

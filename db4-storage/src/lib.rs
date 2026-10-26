@@ -8,7 +8,10 @@ use crate::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
-    persist::strategy::{NoOpStrategy, PersistenceStrategy},
+    persist::{
+        config::ConfigOps,
+        strategy::{NoOpStrategy, PersistenceStrategy},
+    },
     resolver::mapping_resolver::MappingResolver,
     segments::{
         edge::{
@@ -20,7 +23,7 @@ use crate::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
         },
-        node_type_index::NodeTypeIndexView,
+        node_type_index::MemNodeTypeEntry,
     },
 };
 use parking_lot::RwLock;
@@ -52,12 +55,13 @@ pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type GS<P> = GraphPropSegmentView<P>;
-pub type NTI<P> = NodeTypeIndexView<P>;
+pub type NTI = <Extension as PersistenceStrategy>::NTI;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
 pub type Wal = <Extension as PersistenceStrategy>::Wal;
 pub type ControlFile = <Extension as PersistenceStrategy>::ControlFile;
 pub type Config = <Extension as PersistenceStrategy>::Config;
+pub type Args = <Config as ConfigOps>::Args;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
@@ -70,6 +74,7 @@ pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
 pub type GraphPropEntryRef<'a> = MemGraphPropRef<'a>;
+pub type NodeTypeEntry = MemNodeTypeEntry;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
@@ -86,7 +91,8 @@ pub mod error {
 
     use crate::resolver::mapping_resolver::InvalidNodeId;
     use raphtory_api::core::{
-        entities::properties::prop::PropError, storage::graph_folder::GraphFolderError,
+        entities::properties::prop::{PropError, PropTypeError},
+        storage::graph_folder::GraphFolderError,
         utils::time::ParseTimeError,
     };
     use raphtory_core::entities::properties::props::MetadataError;
@@ -109,6 +115,8 @@ pub mod error {
         #[error(transparent)]
         PropError(#[from] PropError),
         #[error(transparent)]
+        PropTypeError(#[from] PropTypeError),
+        #[error(transparent)]
         MetadataError(#[from] MetadataError),
         #[error("Empty Graph: {0}")]
         EmptyGraphDir(PathBuf),
@@ -129,11 +137,38 @@ pub mod error {
         #[error("Failed to vacuum storage")]
         VacuumError,
 
+        #[error("Read only graph")]
+        ReadOnlyGraphError,
+
         #[error("Disk storage not supported")]
         DiskStorageNotSupported,
 
         #[error("Graph requires WAL recovery; load with WAL enabled")]
         RecoveryRequired,
+
+        #[error(
+            "Bulk load timed out locking new {kind} segment {segment_id}: a reader or an \
+             unguarded writer is holding it. The batch in progress may be partially applied."
+        )]
+        SegmentLockTimeout {
+            kind: SegmentKind,
+            segment_id: usize,
+        },
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SegmentKind {
+        Node,
+        Edge,
+    }
+
+    impl std::fmt::Display for SegmentKind {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                SegmentKind::Node => f.write_str("node"),
+                SegmentKind::Edge => f.write_str("edge"),
+            }
+        }
     }
 
     impl StorageError {
@@ -170,12 +205,12 @@ impl From<LocalPOS> for usize {
 }
 
 impl LocalPOS {
-    pub fn as_vid(self, page_id: usize, max_page_len: u32) -> VID {
-        VID(page_id * (max_page_len as usize) + (self.0 as usize))
+    pub fn as_vid(self, segment_id: usize, max_page_len: u32) -> VID {
+        VID(segment_id * (max_page_len as usize) + (self.0 as usize))
     }
 
-    pub fn as_eid(self, page_id: usize, max_page_len: u32) -> EID {
-        EID(page_id * (max_page_len as usize) + (self.0 as usize))
+    pub fn as_eid(self, segment_id: usize, max_page_len: u32) -> EID {
+        EID(segment_id * (max_page_len as usize) + (self.0 as usize))
     }
 
     pub fn as_index(self) -> usize {

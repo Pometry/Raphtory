@@ -1,6 +1,9 @@
 mod io_tests {
-    use arrow::array::builder::{
-        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
+    use arrow::array::{
+        builder::{
+            ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
+        },
+        ArrayRef, Int32Array, Int64Array,
     };
     use itertools::Itertools;
     use proptest::proptest;
@@ -8,12 +11,13 @@ mod io_tests {
         arrow_loader::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
-                edges::{load_edges_from_df_prefetch, ColumnNames},
+                edge_props::load_edges_metadata_from_df,
+                edges::{load_edges_from_df, load_edges_from_df_prefetch, ColumnNames},
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
         core::storage::timeindex::EventTime,
-        db::graph::graph::assert_graph_equal,
+        db::graph::assertions::assert_graph_equal,
         errors::GraphError,
         prelude::*,
     };
@@ -25,6 +29,7 @@ mod io_tests {
     use raphtory_tests::utils::{
         build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index,
     };
+    use std::sync::Arc;
 
     fn build_df(
         chunk_size: usize,
@@ -238,6 +243,136 @@ mod io_tests {
             chunks: chunks.into_iter(),
             num_rows: Some(nodes.len()),
         }
+    }
+
+    fn check_invalid_node_ids(chunk: DFChunk) {
+        // nodes
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_nodes_from_df(
+            df,
+            "time",
+            None,
+            "node_id",
+            &[],
+            &[],
+            None,
+            None,
+            None,
+            &g,
+            true,
+            None,
+            None,
+            None
+        )
+        .is_err());
+        assert!(g.is_empty());
+
+        // node_meta
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_node_props_from_df(
+            df,
+            "node_id",
+            None,
+            None,
+            None,
+            None,
+            &["time"],
+            None,
+            &g,
+            false,
+            None,
+            None,
+        )
+        .is_err());
+        assert!(g.is_empty());
+
+        // edges
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_edges_metadata_from_df(
+            df,
+            ColumnNames {
+                time: "time",
+                secondary_index: None,
+                src: "node_id",
+                dst: "node_id",
+                edge_id: None,
+                layer_col: None,
+                layer_id_col: None,
+            },
+            true,
+            &[],
+            None,
+            None,
+            &g,
+        )
+        .is_err());
+        assert!(g.is_empty());
+
+        //edge updates
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_edges_from_df(
+            df,
+            ColumnNames {
+                time: "time",
+                secondary_index: None,
+                src: "node_id",
+                dst: "node_id",
+                edge_id: None,
+                layer_col: None,
+                layer_id_col: None,
+            },
+            true,
+            &[],
+            &[],
+            None,
+            None,
+            &g,
+            false,
+        )
+        .is_err());
+        assert!(g.is_empty());
+    }
+
+    #[test]
+    fn test_negative_i64_ids_error() {
+        let node_ids: ArrayRef = Arc::new(Int64Array::from(vec![1, -1]));
+        let times: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let chunk = DFChunk {
+            chunk: vec![node_ids, times],
+        };
+
+        check_invalid_node_ids(chunk);
+    }
+
+    #[test]
+    fn test_negative_i32_ids_error() {
+        let node_ids: ArrayRef = Arc::new(Int32Array::from(vec![1, -1]));
+        let times: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let chunk = DFChunk {
+            chunk: vec![node_ids, times],
+        };
+
+        check_invalid_node_ids(chunk);
     }
 
     #[test]
@@ -779,6 +914,489 @@ mod io_tests {
         ];
         assert_eq!(result, expected);
     }
+    #[test]
+    fn failed_edge_metadata_load_leaves_no_phantom_node() {
+        use raphtory::arrow_loader::df_loaders::edge_props::load_edges_metadata_from_df as load_edge_metadata_from_df;
+
+        let g = Graph::new();
+        g.add_edge(1, 1u64, 2u64, NO_PROPS, None).unwrap();
+
+        // the second row names nodes the graph has never seen
+        let rows = vec![
+            (1u64, 2u64, 0i64, "kept".to_owned(), 1i64),
+            (7u64, 8u64, 0i64, "dropped".to_owned(), 2i64),
+        ];
+        let err = load_edge_metadata_from_df(
+            build_df(10, &rows),
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
+            &["str_prop"],
+            None,
+            None,
+            &g,
+        )
+        .err()
+        .expect("an unknown endpoint must fail the load");
+        assert!(
+            matches!(err, GraphError::NodeMissingError(_)),
+            "expected NodeMissingError, got {err:?}"
+        );
+        assert!(err.to_string().contains("does not exist"), "{err}");
+
+        // nothing was created and nothing was applied
+        assert_eq!(g.count_nodes(), 2);
+        assert!(!g.has_node(7u64));
+        assert!(!g.has_node(8u64));
+        // reading every node name used to panic on the phantom node
+        let mut names = g.nodes().name().collect::<Vec<_>>();
+        names.sort();
+        assert_eq!(names, vec!["1", "2"]);
+        assert_eq!(g.edge(1u64, 2u64).unwrap().metadata().get("str_prop"), None);
+    }
+
+    #[test]
+    fn node_metadata_for_an_unknown_node_is_an_error() {
+        let g = Graph::new();
+        g.add_node(1, 1u64, NO_PROPS, None, None).unwrap();
+
+        let rows = vec![
+            (1u64, 1i64, 0u64, "kept", 1i64, "T"),
+            (9u64, 1i64, 0u64, "dropped", 2i64, "T"),
+        ];
+        let err = load_node_props_from_df(
+            build_nodes_df_with_secondary_index(10, &rows),
+            "node_id",
+            None,
+            None,
+            None,
+            None,
+            &["str_prop"],
+            None,
+            &g,
+            false,
+            None,
+            None,
+        )
+        .err()
+        .expect("an unknown node must fail the load");
+        assert!(
+            matches!(err, GraphError::NodeMissingError(_)),
+            "expected NodeMissingError, got {err:?}"
+        );
+        assert_eq!(g.count_nodes(), 1);
+        assert!(!g.has_node(9u64));
+        assert_eq!(g.node(1u64).unwrap().metadata().get("str_prop"), None);
+    }
+    /// Runs `f` on another thread and fails the test if it does not finish in time,
+    /// so a deadlocked load fails instead of hanging the test run.
+    fn finishes_within<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || tx.send(f()).unwrap());
+        rx.recv_timeout(std::time::Duration::from_secs(60))
+            .expect("bulk load did not finish (deadlock?)")
+    }
+
+    fn load_typed_nodes(
+        g: &Graph,
+        chunk_size: usize,
+        nodes: &[(u64, i64, &str)],
+    ) -> Result<(), GraphError> {
+        load_nodes_from_df(
+            build_nodes_df(chunk_size, nodes),
+            "time",
+            None,
+            "id",
+            &[],
+            &[],
+            None,
+            None,
+            Some("node_type"),
+            g,
+            true,
+            None,
+            None,
+            None,
+        )
+    }
+
+    fn sorted_node_types(g: &Graph) -> Vec<(GID, Option<ArcStr>)> {
+        let mut result = g
+            .nodes()
+            .into_iter()
+            .map(|node| (node.id(), node.node_type()))
+            .collect::<Vec<_>>();
+        result.sort();
+        result
+    }
+
+    #[test]
+    fn test_reload_existing_typed_nodes() {
+        let nodes: Vec<(u64, i64, &str)> = (0..20u64)
+            .map(|i| (i, i as i64, if i % 2 == 0 { "even" } else { "odd" }))
+            .collect();
+        let g = small_pages_graph();
+        let g_load = g.clone();
+        let reloaded = nodes
+            .iter()
+            .map(|(id, t, ty)| (*id, t + 100, *ty))
+            .collect::<Vec<_>>();
+        finishes_within(move || {
+            load_typed_nodes(&g_load, 7, &nodes).unwrap();
+            // every gid already exists and already has the same type
+            load_typed_nodes(&g_load, 7, &reloaded).unwrap();
+        });
+
+        let expected = (0..20u64)
+            .map(|i| {
+                (
+                    GID::U64(i),
+                    Some(ArcStr::from(if i % 2 == 0 { "even" } else { "odd" })),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(sorted_node_types(&g), expected);
+        for node in g.nodes() {
+            assert_eq!(node.history().len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_load_typed_nodes_after_edges() {
+        let edges = (0..20u64)
+            .map(|i| (i, (i + 1) % 20, i as i64, i.to_string(), i as i64))
+            .collect::<Vec<_>>();
+        let nodes: Vec<(u64, i64, &str)> = (0..20u64).map(|i| (i, 50, "typed")).collect();
+        let g = small_pages_graph();
+        let g_load = g.clone();
+        finishes_within(move || {
+            load_edges_from_df(
+                build_df(7, &edges),
+                ColumnNames::new("time", None, "src", "dst", None),
+                true,
+                &[],
+                &[],
+                None,
+                None,
+                &g_load,
+                false,
+            )
+            .unwrap();
+            // every gid already exists without a stored type
+            load_typed_nodes(&g_load, 7, &nodes).unwrap();
+        });
+
+        let expected = (0..20u64)
+            .map(|i| (GID::U64(i), Some(ArcStr::from("typed"))))
+            .collect::<Vec<_>>();
+        assert_eq!(sorted_node_types(&g), expected);
+        assert_eq!(g.count_edges(), 20);
+    }
+
+    #[test]
+    fn test_reload_existing_node_with_conflicting_type_fails() {
+        let g = small_pages_graph();
+        let g_load = g.clone();
+        let result = finishes_within(move || {
+            load_typed_nodes(&g_load, 7, &[(1, 1, "a"), (2, 2, "b")]).unwrap();
+            load_typed_nodes(&g_load, 7, &[(1, 3, "b")])
+        });
+        assert!(result.is_err());
+        assert_eq!(
+            sorted_node_types(&g),
+            vec![
+                (GID::U64(1), Some(ArcStr::from("a"))),
+                (GID::U64(2), Some(ArcStr::from("b"))),
+            ]
+        );
+    }
+
+    fn small_pages_graph() -> Graph {
+        Graph::new_with_config(
+            Args::default()
+                .with_max_node_page_len(2)
+                .with_max_edge_page_len(2),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn test_lock_new_segments_covers_segments_created_while_locked() {
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut wlg = g.write_lock().unwrap();
+        let tg = wlg.graph;
+        let held_nodes = wlg.nodes.len();
+        let held_edges = wlg.edges.len();
+
+        tg.storage().nodes().grow(held_nodes + 3);
+        tg.storage().edges().grow(held_edges + 2);
+        assert_eq!(wlg.nodes.len(), held_nodes);
+        assert_eq!(wlg.edges.len(), held_edges);
+
+        wlg.lock_new_segments().unwrap();
+
+        assert_eq!(wlg.nodes.len(), tg.storage().nodes().num_segments());
+        assert_eq!(wlg.edges.len(), tg.storage().edges().num_segments());
+        assert_eq!(wlg.nodes.len(), held_nodes + 3);
+        assert_eq!(wlg.edges.len(), held_edges + 2);
+        for segment_id in 0..wlg.nodes.len() {
+            assert_eq!(
+                wlg.nodes.get_mut(segment_id).unwrap().segment_id(),
+                segment_id
+            );
+        }
+        for segment_id in 0..wlg.edges.len() {
+            assert_eq!(wlg.edges.get_mut(segment_id).unwrap().id(), segment_id);
+        }
+
+        // nothing new: no-op
+        wlg.lock_new_segments().unwrap();
+        assert_eq!(wlg.nodes.len(), held_nodes + 3);
+        assert_eq!(wlg.edges.len(), held_edges + 2);
+    }
+
+    #[test]
+    fn test_lock_new_segments_times_out_on_held_node_segment() {
+        use storage::{
+            api::nodes::NodeSegmentOps,
+            error::{SegmentKind, StorageError},
+        };
+
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut wlg = g.write_lock().unwrap();
+        let tg = wlg.graph;
+        let held = wlg.nodes.len();
+        tg.storage().nodes().grow(held + 2);
+
+        // a reader holding the second new segment
+        let reader = tg.storage().nodes().get_or_create_segment(held + 1).head();
+        let err = wlg
+            .lock_new_segments_within(std::time::Duration::from_millis(100))
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                StorageError::SegmentLockTimeout {
+                    kind: SegmentKind::Node,
+                    segment_id,
+                } if segment_id == held + 1
+            ),
+            "{err:?}"
+        );
+        let message = err.to_string();
+        assert!(
+            message.contains("a reader or an unguarded writer"),
+            "{message}"
+        );
+        assert!(message.contains("partially applied"), "{message}");
+        // the new segment before it stays locked
+        assert_eq!(wlg.nodes.len(), held + 1);
+
+        drop(reader);
+        wlg.lock_new_segments().unwrap();
+        assert_eq!(wlg.nodes.len(), held + 2);
+    }
+
+    #[test]
+    fn test_lock_new_segments_times_out_on_held_edge_segment() {
+        use storage::{
+            api::edges::EdgeSegmentOps,
+            error::{SegmentKind, StorageError},
+        };
+
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut wlg = g.write_lock().unwrap();
+        let tg = wlg.graph;
+        let held_nodes = wlg.nodes.len();
+        let held_edges = wlg.edges.len();
+        tg.storage().edges().grow(held_edges + 1);
+
+        let reader = tg
+            .storage()
+            .edges()
+            .get_or_create_segment(held_edges)
+            .head();
+        let err = wlg
+            .lock_new_segments_within(std::time::Duration::from_millis(100))
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                StorageError::SegmentLockTimeout {
+                    kind: SegmentKind::Edge,
+                    segment_id,
+                } if segment_id == held_edges
+            ),
+            "{err:?}"
+        );
+        assert_eq!(wlg.nodes.len(), held_nodes);
+        assert_eq!(wlg.edges.len(), held_edges);
+
+        drop(reader);
+        wlg.lock_new_segments().unwrap();
+        assert_eq!(wlg.edges.len(), held_edges + 1);
+    }
+
+    #[test]
+    fn test_load_edges_creating_many_segments_in_one_chunk() {
+        // every edge is new and the pages are tiny, so the node pass of a single
+        // chunk has to create edge segments that the edge pass then writes to
+        let edges = (0..200u64)
+            .map(|i| (i, i + 1000, i as i64, i.to_string(), i as i64))
+            .collect::<Vec<_>>();
+        let g = small_pages_graph();
+        load_edges_from_df(
+            build_df(edges.len(), &edges),
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
+            &["str_prop", "int_prop"],
+            &[],
+            None,
+            None,
+            &g,
+            false,
+        )
+        .unwrap();
+
+        let g2 = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in &edges {
+            g2.add_edge(
+                *time,
+                *src,
+                *dst,
+                [
+                    ("str_prop", str_prop.clone().into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+        }
+        assert_eq!(g.count_edges(), edges.len());
+        assert_graph_equal(&g, &g2);
+    }
+
+    /// Runs `f` on another thread and asserts it is still blocked after a short wait.
+    /// Returns a receiver that yields once `f` finishes.
+    fn assert_blocked(f: impl FnOnce() + Send + 'static) -> std::sync::mpsc::Receiver<()> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            f();
+            tx.send(()).unwrap();
+        });
+        assert!(
+            rx.recv_timeout(std::time::Duration::from_millis(200))
+                .is_err(),
+            "ran while the graph was write locked for a bulk load"
+        );
+        rx
+    }
+
+    #[test]
+    fn test_write_locked_graph_excludes_regular_updates_and_vacuum() {
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let wlg = g.write_lock().unwrap();
+
+        // gids far beyond the held segments, so only the bulk load lock can block these
+        let g_update = g.clone();
+        let update_done = assert_blocked(move || {
+            g_update.add_edge(1, 100, 101, NO_PROPS, None).unwrap();
+        });
+        let g_node = g.clone();
+        let node_done = assert_blocked(move || {
+            g_node.add_node(1, 200, NO_PROPS, None, None).unwrap();
+        });
+        let g_vacuum = g.clone();
+        let vacuum_done = assert_blocked(move || {
+            g_vacuum.vacuum().unwrap();
+        });
+
+        drop(wlg);
+        let timeout = std::time::Duration::from_secs(60);
+        update_done.recv_timeout(timeout).unwrap();
+        node_done.recv_timeout(timeout).unwrap();
+        vacuum_done.recv_timeout(timeout).unwrap();
+        assert!(g.has_edge(100, 101));
+        assert!(g.has_node(200));
+    }
+
+    #[test]
+    fn test_regular_updates_during_edge_bulk_load() {
+        const BULK_EDGES: u64 = 2000;
+        const THREADS: u64 = 4;
+        const UPDATES: u64 = 200;
+
+        let g = small_pages_graph();
+        let edges = (0..BULK_EDGES)
+            .map(|i| (i, i + 1, i as i64, i.to_string(), i as i64))
+            .collect::<Vec<_>>();
+
+        let g_load = g.clone();
+        let g_updates = g.clone();
+        finishes_within(move || {
+            std::thread::scope(|s| {
+                s.spawn(|| {
+                    load_edges_from_df(
+                        build_df(50, &edges),
+                        ColumnNames::new("time", None, "src", "dst", None),
+                        true,
+                        &["str_prop", "int_prop"],
+                        &[],
+                        None,
+                        None,
+                        &g_load,
+                        false,
+                    )
+                    .unwrap();
+                });
+                for thread in 0..THREADS {
+                    let g = &g_updates;
+                    s.spawn(move || {
+                        for j in 0..UPDATES {
+                            let t = (thread * UPDATES + j) as i64;
+                            // new nodes and a new edge, disjoint from the bulk load
+                            let base = 1_000_000 + 2 * (thread * UPDATES + j);
+                            g.add_edge(t, base, base + 1, NO_PROPS, None).unwrap();
+                            g.add_node(t, base, NO_PROPS, Some("regular"), None)
+                                .unwrap();
+                            g.node(base + 1).unwrap().set_node_type("regular").unwrap();
+                            // a new edge between nodes the bulk load also writes
+                            let k = thread * UPDATES + j;
+                            g.add_edge(t, k, k + 3, NO_PROPS, None).unwrap();
+                        }
+                    });
+                }
+            });
+        });
+
+        let regular_nodes = 2 * THREADS * UPDATES;
+        let regular_edges = 2 * THREADS * UPDATES;
+        assert_eq!(g.count_nodes() as u64, BULK_EDGES + 1 + regular_nodes);
+        assert_eq!(g.count_edges() as u64, BULK_EDGES + regular_edges);
+        for i in 0..BULK_EDGES {
+            let edge = g.edge(i, i + 1).unwrap();
+            assert_eq!(edge.properties().get("int_prop"), Some(Prop::I64(i as i64)));
+        }
+        for k in 0..THREADS * UPDATES {
+            assert!(g.has_edge(k, k + 3));
+            let base = 1_000_000 + 2 * k;
+            assert_eq!(
+                g.node(base).unwrap().node_type(),
+                Some(ArcStr::from("regular"))
+            );
+            assert_eq!(
+                g.node(base + 1).unwrap().node_type(),
+                Some(ArcStr::from("regular"))
+            );
+        }
+    }
 }
 
 mod parquet_tests {
@@ -787,7 +1405,7 @@ mod parquet_tests {
     use proptest::prelude::*;
     use raphtory::{
         db::graph::{
-            graph::{assert_graph_equal, assert_graph_equal_timestamps},
+            assertions::{assert_graph_equal, assert_graph_equal_timestamps},
             views::deletion_graph::PersistentGraph,
         },
         prelude::*,
@@ -799,7 +1417,7 @@ mod parquet_tests {
     };
     use serde_json::json;
     use std::{io::Cursor, str::FromStr};
-    use storage::Config;
+    use storage::Args;
     use zip::{ZipArchive, ZipWriter};
 
     #[test]
@@ -842,7 +1460,8 @@ mod parquet_tests {
                                                     BigDecimal::from_str("13e-13").unwrap(),
                                                 ),
                                             ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                         Prop::List(
                                             vec![
@@ -856,7 +1475,8 @@ mod parquet_tests {
                                                     .unwrap(),
                                                 ),
                                             ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                         Prop::List(
                                             vec![
@@ -915,10 +1535,12 @@ mod parquet_tests {
                                             .unwrap(),
                                     ),
                                 ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                     ]
-                                    .into(),
+                                    .try_into()
+                                    .unwrap(),
                                 ),
                             )],
                         )],
@@ -1001,7 +1623,7 @@ mod parquet_tests {
                         ("three".to_string(), Prop::I64(3)),
                         (
                             "four".to_string(),
-                            Prop::List(vec![Prop::I32(1), Prop::I32(2)].into()),
+                            Prop::List(vec![Prop::I32(1), Prop::I32(2)].try_into().unwrap()),
                         ),
                     ],
                     Some("b"),
@@ -1013,7 +1635,10 @@ mod parquet_tests {
                     vec![
                         ("three".to_string(), Prop::I64(3)),
                         ("one".to_string(), Prop::DTime(dt)),
-                        ("five".to_string(), Prop::List(vec![Prop::str("a")].into())),
+                        (
+                            "five".to_string(),
+                            Prop::List(vec![Prop::str("a")].try_into().unwrap()),
+                        ),
                     ],
                     Some("a"),
                 ),
@@ -1030,14 +1655,17 @@ mod parquet_tests {
                     0,
                     1,
                     12,
-                    vec![("a".to_string(), Prop::List(vec![].into()))],
+                    vec![("a".to_string(), Prop::List(vec![].try_into().unwrap()))],
                     None::<String>,
                 ),
                 (
                     1,
                     2,
                     12,
-                    vec![("a".to_string(), Prop::List(vec![Prop::str("aa")].into()))],
+                    vec![(
+                        "a".to_string(),
+                        Prop::List(vec![Prop::str("aa")].try_into().unwrap()),
+                    )],
                     None::<String>,
                 ),
             ]
@@ -1055,7 +1683,10 @@ mod parquet_tests {
                 0,
                 0,
                 0,
-                vec![("a".to_string(), Prop::List(vec![Prop::DTime(dt)].into()))],
+                vec![(
+                    "a".to_string(),
+                    Prop::List(vec![Prop::DTime(dt)].try_into().unwrap()),
+                )],
                 None::<String>,
             )]
             .into(),
@@ -1142,7 +1773,8 @@ mod parquet_tests {
                                     Prop::map([("n", Prop::I64(23))]),
                                     Prop::map([("b", Prop::F64(0.2))]),
                                 ]
-                                .into(),
+                                .try_into()
+                                .unwrap(),
                             ),
                         )],
                     },
@@ -1164,7 +1796,7 @@ mod parquet_tests {
     fn check_parquet_encoding(g: &Graph, fixture: Option<GraphFixture>) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
-        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Args::default()).unwrap();
         if let Some(f) = fixture {
             assert_valid_graph(&f, g);
             assert_valid_graph(&f, &g2);
@@ -1175,7 +1807,7 @@ mod parquet_tests {
     fn check_parquet_encoding_deletions(g: PersistentGraph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
-        let g2 = PersistentGraph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
+        let g2 = PersistentGraph::decode_parquet(&temp_dir, None, Args::default()).unwrap();
         assert_graph_equal_timestamps(&g, &g2);
     }
 
@@ -1225,7 +1857,7 @@ mod parquet_tests {
 
         g.add_metadata(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
-        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Args::default()).unwrap();
         if only_timestamps {
             assert_graph_equal_timestamps(&g, &g2)
         } else {
@@ -1296,10 +1928,8 @@ mod parquet_tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let graph_f = edges.into();
         let g = Graph::from(build_graph(&graph_f));
-        dbg!(&g);
         g.encode_parquet(&temp_dir).unwrap();
-        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
-        dbg!(&g2);
+        let g2 = Graph::decode_parquet(&temp_dir, None, Args::default()).unwrap();
         assert_eq!(g2.valid_layers("b").count_edges(), 1);
         assert_eq!(g2.valid_layers("a").count_edges(), 1);
 
@@ -1364,7 +1994,7 @@ mod parquet_tests {
             &mut reader,
             None::<&std::path::Path>,
             "graph",
-            Config::default(),
+            Args::default(),
         )
         .unwrap();
         assert_graph_equal(&g, &g2);
@@ -1384,7 +2014,7 @@ mod parquet_tests {
 
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
-        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Args::default()).unwrap();
         assert_graph_equal(&g, &g2);
     }
 
@@ -1415,7 +2045,7 @@ mod parquet_tests {
             &bytes,
             None::<&std::path::Path>,
             "graph",
-            Config::default(),
+            Args::default(),
         )
         .unwrap();
         assert_graph_equal(&g, &g2);
@@ -1429,7 +2059,7 @@ mod parquet_tests {
             let mut writer = ZipWriter::new(Cursor::new(&mut bytes));
             g.encode_parquet_to_zip(&mut writer, "graph").unwrap();
             writer.finish().unwrap();
-            let g2 = Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>, "graph", Config::default()).unwrap();
+            let g2 = Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>, "graph", Args::default()).unwrap();
 
             assert_graph_equal(&g, &g2);
         })
