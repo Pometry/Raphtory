@@ -45,15 +45,11 @@ where
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
-            self.graph()
-                .logical_to_physical
-                .set(src_name.as_ref(), src_id)?;
+            self.graph().gid_resolver.set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
-            self.graph()
-                .logical_to_physical
-                .set(dst_name.as_ref(), dst_id)?;
+            self.graph().gid_resolver.set(dst_name.as_ref(), dst_id)?;
         }
 
         // Insert layer id into the layer meta of both edge and node.
@@ -68,7 +64,7 @@ where
 
         // Grab src writer and add edge data.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
-        self.resize_segments_to_vid(src_id); // Create enough segments.
+        self.resize_segments_to_vid(src_id)?; // Create enough segments.
 
         let segment = self
             .graph()
@@ -120,7 +116,7 @@ where
 
         // Grab dst writer and add edge data.
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
-        self.resize_segments_to_vid(dst_id);
+        self.resize_segments_to_vid(dst_id)?;
 
         let segment = self
             .graph()
@@ -170,7 +166,7 @@ where
 
         // Grab edge writer and add temporal props.
         let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
-        self.resize_segments_to_eid(eid);
+        self.resize_segments_to_eid(eid)?;
 
         let segment = self
             .graph()
@@ -232,7 +228,7 @@ where
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
-        self.resize_segments_to_eid(eid);
+        self.resize_segments_to_eid(eid)?;
 
         let segment = self
             .graph()
@@ -286,15 +282,11 @@ where
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
-            self.graph()
-                .logical_to_physical
-                .set(src_name.as_ref(), src_id)?;
+            self.graph().gid_resolver.set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
-            self.graph()
-                .logical_to_physical
-                .set(dst_name.as_ref(), dst_id)?;
+            self.graph().gid_resolver.set(dst_name.as_ref(), dst_id)?;
         }
 
         // Insert layer id into the layer meta of both edge and node.
@@ -309,7 +301,7 @@ where
 
         // Grab src writer and record deletion time.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
-        self.resize_segments_to_vid(src_id);
+        self.resize_segments_to_vid(src_id)?;
 
         let segment = self
             .graph()
@@ -358,7 +350,7 @@ where
 
         // Grab dst writer and record deletion time.
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
-        self.resize_segments_to_vid(dst_id);
+        self.resize_segments_to_vid(dst_id)?;
 
         let segment = self
             .graph()
@@ -410,7 +402,7 @@ where
 
         // Grab edge writer and delete the edge at (t, layer_id).
         let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
-        self.resize_segments_to_eid(eid);
+        self.resize_segments_to_eid(eid)?;
 
         let segment = self
             .graph()
@@ -462,9 +454,7 @@ where
     ) -> Result<(), StorageError> {
         // Insert node id into resolver.
         if let Some(ref name) = node_name {
-            self.graph()
-                .logical_to_physical
-                .set(name.as_ref(), node_id)?;
+            self.graph().gid_resolver.set(name.as_ref(), node_id)?;
         }
 
         // Make layer name -> id mapping available to both edge and node meta.
@@ -482,7 +472,7 @@ where
 
         // Resolve segment and check LSN.
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
-        self.resize_segments_to_vid(node_id);
+        self.resize_segments_to_vid(node_id)?;
 
         let segment = self
             .graph()
@@ -549,7 +539,7 @@ where
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
-        self.resize_segments_to_vid(vid);
+        self.resize_segments_to_vid(vid)?;
 
         let segment = self
             .graph()
@@ -590,7 +580,7 @@ where
         node_type_id: usize,
     ) -> Result<(), StorageError> {
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
-        self.resize_segments_to_vid(vid);
+        self.resize_segments_to_vid(vid)?;
 
         let segment = self
             .graph()
@@ -636,11 +626,11 @@ where
 
             unify_types(graph_props_meta, &props, true)?;
 
-            let writer = self.graph_props.writer();
-            let props = props.into_iter().map(|(_, id, p)| (id, p));
+            let props = props.into_iter().map(|(_, id, prop)| (id, prop));
+            let graph_props = &mut self.graph_props;
 
-            writer.add_properties(t, props);
-            writer.set_lsn(lsn);
+            graph_props.add_properties(t, props);
+            graph_props.set_lsn(lsn);
         }
 
         Ok(())
@@ -660,11 +650,11 @@ where
 
             unify_types(graph_props_meta, &props, false)?;
 
-            let writer = self.graph_props.writer();
-            let props = props.into_iter().map(|(_, id, p)| (id, p));
+            let props = props.into_iter().map(|(_, id, prop)| (id, prop));
+            let graph_props = &mut self.graph_props;
 
-            writer.update_metadata(props);
-            writer.set_lsn(lsn);
+            graph_props.update_metadata(props);
+            graph_props.set_lsn(lsn);
         }
 
         Ok(())

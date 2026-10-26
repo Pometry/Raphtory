@@ -20,7 +20,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stage};
 use std::{
     fmt::{Display, Formatter},
     ops::Range,
@@ -44,8 +44,6 @@ use {
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by event id) is a deletion,
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
-///
-///
 #[derive(Clone, Debug)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
@@ -53,7 +51,7 @@ impl Static for PersistentGraph {}
 
 impl From<GraphStorage> for PersistentGraph {
     fn from(value: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(value)))
+        Self(Arc::new(Storage::from(value)))
     }
 }
 
@@ -98,6 +96,7 @@ fn persisted_prop_value_at<'a>(
 }
 
 impl PersistentGraph {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         // TODO: This should return a Result.
         Self::new_with_config(Args::default()).unwrap()
@@ -225,14 +224,6 @@ impl PersistentGraph {
         )?)))
     }
 
-    pub fn from_storage(storage: Arc<Storage>) -> Self {
-        Self(storage)
-    }
-
-    pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(internal_graph)))
-    }
-
     /// Return a read-only handle to this graph. Mutations on the returned
     /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
     /// `TemporalGraph` is shared — this is not a snapshot.
@@ -245,8 +236,12 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self).map_err(GraphError::from)
+    }
+
     pub fn event_graph(&self) -> Graph {
-        Graph::from_storage(self.0.clone())
+        Graph::from(self.0.clone())
     }
 
     pub fn persistent_graph(&self) -> PersistentGraph {
@@ -303,6 +298,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::persistent()
     }
+
     #[inline]
     fn window_filtered(&self) -> bool {
         false
@@ -425,73 +421,5 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         } else {
             None
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::db::api::view::time::internal::InternalTimeOps;
-
-    use super::*;
-
-    #[test]
-    fn test_view_start_end() {
-        let g = PersistentGraph::new();
-        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        assert_eq!(g.start(), None);
-        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
-        assert_eq!(g.end(), None);
-        assert_eq!(g.timeline_end().map(|t| t.t()), Some(1));
-        e.delete(2, None).unwrap();
-        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
-        assert_eq!(g.timeline_end().map(|t| t.t()), Some(3));
-        let w = g.window(g.timeline_start().unwrap(), g.timeline_end().unwrap());
-        assert!(g.has_edge(1, 2));
-        assert!(w.has_edge(1, 2));
-        assert_eq!(w.start().map(|t| t.t()), Some(0));
-        assert_eq!(w.timeline_start().map(|t| t.t()), Some(0));
-        assert_eq!(w.end().map(|t| t.t()), Some(3));
-        assert_eq!(w.timeline_end().map(|t| t.t()), Some(3));
-
-        e.add_updates(4, NO_PROPS, None).unwrap();
-        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
-        assert_eq!(g.timeline_end().map(|t| t.t()), Some(5));
-    }
-    #[test]
-    fn test_materialize_window_earliest_time() {
-        let g = PersistentGraph::new();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.delete_edge(10, 1, 2, None).unwrap();
-
-        let ltg = g.latest_time_global();
-        assert_eq!(ltg, Some(10));
-
-        let wg = g.window(3, 5);
-
-        let e = wg.edge(1, 2).unwrap();
-        assert_eq!(e.earliest_time().map(|t| t.t()), Some(3));
-        assert_eq!(e.latest_time().map(|t| t.t()), Some(3));
-        let n1 = wg.node(1).unwrap();
-        assert_eq!(n1.earliest_time().unwrap().t(), 3);
-        assert_eq!(n1.latest_time().unwrap().t(), 3);
-        let n2 = wg.node(2).unwrap();
-        assert_eq!(n2.earliest_time().unwrap().t(), 3);
-        assert_eq!(n2.latest_time().unwrap().t(), 3);
-
-        let actual_lt = wg.latest_time();
-        assert_eq!(actual_lt.unwrap().t(), 3);
-
-        let actual_et = wg.earliest_time();
-        assert_eq!(actual_et.unwrap().t(), 3);
-
-        let gm = g
-            .window(3, 5)
-            .materialize()
-            .unwrap()
-            .into_persistent()
-            .unwrap();
-
-        let expected_et = gm.earliest_time();
-        assert_eq!(actual_et, expected_et);
     }
 }

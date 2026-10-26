@@ -4,7 +4,7 @@ import random
 import shutil
 import tempfile
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from raphtory import graphql, PersistentGraph, Graph
 
@@ -111,6 +111,30 @@ def setup_playground_graph(graph):
     return graph
 
 
+def setup_datetime_props_graph(graph):
+    """Datetime-typed properties, which JSON graph specs can't express. Every
+    value renders to a distinct date, and the UTC ones sit close enough to
+    midnight that the day depends on the timezone they're displayed in."""
+    utc = timezone.utc
+    graph.add_node(
+        1,
+        "Alice",
+        {
+            "aware_at": datetime(2024, 1, 1, 3, 0, tzinfo=utc),
+            "naive_at": datetime(2024, 2, 1, 0, 30),
+            "aware_list": [
+                datetime(2024, 3, 1, 12, 0, tzinfo=utc),
+                datetime(2024, 4, 1, 12, 0, tzinfo=utc),
+            ],
+            "epoch_ms": 1717200000000,
+        },
+    )
+    graph.add_node(2, "Bob")
+    graph.add_edge(3, "Alice", "Bob", {"sent_at": datetime(2024, 5, 1, 12, 0, tzinfo=utc)})
+    graph.add_metadata({"created_on": datetime(2024, 6, 1, 12, 0, tzinfo=utc)})
+    return graph
+
+
 def __main__():
     port = int(os.environ.get("RAPHTORY_PORT", "1736"))
     work_dir = os.environ.get(
@@ -118,7 +142,7 @@ def __main__():
     )
 
     shutil.rmtree(work_dir, ignore_errors=True)
-    for sub in ("vanilla", "new_folder", "my_namespace"):
+    for sub in ("vanilla", "new_folder", "my_namespace", "datetimes"):
         os.makedirs(os.path.join(work_dir, sub), exist_ok=True)
 
     def graph_path(*parts):
@@ -149,23 +173,13 @@ def __main__():
 
     build_from_spec("numerical").save_to_file(graph_path("vanilla", "numerical"))
 
+    build_from_spec("search_config").save_to_file(graph_path("vanilla", "search_config"))
+
     g = setup_playground_graph(Graph())
     g.save_to_file(graph_path("my_graph"))
     g.save_to_file(graph_path("my_namespace", "demo"))
 
-    # # manually build hub graph (very useful to uncomment for performance tracing)
-    # HUB_COUNT = 6_000_000
-    # huge_hub_graph = Graph()
-    # huge_hub_graph.add_node(0, "center")
-    # for h in range(4):
-    #     hub_name = f"hub_{h}"
-    #     huge_hub_graph.add_edge(0, "center", hub_name)
-    #     for i in range(HUB_COUNT - 1):
-    #         huge_hub_graph.add_edge(0, hub_name, f"hub_{h}_leaf_{i}")
-    # EDGE_UPDATE_COUNT = 6_000_000
-    # for t in range(EDGE_UPDATE_COUNT):
-    #     huge_hub_graph.add_edge(t, "center", "chatty")
-    # huge_hub_graph.save_to_file(graph_path("hub-nodes"))
+    setup_datetime_props_graph(Graph()).save_to_file(graph_path("datetimes", "props"))
 
     # Matches the UI's own MAX_NESTED_PAGE, so a query that asks for a bigger
     # page fails the tests here rather than on a deployment that sets the cap.

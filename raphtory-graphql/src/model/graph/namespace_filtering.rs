@@ -7,11 +7,12 @@
 //!
 //! Graphs are described entirely by their metadata, and which keys matter is up
 //! to whoever wrote the graph. So rather than a fixed set of filterable and
-//! sortable columns, both filter and sort address metadata by key: filters reuse
-//! the same `PropCondition` grammar as graph property filters, and sorts either
-//! name a built-in field or a metadata key, with an optional explicit value order
-//! for keys holding a small vocabulary (`"critical"`, `"high"`, ...) whose
-//! natural ordering is not alphabetical.
+//! sortable columns, both filter and sort address metadata by key. A filter's
+//! leaves each test one built-in attribute or one metadata key with the
+//! `PropCondition` grammar (`eq`, `lt`, `contains`, ...), combined with `and` /
+//! `or` / `not`; sorts either name a built-in field or a metadata key, with an
+//! optional explicit value order for keys holding a small vocabulary
+//! (`"critical"`, `"high"`, ...) whose natural ordering is not alphabetical.
 
 use crate::{
     data::Data,
@@ -60,7 +61,7 @@ pub enum MetaGraphField {
 
 /// Narrows a namespace's graph listing.
 ///
-/// Composes the same way as the graph/node/edge filters: leaves test one
+/// Composes like a filter expression: leaves test one
 /// attribute or metadata key, and `and` / `or` / `not` combine them.
 #[derive(OneOfInput, Clone, Debug)]
 pub enum MetaGraphFilter {
@@ -82,8 +83,7 @@ pub struct MetaGraphCondition {
     pub field: Option<MetaGraphField>,
     /// Metadata key to test.
     pub metadata_key: Option<String>,
-    /// Condition applied to the value, using the same grammar as property
-    /// filters elsewhere in the schema. Names, paths and metadata strings are
+    /// Condition applied to the value. Names, paths and metadata strings are
     /// tested as strings; counts and timestamps as integers.
     pub where_: PropCondition,
     /// Overrides the result when the graph has no value for the target.
@@ -1145,9 +1145,7 @@ mod tests {
     fn unlisted_values_sort_after_every_listed_one() {
         // A double-digit order is the case that a naive string-prefixed rank
         // gets wrong: rank 5 must still sort before the unlisted bucket at 12.
-        let order: Vec<Value> = (0..12)
-            .map(|i| Value::Str(format!("v{i:02}").into()))
-            .collect();
+        let order: Vec<Value> = (0..12).map(|i| Value::Str(format!("v{i:02}"))).collect();
         let listed = rank_by_value_order(&str_prop("v05"), &order).unwrap();
         let unlisted = rank_by_value_order(&str_prop("zzz"), &order).unwrap();
 

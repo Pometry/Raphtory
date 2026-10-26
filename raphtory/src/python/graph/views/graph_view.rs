@@ -16,10 +16,6 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView,
-                filter::{
-                    edge_property_filtered_graph::EdgePropertyFilteredGraph,
-                    exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                },
                 layer_graph::LayeredGraph,
                 node_subgraph::{NodeSubgraph, UnfilteredSubgraph},
                 valid_graph::ValidGraph,
@@ -136,28 +132,6 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodeSubgrap
 }
 
 impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for CachedView<G> {
-    type Target = PyGraphView;
-    type Output = <Self::Target as IntoPyObject<'py>>::Output;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphView::from(self).into_pyobject(py)
-    }
-}
-
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for EdgePropertyFilteredGraph<G> {
-    type Target = PyGraphView;
-    type Output = <Self::Target as IntoPyObject<'py>>::Output;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphView::from(self).into_pyobject(py)
-    }
-}
-
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
-    for ExplodedEdgePropertyFilteredGraph<G>
-{
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -459,5 +433,35 @@ impl Repr for PyGraphView {
                 .add_field("properties", self.properties())
                 .finish()
         }
+    }
+}
+
+/// Document template argument of `GraphView.vectorise`: `True` to use the default template,
+/// `False` to skip the entity type, or a custom (minijinja) template string.
+#[derive(FromPyObject)]
+pub enum TemplateConfig {
+    Bool(bool),
+    String(String),
+    // re-enable the code below to be able to customise the erro message
+    // #[pyo3(transparent)]
+    // CatchAll(Bound<'py, PyAny>), // This extraction never fails
+}
+
+impl TemplateConfig {
+    pub fn get_template_or(self, default: &str) -> Option<String> {
+        match self {
+            Self::Bool(vectorise) => {
+                if vectorise {
+                    Some(default.to_owned())
+                } else {
+                    None
+                }
+            }
+            Self::String(custom_template) => Some(custom_template),
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, Self::Bool(false))
     }
 }

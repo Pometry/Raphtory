@@ -4,7 +4,7 @@ pub(crate) use crate::db::api::{
     view::internal::{filtered_node::FilteredNodeStorageOps, FilterOps, FilterState, GraphView},
 };
 use raphtory_api::core::{
-    entities::{GID, VID},
+    entities::{properties::prop::PropType, GID, VID},
     storage::arc_str::ArcStr,
     Direction,
 };
@@ -32,6 +32,10 @@ impl NodeOp for Name {
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
         NodeList::All
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Str
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
@@ -83,6 +87,7 @@ pub struct Type;
 pub struct TypeStruct {
     node_type: Option<ArcStr>,
 }
+
 impl From<Option<ArcStr>> for TypeStruct {
     fn from(node_type: Option<ArcStr>) -> Self {
         TypeStruct { node_type }
@@ -94,6 +99,10 @@ impl NodeOp for Type {
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
         NodeList::All
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Str
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
@@ -145,6 +154,12 @@ pub struct Degree<G> {
     pub(crate) view: G,
 }
 
+impl<G> Degree<G> {
+    pub fn new(view: G, dir: Direction) -> Self {
+        Self { dir, view }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct DegreeStruct {
     degree: usize,
@@ -160,6 +175,10 @@ impl<G: GraphView> NodeOp for Degree<G> {
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
         self.view.node_list()
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::U64
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> usize {

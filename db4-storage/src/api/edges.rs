@@ -15,12 +15,14 @@ use raphtory_core::{
 };
 use rayon::iter::ParallelIterator;
 use std::{
+    fmt::Debug,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
+    time::Duration,
 };
 
-pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
+pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
     type Entry<'a>: EdgeEntryOps<'a>
@@ -28,8 +30,6 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         Self: 'a;
 
     type ArcLockedSegment: LockedESegment;
-
-    fn extension(&self) -> &Self::Extension;
 
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;
@@ -41,7 +41,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn layer_count(&self, layer_id: LayerId) -> u32;
 
     fn load(
-        page_id: usize,
+        segment_id: usize,
         max_page_len: u32,
         meta: Arc<Meta>,
         path: impl AsRef<Path>,
@@ -50,7 +50,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     where
         Self: Sized;
 
-    fn new(page_id: usize, meta: Arc<Meta>, path: Option<PathBuf>, ext: Self::Extension) -> Self;
+    fn new(segment_id: usize, meta: Arc<Meta>, path: Option<PathBuf>, ext: Self::Extension)
+    -> Self;
 
     fn segment_id(&self) -> usize;
 
@@ -72,6 +73,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
+    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
+
     fn set_dirty(&self, dirty: bool);
 
     fn is_dirty(&self) -> bool;
@@ -79,7 +82,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     /// notify that an edge was added (might need to write to disk)
     fn notify_write(
         &self,
-        head_lock: impl DerefMut<Target = MemEdgeSegment>,
+        head: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError>;
 
     fn increment_num_edges(&self) -> u32 {
@@ -91,7 +94,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
+        head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
 
     fn immut_has_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool;
@@ -100,29 +103,31 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
+        head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a>;
 
-    fn layer_entry<'a>(
-        &'a self,
-        edge_pos: LocalPOS,
-        layer_id: LayerId,
-        locked_head: Option<RwLockReadGuard<'a, MemEdgeSegment>>,
-    ) -> Option<Self::Entry<'a>>;
+    fn layer_entry<'a>(&'a self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<Self::Entry<'a>>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 
-    fn vacuum(
-        &self,
-        locked_head: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), StorageError>;
+    fn vacuum(&self, head: impl DerefMut<Target = MemEdgeSegment>) -> Result<(), StorageError>;
 
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
 
-    fn flush(&self) -> Result<(), StorageError>;
+    fn flush(&self) -> Result<(), StorageError> {
+        let head = self.head_mut();
+        self.flush_with_head(head)
+    }
+
+    fn flush_with_head(
+        &self,
+        head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError>;
+
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
     fn check_metadata_immut<PR: AsPropRef>(
         &self,

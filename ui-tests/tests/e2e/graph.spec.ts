@@ -3,6 +3,7 @@ import { expect, type ConsoleMessage } from '@playwright/test';
 import { test } from '../fixtures';
 import {
     changeTab,
+    clearSelection,
     clickOnEdge,
     clickOnNode,
     clickOnNodes,
@@ -97,6 +98,83 @@ test('Highlight founds then transfers', async ({ page }) => {
     expect(foundsState.selected).toEqual([]);
 });
 
+test('Entities lists node types sorted by name with their counts', async ({ page }) => {
+    await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
+    await waitForLayoutToFinish(page);
+
+    const entities = page.getByText('Entities', { exact: true }).locator('xpath=..');
+    await expect(entities.getByText(/^(Company|None|Person)$/)).toHaveText([
+        'Company',
+        'None',
+        'Person',
+    ]);
+    // Icon-less types fall back to their first two characters, like the canvas
+    await expect(entities).toContainText('CoCompany1');
+    await expect(entities).toContainText('NoNone1');
+    await expect(entities).toContainText('PePerson3');
+    await expect(entities.getByRole('button', { name: 'Highlight on graph' })).toHaveCount(3);
+});
+
+test('Highlight Person then Company', async ({ page }) => {
+    await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
+    await waitForLayoutToFinish(page);
+    await page.getByText('Entities', { exact: true }).waitFor();
+
+    await page.getByText('Person3').getByRole('button', { name: 'Highlight on graph' }).click();
+    await waitForLayoutToFinish(page);
+    const personState = await getGraphState(page);
+    expect(personState.highlighted.map((n) => n.id).sort()).toEqual(['Ben', 'Hamza', 'Pedro']);
+    // Highlighting must not select the highlighted nodes
+    expect(personState.selected).toEqual([]);
+
+    // Close the "Remove highlight" tooltip so it can't intercept the next click
+    await page.mouse.move(0, 0);
+    await page.getByText('Company1').getByRole('button', { name: 'Highlight on graph' }).click();
+    await waitForLayoutToFinish(page);
+    const companyState = await getGraphState(page);
+    expect(companyState.highlighted.map((n) => n.id)).toEqual(['Pometry']);
+    expect(companyState.selected).toEqual([]);
+});
+
+test('Entity and relationship highlights are mutually exclusive', async ({ page }) => {
+    await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
+    await waitForLayoutToFinish(page);
+    await page.getByText('Entities', { exact: true }).waitFor();
+
+    // founds endpoints (Ben, Hamza, Pometry) differ from Person nodes (Ben,
+    // Hamza, Pedro), so the graph state tells which highlight is active
+    const foundsRow = page.getByText('founds2');
+    const personRow = page.getByText('Person3');
+
+    await foundsRow.getByRole('button', { name: 'Highlight on graph' }).click();
+    await waitForLayoutToFinish(page);
+    await page.mouse.move(0, 0);
+
+    await personRow.getByRole('button', { name: 'Highlight on graph' }).click();
+    await waitForLayoutToFinish(page);
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole('button', { name: 'Remove highlight' })).toHaveCount(1);
+    await expect(personRow.getByRole('button', { name: 'Remove highlight' })).toBeVisible();
+    await expect(foundsRow.getByRole('button', { name: 'Highlight on graph' })).toBeVisible();
+    expect((await getGraphState(page)).highlighted.map((n) => n.id).sort()).toEqual([
+        'Ben',
+        'Hamza',
+        'Pedro',
+    ]);
+
+    await foundsRow.getByRole('button', { name: 'Highlight on graph' }).click();
+    await waitForLayoutToFinish(page);
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole('button', { name: 'Remove highlight' })).toHaveCount(1);
+    await expect(foundsRow.getByRole('button', { name: 'Remove highlight' })).toBeVisible();
+    await expect(personRow.getByRole('button', { name: 'Highlight on graph' })).toBeVisible();
+    expect((await getGraphState(page)).highlighted.map((n) => n.id).sort()).toEqual([
+        'Ben',
+        'Hamza',
+        'Pometry',
+    ]);
+});
+
 test('Test layouts', async ({ page }) => {
     test.setTimeout(60000);
     await navigateInSavedGraphs(page, {
@@ -165,6 +243,55 @@ for (const nodeName of ['Pedro', 'Hamza', 'Ben']) {
         await expect(page.getByText('Age', { exact: true })).toBeVisible();
     });
 }
+
+test('Selecting an entity switches to the Selected tab until the user picks a tab', async ({
+    page,
+}) => {
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
+    const overviewTab = page.getByRole('tab', { name: 'Overview', exact: true });
+    const selectedTab = page.getByRole('tab', { name: 'Selected', exact: true });
+    await expect(overviewTab).toHaveAttribute('aria-selected', 'true');
+
+    await clickOnNode(page, 'Pedro');
+    await expect(selectedTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('heading', { name: 'Pedro' })).toBeVisible();
+
+    // Clearing the selection falls back to Overview, so the edge click is a real switch
+    await clearSelection(page);
+    await expect(overviewTab).toHaveAttribute('aria-selected', 'true');
+    await clickOnEdge(page, 'Hamza', 'Pedro');
+    await expect(selectedTab).toHaveAttribute('aria-selected', 'true');
+
+    await changeTab(page, 'Overview');
+    await clickOnNode(page, 'Hamza');
+    await expect(overviewTab).toHaveAttribute('aria-selected', 'true');
+    await expect(selectedTab).toHaveAttribute('aria-selected', 'false');
+});
+
+test('Selecting an entity opens a collapsed drawer on the Selected tab', async ({ page }) => {
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
+    const selectedTab = page.getByRole('tab', { name: 'Selected', exact: true });
+    const collapseButton = page.getByRole('button', { name: 'Collapse panel' });
+
+    await collapseButton.click();
+    await expect(selectedTab).toBeHidden();
+
+    await clickOnNode(page, 'Pedro');
+    await expect(selectedTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('heading', { name: 'Pedro' })).toBeVisible();
+
+    // Collapsing counts as the user's choice, so later selections leave it closed
+    await collapseButton.click();
+    await clickOnNode(page, 'Hamza');
+    await expect(selectedTab).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Expand Selected' })).toBeVisible();
+});
 
 test('Expand via all entry points and restore via all hide paths', async ({ page }) => {
     // Three expand/restore iterations stack up many waitForLayoutToFinish
@@ -1615,12 +1742,17 @@ test.describe('Saved positions', () => {
     });
 });
 // ---- Icon colour tests -------------------------------------------------------
-// vanilla/filler has a Person icon set with ?color=white in the iconify URL.
-// These tests verify the icon URL is plumbed all the way to the renderer
-// and to the temporal view.
+// vanilla/filler has a Person icon set to the Bootstrap icon "person-fill".
+// These tests verify it reaches the renderer and the temporal view as a
+// white, pre-coloured SVG data URL.
+
+const isWhiteSvgDataUrl = (url: unknown): boolean =>
+    typeof url === 'string' &&
+    url.startsWith('data:image/svg+xml,') &&
+    decodeURIComponent(url).includes('fill="white"');
 
 test.describe('icon colours', () => {
-    test('graph view node icons carry the ?color=white iconify URL', async ({ page }) => {
+    test('graph view node icons are white SVG data URLs', async ({ page }) => {
         await navigateInSavedGraphs(page, {
             namespace: 'vanilla',
             graphName: 'filler',
@@ -1638,7 +1770,7 @@ test.describe('icon colours', () => {
                 getNodeAttribute(id: string, key: string): unknown;
             };
         }
-        await page.waitForFunction(
+        const image = await page.waitForFunction(
             () => {
                 const w = window as Window & {
                     __SIGMA__?: SigmaInstance;
@@ -1650,13 +1782,14 @@ test.describe('icon colours', () => {
                     .find((id) => sigma.graph.getNodeAttribute(id, 'label') === 'Ben');
                 if (benId === undefined) return false;
                 const image = sigma.graph.getNodeAttribute(benId, 'image');
-                return typeof image === 'string' && image.includes('color=white');
+                return typeof image === 'string' ? image : false;
             },
             { timeout: 15000 },
         );
+        expect(isWhiteSvgDataUrl(await image.jsonValue())).toBe(true);
     });
 
-    test('temporal view Y-axis icons have ?color=white in their href', async ({ page }) => {
+    test('temporal view Y-axis icons are white SVG data URLs', async ({ page }) => {
         await navigateInSavedGraphs(page, {
             namespace: 'vanilla',
             graphName: 'filler',
@@ -1665,21 +1798,15 @@ test.describe('icon colours', () => {
         await openTimeline(page);
         await page.waitForTimeout(1000);
 
-        // Icons are rendered as SVG <image> elements with ?color=white appended
-        // to the Iconify URL so the server returns a white-coloured SVG.
+        // Icons are rendered as SVG <image> elements.
         // Use evaluate because WebKit doesn't support CSS attribute selectors
         // on SVG-namespaced elements.
-        const hasWhiteIconifyIcon = await page.evaluate(() => {
-            const images = document.querySelectorAll('#yaxis-nodes image');
-            for (const img of images) {
-                const href = img.getAttribute('href');
-                if (href?.includes('iconify.design') && href?.includes('color=white')) {
-                    return true;
-                }
-            }
-            return false;
-        });
-        expect(hasWhiteIconifyIcon).toBe(true);
+        const hrefs = await page.evaluate(() =>
+            Array.from(document.querySelectorAll('#yaxis-nodes image'), (img) =>
+                img.getAttribute('href'),
+            ),
+        );
+        expect(hrefs.some(isWhiteSvgDataUrl)).toBe(true);
     });
 
     test('graph view node icons screenshot', async ({ page }) => {
@@ -1714,8 +1841,7 @@ test.describe('icon colours', () => {
         });
         await waitForLayoutToFinish(page);
         await openTimeline(page);
-        // Wait for network idle so SVG <image> elements have finished fetching
-        // the Iconify URLs before the screenshot is taken.
+        // Wait for network idle so the page has settled before the screenshot.
         await page.waitForLoadState('networkidle');
         expect(await page.locator('#yaxis-nodes').screenshot()).toMatchSnapshot(
             'icon-temporal-view.png',

@@ -766,6 +766,7 @@ impl PyPersistentGraph {
     #[pyo3(
         signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_nodes(
         &self,
         data: &Bound<PyAny>,
@@ -892,6 +893,7 @@ impl PyPersistentGraph {
     #[pyo3(
         signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_edges(
         &self,
         data: &Bound<PyAny>,
@@ -1005,6 +1007,7 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(signature = (data, time, src, dst, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None))]
+    #[allow(clippy::too_many_arguments)]
     fn load_edge_deletions(
         &self,
         data: &Bound<PyAny>,
@@ -1105,6 +1108,7 @@ impl PyPersistentGraph {
     #[pyo3(
         signature = (data, id, node_type = None, node_type_col = None, metadata = None, shared_metadata = None, schema = None, csv_options = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_node_metadata(
         &self,
         data: &Bound<PyAny>,
@@ -1209,6 +1213,7 @@ impl PyPersistentGraph {
     #[pyo3(
         signature = (data, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_edge_metadata(
         &self,
         data: &Bound<PyAny>,

@@ -73,7 +73,7 @@ impl Zero for TaintMessage {
 /// Returns
 ///
 /// * An AlgorithmResult object containing the mapping from node ID to a vector of tuples containing the time at which
-/// the node was tainted and the ID of the node that tainted it
+///   the node was tainted and the ID of the node that tainted it
 ///
 pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
     g: &G,

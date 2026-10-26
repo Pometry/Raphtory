@@ -62,6 +62,7 @@ impl<T: Default> MaskedCol<T> {
             .and_then(|&is_some| is_some.then(|| &mut self.ts[index]))
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.mask.len()
     }
@@ -115,6 +116,7 @@ impl<T> TupleCol<T> {
         self.size = self.size.max(id + 1);
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.size
     }
@@ -134,6 +136,7 @@ impl<T> TupleCol<T> {
         (0..self.size).map(move |id| self.get(id))
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn into_iter(mut self) -> impl Iterator<Item = Option<T>>
     where
         T: Default,

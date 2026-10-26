@@ -1,13 +1,15 @@
 use crate::{
     core::entities::{EID, VID},
-    db::api::{state::Index, view::Base},
+    db::api::{
+        state::{Index, IndexParIter},
+        view::Base,
+    },
 };
 use itertools::Itertools;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry},
 };
-use rayon::prelude::*;
 use std::{hash::Hash, sync::Arc};
 use storage::{api::node_type_index::NodeTypeIndexOps, utils::Iter3};
 
@@ -256,15 +258,10 @@ impl List<VID> {
         }
     }
 
-    pub fn nodes_par_iter(self, g: &GraphStorage) -> impl ParallelIterator<Item = VID> {
-        match self {
-            List::All => {
-                let sc = g.node_segment_counts();
-                Iter3::I(sc.into_par_iter())
-            }
-            // TODO: split the node type index by segment instead of materialising
-            list @ List::NodeTypeIdx { .. } => Iter3::J(list.into_index(g).into_par_iter()),
-            List::List { elems } => Iter3::K(elems.into_par_iter()),
-        }
+    /// A single concrete parallel iterator for every list variant, so rayon pipelines over
+    /// nodes are compiled once (for `List::All` this only builds the per-segment offsets).
+    pub fn nodes_par_iter(self, g: &GraphStorage) -> IndexParIter<VID> {
+        // TODO: split the node type index by segment instead of materialising
+        self.into_index(g).into_par_iter()
     }
 }

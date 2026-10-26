@@ -103,6 +103,31 @@ test('Search saved graphs table, clear search and hide search', async ({ page })
     await expect(searchInput).toBeHidden();
 });
 
+test('A search matching nothing keeps the search box reachable', async ({ page }) => {
+    await navigateInSavedGraphs(page, { namespace: 'vanilla' }, { view: 'table' });
+    await page.getByRole('button', { name: 'Show/Hide search' }).click();
+    const searchInput = page.getByRole('textbox', { name: 'Search explorations' });
+    const rows = page.getByRole('table').locator('tbody tr');
+    // Waiting on a second row rules out counting the single row an empty table
+    // renders. The count is recorded rather than named because which graphs
+    // land on the first page depends on the page size and the default
+    // ordering, neither of which this test is about.
+    await expect(rows.nth(1)).toBeVisible();
+    const unfilteredRowCount = await rows.count();
+
+    await searchInput.fill('no-such-exploration');
+
+    // The folder-level empty state would replace the whole table, search box
+    // included, stranding the user with a query they can no longer clear.
+    const noMatches = page.getByText('No explorations match your search.');
+    await expect(noMatches).toBeVisible();
+    await expect(searchInput).toBeVisible();
+
+    await page.getByRole('button', { name: 'Show all explorations' }).click();
+    await expect(noMatches).toBeHidden();
+    await expect(rows).toHaveCount(unfilteredRowCount);
+});
+
 test('Filter by Columns', async ({ page }) => {
     await navigateInSavedGraphs(page, { namespace: 'vanilla' }, { view: 'table' });
     const table = await page.getByRole('table');

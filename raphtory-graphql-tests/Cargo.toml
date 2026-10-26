@@ -18,6 +18,8 @@ publish = false
 [dependencies]
 raphtory = { workspace = true, features = ["panic-on-drop"] }
 raphtory-graphql = { workspace = true, default-features = false, features = ["integration-test", "panic-on-drop"] }
+raphtory-api = { workspace = true }
+itertools = { workspace = true }
 tempfile.workspace = true
 opentelemetry_sdk = { workspace = true, features = ["rt-tokio", "testing"] }
 url.workspace = true

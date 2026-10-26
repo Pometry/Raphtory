@@ -13,7 +13,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::GqlFilter,
+    model::graph::filter_expr_input::GqlFilter,
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
@@ -184,6 +184,7 @@ impl RemoteNestedEdges {
     /// total edge count. Named `len` for that reason, matching the local
     /// `NestedEdges`, whose `len()` is the same outer count.
     /// Fires one RPC.
+    #[allow(clippy::len_without_is_empty)]
     pub async fn len(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),

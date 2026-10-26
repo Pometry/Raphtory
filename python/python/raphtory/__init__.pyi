@@ -305,12 +305,12 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> GraphView:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> GraphView:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             GraphView: The filtered view
@@ -1172,6 +1172,7 @@ class Graph(GraphView):
             | dict[str, DataType | PropType | str]
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1189,6 +1190,7 @@ class Graph(GraphView):
             layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1214,6 +1216,7 @@ class Graph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1234,6 +1237,7 @@ class Graph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1267,6 +1271,7 @@ class Graph(GraphView):
             | dict[str, DataType | PropType | str]
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1283,6 +1288,7 @@ class Graph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1309,6 +1315,7 @@ class Graph(GraphView):
         event_id: Optional[str] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1330,6 +1337,7 @@ class Graph(GraphView):
             event_id (str, optional): The column name for the secondary index. Defaults to None.
             layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
             layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1446,6 +1454,14 @@ class Graph(GraphView):
 
         Raises:
             GraphError: If the operation fails.
+        """
+
+    def vacuum(self) -> None:
+        """
+        Trigger a compaction of the underlying storage segments if disk storage is enabled
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
         """
 
 class PersistentGraph(GraphView):
@@ -2410,12 +2426,12 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Node:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Node:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Node: The filtered view
@@ -2904,12 +2920,12 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Nodes:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Nodes:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Nodes: The filtered view
@@ -3419,12 +3435,12 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> PathFromNode:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromNode:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromNode: The filtered view
@@ -3894,12 +3910,12 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> PathFromGraph:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromGraph:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromGraph: The filtered view
@@ -4454,12 +4470,12 @@ class Edge(object):
             Edges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Edge:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edge:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edge: The filtered view
@@ -4924,12 +4940,12 @@ class Edges(object):
             Edges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Edges:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edges:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edges: The filtered view
@@ -5253,6 +5269,8 @@ class Edges(object):
         """
 
 class NestedEdges(object):
+    """A list of edges per node."""
+
     def __bool__(self):
         """True if self else False"""
 
@@ -5417,28 +5435,28 @@ class NestedEdges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self) -> Edges:
+    def explode(self) -> NestedEdges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Edges:
+            NestedEdges:
         """
 
-    def explode_layers(self) -> Edges:
+    def explode_layers(self) -> NestedEdges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Edges:
+            NestedEdges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> NestedEdges:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> NestedEdges:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             NestedEdges: The filtered view

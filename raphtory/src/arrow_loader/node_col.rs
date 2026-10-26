@@ -317,6 +317,7 @@ impl NodeCol {
         self.0.dtype()
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.0.len()
     }

@@ -24,6 +24,7 @@ impl PropCols {
             .filter_map(move |(id, col)| col.get_ref(i).map(|v| (*id, v)))
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.len
     }

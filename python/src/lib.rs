@@ -1,6 +1,4 @@
 use pyo3::prelude::*;
-#[cfg(feature = "vectors")]
-use raphtory::python::packages::base_modules::base_vectors_module;
 use raphtory::python::{
     filter::base_filter_module,
     graph::node_state::base_node_state_module,
@@ -9,6 +7,8 @@ use raphtory::python::{
         base_graph_loader_module, base_iterables_module,
     },
 };
+#[cfg(feature = "vectors")]
+use raphtory_vectors::python::base_vectors_module;
 
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
@@ -21,7 +21,6 @@ static GLOBAL: Jemalloc = Jemalloc;
 /// Raphtory graph analytics library
 #[pymodule]
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
-    auth::init();
     add_raphtory_classes(m)?;
 
     let graphql_module = base_graphql_module(py)?;

@@ -2,7 +2,7 @@ use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
         edges::GqlEdges,
-        filtering::{GqlFilter, GqlNodeFilter, PathFromNodeViewCollection},
+        filter_expr_input::GqlFilter,
         history::GqlHistory,
         node::GqlNode,
         timeindex::{GqlEventTime, GqlTimeInput},
@@ -17,10 +17,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{
-            path::PathFromNode,
-            views::filter::model::{CompositeNodeFilter, DynFilter},
-        },
+        graph::path::PathFromNode,
     },
     errors::GraphError,
     prelude::*,
@@ -61,7 +58,6 @@ impl GqlPathFromNode {
     ////////////////////////
 
     /// Returns a view of PathFromNode containing the specified layer, errors if the layer does not exist.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -77,7 +73,6 @@ impl GqlPathFromNode {
     }
 
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -87,13 +82,11 @@ impl GqlPathFromNode {
     }
 
     /// Return a view of PathFromNode containing the layer specified layer, errors if the layer does not exist.
-
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -110,7 +103,6 @@ impl GqlPathFromNode {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     pub async fn rolling(
         &self,
         #[graphql(
@@ -143,7 +135,6 @@ impl GqlPathFromNode {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     pub async fn expanding(
         &self,
         #[graphql(
@@ -165,7 +156,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -175,7 +165,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events at time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -190,7 +179,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the specified time.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -205,7 +193,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events before the specified end (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -214,7 +201,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events after the specified start (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -223,7 +209,6 @@ impl GqlPathFromNode {
     }
 
     /// Set the start of the window to the larger of the specified start and self.start().
-
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -233,7 +218,6 @@ impl GqlPathFromNode {
     }
 
     /// Set the end of the window to the smaller of the specified end and self.end().
-
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -243,7 +227,6 @@ impl GqlPathFromNode {
     }
 
     /// Narrow this path to neighbours whose node type is in the given set.
-
     pub async fn type_filter(
         &self,
         #[graphql(desc = "Node types to keep.")] node_types: Vec<String>,
@@ -329,7 +312,6 @@ impl GqlPathFromNode {
     /////////////////
 
     /// Number of neighbour nodes reachable from the source in this view.
-
     /// The property keys this collection reports: the first member's registry
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
@@ -375,7 +357,6 @@ impl GqlPathFromNode {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -412,55 +393,6 @@ impl GqlPathFromNode {
         Ok(blocking_compute(move || self_clone.nn.name().collect()).await)
     }
 
-    /// Takes a specified selection of views and applies them in given order.
-
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
-        )]
-        views: Vec<PathFromNodeViewCollection>,
-    ) -> Result<GqlPathFromNode, GraphError> {
-        let mut return_view: GqlPathFromNode = self.clone();
-        for view in views {
-            return_view = match view {
-                PathFromNodeViewCollection::Layers(layers) => return_view.layers(layers).await,
-                PathFromNodeViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                PathFromNodeViewCollection::ExcludeLayer(layer) => {
-                    return_view.exclude_layer(layer).await
-                }
-                PathFromNodeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                PathFromNodeViewCollection::ShrinkStart(time) => {
-                    return_view.shrink_start(time).await
-                }
-                PathFromNodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                PathFromNodeViewCollection::At(time) => return_view.at(time).await,
-                PathFromNodeViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                PathFromNodeViewCollection::SnapshotAt(time) => return_view.snapshot_at(time).await,
-                PathFromNodeViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                PathFromNodeViewCollection::Before(time) => return_view.before(time).await,
-                PathFromNodeViewCollection::After(time) => return_view.after(time).await,
-            }
-        }
-        Ok(return_view)
-    }
-
     /// Narrow the neighbour set to nodes matching `expr`. The filter sticks to
     /// the returned path — every subsequent traversal (further hops, edges,
     /// properties) continues to see the filtered scope.
@@ -469,13 +401,12 @@ impl GqlPathFromNode {
     /// E.g. restricting the whole traversal to a specific week:
     ///
     /// ```text
-    /// node(name: "A") { neighbours { filter(expr: {window: {...week...}}) {
+    /// node(name: "A") { neighbours { filter(expr: {view: [{window: {...week...}}]}) {
     ///   list { neighbours { list { name } } }   # further hops still windowed
     /// } } }
     /// ```
     ///
     /// Contrast with `select`, which applies here and is not carried through.
-
     pub async fn filter(
         &self,
         #[graphql(
@@ -485,8 +416,7 @@ impl GqlPathFromNode {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -499,15 +429,14 @@ impl GqlPathFromNode {
     /// Monday, then *their* neighbours active on Tuesday:
     ///
     /// ```text
-    /// node(name: "A") { neighbours { select(expr: {window: {...monday...}}) {
-    ///   list { neighbours { select(expr: {window: {...tuesday...}}) {
+    /// node(name: "A") { neighbours { select(expr: {view: [{window: {...monday...}}]}) {
+    ///   list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
     ///     list { name }
     ///   } } }
     /// } } }
     /// ```
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
-
     pub async fn select(
         &self,
         #[graphql(
@@ -531,12 +460,11 @@ impl GqlPathFromNode {
     /// (both directions), as a flat `PathFromNode`.
     pub async fn neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -546,12 +474,11 @@ impl GqlPathFromNode {
     /// flat `PathFromNode`.
     pub async fn in_neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -561,12 +488,11 @@ impl GqlPathFromNode {
     /// flat `PathFromNode`.
     pub async fn out_neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))

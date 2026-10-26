@@ -39,8 +39,8 @@ def _init(graph):
     return graph
 
 
-# Node-filter legs spanning fields (id / name / type / property / degree) and operators.
-LEGS = {
+# Node-filter expressions spanning fields (id / name / type / property / degree) and operators.
+EXPRESSIONS = {
     "id.is_in([0,2,4])": Node.id().is_in([0, 2, 4]),
     "id.is_not_in([5])": Node.id().is_not_in([5]),
     "name.contains('3')": Node.name().contains("3"),
@@ -76,14 +76,14 @@ def test_and_filter_keeps_edge_endpoints_minimal():
 
 
 def _dangling_edges_by_combination(graph, op, join):
-    """Dangling edges left by every 2- and 3-leg combination joined with `op` (`&` / `|`)."""
-    legs = list(LEGS.items())
-    combos = list(combinations(legs, 2)) + list(combinations(legs, 3))
+    """Dangling edges left by every 2- and 3-expression combination joined with `op` (`&` / `|`)."""
+    expressions = list(EXPRESSIONS.items())
+    combos = list(combinations(expressions, 2)) + list(combinations(expressions, 3))
     offenders = {}
     for combo in combos:
         expr = combo[0][1]
-        for _, leg in combo[1:]:
-            expr = op(expr, leg)
+        for _, expression in combo[1:]:
+            expr = op(expr, expression)
         dangling = _dangling_edges(graph.filter(expr))
         if dangling:
             offenders[join.join(label for label, _ in combo)] = dangling

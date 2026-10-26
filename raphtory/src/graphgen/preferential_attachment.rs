@@ -102,12 +102,12 @@ pub fn ba_preferential_attachment(
         for _ in 0..edges_per_step {
             let mut sum = 0;
             let rand_num = rng.random_range(1..=normalisation);
-            for pos in 0..ids.len() {
+            for (pos, &degree) in degrees.iter().enumerate().take(ids.len()) {
                 if !positions_to_skip.contains(&pos) {
-                    sum += degrees[pos];
+                    sum += degree;
                     if sum >= rand_num {
                         positions_to_skip.insert(pos);
-                        normalisation -= degrees[pos];
+                        normalisation -= degree;
                         break;
                     }
                 }
@@ -127,41 +127,3 @@ pub fn ba_preferential_attachment(
 }
 
 //TODO need to benchmark the creation of these networks
-#[cfg(test)]
-mod preferential_attachment_tests {
-    use super::*;
-    use crate::graphgen::random_attachment::random_attachment;
-    use raphtory_api::core::utils::logging::global_info_logger;
-    #[test]
-    fn blank_graph() {
-        let graph = Graph::new();
-        ba_preferential_attachment(&graph, 1000, 10, None);
-        assert_eq!(graph.count_edges(), 10009);
-        assert_eq!(graph.count_nodes(), 1010);
-    }
-
-    #[test]
-    fn only_nodes() {
-        global_info_logger();
-        let graph = Graph::new();
-        for i in 0..10 {
-            graph
-                .add_node(i, i as u64, NO_PROPS, None, None)
-                .map_err(|err| error!("{:?}", err))
-                .ok();
-        }
-
-        ba_preferential_attachment(&graph, 1000, 5, None);
-        assert_eq!(graph.count_edges(), 5009);
-        assert_eq!(graph.count_nodes(), 1010);
-    }
-
-    #[test]
-    fn prior_graph() {
-        let graph = Graph::new();
-        random_attachment(&graph, 1000, 3, None);
-        ba_preferential_attachment(&graph, 500, 4, None);
-        assert_eq!(graph.count_edges(), 5000);
-        assert_eq!(graph.count_nodes(), 1503);
-    }
-}

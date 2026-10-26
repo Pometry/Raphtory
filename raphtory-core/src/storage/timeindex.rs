@@ -147,6 +147,7 @@ impl<'a, T: AsTime, TI> TimeIndexWindow<'a, T, TI>
 where
     &'a TI: TimeIndexLike<'a, IndexType = T>,
 {
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         match self {
             TimeIndexWindow::Empty => 0,

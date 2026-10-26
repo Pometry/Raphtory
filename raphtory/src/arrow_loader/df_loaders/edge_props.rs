@@ -10,6 +10,7 @@ use crate::{
         layer_col::lift_layer_col,
         node_col::NodeCol,
         prop_handler::*,
+        LOAD_POOL,
     },
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
@@ -36,7 +37,7 @@ use std::{
 };
 use storage::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    pages::locked::{edges::LockedEdgePage, nodes::LockedNodePage},
+    pages::locked::{edges::LockedEdgeSegment, nodes::LockedNodeSegment},
     Extension,
 };
 use tracing::error;
@@ -87,6 +88,9 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
     let mut dst_col_resolved: Vec<VID> = vec![];
     let mut eid_col_resolved: Vec<EID> = vec![];
 
+    // held for the whole load
+    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
     for chunk in df_view.chunks {
         let df = chunk?;
         let metadata_cols =
@@ -128,8 +132,6 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
             &dst_col,
         )?;
 
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
         eid_col_resolved.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
@@ -143,9 +145,9 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
             Ok::<_, GraphError>(())
         })?;
 
-        drop(write_locked_graph);
-
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        write_locked_graph
+            .lock_new_segments()
+            .map_err(into_graph_err)?;
 
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
             let zip = izip!(
@@ -180,38 +182,38 @@ pub fn load_edges_metadata_from_df_prefetch<
         chunks,
         num_rows,
     } = df_view;
-    rayon::scope(|s| {
-        let (tx, rx) = mpsc::sync_channel(2);
-
-        s.spawn(move |_| {
-            let sender = tx;
-            for chunk in chunks {
-                if let Err(e) = sender.send(chunk) {
-                    error!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
-                    break;
-                }
-            }
-        });
+    let mut result: Result<(), GraphError> = Ok(());
+    LOAD_POOL.in_place_scope(|s| {
+        let (sender, rx) = mpsc::sync_channel(2);
 
         let df_view_prefetch = DFView {
             names,
             chunks: rx,
             num_rows,
         };
+        let result = &mut result;
 
-        load_edges_metadata_from_df(
-            df_view_prefetch,
-            column_names,
-            resolve_nodes,
-            metadata,
-            shared_metadata,
-            layer,
-            graph,
-        )?;
-        Ok::<(), GraphError>(())
-    })?;
+        s.spawn(move |_| {
+            *result = load_edges_metadata_from_df(
+                        df_view_prefetch,
+                        column_names,
+                        resolve_nodes,
+                        metadata,
+                        shared_metadata,
+                        layer,
+                        graph,
+                    );
+        });
 
-    Ok(())
+        for chunk in chunks {
+            if let Err(e) = sender.send(chunk) {
+                error!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
+                break;
+            }
+        }
+    });
+
+    result
 }
 
 /// Resolve the `src` and `dst` columns of a chunk to VIDs without creating any node.
@@ -266,7 +268,7 @@ fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
 #[inline(never)]
 fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
     eid_col_shared: &&mut [AtomicUsize],
-    locked_page: &mut LockedNodePage<'_, NS>,
+    locked_page: &mut LockedNodeSegment<'_, NS>,
     zip: impl Iterator<Item = (&'a VID, &'a VID)>,
 ) -> Result<(), LoadError> {
     let writer = locked_page.writer();
@@ -288,7 +290,7 @@ fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>
 fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     shared_metadata: &[(usize, Prop)],
     metadata_cols: &PropCols,
-    shard: &mut LockedEdgePage<'_, ES>,
+    shard: &mut LockedEdgeSegment<'_, ES>,
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, &'a usize)>,
 ) {
     let mut c_props = Vec::new();

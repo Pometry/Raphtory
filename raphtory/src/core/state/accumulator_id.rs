@@ -26,10 +26,7 @@ impl<A: 'static, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>> AccId<
 
 impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Clone for AccId<A, IN, OUT, ACC> {
     fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            _a: std::marker::PhantomData,
-        }
+        *self
     }
 }
 
