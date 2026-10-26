@@ -328,11 +328,11 @@ impl Hash for Prop {
             Prop::U32(u) => u.hash(state),
             Prop::U64(u) => u.hash(state),
             Prop::F32(f) => {
-                let bits = f.to_bits();
+                let bits = if *f == 0.0 { 0.0f32 } else { *f }.to_bits();
                 bits.hash(state);
             }
             Prop::F64(f) => {
-                let bits = f.to_bits();
+                let bits = if *f == 0.0 { 0.0f64 } else { *f }.to_bits();
                 bits.hash(state);
             }
             Prop::Bool(b) => b.hash(state),
