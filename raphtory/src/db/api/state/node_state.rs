@@ -27,7 +27,7 @@ use ouroboros::self_referencing;
 use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{
     iter::{
-        plumbing::{bridge, Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer},
+        plumbing::{bridge, Consumer, Producer, ProducerCallback, UnindexedConsumer},
         Either,
     },
     prelude::*,
@@ -191,6 +191,10 @@ pub struct IndexIter<'a, K> {
     /// For `Index::Full`, the chunks containing `start` and `end - 1`
     front_chunk: usize,
     back_chunk: usize,
+    /// For `Index::Roaring`, the bitmap walked from `start`
+    bitmap: Option<roaring::treemap::Iter<'a>>,
+    /// Whether the back of `bitmap` is at `end` yet; moved there on first use
+    bitmap_back_seeked: bool,
 }
 
 /// The chunk containing flat position `pos` (`offsets[0] == 0`, so this never underflows)
@@ -208,12 +212,26 @@ impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> IndexIter<'a, K> {
             }
             _ => (0, 0),
         };
+        let (bitmap, bitmap_back_seeked) = match index {
+            Index::Roaring { keys, .. } => {
+                let mut bitmap = keys.iter();
+                if start > 0 && start < end {
+                    if let Some(first) = keys.select(start as u64) {
+                        bitmap.advance_to(first);
+                    }
+                }
+                (Some(bitmap), end >= keys.len() as usize)
+            }
+            _ => (None, true),
+        };
         Self {
             index,
             start,
             end,
             front_chunk,
             back_chunk,
+            bitmap,
+            bitmap_back_seeked,
         }
     }
 }
@@ -242,6 +260,9 @@ impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> Iterator for IndexIter
             }
             Index::Partial(set) => *set.get_index(pos).unwrap(),
             Index::Sorted { keys, .. } => keys[pos],
+            Index::Roaring { .. } => {
+                from_roaring(self.bitmap.as_mut().and_then(Iterator::next).unwrap())
+            }
         })
     }
 
@@ -274,6 +295,16 @@ impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> DoubleEndedIterator fo
             }
             Index::Partial(set) => *set.get_index(pos).unwrap(),
             Index::Sorted { keys, .. } => keys[pos],
+            Index::Roaring { keys, .. } => {
+                let bitmap = self.bitmap.as_mut().unwrap();
+                if !self.bitmap_back_seeked {
+                    self.bitmap_back_seeked = true;
+                    if let Some(last) = keys.select(pos as u64) {
+                        bitmap.advance_back_to(last);
+                    }
+                }
+                from_roaring(bitmap.next_back().unwrap())
+            }
         })
     }
 }
@@ -712,104 +743,6 @@ impl<K: Copy> DoubleEndedIterator for SortedIndexIntoIter<K> {
 
 impl<K: Copy> ExactSizeIterator for SortedIndexIntoIter<K> {}
 
-/// Parallel iterator over the keys of a [`Index::Roaring`] bitmap in order, with their positions.
-pub struct RoaringParIter<K> {
-    keys: Arc<RoaringTreemap>,
-    _key: PhantomData<K>,
-}
-
-impl<K> RoaringParIter<K> {
-    pub fn new(keys: Arc<RoaringTreemap>) -> Self {
-        Self {
-            keys,
-            _key: PhantomData,
-        }
-    }
-}
-
-impl<K: From<usize> + Send> ParallelIterator for RoaringParIter<K> {
-    type Item = (usize, K);
-
-    fn drive_unindexed<C: UnindexedConsumer<(usize, K)>>(self, consumer: C) -> C::Result {
-        bridge(self, consumer)
-    }
-
-    fn opt_len(&self) -> Option<usize> {
-        Some(IndexedParallelIterator::len(self))
-    }
-}
-
-impl<K: From<usize> + Send> IndexedParallelIterator for RoaringParIter<K> {
-    fn len(&self) -> usize {
-        self.keys.len() as usize
-    }
-
-    fn drive<C: Consumer<(usize, K)>>(self, consumer: C) -> C::Result {
-        bridge(self, consumer)
-    }
-
-    fn with_producer<CB: ProducerCallback<(usize, K)>>(self, callback: CB) -> CB::Output {
-        let len = IndexedParallelIterator::len(&self);
-        callback.callback(RoaringProducer {
-            keys: self.keys,
-            range: 0..len,
-            _key: PhantomData,
-        })
-    }
-}
-
-/// One piece of a [`RoaringParIter`]
-struct RoaringProducer<K> {
-    keys: Arc<RoaringTreemap>,
-    range: Range<usize>,
-    _key: PhantomData<K>,
-}
-
-impl<K: From<usize>> RoaringProducer<K> {
-    /// Keys with their positions: one `select` finds the first, then the bitmap is walked.
-    fn walk(&self) -> impl Iterator<Item = (usize, K)> + '_ {
-        let mut iter = self.keys.iter();
-        if let Some(first) = self.keys.select(self.range.start as u64) {
-            iter.advance_to(first);
-        }
-        self.range.clone().zip(iter.map(from_roaring))
-    }
-}
-
-impl<K: From<usize> + Send> Producer for RoaringProducer<K> {
-    type Item = (usize, K);
-    /// Only adapters that need the iterator itself (such as `zip` or `chunks`) use this; the rest
-    /// go through `fold_with`.
-    type IntoIter = std::iter::Zip<Range<usize>, RoaringIndexIntoIter<K>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.range
-            .clone()
-            .zip(RoaringIndexIntoIter::over(self.keys, self.range))
-    }
-
-    /// Rayon finishes each piece here, where we can borrow the bitmap so nothing is collected.
-    fn fold_with<F: Folder<(usize, K)>>(self, folder: F) -> F {
-        folder.consume_iter(self.walk())
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let mid = self.range.start + index;
-        (
-            Self {
-                keys: self.keys.clone(),
-                range: self.range.start..mid,
-                _key: PhantomData,
-            },
-            Self {
-                keys: self.keys,
-                range: mid..self.range.end,
-                _key: PhantomData,
-            },
-        )
-    }
-}
-
 /// Walks a [`Index::Roaring`] bitmap it owns with the bitmap's own iterator.
 /// `range` is the positions not yet yielded from either end.
 #[self_referencing]
@@ -909,13 +842,8 @@ pub struct RoaringIndexIntoIter<K> {
 impl<K> RoaringIndexIntoIter<K> {
     fn new(keys: Arc<RoaringTreemap>) -> Self {
         let len = keys.len() as usize;
-        Self::over(keys, 0..len)
-    }
-
-    /// The keys at positions `range`.
-    fn over(keys: Arc<RoaringTreemap>, range: Range<usize>) -> Self {
         Self {
-            walk: RoaringIter::over(keys, range),
+            walk: RoaringIter::over(keys, 0..len),
             _key: PhantomData,
         }
     }

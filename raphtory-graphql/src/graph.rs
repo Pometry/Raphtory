@@ -30,7 +30,7 @@ use std::{
     future::poll_fn,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Weak,
     },
     task::Poll,
 };
@@ -68,16 +68,16 @@ pub struct GraphWithVectorsInner {
 
 /// Tells the authorization policy that a graph's contents changed. Empty when there is no policy.
 #[derive(Clone, Default)]
-pub struct MutationListener(Option<Arc<dyn AuthorizationPolicy>>);
+pub struct MutationListener(Option<Weak<dyn AuthorizationPolicy>>);
 
 impl MutationListener {
-    pub fn new(policy: Option<Arc<dyn AuthorizationPolicy>>) -> Self {
+    pub fn new(policy: Option<Weak<dyn AuthorizationPolicy>>) -> Self {
         Self(policy)
     }
 
     /// Report a mutation that succeeded; failed writes must not call this.
     pub fn notify(&self) {
-        if let Some(policy) = &self.0 {
+        if let Some(policy) = self.0.as_ref().and_then(Weak::upgrade) {
             policy.on_graph_mutated();
         }
     }
@@ -177,6 +177,7 @@ impl GraphWithVectors {
     }
 
     /// For a handle rebuilt around the same graph.
+    #[cfg(feature = "vectors")]
     pub(crate) fn listener(&self) -> MutationListener {
         self.inner.listener.clone()
     }

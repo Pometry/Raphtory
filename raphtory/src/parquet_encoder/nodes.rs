@@ -4,7 +4,7 @@ use crate::{
         api::{
             state::{
                 ops::{FilterOps, GraphView},
-                Index, RoaringParIter,
+                Index,
             },
             view::internal::List,
         },
@@ -62,9 +62,7 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
             let keys = match elems {
                 Index::Partial(index) => Either::Left(Either::Left(index.par_iter().copied())),
                 Index::Sorted { keys, .. } => Either::Left(Either::Right(keys.par_iter().copied())),
-                Index::Roaring { keys, .. } => {
-                    Either::Right(RoaringParIter::new(keys.clone()).map(|(_, vid)| vid))
-                }
+                Index::Roaring { .. } => Either::Right(elems.clone().into_par_iter()),
                 Index::Full(_) => unreachable!("matched by the first arm"),
             };
             let iter = keys
