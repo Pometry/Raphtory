@@ -25,6 +25,7 @@ storage.workspace = true
 raphtory-storage.workspace = true
 rand.workspace = true
 rayon.workspace = true
+roaring.workspace = true
 bigdecimal.workspace = true
 chrono.workspace = true
 
@@ -45,7 +46,6 @@ regex.workspace = true
 bzip2.workspace = true
 flate2.workspace = true
 once_cell.workspace = true
-roaring.workspace = true
 
 [features]
 # search = ["raphtory/search"]

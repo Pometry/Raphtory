@@ -26,7 +26,7 @@ fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
 ) -> usize {
     evv.in_edges()
         .explode()
-        .select(GraphFilter.layer("Netflow"))
+        .select(GraphFilter.layers("Netflow"))
         .unwrap()
         .iter()
         .map(|nf_e_edge_expl| one_path_algorithm(nf_e_edge_expl, no_time))
@@ -78,7 +78,7 @@ fn one_path_algorithm<'graph, G: GraphViewOps<'graph>, CS: ComputeState>(
         .explode()
         .select(
             GraphFilter
-                .layer("Events2v4624")
+                .layers("Events2v4624")
                 .window(time_bound, nf1_time),
         )
         .unwrap()
@@ -94,7 +94,7 @@ fn one_path_algorithm<'graph, G: GraphViewOps<'graph>, CS: ComputeState>(
                 .unwrap()
                 .select(
                     GraphFilter
-                        .layer("Events1v4688")
+                        .layers("Events1v4688")
                         .window(login_exp.time().unwrap().t().saturating_add(1), nf1_time),
                 )
                 .unwrap()
