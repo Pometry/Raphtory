@@ -416,7 +416,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             None => {
                 // The current segment is full, drop its lock and push a new free segment
                 drop(writer);
-                segment_id = self.push_new_segment(None);
+                segment_id = self.push_new_segment(None); // TODO: we should have the guards here
                 *slot = segment_id;
                 let writer = self.writer(segment_id);
                 let local_pos = self

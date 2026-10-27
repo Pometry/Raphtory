@@ -535,7 +535,7 @@ where
     /// A node segment created without handing over its lock would let readers see its
     /// uninitialised nodes.
     fn assert_all_nodes_locked(&self) {
-        assert_eq!(
+        debug_assert_eq!(
             self.nodes.len(),
             self.graph.storage.nodes().num_segments(),
             "node segments were created during the bulk load without handing over their locks"
