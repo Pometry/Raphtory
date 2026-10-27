@@ -6,7 +6,7 @@ use raphtory::{
         api::view::Filter,
         graph::{
             assertions::assert_graph_equal,
-            views::filter::model::{ExplodedEdgeFilter, PropertyFilterFactory},
+            views::filter::model::{ExplodedEdgeFilter, PropertyExprFactory},
         },
     },
     prelude::*,
