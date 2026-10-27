@@ -411,6 +411,45 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
     }
 
+    /// Reserves up to `max_rows` (> 0) consecutive rows in the free segment of the slot
+    /// picked by `row`, pushing a new segment if the current one is full.
+    /// Returns the segment, the first reserved position and how many rows were reserved (>= 1).
+    pub fn reserve_free_range(&self, row: usize, max_rows: u32) -> (usize, LocalPOS, u32) {
+        let slot_idx = row % *N;
+        let segment_id = *self.free_segments[slot_idx].read_recursive();
+        if let Some(page) = self.segments.get(segment_id)
+            && let Some((pos, got)) = self.reserve_segment_rows_upto(page, max_rows)
+        {
+            return (page.segment_id(), LocalPOS(pos), got);
+        }
+        let mut slot = self.free_segments[slot_idx].write();
+        loop {
+            if let Some(page) = self.segments.get(*slot)
+                && let Some((pos, got)) = self.reserve_segment_rows_upto(page, max_rows)
+            {
+                return (page.segment_id(), LocalPOS(pos), got);
+            }
+            *slot = self.push_new_segment();
+        }
+    }
+
+    fn reserve_segment_rows_upto(&self, segment: &NS, rows: u32) -> Option<(u32, u32)> {
+        let limit = self.max_segment_len();
+        let mut got = 0;
+        segment
+            .nodes_counter()
+            .try_update(
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+                |current| {
+                    got = rows.min(limit.saturating_sub(current));
+                    (got > 0).then_some(current + got)
+                },
+            )
+            .ok()
+            .map(|start| (start, got))
+    }
+
     /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
     ///

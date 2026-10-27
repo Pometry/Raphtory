@@ -97,35 +97,35 @@ fn load_snb_graph_v2(
     edges: impl IntoIterator<Item = EdgeParquetInput>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
-    for node in nodes {
-        println!("Loading nodes from Parquet file with time column '{}', id column '{}', label column '{:?}', and property columns {:?}...", node.time_col, node.id_col, node.node_type, node.property_cols);
-        load_nodes_from_parquet(
-            graph,
-            &node.path,
-            &node.time_col,
-            None,
-            &node.id_col,
-            node.node_type.as_deref(),
-            node.node_type_col.as_deref(),
-            &node
-                .property_cols
-                .iter()
-                .map(|s| s.as_ref())
-                .collect::<Vec<_>>(),
-            &[],
-            None,
-            None,
-            None,
-            None,
-            None,
-            true,
-            None,
-        )?;
-        println!(
-            " ✓ Finished loading nodes from Parquet file with id column '{}'",
-            node.id_col
-        );
-    }
+    // for node in nodes {
+    //     println!("Loading nodes from Parquet file with time column '{}', id column '{}', label column '{:?}', and property columns {:?}...", node.time_col, node.id_col, node.node_type, node.property_cols);
+    //     load_nodes_from_parquet(
+    //         graph,
+    //         &node.path,
+    //         &node.time_col,
+    //         None,
+    //         &node.id_col,
+    //         node.node_type.as_deref(),
+    //         node.node_type_col.as_deref(),
+    //         &node
+    //             .property_cols
+    //             .iter()
+    //             .map(|s| s.as_ref())
+    //             .collect::<Vec<_>>(),
+    //         &[],
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         true,
+    //         None,
+    //     )?;
+    //     println!(
+    //         " ✓ Finished loading nodes from Parquet file with id column '{}'",
+    //         node.id_col
+    //     );
+    // }
 
     for edge in edges {
         println!("Loading edges from Parquet file with time column '{}', src column '{}', dst column '{}', label column '{:?}', and property columns {:?}...", edge.time_col, edge.src_col, edge.dst_col, edge.layer, edge.property_cols);

@@ -34,6 +34,7 @@ pub mod edges;
 pub mod nodes;
 
 pub(crate) mod cache;
+pub mod gid_resolver;
 
 #[cfg(feature = "progress")]
 fn progress_bars_enabled() -> bool {
