@@ -32,7 +32,7 @@ use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{
-        locked::nodes::ArcNodeSegmentGuard, node_page::writer::NodeWriters, resolve_pos,
+        locked::nodes::ArcNodeSegmentWGuard, node_page::writer::NodeWriters, resolve_pos,
         session::EdgeWriteSession,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -251,7 +251,7 @@ impl InternalAdditionOps for TemporalGraph {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentGuard>), Self::Error> {
+    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentWGuard>), Self::Error> {
         let vid = match self.gid_resolver.get(id) {
             Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
             None => {

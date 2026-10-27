@@ -34,7 +34,7 @@ use storage::{
             edges::WriteLockedEdgeSegments,
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
-            nodes::{ArcNodeSegmentGuard, LockedNodeSegment, WriteLockedNodeSegments},
+            nodes::{ArcNodeSegmentWGuard, LockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -512,7 +512,7 @@ where
             .lock_new_segments(&mut self.edges, timeout)
     }
 
-    pub fn extend_new(&mut self, mut new_segments: Vec<ArcNodeSegmentGuard>) {
+    pub fn extend_new(&mut self, mut new_segments: Vec<ArcNodeSegmentWGuard>) {
         let nodes = self.graph.storage.nodes();
         // segments are pushed concurrently from several threads, so the ids arrive in any order
         new_segments.sort_unstable_by_key(|segment| segment.segment_id());

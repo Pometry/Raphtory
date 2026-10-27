@@ -20,7 +20,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
-use storage::{pages::locked::nodes::ArcNodeSegmentGuard, wal::LSN, Extension};
+use storage::{pages::locked::nodes::ArcNodeSegmentWGuard, wal::LSN, Extension};
 
 /// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.
 pub type NodeTypeResolution = MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>;
@@ -46,7 +46,7 @@ pub trait InternalAdditionOps {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentGuard>), Self::Error>;
+    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentWGuard>), Self::Error>;
 
     /// validate the GidRef is the correct type
     fn validate_gids<'a>(
@@ -242,7 +242,7 @@ impl InternalAdditionOps for GraphStorage {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentGuard>), Self::Error> {
+    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentWGuard>), Self::Error> {
         self.mutable()?.bulk_load_resolve_node(id)
     }
 
@@ -338,7 +338,7 @@ where
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentGuard>), Self::Error> {
+    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentWGuard>), Self::Error> {
         self.base().bulk_load_resolve_node(id)
     }
 

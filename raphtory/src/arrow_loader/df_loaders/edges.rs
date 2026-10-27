@@ -45,7 +45,7 @@ use storage::{
     pages::{
         locked::{
             edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
-            nodes::{ArcNodeSegmentGuard, LockedNodeSegment},
+            nodes::{ArcNodeSegmentWGuard, LockedNodeSegment},
         },
         resolve_pos,
     },
@@ -498,7 +498,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
         &'a [VID],
         &'a [VID],
         Vec<(GidRef<'a>, VID)>,
-        Vec<ArcNodeSegmentGuard>,
+        Vec<ArcNodeSegmentWGuard>,
     ),
     GraphError,
 > {
@@ -556,7 +556,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
             }
             Ok::<_, GraphError>(new_segment_guards)
         })
-        .collect::<Result<Vec<Vec<ArcNodeSegmentGuard>>, GraphError>>()?
+        .collect::<Result<Vec<Vec<ArcNodeSegmentWGuard>>, GraphError>>()?
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
@@ -603,7 +603,7 @@ pub fn get_or_resolve_node_vids<
         &'c [VID],
         &'c [VID],
         Vec<(GidRef<'a>, VID)>,
-        Vec<ArcNodeSegmentGuard>,
+        Vec<ArcNodeSegmentWGuard>,
     ),
     GraphError,
 > {

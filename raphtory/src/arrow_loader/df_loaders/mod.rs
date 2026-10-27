@@ -27,7 +27,7 @@ use std::{
     hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::pages::{locked::nodes::ArcNodeSegmentGuard, resolve_pos};
+use storage::pages::{locked::nodes::ArcNodeSegmentWGuard, resolve_pos};
 
 pub mod edge_props;
 pub mod edges;
@@ -283,7 +283,7 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<(FxDashMap<GidRef<'a>, VID>, Vec<ArcNodeSegmentGuard>), GraphError> {
+) -> Result<(FxDashMap<GidRef<'a>, VID>, Vec<ArcNodeSegmentWGuard>), GraphError> {
     resolve_nodes_with_cache_generic(
         cols_to_resolve,
         |vid: &VID, idx, col_idx| {

@@ -23,14 +23,14 @@ use std::{
 /// segment was published so no reader can see its uninitialised nodes.
 ///
 /// Hand it over with `WriteLockedGraph::extend_new`.
-pub type ArcNodeSegmentGuard = ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>;
+pub type ArcNodeSegmentWGuard = ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>;
 
 /// The head lock of a [`LockedNodeSegment`]: borrowed for segments that existed when the graph
 /// was locked, owned for segments created and locked during the bulk load.
 #[derive(Debug)]
 pub enum LockedNodeHead<'a> {
     Borrowed(RwLockWriteGuard<'a, MemNodeSegment>),
-    Arc(ArcNodeSegmentGuard),
+    Arc(ArcNodeSegmentWGuard),
 }
 
 impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
@@ -39,8 +39,8 @@ impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
     }
 }
 
-impl From<ArcNodeSegmentGuard> for LockedNodeHead<'_> {
-    fn from(head: ArcNodeSegmentGuard) -> Self {
+impl From<ArcNodeSegmentWGuard> for LockedNodeHead<'_> {
+    fn from(head: ArcNodeSegmentWGuard) -> Self {
         Self::Arc(head)
     }
 }
