@@ -1,7 +1,8 @@
 mod io_tests {
     use arrow::array::{
         builder::{
-            ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
+            ArrayBuilder, Float64Builder, Int64Builder, LargeStringBuilder, StringViewBuilder,
+            UInt64Builder,
         },
         ArrayRef, Int32Array, Int64Array,
     };
@@ -33,6 +34,10 @@ mod io_tests {
         build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index,
     };
     use std::sync::Arc;
+    use storage::{
+        api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
+        error::{SegmentKind, StorageError},
+    };
 
     fn build_df(
         chunk_size: usize,
@@ -408,11 +413,8 @@ mod io_tests {
         })
     }
 
-    // def test_load_from_pandas():
     #[test]
     fn load_some_edges_as_in_python() {
-        use arrow::array::builder::{Float64Builder, LargeStringBuilder};
-
         // Create the dataframe equivalent to the pandas DataFrame
         let edges = vec![
             (1u64, 2u64, 1i64, 1.0f64, "red".to_string()),
@@ -919,8 +921,6 @@ mod io_tests {
     }
     #[test]
     fn failed_edge_metadata_load_leaves_no_phantom_node() {
-        use raphtory::arrow_loader::df_loaders::edge_props::load_edges_metadata_from_df as load_edge_metadata_from_df;
-
         let g = Graph::new();
         g.add_edge(1, 1u64, 2u64, NO_PROPS, None).unwrap();
 
@@ -929,7 +929,7 @@ mod io_tests {
             (1u64, 2u64, 0i64, "kept".to_owned(), 1i64),
             (7u64, 8u64, 0i64, "dropped".to_owned(), 2i64),
         ];
-        let err = load_edge_metadata_from_df(
+        let err = load_edges_metadata_from_df(
             build_df(10, &rows),
             ColumnNames::new("time", None, "src", "dst", None),
             true,
@@ -1122,8 +1122,6 @@ mod io_tests {
 
     #[test]
     fn test_new_node_segments_are_locked_before_hand_over() {
-        use storage::api::nodes::NodeSegmentOps;
-
         let g = small_pages_graph();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
@@ -1226,11 +1224,6 @@ mod io_tests {
 
     #[test]
     fn test_lock_new_segments_times_out_on_held_edge_segment() {
-        use storage::{
-            api::edges::EdgeSegmentOps,
-            error::{SegmentKind, StorageError},
-        };
-
         let g = small_pages_graph();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
