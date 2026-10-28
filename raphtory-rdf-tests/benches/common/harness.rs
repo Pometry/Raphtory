@@ -213,6 +213,8 @@ pub fn criterion() -> Criterion {
 struct Selection {
     filter: Filter,
     list: bool,
+    /// `--output-format bencher`, which [`bench_case`] also follows for the cases it times.
+    bencher: bool,
 }
 
 #[derive(Debug)]
@@ -252,7 +254,8 @@ impl Selection {
     fn from_args(args: impl IntoIterator<Item = String>) -> Self {
         let mut args = args.into_iter();
         let mut filter = None;
-        let (mut exact, mut ignored, mut list, mut positional) = (false, false, false, false);
+        let (mut exact, mut ignored, mut list, mut positional, mut bencher) =
+            (false, false, false, false, false);
         while let Some(arg) = args.next() {
             if positional || arg == "-" || !arg.starts_with('-') {
                 filter.get_or_insert(arg);
@@ -263,6 +266,8 @@ impl Selection {
                 "--exact" => exact = true,
                 "--ignored" => ignored = true,
                 "--list" => list = true,
+                "--output-format=bencher" => bencher = true,
+                "--output-format" => bencher = args.next().as_deref() == Some("bencher"),
                 // the short options with a value: `-c`, `-s` and `-b` (`-sNAME` has it inline)
                 "-c" | "-s" | "-b" => {
                     args.next();
@@ -281,7 +286,11 @@ impl Selection {
                 panic!("Unable to parse '{filter}' as a regular expression: {e}")
             })),
         };
-        Self { filter, list }
+        Self {
+            filter,
+            list,
+            bencher,
+        }
     }
 
     fn get() -> &'static Self {
@@ -386,6 +395,16 @@ pub fn bench_case<Q: Query>(
             timing.iterations = 1;
             timing.total = times.iter().min().copied().expect("a run");
             timing.runs = times.len();
+            if selection.bencher {
+                // criterion's line for the same id and iteration, ranged as libtest's (max - min)
+                let max = times.iter().max().expect("a run");
+                println!(
+                    "test {group_name}/{} ... bench: {:>11} ns/iter (+/- {})",
+                    id(engine),
+                    timing.total.as_nanos(),
+                    (*max - timing.total).as_nanos()
+                );
+            }
         } else {
             let acc = Mutex::new((0u64, Duration::ZERO));
             group.bench_function(id(engine), |b| {
