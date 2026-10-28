@@ -349,7 +349,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     /// Create segments until there are `new_len`, returning them locked.
-    ///
     pub fn grow_locked(&self, new_len: usize) -> NewNodeSegmentLocks {
         let mut new_segments = Vec::new();
 
@@ -428,7 +427,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                     .into_iter()
                     .find(|segment_guard| segment_guard.segment_id() == segment_id)
                     .map(|segment_guard| self.arc_writer(segment_id, segment_guard))
-                    .unwrap_or_else(|| self.writer(segment_id));
+                    .expect("guard should exist for new segment");
 
                 let local_pos = self
                     .reserve_segment_rows(writer.segment, num_rows)

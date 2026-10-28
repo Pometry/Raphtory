@@ -1140,7 +1140,7 @@ mod io_tests {
             row += 1;
         }
 
-        // readers cannot see the new segments' nodes until the bulk load is done
+        // Cannot write-lock new node segments until the bulk load is done.
         for segment_id in held..tg.storage().nodes().num_segments() {
             let segment = tg.storage().nodes().get_or_create_segment(segment_id);
             assert!(segment
