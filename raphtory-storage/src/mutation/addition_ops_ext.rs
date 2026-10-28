@@ -301,7 +301,8 @@ impl InternalAdditionOps for TemporalGraph {
                 Some(MaybeInit::VID(dst_id)),
             ),
             (NodeRef::External(src_gid), NodeRef::External(dst_gid)) => {
-                // resolve the smaller id first to avoid deadlocks when adding the same edge in both directions
+                // resolve the smaller id first to avoid deadlocks when adding the same edge
+                // in both directions
                 match src_gid.cmp(&dst_gid) {
                     std::cmp::Ordering::Less => (
                         self.gid_resolver.get_or_init(src_gid)?,

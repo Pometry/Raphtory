@@ -352,9 +352,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ///
     pub fn grow_locked(&self, new_len: usize) -> NewNodeSegmentLocks {
         let mut new_segments = Vec::new();
+
         while self.segments.count() < new_len {
             self.push_new_segment(&mut new_segments);
         }
+
         new_segments
     }
 
@@ -417,17 +419,21 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             None => {
                 // The current segment is full, drop its lock and push a new free segment
                 drop(writer);
+
                 let mut new_guards = vec![];
                 segment_id = self.push_new_segment(&mut new_guards);
                 *slot = segment_id;
+
                 let writer = new_guards
                     .into_iter()
                     .find(|segment_guard| segment_guard.segment_id() == segment_id)
                     .map(|segment_guard| self.arc_writer(segment_id, segment_guard))
                     .unwrap_or_else(|| self.writer(segment_id));
+
                 let local_pos = self
                     .reserve_segment_rows(writer.segment, num_rows)
                     .expect("new segment should never be full");
+
                 (LocalPOS(local_pos), writer)
             }
             Some(local_pos) => (LocalPOS(local_pos), writer),
@@ -684,7 +690,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn get_segment(&self, segment_id: usize) -> Option<&NS> {
         self.segments
             .get(segment_id)
-            .map(|seg| seg.deref())
+            .map(|segment| segment.deref())
             .or_else(|| {
                 let count = self.segments.count();
                 if segment_id < count {
