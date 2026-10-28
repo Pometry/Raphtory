@@ -712,6 +712,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
     }
 
+    // TODO: Segments should always be locked before being published.
+    // This method should be changed to a lookup only and not create segments.
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<NS> {
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
@@ -726,6 +728,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             // we need to create the segment.
             self.segments.reserve(segment_id + 1 - count);
 
+            // NOTE: This publishes segments without locking them first.
             loop {
                 // Create consecutive segments until the required segment is created.
                 let new_segment_id = self.segments.push_with(|segment_id| {
