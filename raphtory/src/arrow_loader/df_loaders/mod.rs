@@ -27,7 +27,7 @@ use std::{
     hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::pages::{locked::nodes::NewNodeSegmentLocks, resolve_pos};
+use storage::pages::{locked::nodes::MemNodeSegmentGuards, resolve_pos};
 
 pub mod edge_props;
 pub mod edges;
@@ -283,7 +283,7 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<(FxDashMap<GidRef<'a>, VID>, NewNodeSegmentLocks), GraphError> {
+) -> Result<(FxDashMap<GidRef<'a>, VID>, MemNodeSegmentGuards), GraphError> {
     let update_fn = |vid: &VID, idx, col_idx| {
         // these types are needed apparently
         let atomics: &&mut [AtomicUsize] = &resolved_cols[col_idx];

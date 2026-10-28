@@ -9,7 +9,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::nodes::{NewNodeSegmentLocks, WriteLockedNodeSegment, WriteLockedNodeSegments},
+        locked::nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -349,7 +349,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     /// Create segments until there are `new_len`, returning them locked.
-    pub fn grow_locked(&self, new_len: usize) -> NewNodeSegmentLocks {
+    pub fn grow_locked(&self, new_len: usize) -> MemNodeSegmentGuards {
         let mut new_segments = Vec::new();
 
         while self.segments.count() < new_len {
@@ -366,7 +366,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Select a segment using `row` as a hint and reserve a row in it.
     ///
     /// Also returns the segments this created, write-locked before they were published.
-    pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS, NewNodeSegmentLocks) {
+    pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS, MemNodeSegmentGuards) {
         let slot_idx = row % *N;
         let maybe_free_page = {
             let segment_id = *self.free_segments[slot_idx].read_recursive();
@@ -451,8 +451,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     /// Push a new segment; the segment is write-locked before it
-    /// is published and its lock is pushed into new_segment_locks.
-    fn push_new_segment(&self, new_segment_locks: &mut NewNodeSegmentLocks) -> usize {
+    /// is published and its guard is pushed into `new_guards`.
+    fn push_new_segment(&self, new_guards: &mut MemNodeSegmentGuards) -> usize {
         let segment_id = self.segments.push_with(|segment_id| {
             let segment = Arc::new(NS::new(
                 segment_id,
@@ -461,7 +461,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 self.path.clone(),
                 self.ext.clone(),
             ));
-            new_segment_locks.push(segment.head_mut_arc());
+
+            new_guards.push(segment.head_mut_arc());
+
             segment
         });
 

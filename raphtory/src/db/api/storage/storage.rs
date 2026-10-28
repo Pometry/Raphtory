@@ -35,7 +35,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{pages::locked::nodes::NewNodeSegmentLocks, wal::LSN};
+use storage::{pages::locked::nodes::MemNodeSegmentGuards, wal::LSN};
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
@@ -387,7 +387,7 @@ impl InternalAdditionOps for Storage {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, NewNodeSegmentLocks), Self::Error> {
+    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), Self::Error> {
         Ok(self.graph.bulk_load_resolve_node(id)?)
     }
 

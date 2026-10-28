@@ -34,7 +34,7 @@ use storage::{
             edges::WriteLockedEdgeSegments,
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
-            nodes::{NewNodeSegmentLocks, WriteLockedNodeSegment, WriteLockedNodeSegments},
+            nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -512,15 +512,18 @@ where
             .lock_new_segments(&mut self.edges, timeout)
     }
 
-    pub fn extend_new(&mut self, mut new_segments: NewNodeSegmentLocks) {
+    pub fn extend_new(&mut self, mut new_segments: MemNodeSegmentGuards) {
         let nodes = self.graph.storage.nodes();
+
         // segments are pushed concurrently from several threads, so the ids arrive in any order
         new_segments.sort_unstable_by_key(|segment| segment.segment_id());
+
         for new_segment in new_segments {
             let segment_id = new_segment.segment_id();
             let segment = nodes
                 .get_segment(segment_id)
                 .expect("locked segment must exist");
+
             self.nodes.push(WriteLockedNodeSegment::new(
                 segment_id,
                 nodes.stats(),
@@ -529,6 +532,7 @@ where
                 new_segment,
             ));
         }
+
         self.assert_all_nodes_locked();
     }
 
