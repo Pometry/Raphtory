@@ -18,7 +18,10 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{GidType, LayerId, properties::meta::Meta};
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::entities::{GidType, LayerId, properties::meta::Meta},
+};
 use raphtory_core::{
     entities::{EID, VID},
     storage::timeindex::AsTime,
@@ -354,7 +357,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn grow_locked(&self, new_len: usize) -> NewNodeSegmentLocks {
         let mut new_segments = Vec::new();
         while self.segments.count() < new_len {
-            self.push_new_segment(Some(&mut new_segments));
+            self.push_new_segment(&mut new_segments);
         }
         new_segments
     }
@@ -391,7 +394,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 {
                     return (page.segment_id(), LocalPOS(pos), new_segment_locks);
                 }
-                *slot = self.push_new_segment(Some(&mut new_segment_locks));
+                *slot = self.push_new_segment(&mut new_segment_locks);
             }
         }
     }
@@ -415,9 +418,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             None => {
                 // The current segment is full, drop its lock and push a new free segment
                 drop(writer);
-                segment_id = self.push_new_segment(None); // TODO: we should have the guards here
+                let mut new_guards = vec![];
+                segment_id = self.push_new_segment(&mut new_guards);
                 *slot = segment_id;
-                let writer = self.writer(segment_id);
+                let writer = new_guards
+                    .into_iter()
+                    .find(|segment_guard| segment_guard.segment_id() == segment_id)
+                    .map(|segment_guard| self.arc_writer(segment_id, segment_guard))
+                    .unwrap_or_else(|| self.writer(segment_id));
                 let local_pos = self
                     .reserve_segment_rows(writer.segment, num_rows)
                     .expect("new segment should never be full");
@@ -441,7 +449,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     /// Push a new segment; if `new_segment_locks` is given, the segment is write-locked before it
     /// is published and its lock is pushed there.
-    fn push_new_segment(&self, new_segment_locks: Option<&mut NewNodeSegmentLocks>) -> usize {
+    fn push_new_segment(&self, new_segment_locks: &mut NewNodeSegmentLocks) -> usize {
         let segment_id = self.segments.push_with(|segment_id| {
             let segment = Arc::new(NS::new(
                 segment_id,
@@ -450,9 +458,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 self.path.clone(),
                 self.ext.clone(),
             ));
-            if let Some(new_segment_locks) = new_segment_locks {
-                new_segment_locks.push(segment.head_mut_arc())
-            };
+            new_segment_locks.push(segment.head_mut_arc());
             segment
         });
 
@@ -486,6 +492,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.head_mut();
         NodeWriter::new(segment, &self.stats, LockedNodeHead::Borrowed(head))
+    }
+
+    #[inline(always)]
+    pub fn arc_writer<'a>(
+        &'a self,
+        segment_id: usize,
+        head: ArcRwLockWriteGuard<MemNodeSegment>,
+    ) -> NodeWriter<'a, LockedNodeHead<'a>, NS> {
+        let segment = &self.segments[segment_id];
+        NodeWriter::new(segment, &self.stats, LockedNodeHead::Arc(head))
     }
 
     pub fn try_writer<'a>(
