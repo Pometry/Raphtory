@@ -2,12 +2,7 @@ use criterion::{Criterion, SamplingMode};
 use raphtory::{
     db::{
         api::view::{Filter, StaticGraphViewOps},
-        graph::views::{
-            filter::model::{
-                degree_filter::DegreeFilterFactory, property_filter::ops::PropertyFilterOps,
-            },
-            node_subgraph::NodeSubgraph,
-        },
+        graph::views::node_subgraph::NodeSubgraph,
     },
     graphgen::random_attachment::random_attachment,
     prelude::*,

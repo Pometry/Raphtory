@@ -1,11 +1,8 @@
-//! Python bindings for RDF: the `RdfGraph` and `RdfView` classes.
-//!
-//! RDF terms cross to and from Python as the Raphtory node names they stand for (see
-//! [`term_name`] and [`term_of`]), predicates included, so a value returned by `sparql` can be
-//! passed straight to `rg.graph.node(..)` or `add_triple`.
+//! Python bindings for `RdfGraph` and `RdfView`. Terms cross to and from Python as the Raphtory
+//! names they stand for ([`term_name`], [`term_of`], and layer names for predicates).
 use crate::{
-    term_name, term_of, RdfError, RdfFormat, RdfGraph, RdfView, SparqlFormat, SparqlOptions,
-    SparqlResults, Triple,
+    mapping::iri_of, term_name, term_of, RdfError, RdfFormat, RdfGraph, RdfView, SparqlFormat,
+    SparqlOptions, SparqlResults, Triple,
 };
 use pyo3::{
     exceptions::PyValueError,
@@ -125,7 +122,7 @@ impl PySparqlResults {
 fn triple_of(subject: &str, predicate: &str, object: &str) -> Result<Triple, RdfError> {
     Ok(Triple::from_terms(
         term_of(subject),
-        term_of(predicate),
+        iri_of(predicate),
         term_of(object),
     )?)
 }
@@ -140,14 +137,9 @@ fn input_time(
     })
 }
 
-/// A view of an RdfGraph: the RDF triples of a persistent graph view, one per edge and layer
-/// visible in it.
+/// A view of an RdfGraph: one RDF triple per edge and layer visible in a persistent graph view.
 ///
-/// Every view method (window, at, latest, before, after, layers, filter, valid, subgraph, ...)
-/// returns an RdfView, and sparql, to_rdf and validate_shacl see exactly the triples of the
-/// view: under valid() the triples valid at the end of the view (on the whole graph, the current
-/// state), under at(t) the state as of t, under a window every triple that held in it, and on the
-/// whole graph every triple ever asserted or retracted.
+/// Every view method returns an RdfView; sparql, to_rdf and validate_shacl see its triples.
 #[pyclass(name = "RdfView", frozen, subclass, module = "raphtory")]
 pub struct PyRdfView {
     pub(crate) view: RdfView,
@@ -174,7 +166,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for RdfView<G> 
 
 #[pymethods]
 impl PyRdfView {
-    /// The same view as a property graph, for algorithms and for its nodes and edges.
+    /// The same view as a property graph.
     ///
     /// Returns:
     ///     GraphView: The view.
@@ -183,10 +175,7 @@ impl PyRdfView {
         self.view.graph().clone()
     }
 
-    /// Return a view of the triples valid at the end of this view.
-    ///
-    /// On the whole graph that is the current state. The order of views matters: x.valid() is
-    /// the state at the end of x, and valid().x is the current state further restricted to x.
+    /// Return a view of only the triples still valid at the end of this view.
     ///
     /// Returns:
     ///     RdfView: The view.
@@ -240,56 +229,19 @@ impl PyRdfView {
 
     /// Runs a SPARQL 1.1 query on the RDF triples of this view.
     ///
-    /// Every edge is one triple per layer, src layer dst, where node names are RDF terms: an
-    /// absolute IRI is kept as written, _:label is a blank node, a name in N-Triples literal form
-    /// (such as "42"^^<http://www.w3.org/2001/XMLSchema#integer>) is that literal, and any other
-    /// name is the IRI raphtory: followed by the percent-encoded name (the raphtory: prefix is
-    /// pre-registered, so the node Alice is raphtory:Alice). Layer names must be safe as file
-    /// names, so the layer of a predicate IRI is the IRI with %, /, :, ? and * percent-escaped as
-    /// %25, %2F, %3A, %3F and %2A (the predicate <http://ex/knows> is the layer
-    /// http%3A%2F%2Fex%2Fknows), and any other layer name is raphtory: followed by the
-    /// percent-encoded name (the default layer is raphtory:_default).
-    ///
-    /// The query sees exactly the triples of this view: rg.valid().sparql(..) queries the
-    /// current state and rg.at(t).sparql(..) the state as of t. Inside a query,
-    /// GRAPH <raphtory:asof:T> { .. } matches its patterns against before(T + 1).valid() of this
-    /// view, where T is epoch milliseconds or a date-time such as 2024-01-01. On rg.valid() a
-    /// time graph holds only the triples that held at T and still hold at the end of the view,
-    /// so compare times on a view without valid().
-    ///
-    /// raphtory:validFrom(s, p, o) returns when the latest run of a triple visible in this view
-    /// started (or the start of the view, if it already held there), and raphtory:validTo(s, p, o)
-    /// the retraction that ended that run (unbound if it still holds at the end of the view), as
-    /// xsd:dateTime values in UTC; raphtory:validFromTime and
-    /// raphtory:validToTime return the same times as integers (Raphtory times). An optional
-    /// fourth argument, a time graph such as raphtory:asof:2024-01-01 (or the ?g of GRAPH ?g, in
-    /// a BIND after the GRAPH pattern), makes them answer in that time graph instead. They are
-    /// unbound for a triple they do not see, and for arguments they do not accept.
-    ///
-    /// SERVICE calls (SPARQL federated queries) are not supported: a query that calls a service
-    /// raises a GraphError, and no query ever makes a network request.
-    ///
-    /// Every value, predicates included, is returned as the name of its term (a str), so a node
-    /// can be passed to graph.node().
-    /// IRIs under raphtory: that do not encode a name, such as the time graphs
-    /// <raphtory:asof:T>, are returned in N-Triples form, with angle brackets.
-    ///
-    /// With format, the results are instead returned serialized, as one str: for SELECT and ASK
-    /// in a SPARQL results format ("json", "xml", "csv" or "tsv"), for CONSTRUCT and DESCRIBE in
-    /// an RDF format (such as "nt", "ttl", "jsonld" or "rdf"). "json" is SPARQL Results JSON for
-    /// SELECT and ASK and JSON-LD for CONSTRUCT and DESCRIBE, and "xml" is SPARQL Results XML or
-    /// RDF/XML. Serialized results hold RDF terms, as to_rdf() writes them, not Raphtory names.
+    /// Values are returned as Raphtory names. In a query, GRAPH <raphtory:asof:T> { .. } reads
+    /// this view as of T, and raphtory:validFrom/validTo(s, p, o) give a triple's latest run.
     ///
     /// Arguments:
     ///     query (str): The SPARQL query.
-    ///     format (str, optional): If given, the results are returned as a document in this format, as a file extension, name or media type (such as "json", "xml", "csv", "tsv" or "application/sparql-results+json" for SELECT and ASK, and "nt", "ttl", "jsonld", "rdf" or "text/turtle" for CONSTRUCT and DESCRIBE). Defaults to None.
+    ///     format (str, optional): If given, the results are returned serialised in this format, such as "json", "csv", "nt" or "ttl". Defaults to None.
     ///
     /// Returns:
-    ///     Union[list[dict[str, Optional[str]]], bool, list[tuple[str, str, str]], str]: For SELECT, one dict per solution mapping every variable (in the order of the SELECT clause, or sorted by name for SELECT *) to its value (None if unbound); for ASK, a bool; for CONSTRUCT and DESCRIBE, one (subject, predicate, object) tuple per triple; with format, the serialized results.
+    ///     Union[list[dict[str, Optional[str]]], bool, list[tuple[str, str, str]], str]: A dict per solution for SELECT, a bool for ASK, (subject, predicate, object) tuples for CONSTRUCT and DESCRIBE, or the document if format is given.
     ///
     /// Raises:
-    ///     GraphError: If the evaluation of the query fails, or if SPARQL Results XML cannot hold a value or RDF/XML a triple (such as one whose predicate does not end in an XML name).
-    ///     ValueError: If the query does not parse, or if format is unknown or does not fit the form of the query.
+    ///     GraphError: If the evaluation of the query fails.
+    ///     ValueError: If the query does not parse, or format is unknown or does not fit the query.
     #[pyo3(signature = (query, format = None))]
     fn sparql(&self, py: Python<'_>, query: &str, format: Option<&str>) -> PyResult<Py<PyAny>> {
         let options = SparqlOptions::default();
@@ -303,21 +255,13 @@ impl PyRdfView {
         document.into_py_any(py)
     }
 
-    /// Exports the RDF triples of this view, the same triples sparql() sees.
+    /// Exports the RDF triples of this view, the ones sparql() sees.
     ///
-    /// Every edge visible in this view is written as one triple per layer, src layer dst, with
-    /// node and layer names mapped to RDF terms as described in sparql(). Edges that are not
-    /// valid RDF (from a node named by a literal, or in a layer named by a literal or a blank
-    /// node) are skipped. RDF/XML also skips triples it cannot represent: those whose predicate
-    /// IRI does not end in an XML name, is in the xmlns namespace or is an RDF/XML syntax term
-    /// such as rdf:li, an rdf:type triple whose object IRI cannot name an element when it is its
-    /// subject's only triple, and literals with a control character other than tab and line
-    /// feed; a blank node label starting with a digit is written with an x in front (_:1 is x1).
-    /// Only the state of the view is exported, not its history.
+    /// Triples whose subject is a literal are skipped.
     ///
     /// Arguments:
-    ///     path (str | PathLike, optional): The file to write. If not given, the document is returned as a string instead. Defaults to None.
-    ///     format (str, optional): The RDF format, as a file extension, name or media type (such as "nt", "ttl", "turtle", "trig" or "rdf"). If not given, it is taken from the extension of path (an unknown extension raises an error), and is N-Triples if there is no path or it has no extension. Defaults to None.
+    ///     path (str | PathLike, optional): The file to write; if not given, the document is returned. Defaults to None.
+    ///     format (str, optional): The RDF format, such as "nt", "ttl" or "rdf"; by default the one the extension of path names, else N-Triples. Defaults to None.
     ///
     /// Returns:
     ///     Optional[str]: The document if path is not given, otherwise None.
@@ -343,18 +287,12 @@ impl PyRdfView {
     }
 }
 
-/// A graph viewed as RDF, with persistent semantics: the place to load, retract and query
-/// triples.
+/// A graph viewed as RDF with persistent semantics: the place to load, retract and query triples.
 ///
-/// Each triple s p o is an edge from s to o in the layer of p, and a retraction is a deletion.
-/// Wrapping a Graph shares its storage, so nothing is copied and writes through either handle
-/// are seen by both. On an event Graph a retraction is a deletion event: it ends nothing, so
-/// event views still show the triple, and a triple that was only retracted appears as an edge
-/// (g.valid() drops it). The whole graph shows every triple ever asserted or retracted: valid()
-/// is the current state and at(t) the state as of t.
+/// Each triple s p o is an edge from s to o in the layer of p. Wrapping a Graph shares its storage.
 ///
 /// Arguments:
-///     graph (Graph | PersistentGraph, optional): The graph to view as RDF. If not given, a new empty graph is created. Defaults to None.
+///     graph (Graph | PersistentGraph, optional): The graph to view as RDF; a new empty graph if not given. Defaults to None.
 #[pyclass(name = "RdfGraph", extends = PyRdfView, frozen, module = "raphtory")]
 pub struct PyRdfGraph {
     graph: RdfGraph,
@@ -388,22 +326,12 @@ impl PyRdfGraph {
 
     /// Asserts every triple of an RDF document at timestamp.
     ///
-    /// Each triple s p o is added as an edge from s to o in the layer of p. Node names are RDF
-    /// terms: IRIs as written, blank nodes as _:label (renamed to fresh labels on every load) and
-    /// literals in their N-Triples form, such as "42"^^<http://www.w3.org/2001/XMLSchema#integer>,
-    /// so identical literals share a node. The layer of a predicate IRI not under raphtory: is
-    /// the IRI with %, /, :, ? and * percent-escaped as %25, %2F, %3A, %3F and %2A, so that layer
-    /// names are safe as file names: the layer of <http://ex/knows> is http%3A%2F%2Fex%2Fknows.
-    /// The layer of <raphtory:x> is x percent-decoded, and a predicate whose layer would be blank
-    /// or contain a control character, a backslash or any of / : * ? " < > | raises an error.
-    /// Named graphs are rejected. Each triple is written as one edge event, in document order, so
-    /// a load can run while other threads query or write the graph; it is not atomic: triples
-    /// read before an error stay in the graph.
+    /// Blank nodes get fresh labels and named graphs are rejected. Not atomic.
     ///
     /// Arguments:
     ///     timestamp (TimeInput): The time at which the triples are asserted.
     ///     source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
-    ///     format (str, optional): The RDF format, as a file extension, name or media type (such as "ttl", "nt", "turtle", "text/turtle", "trig" or "rdf"). If not given, it is taken from the extension of a path (a missing or unknown extension raises an error), and is Turtle (which also reads N-Triples) for bytes. Defaults to None.
+    ///     format (str, optional): The RDF format, such as "ttl", "nt" or "rdf"; by default the one a path's extension names, or Turtle for bytes. Defaults to None.
     ///     base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
     ///     event_id (int, optional): The optional integer which will be used as an event id.
     ///
@@ -434,12 +362,7 @@ impl PyRdfGraph {
 
     /// Retracts every triple of an RDF document at timestamp.
     ///
-    /// Each triple s p o is deleted from the layer of p of the edge from s to o, with names
-    /// mapped as in load_rdf(), so from timestamp on it does not hold (until it is asserted
-    /// again). A retraction is recorded even if the triple was never asserted. Blank-node labels
-    /// are used as written, so they must be the stored labels (as returned by to_rdf() or
-    /// sparql()). Each triple is written as one edge event, in document order. The retraction
-    /// streams and is not atomic: triples before an error stay retracted.
+    /// Blank-node labels are used as written, so they must be the stored ones. Not atomic.
     ///
     /// Arguments:
     ///     timestamp (TimeInput): The time at which the triples are retracted.
@@ -478,10 +401,7 @@ impl PyRdfGraph {
 
     /// Asserts one triple at timestamp.
     ///
-    /// The terms are names, as sparql() returns them, so its values can be passed straight back:
-    /// an absolute IRI as written (http://ex/alice), _:label for a blank node (used as written),
-    /// a literal in its N-Triples form ("Bob" or "42"^^<http://www.w3.org/2001/XMLSchema#integer>),
-    /// and any other name as it is (Alice).
+    /// Terms are names, as sparql() returns them.
     ///
     /// Arguments:
     ///     timestamp (TimeInput): The time at which the triple is asserted.
@@ -511,8 +431,6 @@ impl PyRdfGraph {
     }
 
     /// Retracts one triple at timestamp.
-    ///
-    /// Terms are given as in add_triple().
     ///
     /// Arguments:
     ///     timestamp (TimeInput): The time at which the triple is retracted.

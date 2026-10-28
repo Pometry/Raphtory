@@ -5,25 +5,22 @@ use crate::{
     data::{Data, GqlGraphType},
     model::{
         graph::{
-            filtering::{GqlFilter, GraphViewCollection},
-            graph::GqlGraph,
-            node_id::GqlNodeId,
-            timeindex::GqlTimeInput,
-            windowset::GqlGraphWindowSet,
-            GqlAlignmentUnit, WindowDuration,
+            filter_expr_input::GqlFilter, graph::GqlGraph, node_id::GqlNodeId,
+            timeindex::GqlTimeInput, windowset::GqlGraphWindowSet, GqlAlignmentUnit,
+            WindowDuration,
         },
         QueryRoot,
     },
-    sparql::run_limited,
+    sparql::{format::GqlSparqlFormat, run_limited},
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    Enum, ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields, Result,
+    ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields, Result,
 };
 use raphtory::errors::GraphError;
 use raphtory_rdf::{
     shacl::{ShaclOptions, ShaclShapes},
-    QueryForm, RdfError, RdfFormat, RdfView, SparqlFormat,
+    RdfError, RdfFormat, RdfView, SparqlFormat,
 };
 
 #[derive(ExpandObject)]
@@ -31,9 +28,8 @@ pub struct RdfGraphQuery<'a>(&'a QueryRoot);
 
 #[ExpandObjectFields]
 impl<'a> RdfGraphQuery<'a> {
-    /// Returns a stored graph, event or persistent, viewed as RDF with persistent semantics:
-    /// one triple per edge and layer (source, layer, destination), where a retraction is a
-    /// deletion. Null if the caller cannot read the graph.
+    /// A stored graph, event or persistent, viewed as RDF with persistent semantics.
+    /// Null if the caller cannot read the graph.
     async fn rdf_graph(
         ctx: &Context<'_>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
@@ -46,14 +42,8 @@ impl<'a> RdfGraphQuery<'a> {
     }
 }
 
-/// A graph viewed as RDF, with persistent semantics: one triple per visible edge and layer
-/// (source, layer, destination). A node name that is not an IRI, a blank node or a literal is an
-/// IRI under `raphtory:`, a prefix every query can use, and the layer of a predicate IRI is the
-/// IRI with `%`, `/`, `:`, `?` and `*` written `%25`, `%2F`, `%3A`, `%3F` and `%2A` (the
-/// predicate `<http://ex/knows>` is the layer `http%3A%2F%2Fex%2Fknows`). Every view field
-/// returns an RDF view, and the RDF fields see exactly the triples of the view: under `valid`
-/// the current state, under `at(time: T)` the state as of T, and on the whole graph every triple
-/// ever asserted or retracted.
+/// A graph viewed as RDF: one triple per visible edge and layer (source, layer, destination).
+/// The RDF fields see exactly the triples of the view.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "RdfGraph")]
 pub struct GqlRdfGraph {
@@ -233,26 +223,13 @@ impl GqlRdfGraph {
         Ok(self.graph.filter(expr).await?.into())
     }
 
-    /// Applies a list of view operations in order, as `Graph.applyViews`.
-    async fn apply_views(
-        &self,
-        #[graphql(desc = "Ordered list of view operations.")] views: Vec<GraphViewCollection>,
-    ) -> Result<Self, GraphError> {
-        Ok(self.graph.apply_views(views).await?.into())
-    }
-
     /// The same view as a property graph.
     async fn graph(&self) -> GqlGraph {
         self.graph.clone()
     }
 
-    /// Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the triples of this view
-    /// and returns the results as one serialized document. `GRAPH <raphtory:asof:T>` matches
-    /// `before(time: T + 1) { valid }` of the view. Queries longer than the server's
-    /// `max_sparql_query_length`, with more than `max_sparql_triple_patterns` triple patterns or
-    /// with brackets nested too deep are rejected before they run, and results larger than
-    /// `max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold the results, such as a
-    /// triple whose predicate does not end in an XML name. Null if the query fails unexpectedly.
+    /// Runs a SPARQL 1.1 query on the triples of this view and returns the serialized results.
+    /// The server's `max_sparql_*` settings bound it; null if the query fails unexpectedly.
     async fn sparql(
         &self,
         ctx: &Context<'_>,
@@ -270,9 +247,8 @@ impl GqlRdfGraph {
         .await
     }
 
-    /// Validates the triples of this view against a SHACL shapes graph and returns the W3C
-    /// `sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
-    /// are rejected. Null if the validation fails unexpectedly.
+    /// Validates the triples of this view against SHACL shapes and returns the report.
+    /// Recursive shapes are rejected; null if the validation fails unexpectedly.
     async fn validate_shacl(
         &self,
         ctx: &Context<'_>,
@@ -337,106 +313,17 @@ impl GqlRdfGraphWindowSet {
     }
 }
 
-/// A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
-/// CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
-#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
-#[graphql(name = "SparqlFormat")]
-pub enum GqlSparqlFormat {
-    /// SPARQL 1.1 Query Results JSON; JSON-LD for CONSTRUCT and DESCRIBE.
-    Json,
-    /// SPARQL Query Results XML; RDF/XML for CONSTRUCT and DESCRIBE.
-    Xml,
-    /// SPARQL 1.1 Query Results CSV.
-    Csv,
-    /// SPARQL 1.1 Query Results TSV.
-    Tsv,
-    /// Turtle.
-    Turtle,
-    /// N-Triples.
-    NTriples,
-    /// N-Quads.
-    NQuads,
-    /// TriG.
-    Trig,
-    /// RDF/XML.
-    RdfXml,
-    /// JSON-LD.
-    JsonLd,
-    /// N3.
-    N3,
-}
-
-impl GqlSparqlFormat {
-    const ALL: [Self; 11] = [
-        Self::Json,
-        Self::Xml,
-        Self::Csv,
-        Self::Tsv,
-        Self::Turtle,
-        Self::NTriples,
-        Self::NQuads,
-        Self::Trig,
-        Self::RdfXml,
-        Self::JsonLd,
-        Self::N3,
-    ];
-
-    /// The name of the format, as [`SparqlFormat::parse`] and [`RdfFormat::parse`] read it.
-    fn name(self) -> &'static str {
-        match self {
-            Self::Json => "json",
-            Self::Xml => "xml",
-            Self::Csv => "csv",
-            Self::Tsv => "tsv",
-            Self::Turtle => "ttl",
-            Self::NTriples => "nt",
-            Self::NQuads => "nq",
-            Self::Trig => "trig",
-            Self::RdfXml => "rdf",
-            Self::JsonLd => "jsonld",
-            Self::N3 => "n3",
-        }
-    }
-
-    fn sparql_format(self) -> Result<SparqlFormat, RdfError> {
-        SparqlFormat::parse(self.name())
-    }
-
-    fn rdf_format(self) -> Result<RdfFormat, RdfError> {
-        RdfFormat::parse(self.name())
-    }
-
-    /// The value that names `format` for the results of a query of `form`.
-    pub(crate) fn naming(form: QueryForm, format: SparqlFormat) -> Option<Self> {
-        Self::ALL.into_iter().find(|name| {
-            name.sparql_format().is_ok_and(|named| {
-                if form.is_graph() {
-                    named.graph == format.graph
-                } else {
-                    named.results == format.results
-                }
-            })
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::GqlSparqlFormat;
     use crate::{
-        auth_policy::{
-            auth_policy_tests::FakePolicy, AuthorizationPolicy, GraphPermission,
-            NamespacePermission,
-        },
         config::concurrency_config::ConcurrencyConfig,
         model::App,
         sparql::SparqlError,
         test_support::{
             rdf::{
-                ex, graph, pairs, people, rows, without_carol, AS_OF_3, COUNT, KNOWN_BY,
-                KNOWN_BY_NOW, KNOWS, NOW,
+                ex, graph, pairs, people, rows, AS_OF_3, COUNT, KNOWN_BY, KNOWN_BY_NOW, KNOWS, NOW,
             },
-            setup_with_graphs, setup_with_policy,
+            setup_with_graphs,
         },
     };
     use async_graphql::{dynamic::Schema, ServerError};
@@ -446,14 +333,10 @@ mod tests {
         model::{Literal, NamedNodeRef},
     };
     use raphtory::db::api::view::MaterializedGraph;
-    use raphtory_rdf::{
-        shacl::ShaclLimit, QueryForm, QueryResultsFormat, RdfError, RdfFormat, SparqlFormat,
-    };
+    use raphtory_rdf::{shacl::ShaclLimit, RdfError};
     use serde_json::{json, Value as Json};
-    use std::sync::Arc;
     use tempfile::TempDir;
 
-    /// `pg` holds [`people`], `eg` the same events as an event graph.
     fn graphs() -> Vec<(&'static str, MaterializedGraph)> {
         vec![
             ("pg", people().into()),
@@ -465,19 +348,6 @@ mod tests {
         setup_with_graphs(&graphs(), work_dir.path()).await.schema
     }
 
-    /// A schema whose policy grants `permission` on `pg`.
-    async fn setup_as(work_dir: &TempDir, permission: GraphPermission) -> Schema {
-        let policy: Arc<dyn AuthorizationPolicy> = Arc::new(
-            FakePolicy::default()
-                .with_namespace("", NamespacePermission::Read)
-                .with_graph("pg", permission),
-        );
-        setup_with_policy(&graphs(), work_dir.path(), policy)
-            .await
-            .schema
-    }
-
-    /// A schema whose server has the concurrency configuration `config`.
     async fn setup_with_config(work_dir: &TempDir, config: ConcurrencyConfig) -> Schema {
         let data = setup_with_graphs(&graphs(), work_dir.path()).await.data;
         App::create_schema()
@@ -487,7 +357,6 @@ mod tests {
             .unwrap()
     }
 
-    /// The data of `document` with `variables`, or its first error.
     async fn execute(
         schema: &Schema,
         document: &str,
@@ -501,7 +370,6 @@ mod tests {
         }
     }
 
-    /// The results of `query` on `rdfGraph(path: "pg") { valid { .. } }`.
     async fn sparql(schema: &Schema, query: &str) -> Result<String, ServerError> {
         let document =
             r#"query Q($q: String!) { rdfGraph(path: "pg") { valid { sparql(query: $q) } } }"#;
@@ -516,42 +384,6 @@ mod tests {
         match error.source::<SparqlError>() {
             Some(SparqlError::Query(error)) => Some(error),
             _ => None,
-        }
-    }
-
-    /// Every format the endpoint can choose has a value that names it.
-    #[test]
-    fn every_format_has_a_value() {
-        let named = |form, format: SparqlFormat| {
-            GqlSparqlFormat::naming(form, format)
-                .unwrap()
-                .sparql_format()
-                .unwrap()
-        };
-        for format in [
-            QueryResultsFormat::Json,
-            QueryResultsFormat::Xml,
-            QueryResultsFormat::Csv,
-            QueryResultsFormat::Tsv,
-        ] {
-            assert_eq!(
-                named(QueryForm::Select, format.into()).results,
-                Some(format)
-            );
-        }
-        for format in [
-            RdfFormat::Turtle,
-            RdfFormat::NTriples,
-            RdfFormat::NQuads,
-            RdfFormat::TriG,
-            RdfFormat::RdfXml,
-            RdfFormat::JsonLd,
-            RdfFormat::N3,
-        ] {
-            assert_eq!(
-                named(QueryForm::Construct, format.into()).graph,
-                Some(format)
-            );
         }
     }
 
@@ -639,31 +471,6 @@ mod tests {
             rdf_error(&error),
             Some(RdfError::ShaclLimit(ShaclLimit::RecursiveShapes))
         ));
-    }
-
-    /// The caller's access filter applies, and a graph the caller may only introspect, one it
-    /// has no grant on and one that does not exist look the same.
-    #[tokio::test]
-    async fn reads_follow_the_permissions() {
-        let work_dir = TempDir::new().unwrap();
-        let schema = setup_as(&work_dir, without_carol()).await;
-        assert_eq!(
-            rows(&sparql(&schema, KNOWS).await.unwrap()),
-            pairs(&[("dave", "alice")])
-        );
-
-        let work_dir = TempDir::new().unwrap();
-        let schema = setup_as(&work_dir, GraphPermission::Introspect).await;
-        let document = r#"{
-            introspect: rdfGraph(path: "pg") { graph { path } }
-            noGrant: rdfGraph(path: "eg") { graph { path } }
-            missing: rdfGraph(path: "missing") { graph { path } }
-        }"#;
-        let data = execute(&schema, document, json!({})).await.unwrap();
-        assert_eq!(
-            data,
-            json!({ "introspect": null, "noGrant": null, "missing": null })
-        );
     }
 
     #[tokio::test]

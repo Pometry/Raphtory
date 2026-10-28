@@ -16,9 +16,9 @@ use std::{path::PathBuf, thread, time::Duration};
 #[cfg(feature = "vectors")]
 use {
     pyo3::exceptions::PyAttributeError,
-    raphtory::{
-        python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-        vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    raphtory_vectors::{
+        python::{PyOpenAIEmbeddings, TemplateConfig},
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
     },
 };
 
@@ -50,8 +50,7 @@ use {
 ///                                reject batched GraphQL requests), `max_batch_size` (int, cap
 ///                                on the number of queries in a batched request; null for
 ///                                unlimited), `disable_lists` (bool, disable bulk `list`
-///                                endpoints so clients must use `page`, and `sparql`,
-///                                `validateShacl` and the `/sparql` endpoint), `max_page_size`
+///                                endpoints so clients must use `page`), `max_page_size`
 ///                                (int), `max_sparql_query_length` (int, maximum length in bytes
 ///                                of a SPARQL query; default 16384, null for unlimited),
 ///                                `max_sparql_triple_patterns` (int, maximum number of triple

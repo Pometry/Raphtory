@@ -19,43 +19,23 @@ use spargebra::{
     Query,
 };
 
-/// The IRI prefix of time graphs: `<raphtory:asof:T>` is the graph as of time `T`.
-///
-/// No node or layer name maps to an IRI under this prefix: their terms percent-encode the `:`
-/// after `raphtory:` (see [`term_of`](crate::term_of)).
+/// The IRI prefix of time graphs.
+/// No node or layer name maps under it: their terms percent-encode the `:` after `raphtory:`.
 pub const ASOF_NS: &str = "raphtory:asof:";
 
-/// A time graph: the virtual named graph `<raphtory:asof:T>` of the triples that hold at `T`.
-///
-/// In a query on a view, `GRAPH <raphtory:asof:T> { .. }` (or `FROM <raphtory:asof:T>`) matches
-/// its patterns against `view.before(T + 1).valid()`, so every filter and window of the view
-/// applies. On a `valid()` view a time graph holds only the triples that hold at `T` and still
-/// hold at the end of the view, so compare times on a view without `valid()`.
-///
-/// `T` is an integer (epoch milliseconds) or a date-time Raphtory parses: RFC 3339
-/// (`2024-01-01T00:00:00Z`), `%Y-%m-%d` (midnight UTC) or `%Y-%m-%dT%H:%M:%S%.3f` (UTC). `T` is
-/// used as written (no percent-decoding), so different spellings of an instant are different
-/// graphs with the same triples. Queries can write `raphtory:asof:2024-01-01`.
-///
-/// Time graphs cannot be enumerated, so with [`RdfView::sparql`](crate::RdfView::sparql)
-/// `GRAPH ?g { .. }` with an unbound `?g` visits the `FROM NAMED` graphs or else the time graphs
-/// the query writes as constants (as in `VALUES ?g { .. }`). A computed IRI such as
-/// `IRI(CONCAT("raphtory:asof:", ?t))` only matches where `?g` is bound before the pattern,
-/// e.g. `LATERAL { GRAPH ?g { .. } }` after the `BIND`.
+/// The named graph `<raphtory:asof:T>`: in a query on `view` it is `view.before(T + 1).valid()`.
+/// `T` is epoch milliseconds or a date-time such as `2024-01-01`. Time graphs cannot be listed,
+/// so an unbound `GRAPH ?g` visits the `FROM NAMED` graphs, else those the query names.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TimeGraph {
-    /// The IRI of the graph, as written in the query.
+    /// The IRI, as written in the query.
     pub iri: NamedNode,
-    /// The time `T` of the IRI, in milliseconds since the Unix epoch.
+    /// `T`, in epoch milliseconds.
     pub at: i64,
 }
 
 impl TimeGraph {
-    /// Parses a time-graph IRI.
-    ///
-    /// Returns `Ok(None)` if `iri` is not under [`ASOF_NS`], `Ok(Some(_))` if its time parses
-    /// (as an `i64` of epoch milliseconds, or as a date-time, see [`TimeGraph`]) and
-    /// [`RdfError::InvalidTimeGraph`] otherwise.
+    /// Parses a time-graph IRI: `Ok(None)` if `iri` is not under [`ASOF_NS`].
     pub fn parse(iri: &NamedNode) -> Result<Option<Self>, RdfError> {
         let Some(time) = iri.as_str().strip_prefix(ASOF_NS) else {
             return Ok(None);
@@ -70,8 +50,7 @@ impl TimeGraph {
         }))
     }
 
-    /// Parses the time `T` of a time graph `<raphtory:asof:T>`: an `i64` of epoch milliseconds,
-    /// or a date-time (see [`TimeGraph`]).
+    /// Parses the `T` of `<raphtory:asof:T>`: epoch milliseconds or a date-time.
     pub fn parse_time(time: &str) -> Result<i64, ParseTimeError> {
         match time.parse::<i64>() {
             Ok(at) => Ok(at),
@@ -79,7 +58,6 @@ impl TimeGraph {
         }
     }
 
-    /// The view of this time graph in a query on `view`.
     pub(crate) fn view_of(&self, view: &DynamicGraph) -> DynamicGraph {
         view.before(self.at.saturating_add(1))
             .valid()
@@ -87,8 +65,6 @@ impl TimeGraph {
     }
 }
 
-/// The time graphs a query names: every valid IRI under [`ASOF_NS`] written as a constant
-/// anywhere in it (as an IRI or `IRI("raphtory:asof:T")` of a string), each once.
 pub(crate) fn time_graphs_in(query: &Query) -> Vec<TimeGraph> {
     let mut found = Found::default();
     if let Query::Construct { template, .. } = query {
@@ -103,7 +79,6 @@ pub(crate) fn time_graphs_in(query: &Query) -> Vec<TimeGraph> {
     found.graphs
 }
 
-/// The time graphs found so far by [`time_graphs_in`].
 #[derive(Default)]
 struct Found {
     graphs: Vec<TimeGraph>,
@@ -137,7 +112,7 @@ impl Found {
         self.term(&triple.object);
     }
 
-    /// The constants of `pattern` itself, not of the patterns and expressions inside it.
+    // `walk` visits the patterns and expressions inside it
     fn pattern(&mut self, pattern: &GraphPattern) {
         match pattern {
             GraphPattern::Bgp { patterns } => patterns.iter().for_each(|t| self.triple(t)),
@@ -173,11 +148,11 @@ impl Found {
         }
     }
 
-    /// The constants of `expression` itself, not of the expressions inside it.
+    // `walk` visits the expressions inside it
     fn expression(&mut self, expression: &Expression) {
         match expression {
             Expression::NamedNode(iri) => self.iri(iri),
-            // `IRI("raphtory:asof:T")` of a string is a constant too
+            // `IRI("raphtory:asof:T")` of a string is a constant
             Expression::FunctionCall(Function::Iri, args) => {
                 if let [Expression::Literal(literal)] = args.as_slice() {
                     if literal.datatype() == xsd::STRING {

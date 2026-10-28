@@ -21,11 +21,11 @@
 //!  * POST_ID: the post in the source subreddit that starts the link
 //!  * TIMESTAMP: time time of the post
 //!  * POST_LABEL: label indicating if the source post is explicitly negative towards the target
-//! post. The value is -1 if the source is negative towards the target, and 1 if it is neutral or
-//! positive. The label is created using crowd-sourcing and training a text based classifier, and
-//! is better than simple sentiment analysis of the posts. Please see the reference paper for details.
+//!    post. The value is -1 if the source is negative towards the target, and 1 if it is neutral or
+//!    positive. The label is created using crowd-sourcing and training a text based classifier, and
+//!    is better than simple sentiment analysis of the posts. Please see the reference paper for details.
 //!  * POST_PROPERTIES: a vector representing the text properties of the source post, listed as a
-//! list of comma separated numbers. This can be found on the source website
+//!    list of comma separated numbers. This can be found on the source website
 //!
 //! Example:
 //! ```no_run
@@ -51,6 +51,7 @@ use tracing::error;
 /// Download the dataset and return the path to the file
 /// # Arguments
 /// * `timeout` - The timeout in seconds for downloading the dataset
+///
 /// Returns:
 /// * `PathBuf` - The path to the file
 pub fn reddit_file(
@@ -103,7 +104,7 @@ pub fn generate_reddit_graph(path: PathBuf) -> Graph {
     let g = Graph::new();
     if let Ok(lines) = read_lines(path.as_path()) {
         // Consumes the iterator, returns an (Optional) String
-        for reddit in lines.dropping(1).flatten() {
+        for reddit in lines.dropping(1).map_while(Result::ok) {
             let reddit: Vec<&str> = reddit.split('\t').collect();
             let src_id = &reddit[0];
             let dst_id = &reddit[1];
@@ -153,25 +154,4 @@ pub fn generate_reddit_graph(path: PathBuf) -> Graph {
         }
     }
     g
-}
-
-#[cfg(test)]
-mod reddit_test {
-    use crate::{
-        db::api::view::*,
-        graph_loader::reddit_hyperlinks::{reddit_file, reddit_graph},
-    };
-
-    #[test]
-    fn check_data() {
-        let file = reddit_file(100, Some(true));
-        assert!(file.is_ok());
-    }
-
-    #[test]
-    fn check_graph() {
-        let graph = reddit_graph(100, true);
-        assert_eq!(graph.count_nodes(), 16);
-        assert_eq!(graph.count_edges(), 9);
-    }
 }

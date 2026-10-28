@@ -12,6 +12,7 @@ raphtory = { workspace = true, features = [
     "io",
 ] }
 raphtory-api = { workspace = true }
+raphtory-vectors = { workspace = true, optional = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 rayon = { workspace = true }
@@ -81,4 +82,4 @@ name = "temporal_props"
 harness = false
 
 [features]
-vectors = ["raphtory/vectors"]
+vectors = ["dep:raphtory-vectors"]

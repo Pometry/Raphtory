@@ -29,7 +29,7 @@ pub(super) fn retract_at(g: &RdfGraph, t: impl TryIntoInputTime, spo: [&str; 3])
     g.retract_triple(t, &triple(spo)).unwrap();
 }
 
-/// The rows of a query that projects `?s ?p ?o`, as a set. Fails on duplicate rows.
+// fails on duplicate rows
 pub(super) fn spo<G: StaticGraphViewOps + IntoDynamic>(
     view: &RdfView<G>,
     query: &str,

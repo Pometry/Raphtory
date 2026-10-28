@@ -1,189 +1,163 @@
-//! The W3C SHACL test suite (core and SHACL-SPARQL), run on Raphtory-backed data graphs.
-//!
-//! The suite is read from the git submodule `raphtory-rdf-tests/test-suites/data-shapes`, a
-//! checkout of <https://github.com/w3c/data-shapes> (W3C Software and Document License, see
-//! `LICENSE.md` in the checkout). `make w3c-tests-init` checks the submodule out and
-//! `make rust-test-rdf-w3c` runs these tests.
-//!
-//! The data graph is stored with [`add_triple`](raphtory_rdf::RdfGraph::add_triple), which
-//! keeps blank-node labels, so data, shapes and expected report share their blank nodes.
-//! Reports are compared, as the suite specifies, by `sh:conforms` and the multiset of (focus
-//! node, constraint component, severity, path, value, source shape).
+//! The W3C SHACL test suite (test-suites/data-shapes) run on `RdfGraph`. SHACL-SPARQL tests
+//! (`tests/sparql`) are skipped: Raphtory implements SHACL core only.
 use oxigraph::{
     io::{RdfFormat, RdfParser},
-    model::{Graph as OxGraph, NamedOrBlankNode},
+    model::{vocab::rdf, Graph, NamedNode, NamedNodeRef, NamedOrBlankNode, Term},
 };
 use raphtory_rdf::{
-    shacl::{self, ShaclFeature, ShaclOptions, ShaclReport, ShaclShapes},
-    Literal, NamedNode, RdfError, RdfGraph, Term, Triple,
+    shacl::{ShaclOptions, ShaclShapes},
+    RdfFormat as Format, RdfGraph, Triple,
 };
-use shacl_report::{actual, expected, list, objects, one};
-use std::{
-    collections::BTreeMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use rudof_rdf::{rdf_core::vocabs::ShaclVocab, rdf_impl::OxigraphInMemory};
+use shacl::validator::report::ValidationReport;
+use std::{error::Error, fs};
 use url::Url;
 
-/// Reading reports back: the helpers of raphtory-rdf's own SHACL tests (`tests::shacl`), which
-/// compare `ShaclReport::write` with them, so that this suite checks those exact helpers against
-/// the expected reports. They name `crate::shacl` and `crate::Literal`, imported above.
-#[path = "../../raphtory-rdf/src/tests/shacl_report.rs"]
-mod shacl_report;
-
+const MANIFEST: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/test-suites/data-shapes/data-shapes-test-suite/tests/manifest.ttl"
+);
 const MF: &str = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#";
 const SHT: &str = "http://www.w3.org/ns/shacl-test#";
+
+type Outcome = Option<Result<(), Box<dyn Error>>>;
+
+#[test]
+fn w3c_root_manifest() {
+    let mut outcomes = Vec::new();
+    read_manifest(
+        Url::from_file_path(MANIFEST).unwrap().as_ref(),
+        &mut outcomes,
+    );
+    let failures: Vec<_> = outcomes
+        .iter()
+        .filter_map(|(id, outcome)| match outcome {
+            Some(Err(e)) => Some(format!("{id}: {e}")),
+            _ => None,
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    let tests = outcomes.len();
+    let skipped = outcomes
+        .iter()
+        .filter(|(_, outcome)| outcome.is_none())
+        .count();
+    assert_eq!((tests, tests - skipped, skipped), (120, 98, 22));
+}
 
 fn nn(namespace: &str, local: &str) -> NamedNode {
     NamedNode::new_unchecked(format!("{namespace}{local}"))
 }
 
-/// The root manifest of the suite (a git submodule).
-const MANIFEST: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/test-suites/data-shapes/data-shapes-test-suite/tests/manifest.ttl"
-);
-
-fn file_iri(path: &Path) -> String {
-    Url::from_file_path(path).unwrap().to_string()
+// blank-node labels are kept, so data, shapes and expected report share their blank nodes
+fn parse(data: &[u8], format: RdfFormat, base_iri: &str) -> Vec<Triple> {
+    RdfParser::from_format(format)
+        .with_base_iri(base_iri)
+        .unwrap()
+        .for_slice(data)
+        .map(|quad| Triple::from(quad.unwrap_or_else(|e| panic!("{base_iri}: {e}"))))
+        .collect()
 }
 
-fn iri_path(iri: &str) -> PathBuf {
-    Url::parse(iri).unwrap().to_file_path().unwrap()
+fn parse_file(iri: &str) -> Vec<Triple> {
+    let path = Url::parse(iri).unwrap().to_file_path().unwrap();
+    let data = fs::read(&path).unwrap_or_else(|e| panic!("{iri}: {e}; run make w3c-tests-init"));
+    parse(&data, RdfFormat::Turtle, iri)
 }
 
-/// The triples of every file read, by IRI: each file is parsed once, so its blank nodes keep
-/// their labels wherever it is used.
-#[derive(Default)]
-struct Files(BTreeMap<String, Vec<Triple>>);
+fn store(triples: &[Triple]) -> OxigraphInMemory {
+    let mut store = OxigraphInMemory::new();
+    for triple in triples {
+        store
+            .add_triple_ref(&triple.subject, &triple.predicate, &triple.object)
+            .unwrap();
+    }
+    store
+}
 
-impl Files {
-    fn get(&mut self, iri: &str) -> Vec<Triple> {
-        self.0
-            .entry(iri.to_owned())
-            .or_insert_with(|| {
-                let data = fs::read(iri_path(iri)).unwrap();
-                RdfParser::from_format(RdfFormat::Turtle)
-                    .with_base_iri(iri)
-                    .unwrap()
-                    .for_slice(&data)
-                    .map(|quad| quad.map(Triple::from))
-                    .collect::<Result<_, _>>()
-                    .unwrap_or_else(|error| panic!("{iri}: {error}"))
-            })
-            .clone()
+fn objects<'a>(
+    graph: &Graph,
+    subject: &NamedOrBlankNode,
+    predicate: impl Into<NamedNodeRef<'a>>,
+) -> Vec<Term> {
+    graph
+        .objects_for_subject_predicate(subject, predicate.into())
+        .map(|object| object.into_owned())
+        .collect()
+}
+
+fn one<'a>(
+    graph: &Graph,
+    subject: &NamedOrBlankNode,
+    predicate: impl Into<NamedNodeRef<'a>>,
+) -> Option<Term> {
+    objects(graph, subject, predicate).pop()
+}
+
+fn list(graph: &Graph, mut head: Term) -> Vec<Term> {
+    let mut members = Vec::new();
+    while let Ok(node) = NamedOrBlankNode::try_from(head) {
+        let (Some(first), Some(rest)) =
+            (one(graph, &node, rdf::FIRST), one(graph, &node, rdf::REST))
+        else {
+            break;
+        };
+        members.push(first);
+        head = rest;
+    }
+    members
+}
+
+fn read_manifest(iri: &str, outcomes: &mut Vec<(String, Outcome)>) {
+    let triples = parse_file(iri);
+    let graph: Graph = triples.iter().collect();
+    let manifest = NamedOrBlankNode::from(NamedNode::new_unchecked(iri));
+    for include in objects(&graph, &manifest, &nn(MF, "include")) {
+        read_manifest(NamedNode::try_from(include).unwrap().as_str(), outcomes);
+    }
+    let entries =
+        one(&graph, &manifest, &nn(MF, "entries")).map_or(vec![], |head| list(&graph, head));
+    let mut store = store(&triples);
+    for entry in entries {
+        let entry = NamedOrBlankNode::try_from(entry).unwrap();
+        let outcome =
+            (!iri.contains("/tests/sparql/")).then(|| run_test(&graph, &mut store, &entry));
+        outcomes.push((entry.to_string(), outcome));
     }
 }
 
-/// The manifests with entries reachable from `manifest` through `mf:include`.
-fn test_manifests(files: &mut Files, manifest: &str, out: &mut Vec<String>) {
-    let graph: OxGraph = files.get(manifest).iter().collect();
-    let node = NamedNode::new_unchecked(manifest);
-    for include in objects(&graph, node.clone(), &nn(MF, "include")) {
-        if let Term::NamedNode(include) = include {
-            test_manifests(files, include.as_str(), out);
-        }
+fn run_test(
+    graph: &Graph,
+    manifest: &mut OxigraphInMemory,
+    entry: &NamedOrBlankNode,
+) -> Result<(), Box<dyn Error>> {
+    let action = NamedOrBlankNode::try_from(one(graph, entry, &nn(MF, "action")).unwrap())?;
+    let file = |local| -> Result<Vec<Triple>, Box<dyn Error>> {
+        let iri = NamedNode::try_from(one(graph, &action, &nn(SHT, local)).unwrap())?;
+        Ok(parse_file(iri.as_str()))
+    };
+    let data = RdfGraph::new();
+    for triple in file("dataGraph")? {
+        data.add_triple(1, &triple)?;
     }
-    if !objects(&graph, node, &nn(MF, "entries")).is_empty() {
-        out.push(manifest.to_owned());
-    }
-}
-
-/// How a test went.
-#[derive(Debug, PartialEq, Eq)]
-enum Outcome {
-    /// The report is the expected one.
-    Pass,
-    /// The shapes use a feature that is rejected.
-    Unsupported(ShaclFeature),
-    /// Anything else.
-    Fail(String),
-}
-
-/// Runs every test of the manifests under `manifest`, by test name (`dir/name`).
-fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
-    let mut files = Files::default();
-    let mut manifests = Vec::new();
-    test_manifests(&mut files, &file_iri(manifest), &mut manifests);
-    let mut outcomes = BTreeMap::new();
-    for manifest in manifests {
-        let graph: OxGraph = files.get(&manifest).iter().collect();
-        let node = NamedOrBlankNode::from(NamedNode::new_unchecked(&manifest));
-        let entries = one(&graph, &node, &nn(MF, "entries"))
-            .map(|head| list(&graph, head))
-            .unwrap_or_default();
-        let dir = manifest.rsplit('/').nth(1).unwrap_or_default().to_owned();
-        for entry in entries {
-            let Term::NamedNode(id) = entry else {
-                panic!("{manifest}: an entry is not an IRI: {entry}")
-            };
-            let name = id.as_str().rsplit('/').next().unwrap();
-            let entry = NamedOrBlankNode::from(id.clone());
-            let action = one(&graph, &entry, &nn(MF, "action")).unwrap();
-            let action = NamedOrBlankNode::try_from(action).unwrap();
-            let Some(Term::NamedNode(data)) = one(&graph, &action, &nn(SHT, "dataGraph")) else {
-                panic!("{name}: no data graph")
-            };
-            let Some(Term::NamedNode(shapes)) = one(&graph, &action, &nn(SHT, "shapesGraph"))
-            else {
-                panic!("{name}: no shapes graph")
-            };
-            let result = one(&graph, &entry, &nn(MF, "result")).unwrap();
-            let data = files.get(data.as_str());
-            let shapes = files.get(shapes.as_str());
-            let validated = (|| -> Result<ShaclReport, RdfError> {
-                let g = RdfGraph::new();
-                for triple in &data {
-                    g.add_triple(1, triple)?;
-                }
-                g.validate_shacl(
-                    &ShaclShapes::from_triples(shapes.iter().map(Triple::as_ref))?,
-                    &ShaclOptions::default(),
-                )
-            })();
-            let failure_expected = result == Term::from(nn(SHT, "Failure"));
-            let outcome = match validated {
-                Err(RdfError::ShaclUnsupported { feature, .. }) => Outcome::Unsupported(feature),
-                Err(error) => Outcome::Fail(format!("error: {error}")),
-                Ok(_) if failure_expected => Outcome::Fail("a failure was expected".to_owned()),
-                Ok(report) => {
-                    // the expected report is in the test file, which is its own manifest
-                    let expected = expected(&graph, &result);
-                    let actual = actual(&report);
-                    if expected == actual {
-                        Outcome::Pass
-                    } else {
-                        Outcome::Fail(format!("expected {expected:#?}\ngot {actual:#?}"))
-                    }
-                }
-            };
-            outcomes.insert(format!("{dir}/{name}"), outcome);
-        }
-    }
-    outcomes
-}
-
-/// The whole suite through its root manifest: every core test passes, and every SHACL-SPARQL
-/// test is rejected explicitly.
-#[test]
-fn w3c_root_manifest() {
-    assert!(
-        Path::new(MANIFEST).is_file(),
-        "the W3C SHACL suite is missing: run `make w3c-tests-init`"
-    );
-    let outcomes = run_suite(Path::new(MANIFEST));
-    let failed: Vec<_> = outcomes
+    let shapes = ShaclShapes::from_triples(file("shapesGraph")?.iter().map(Triple::as_ref))?;
+    let written = data
+        .validate_shacl(&shapes, &ShaclOptions::default())?
+        .to_rdf_string(Format::NTriples)?;
+    let written = parse(written.as_bytes(), RdfFormat::NTriples, "urn:report");
+    let root = written
         .iter()
-        .filter(|(_, outcome)| matches!(outcome, Outcome::Fail(_)))
-        .collect();
-    assert_eq!(failed, vec![]);
-    let count = |pred: fn(&Outcome) -> bool| outcomes.values().filter(|o| pred(o)).count();
-    assert_eq!(
-        (
-            count(|o| *o == Outcome::Pass),
-            count(|o| matches!(o, Outcome::Unsupported(_))),
-            outcomes.len(),
-        ),
-        (98, 22, 120)
-    );
+        .find(|triple| {
+            triple.predicate == rdf::TYPE
+                && matches!(&triple.object, Term::NamedNode(class) if class.as_str() == ShaclVocab::SH_VALIDATION_REPORT)
+        })
+        .map(|triple| Term::from(triple.subject.clone()))
+        .ok_or("the written report has no sh:ValidationReport")?;
+    let actual = ValidationReport::parse(&mut store(&written), root)?;
+    let expected =
+        ValidationReport::parse(manifest, one(graph, entry, &nn(MF, "result")).unwrap())?;
+    if expected == actual {
+        return Ok(());
+    }
+    Err(format!("expected {expected}\ngot {actual}").into())
 }

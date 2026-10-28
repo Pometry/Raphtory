@@ -1,5 +1,8 @@
 use crate::python::{
-    types::repr::{iterator_repr, Repr},
+    types::{
+        iterable::IterBuilder,
+        repr::{iterator_repr, Repr},
+    },
     utils::{PyGenericIterator, PyNestedGenericIterator},
 };
 use chrono::{DateTime, Utc};
@@ -9,8 +12,7 @@ use std::sync::Arc;
 
 #[pyclass(frozen, module = "raphtory")]
 pub struct ResultVecUtcDateTimeIterable {
-    builder:
-        Arc<dyn Fn() -> BoxedIter<Result<Vec<DateTime<Utc>>, TimeError>> + Send + Sync + 'static>,
+    builder: IterBuilder<Result<Vec<DateTime<Utc>>, TimeError>>,
 }
 
 impl Repr for ResultVecUtcDateTimeIterable {
@@ -84,12 +86,7 @@ impl ResultVecUtcDateTimeIterable {
 
 #[pyclass(frozen, module = "raphtory")]
 pub struct NestedResultVecUtcDateTimeIterable {
-    builder: Arc<
-        dyn Fn() -> BoxedIter<BoxedIter<Result<Vec<DateTime<Utc>>, TimeError>>>
-            + Send
-            + Sync
-            + 'static,
-    >,
+    builder: IterBuilder<BoxedIter<Result<Vec<DateTime<Utc>>, TimeError>>>,
 }
 
 impl Repr for NestedResultVecUtcDateTimeIterable {

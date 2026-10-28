@@ -1,4 +1,4 @@
-from raphtory import RdfGraph, ShaclWarning
+from raphtory import RdfGraph
 
 SH = "http://www.w3.org/ns/shacl#"
 XSD = "http://www.w3.org/2001/XMLSchema#"
@@ -50,22 +50,22 @@ def test_report_dict():
     rg = people()
     report = rg.valid().validate_shacl(SHAPES)
     assert report["conforms"] is False
-    assert report["warnings"] == []
-    assert report["results"][0] == {
+    result = report["results"][0]
+    del result["messages"]
+    assert result == {
         "focus_node": "http://ex/alice",
         "path": "http://ex/name",
         "value": None,
         "source_shape": "http://ex/PersonName",
         "constraint_component": SH + "MinCountConstraintComponent",
         "severity": SH + "Violation",
-        "messages": ["MinCount(1) not satisfied"],
     }
     assert summary(report) == [
         ("http://ex/alice", "MinCountConstraintComponent", "http://ex/name", None),
         (
             "http://ex/alice",
             "MinLengthConstraintComponent",
-            "(<http://ex/worksFor> / <http://ex/name>)",
+            "(http://ex/worksFor / http://ex/name)",
             '"A"',
         ),
         (
@@ -85,17 +85,3 @@ def test_views():
     rg = people()
     reports = [rg.at(t).validate_shacl(SHAPES) for t in [1, 6, 7]]
     assert [len(report["results"]) for report in reports] == [0, 1, 2]
-
-
-def test_warnings():
-    rg = RdfGraph()
-    rg.load_rdf(
-        1, b"@prefix ex: <http://ex/> . ex:a ex:knows ex:b . ex:b ex:knows ex:a ."
-    )
-    recursive = b"""
-    @prefix sh: <http://www.w3.org/ns/shacl#> .
-    @prefix ex: <http://ex/> .
-    ex:S sh:targetNode ex:a ; sh:property [ sh:path ex:knows ; sh:node ex:S ] .
-    """
-    report = rg.validate_shacl(recursive)
-    assert report["warnings"] == [ShaclWarning.RecursiveShapes]

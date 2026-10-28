@@ -7,6 +7,9 @@ use pyo3::{
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::collections::HashMap;
 
+/// History of a temporal property as `((time, event id), value)` pairs.
+type PropHistory = Vec<((i64, usize), Prop)>;
+
 #[pymethods]
 impl PyGraphView {
     /// Draw a graph with PyVis.
@@ -32,6 +35,7 @@ impl PyGraphView {
     /// Returns:
     ///     pyvis.network.Network: A pyvis network
     #[pyo3(signature = (explode_edges=false, edge_color="#000000", shape="dot", node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=false, directed=true, notebook=false, **kwargs))]
+    #[allow(clippy::too_many_arguments)]
     pub fn to_pyvis<'py>(
         &self,
         explode_edges: bool,
@@ -54,11 +58,9 @@ impl PyGraphView {
         let vis_graph = network.call((), Some(&kwargs))?;
         let mut groups = HashMap::new();
         if colour_nodes_by_type {
-            let mut index = 1;
-            for node in self.graph.nodes() {
+            for (index, node) in (1..).zip(self.graph.nodes()) {
                 let value = node.node_type().unwrap_or(ArcStr::from("_default"));
                 groups.insert(value, index);
-                index += 1;
             }
         }
 
@@ -248,13 +250,11 @@ impl PyGraphView {
                                 .map(move |(t, p)| (k.clone(), (t.as_tuple(), p.clone())))
                         })
                         .collect();
-                    let mut prop_hist_map: HashMap<ArcStr, Vec<((i64, usize), Prop)>> =
-                        HashMap::new();
+                    let mut prop_hist_map: HashMap<ArcStr, PropHistory> = HashMap::new();
                     for (key, value) in prop_hist {
                         prop_hist_map.entry(key).or_default().push(value);
                     }
-                    let output: Vec<(ArcStr, Vec<((i64, usize), Prop)>)> =
-                        prop_hist_map.into_iter().collect();
+                    let output: Vec<(ArcStr, PropHistory)> = prop_hist_map.into_iter().collect();
                     properties.set_item("temporal", output)?;
                 } else {
                     for (key, value) in e.metadata().as_map() {

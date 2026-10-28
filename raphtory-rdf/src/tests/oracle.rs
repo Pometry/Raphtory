@@ -1,9 +1,6 @@
-//! SPARQL over graph views.
-//!
-//! The differential tests evaluate each query twice with the same evaluator: on the graph, and
-//! on an `oxrdf::Dataset` holding the same triples. The `Dataset` keeps terms exactly as
-//! written (an oxigraph `Store` would normalise literals such as `"042"^^xsd:integer`).
-use super::{ask, layer_of, select, sorted_rows, BLANK_NODES, DATATYPES, FOAF, SOCIAL};
+//! SPARQL over graph views, checked against an `oxrdf::Dataset` of the same triples, which keeps
+//! terms as written (an oxigraph `Store` would normalise literals such as `"042"^^xsd:integer`).
+use super::{ask, select, sorted_rows, BLANK_NODES, DATATYPES, FOAF, SOCIAL};
 use crate::{
     dataset::{NodeTerm, RaphtoryDataset, RdfTerm},
     query::{evaluator, parse as parse_sparql},
@@ -24,16 +21,12 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 ";
 
-/// How a query of the differential test is checked.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Kind {
-    /// Results compared as multisets (sets for graphs); not empty on the union of the fixtures.
     Rows,
-    /// Empty (or `false`) on the union of the fixtures.
     Empty,
 }
 
-/// The query set of the differential harness.
 const QUERIES: &[(&str, Kind)] = &[
     // the 8 binding patterns, with IRIs
     ("SELECT * { ex:alice ex:knows ex:bob }", Rows),
@@ -63,15 +56,12 @@ const QUERIES: &[(&str, Kind)] = &[
         Rows,
     ),
     ("SELECT ?p ?o { ?b ex:city \"Paris\" . ?b ?p ?o }", Rows),
-    // joins
     ("SELECT ?a ?b ?c { ?a ex:knows ?b . ?b ex:knows ?c }", Rows),
     ("SELECT ?p ?l ?s ?o { ?p rdfs:label ?l . ?s ?p ?o }", Rows),
-    // OPTIONAL
     (
         "SELECT ?x ?age { ?x foaf:name ?n OPTIONAL { ?x foaf:age ?age } }",
         Rows,
     ),
-    // property paths
     ("SELECT ?x { ex:alice ex:knows* ?x }", Rows),
     ("SELECT ?x ?y { ?x ex:knows+ ?y }", Rows),
     ("SELECT ?x ?y { ?x !ex:knows ?y }", Rows),
@@ -117,7 +107,6 @@ const QUERIES: &[(&str, Kind)] = &[
         "SELECT ?s ?p { ?s ?p ?o FILTER(sameTerm(?p, ex:knows)) }",
         Rows,
     ),
-    // ASK, CONSTRUCT and DESCRIBE
     ("ASK { ex:alice ex:knows ex:bob }", Rows),
     ("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }", Rows),
     ("DESCRIBE ex:alice", Rows),
@@ -131,7 +120,6 @@ const QUERIES: &[(&str, Kind)] = &[
     ("SELECT * FROM ex:g { ?s ?p ?o }", Empty),
 ];
 
-/// Parses a document keeping blank-node labels and duplicate triples.
 fn parse(doc: &str, format: RdfFormat) -> Vec<Triple> {
     RdfParser::from_format(format.to_oxigraph())
         .for_reader(doc.as_bytes())
@@ -139,7 +127,6 @@ fn parse(doc: &str, format: RdfFormat) -> Vec<Triple> {
         .collect()
 }
 
-/// The same triples in an `oxrdf::Dataset` and (asserted at time 0) in an `RdfGraph`.
 fn load(triples: &[Triple]) -> (Dataset, RdfGraph) {
     let mut dataset = Dataset::new();
     let rg = RdfGraph::new();
@@ -159,8 +146,6 @@ fn oracle(dataset: &Dataset, query: &str) -> SparqlResults {
     SparqlResults::from_query_results(results).unwrap_or_else(|e| panic!("{query}: {e}"))
 }
 
-/// Results in a comparable form: sorted rows, a boolean, or a set of triples, all in
-/// N-Triples form.
 #[derive(Debug, PartialEq, Eq)]
 enum Normalized {
     Rows(Vec<String>, Vec<Vec<String>>),
@@ -191,7 +176,6 @@ impl Normalized {
     }
 }
 
-/// The differential harness over the union of the fixtures.
 #[test]
 fn queries_match_the_oracle() {
     let triples = [
@@ -220,7 +204,6 @@ fn queries_match_the_oracle() {
     }
 }
 
-/// Predicate nodes join under layer views; bound predicates match in subgraphs without them.
 #[test]
 fn views_decide_what_queries_see() {
     let rg = RdfGraph::new();
@@ -244,10 +227,7 @@ fn views_decide_what_queries_see() {
     // a predicate that is also a node joins in a layer-restricted view
     let knows_label = rg
         .valid()
-        .layers(vec![
-            layer_of("http://ex/knows"),
-            layer_of("http://ex/label"),
-        ])
+        .layers(vec!["http://ex/knows", "http://ex/label"])
         .unwrap();
     let by_label = "SELECT ?s ?o { ?p <http://ex/label> \"knows\" . ?s ?p ?o }";
     assert_eq!(
@@ -258,11 +238,11 @@ fn views_decide_what_queries_see() {
         ]
     );
     assert_eq!(
-        select(&rg.layers(layer_of("http://ex/label")).unwrap(), by_label),
+        select(&rg.layers("http://ex/label").unwrap(), by_label),
         vec![] as Vec<Vec<String>>
     );
     // with the label layer hidden the join has nothing to start from
-    let knows_only = rg.layers(layer_of("http://ex/knows")).unwrap();
+    let knows_only = rg.layers("http://ex/knows").unwrap();
     assert_eq!(
         select(
             &knows_only,
@@ -293,7 +273,6 @@ fn views_decide_what_queries_see() {
     }
 }
 
-/// Internal terms are canonical: one internal value per term, and unknown terms are accepted.
 #[test]
 fn internal_terms_are_canonical() {
     let rg = RdfGraph::new();
@@ -309,7 +288,7 @@ fn internal_terms_are_canonical() {
     let knows = dataset.internalize_term(term("http://ex/knows")).unwrap();
     assert_eq!(knows, node("http://ex/knows"));
     let label = dataset.internalize_term(term("http://ex/label")).unwrap();
-    assert_eq!(label, RdfTerm::Layer(layer_of("http://ex/label").into()));
+    assert_eq!(label, RdfTerm::Layer("http://ex/label".into()));
     let unknown = dataset.internalize_term(term("http://ex/zzz")).unwrap();
     assert_eq!(unknown, RdfTerm::Other(term("http://ex/zzz")));
     let literal: Term = Literal::new_simple_literal("knows").into();

@@ -13,11 +13,12 @@ use raphtory_api::core::{
 use rayon::{iter::IntoParallelRefIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn extract_properties<P>(
     include_property_history: bool,
     convert_datetime: bool,
     explode: bool,
-    column_names: &Vec<String>,
+    column_names: &[String],
     is_prop_both_temp_and_const: &HashSet<String>,
     properties: &Properties<P>,
     metadata: &Metadata<P>,
@@ -38,7 +39,7 @@ pub(crate) fn extract_properties<P>(
 
     if explode {
         let mut empty_dict = HashMap::new();
-        column_names.clone().iter().for_each(|name| {
+        column_names.iter().for_each(|name| {
             let _ = empty_dict.insert(name.clone(), Prop::from(""));
         });
 
@@ -48,10 +49,9 @@ pub(crate) fn extract_properties<P>(
                 let _ = prop_time_dict.insert(start_time, empty_dict.clone());
             } else {
                 metadata.iter_filtered().for_each(|(name, prop_val)| {
-                    if !prop_time_dict.contains_key(&start_time) {
-                        let _ = prop_time_dict.insert(start_time, empty_dict.clone());
-                    }
-                    let data_dict = prop_time_dict.get_mut(&0i64).unwrap();
+                    let data_dict = prop_time_dict
+                        .entry(start_time)
+                        .or_insert_with(|| empty_dict.clone());
                     let _ = data_dict.insert(name.to_string(), prop_val);
                 })
             }
@@ -67,10 +67,9 @@ pub(crate) fn extract_properties<P>(
                 } else {
                     prop_name.to_string()
                 };
-                if !prop_time_dict.contains_key(&time) {
-                    prop_time_dict.insert(time, empty_dict.clone());
-                }
-                let data_dict = prop_time_dict.get_mut(&time).unwrap();
+                let data_dict = prop_time_dict
+                    .entry(time)
+                    .or_insert_with(|| empty_dict.clone());
                 let _ = data_dict.insert(column_name.clone(), prop_val.clone());
             });
     } else if include_property_history {
@@ -143,10 +142,11 @@ pub(crate) fn get_column_names_from_props(
     is_prop_both_temp_and_const
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn create_row(
     convert_datetime: bool,
     explode: bool,
-    column_names: &Vec<String>,
+    column_names: &[String],
     properties_map: HashMap<String, Prop>,
     prop_time_dict: HashMap<i64, HashMap<String, Prop>>,
     row_header: Vec<Prop>,

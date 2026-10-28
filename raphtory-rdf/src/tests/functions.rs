@@ -1,6 +1,6 @@
 //! The temporal functions `raphtory:validFrom`, `validTo`, `validFromTime` and `validToTime`.
 use super::{
-    layer_of, select,
+    select,
     temporal::{assert_at, retract_at, O, P, Q, S, SPO},
 };
 use crate::{RdfFormat, RdfGraph, RdfView};
@@ -11,17 +11,14 @@ use raphtory::{
 
 const XSD: &str = "http://www.w3.org/2001/XMLSchema#";
 
-/// `"t"^^xsd:integer`
 fn int(t: i64) -> String {
     format!("\"{t}\"^^<{XSD}integer>")
 }
 
-/// `"lexical"^^xsd:dateTime`
 fn date_time(lexical: &str) -> String {
     format!("\"{lexical}\"^^<{XSD}dateTime>")
 }
 
-/// The integer of an `xsd:integer` in N-Triples form, or `None` for `UNDEF`.
 fn parse_int(value: &str) -> Option<i64> {
     (value != "UNDEF").then(|| {
         value
@@ -33,7 +30,6 @@ fn parse_int(value: &str) -> Option<i64> {
     })
 }
 
-/// The arguments of a call on `<s> <p> <o>`, with an optional time graph argument.
 fn args(spo: [&str; 3], graph: Option<&str>) -> String {
     let mut args = spo.map(|t| format!("<{t}>")).join(", ");
     if let Some(graph) = graph {
@@ -43,15 +39,12 @@ fn args(spo: [&str; 3], graph: Option<&str>) -> String {
     args
 }
 
-/// The value of the expression `expr` in a query on `view`, in N-Triples form (`None`:
-/// unbound).
 fn value<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>, expr: &str) -> Option<String> {
     let rows = select(view, &format!("SELECT ({expr} AS ?x) {{}}"));
     assert_eq!(rows.len(), 1, "{expr}");
     Some(rows[0][0].clone()).filter(|v| v != "UNDEF")
 }
 
-/// `(validFromTime, validToTime)` of a triple.
 fn run<G: StaticGraphViewOps + IntoDynamic>(
     view: &RdfView<G>,
     spo: [&str; 3],
@@ -66,7 +59,6 @@ fn run<G: StaticGraphViewOps + IntoDynamic>(
     (parse_int(&rows[0][0]), parse_int(&rows[0][1]))
 }
 
-/// The latest run of a triple in the scope, by persistent semantics.
 #[test]
 fn latest_run_in_the_scope() {
     let a = RdfGraph::new();
@@ -120,7 +112,6 @@ const BOB: &str = "http://ex/bob";
 const ACME: &str = "http://ex/acme";
 const INITECH: &str = "http://ex/initech";
 
-/// The `?g` of `GRAPH ?g` as the fourth argument: the functions answer in that time graph.
 #[test]
 fn time_graph_argument() {
     let rg = RdfGraph::new();
@@ -167,7 +158,6 @@ fn time_graph_argument() {
     );
 }
 
-/// Views that hide the triple give unbound.
 #[test]
 fn hidden_by_the_view() {
     let rg = RdfGraph::new();
@@ -175,14 +165,13 @@ fn hidden_by_the_view() {
     assert_at(&rg, 2, [S, Q, O]);
     assert_eq!(run(&rg, [S, P, O], None), (Some(1), None));
     assert_eq!(run(&rg, [S, Q, O], None), (Some(2), None));
-    let only_q = rg.valid_layers(layer_of(Q));
+    let only_q = rg.valid_layers(Q);
     assert_eq!(run(&only_q, [S, P, O], None), (None, None));
     assert_eq!(run(&only_q, [S, Q, O], None), (Some(2), None));
     let without_o = rg.exclude_nodes([O]);
     assert_eq!(run(&without_o, [S, P, O], None), (None, None));
 }
 
-/// Literal objects are matched by their canonical form.
 #[test]
 fn literal_objects() {
     let rg = RdfGraph::new();
@@ -232,7 +221,6 @@ fn literal_objects() {
     assert!(rows.iter().all(|row| row[1] != "UNDEF"), "{rows:?}");
 }
 
-/// `xsd:dateTime` results only cover the years 1 to 9999.
 #[test]
 fn year_range() {
     for (t, expected) in [

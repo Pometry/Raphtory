@@ -31,6 +31,7 @@ csv = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 rustc-hash = { workspace = true, optional = true }
 rudof_rdf = { workspace = true, optional = true }
+shacl = { workspace = true, optional = true }
 
 [dev-dependencies]
 url = { workspace = true }
@@ -45,6 +46,7 @@ rdf = [
     "dep:tar",
     "dep:bzip2",
     "dep:rudof_rdf",
+    "dep:shacl",
     "dep:rustc-hash",
     "dep:rayon",
 ]

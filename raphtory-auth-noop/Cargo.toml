@@ -1,6 +1,0 @@
-[package]
-name = "raphtory-auth-noop"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]

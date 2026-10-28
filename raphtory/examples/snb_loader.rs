@@ -29,7 +29,7 @@ struct NodeParquetInput {
 }
 
 impl NodeParquetInput {
-    fn new<'a>(
+    fn new(
         path: impl AsRef<Path>,
         time_col: &str,
         id_col: &str,
@@ -48,7 +48,11 @@ impl NodeParquetInput {
     }
 
     fn path_as_string(&self) -> &str {
-        self.path.iter().last().and_then(|p| p.to_str()).unwrap()
+        self.path
+            .iter()
+            .next_back()
+            .and_then(|p| p.to_str())
+            .unwrap()
     }
 }
 struct EdgeParquetInput {
@@ -80,7 +84,11 @@ impl EdgeParquetInput {
     }
 
     fn path_as_string(&self) -> &str {
-        self.path.iter().last().and_then(|p| p.to_str()).unwrap()
+        self.path
+            .iter()
+            .next_back()
+            .and_then(|p| p.to_str())
+            .unwrap()
     }
 }
 
@@ -461,7 +469,7 @@ struct Filter {
 fn main() {
     let parquet_dir = std::env::args()
         .nth(1)
-        .map(|dir| PathBuf::from(dir))
+        .map(PathBuf::from)
         .unwrap_or_else(|| panic!("Usage: snb_loader <data_dir>"));
     let filter = std::env::args()
         .nth(2)
@@ -471,7 +479,7 @@ fn main() {
 
     let graph_path = std::env::args()
         .nth(3)
-        .map(|graph| PathBuf::from(graph))
+        .map(PathBuf::from)
         .unwrap_or_else(|| parquet_dir.join("..").join("graph"));
     let graph = if !graph_path.exists() {
         Graph::new_at_path(&graph_path).unwrap()

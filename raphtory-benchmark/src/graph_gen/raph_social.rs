@@ -4,7 +4,11 @@ use raphtory::{
     prelude::{AdditionOps, Graph, NO_PROPS},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::{fs, path::PathBuf, time::Instant};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 use csv::Writer;
 use fake::{
@@ -211,13 +215,13 @@ pub fn generate_data_write_to_csv(
     Ok(())
 }
 
-fn load_nodes<T, F>(graph: &Graph, path: &PathBuf, load_fn: F)
+fn load_nodes<T, F>(graph: &Graph, path: &Path, load_fn: F)
 where
     T: DeserializeOwned + Debug + Send + Sync,
     F: Fn(T, &Graph) + Send + Sync,
 {
     let now = Instant::now();
-    CsvLoader::new(path.clone())
+    CsvLoader::new(path.to_path_buf())
         .set_header(true)
         .set_delimiter(",")
         .load_into_graph(graph, load_fn)
@@ -232,13 +236,13 @@ where
     );
 }
 
-fn load_edges<T, F>(graph: &Graph, path: &PathBuf, load_fn: F)
+fn load_edges<T, F>(graph: &Graph, path: &Path, load_fn: F)
 where
     T: DeserializeOwned + Debug + Send + Sync,
     F: Fn(T, &Graph) + Send + Sync,
 {
     let now = Instant::now();
-    CsvLoader::new(path.clone())
+    CsvLoader::new(path.to_path_buf())
         .set_header(true)
         .set_delimiter(",")
         .load_into_graph(graph, load_fn)

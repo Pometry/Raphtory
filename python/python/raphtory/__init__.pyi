@@ -69,7 +69,6 @@ __all__ = [
     "version",
     "RdfView",
     "RdfGraph",
-    "ShaclWarning",
     "graphql",
     "algorithms",
     "graph_loader",
@@ -308,12 +307,12 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> GraphView:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> GraphView:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             GraphView: The filtered view
@@ -1175,6 +1174,7 @@ class Graph(GraphView):
             | dict[str, DataType | PropType | str]
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1192,6 +1192,7 @@ class Graph(GraphView):
             layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1217,6 +1218,7 @@ class Graph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1237,6 +1239,7 @@ class Graph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1270,6 +1273,7 @@ class Graph(GraphView):
             | dict[str, DataType | PropType | str]
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1286,6 +1290,7 @@ class Graph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1312,6 +1317,7 @@ class Graph(GraphView):
         event_id: Optional[str] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1333,6 +1339,7 @@ class Graph(GraphView):
             event_id (str, optional): The column name for the secondary index. Defaults to None.
             layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
             layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1449,6 +1456,14 @@ class Graph(GraphView):
 
         Raises:
             GraphError: If the operation fails.
+        """
+
+    def vacuum(self) -> None:
+        """
+        Trigger a compaction of the underlying storage segments if disk storage is enabled
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
         """
 
 class PersistentGraph(GraphView):
@@ -2413,12 +2428,12 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Node:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Node:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Node: The filtered view
@@ -2907,12 +2922,12 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Nodes:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Nodes:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Nodes: The filtered view
@@ -3422,12 +3437,12 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> PathFromNode:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromNode:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromNode: The filtered view
@@ -3897,12 +3912,12 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> PathFromGraph:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromGraph:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromGraph: The filtered view
@@ -4457,12 +4472,12 @@ class Edge(object):
             Edges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Edge:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edge:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edge: The filtered view
@@ -4927,12 +4942,12 @@ class Edges(object):
             Edges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Edges:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edges:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edges: The filtered view
@@ -5256,6 +5271,8 @@ class Edges(object):
         """
 
 class NestedEdges(object):
+    """A list of edges per node."""
+
     def __bool__(self):
         """True if self else False"""
 
@@ -5420,28 +5437,28 @@ class NestedEdges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self) -> Edges:
+    def explode(self) -> NestedEdges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Edges:
+            NestedEdges:
         """
 
-    def explode_layers(self) -> Edges:
+    def explode_layers(self) -> NestedEdges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Edges:
+            NestedEdges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> NestedEdges:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> NestedEdges:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             NestedEdges: The filtered view
@@ -7703,14 +7720,9 @@ def version() -> str:
 
 class RdfView(object):
     """
-    A view of an RdfGraph: the RDF triples of a persistent graph view, one per edge and layer
-    visible in it.
+    A view of an RdfGraph: one RDF triple per edge and layer visible in a persistent graph view.
 
-    Every view method (window, at, latest, before, after, layers, filter, valid, subgraph, ...)
-    returns an RdfView, and sparql, to_rdf and validate_shacl see exactly the triples of the
-    view: under valid() the triples valid at the end of the view (on the whole graph, the current
-    state), under at(t) the state as of t, under a window every triple that held in it, and on the
-    whole graph every triple ever asserted or retracted.
+    Every view method returns an RdfView; sparql, to_rdf and validate_shacl see its triples.
     """
 
     def after(self, start: TimeInput) -> RdfView:
@@ -7860,7 +7872,7 @@ class RdfView(object):
     @property
     def graph(self) -> GraphView:
         """
-        The same view as a property graph, for algorithms and for its nodes and edges.
+        The same view as a property graph.
 
         Returns:
             GraphView: The view.
@@ -7988,56 +8000,19 @@ class RdfView(object):
         """
         Runs a SPARQL 1.1 query on the RDF triples of this view.
 
-        Every edge is one triple per layer, src layer dst, where node names are RDF terms: an
-        absolute IRI is kept as written, _:label is a blank node, a name in N-Triples literal form
-        (such as "42"^^<http://www.w3.org/2001/XMLSchema#integer>) is that literal, and any other
-        name is the IRI raphtory: followed by the percent-encoded name (the raphtory: prefix is
-        pre-registered, so the node Alice is raphtory:Alice). Layer names must be safe as file
-        names, so the layer of a predicate IRI is the IRI with %, /, :, ? and * percent-escaped as
-        %25, %2F, %3A, %3F and %2A (the predicate <http://ex/knows> is the layer
-        http%3A%2F%2Fex%2Fknows), and any other layer name is raphtory: followed by the
-        percent-encoded name (the default layer is raphtory:_default).
-
-        The query sees exactly the triples of this view: rg.valid().sparql(..) queries the
-        current state and rg.at(t).sparql(..) the state as of t. Inside a query,
-        GRAPH <raphtory:asof:T> { .. } matches its patterns against before(T + 1).valid() of this
-        view, where T is epoch milliseconds or a date-time such as 2024-01-01. On rg.valid() a
-        time graph holds only the triples that held at T and still hold at the end of the view,
-        so compare times on a view without valid().
-
-        raphtory:validFrom(s, p, o) returns when the latest run of a triple visible in this view
-        started (or the start of the view, if it already held there), and raphtory:validTo(s, p, o)
-        the retraction that ended that run (unbound if it still holds at the end of the view), as
-        xsd:dateTime values in UTC; raphtory:validFromTime and
-        raphtory:validToTime return the same times as integers (Raphtory times). An optional
-        fourth argument, a time graph such as raphtory:asof:2024-01-01 (or the ?g of GRAPH ?g, in
-        a BIND after the GRAPH pattern), makes them answer in that time graph instead. They are
-        unbound for a triple they do not see, and for arguments they do not accept.
-
-        SERVICE calls (SPARQL federated queries) are not supported: a query that calls a service
-        raises a GraphError, and no query ever makes a network request.
-
-        Every value, predicates included, is returned as the name of its term (a str), so a node
-        can be passed to graph.node().
-        IRIs under raphtory: that do not encode a name, such as the time graphs
-        <raphtory:asof:T>, are returned in N-Triples form, with angle brackets.
-
-        With format, the results are instead returned serialized, as one str: for SELECT and ASK
-        in a SPARQL results format ("json", "xml", "csv" or "tsv"), for CONSTRUCT and DESCRIBE in
-        an RDF format (such as "nt", "ttl", "jsonld" or "rdf"). "json" is SPARQL Results JSON for
-        SELECT and ASK and JSON-LD for CONSTRUCT and DESCRIBE, and "xml" is SPARQL Results XML or
-        RDF/XML. Serialized results hold RDF terms, as to_rdf() writes them, not Raphtory names.
+        Values are returned as Raphtory names. In a query, GRAPH <raphtory:asof:T> { .. } reads
+        this view as of T, and raphtory:validFrom/validTo(s, p, o) give a triple's latest run.
 
         Arguments:
             query (str): The SPARQL query.
-            format (str, optional): If given, the results are returned as a document in this format, as a file extension, name or media type (such as "json", "xml", "csv", "tsv" or "application/sparql-results+json" for SELECT and ASK, and "nt", "ttl", "jsonld", "rdf" or "text/turtle" for CONSTRUCT and DESCRIBE). Defaults to None.
+            format (str, optional): If given, the results are returned serialised in this format, such as "json", "csv", "nt" or "ttl". Defaults to None.
 
         Returns:
-            Union[list[dict[str, Optional[str]]], bool, list[tuple[str, str, str]], str]: For SELECT, one dict per solution mapping every variable (in the order of the SELECT clause, or sorted by name for SELECT *) to its value (None if unbound); for ASK, a bool; for CONSTRUCT and DESCRIBE, one (subject, predicate, object) tuple per triple; with format, the serialized results.
+            Union[list[dict[str, Optional[str]]], bool, list[tuple[str, str, str]], str]: A dict per solution for SELECT, a bool for ASK, (subject, predicate, object) tuples for CONSTRUCT and DESCRIBE, or the document if format is given.
 
         Raises:
-            GraphError: If the evaluation of the query fails, or if SPARQL Results XML cannot hold a value or RDF/XML a triple (such as one whose predicate does not end in an XML name).
-            ValueError: If the query does not parse, or if format is unknown or does not fit the form of the query.
+            GraphError: If the evaluation of the query fails.
+            ValueError: If the query does not parse, or format is unknown or does not fit the query.
         """
 
     @property
@@ -8075,21 +8050,13 @@ class RdfView(object):
         self, path: Optional[str | PathLike] = None, format: Optional[str] = None
     ) -> Optional[str]:
         """
-        Exports the RDF triples of this view, the same triples sparql() sees.
+        Exports the RDF triples of this view, the ones sparql() sees.
 
-        Every edge visible in this view is written as one triple per layer, src layer dst, with
-        node and layer names mapped to RDF terms as described in sparql(). Edges that are not
-        valid RDF (from a node named by a literal, or in a layer named by a literal or a blank
-        node) are skipped. RDF/XML also skips triples it cannot represent: those whose predicate
-        IRI does not end in an XML name, is in the xmlns namespace or is an RDF/XML syntax term
-        such as rdf:li, an rdf:type triple whose object IRI cannot name an element when it is its
-        subject's only triple, and literals with a control character other than tab and line
-        feed; a blank node label starting with a digit is written with an x in front (_:1 is x1).
-        Only the state of the view is exported, not its history.
+        Triples whose subject is a literal are skipped.
 
         Arguments:
-            path (str | PathLike, optional): The file to write. If not given, the document is returned as a string instead. Defaults to None.
-            format (str, optional): The RDF format, as a file extension, name or media type (such as "nt", "ttl", "turtle", "trig" or "rdf"). If not given, it is taken from the extension of path (an unknown extension raises an error), and is N-Triples if there is no path or it has no extension. Defaults to None.
+            path (str | PathLike, optional): The file to write; if not given, the document is returned. Defaults to None.
+            format (str, optional): The RDF format, such as "nt", "ttl" or "rdf"; by default the one the extension of path names, else N-Triples. Defaults to None.
 
         Returns:
             Optional[str]: The document if path is not given, otherwise None.
@@ -8101,10 +8068,7 @@ class RdfView(object):
 
     def valid(self) -> RdfView:
         """
-        Return a view of the triples valid at the end of this view.
-
-        On the whole graph that is the current state. The order of views matters: x.valid() is
-        the state at the end of x, and valid().x is the current state further restricted to x.
+        Return a view of only the triples still valid at the end of this view.
 
         Returns:
             RdfView: The view.
@@ -8130,42 +8094,19 @@ class RdfView(object):
         report_format: Optional[str] = None,
     ) -> Union[dict[str, Any], str]:
         """
-        Validates the RDF triples of this view against a SHACL shapes graph.
-
-        The data graph is the triples to_rdf() writes and sparql() matches: one per edge and
-        layer visible in this view, so rg.valid().validate_shacl(..) validates the current state
-        and rg.at(t).validate_shacl(..) the state as of t. Node and layer names are RDF terms as
-        described in sparql(): the node Alice of a graph that was not loaded from RDF is the IRI
-        raphtory:Alice, which shapes can name with @prefix raphtory: <raphtory:> .
-
-        SHACL Core is supported, and shapes that use other parts of SHACL raise an error.
-
-        The report is a dict with conforms (bool, True if there are no results of any severity),
-        results (a list of dicts with focus_node, path, value, source_shape, constraint_component,
-        severity and messages) and warnings (a list[ShaclWarning], holding
-        ShaclWarning.PartialSubclassReasoning if partial subclass reasoning may affect the results
-        and ShaclWarning.RecursiveShapes if recursive shapes may). Terms are Raphtory names, as in
-        sparql(): focus_node and value can be passed to graph.node(), path is the predicate's
-        name, as sparql() returns it, for a single predicate and otherwise a SPARQL property path
-        such as (<http://ex/a> / <http://ex/b>), constraint_component and severity are SHACL IRIs
-        such as http://www.w3.org/ns/shacl#MinCountConstraintComponent, and messages are the
-        values of the result messages. path, value and source_shape are None when the result has
-        none. Results are in a deterministic order, and shape blank nodes get the same labels each
-        time. A literal the validator rewrites in canonical form (such as "1"^^xsd:boolean as
-        "true"^^xsd:boolean) comes back as written in the graph when that is unambiguous, and
-        otherwise as rewritten, which graph.node() may not find.
+        Validates the triples of this view (those to_rdf() writes) against a SHACL shapes graph.
 
         Arguments:
             shapes (bytes | str | PathLike): The shapes graph: the document as bytes, or the path of a file to read.
-            format (str, optional): The RDF format of the shapes, as a file extension, name or media type (such as "ttl", "nt", "jsonld" or "rdf"). If not given, it is taken from the extension of a path (a missing or unknown extension raises an error), and is Turtle for bytes. Defaults to None.
+            format (str, optional): The RDF format of the shapes; by default the one a path's extension names, or Turtle for bytes. Defaults to None.
             base_iri (str, optional): The IRI against which relative IRIs of the shapes are resolved. Defaults to None.
-            report_format (str, optional): If given, the report is returned as a W3C sh:ValidationReport document in this RDF format (such as "ttl", "nt", "jsonld" or "rdf"), holding RDF terms rather than Raphtory names, and without the warnings. RDF/XML ("rdf") raises a GraphError if the report has a literal with a control character other than tab and line feed. Defaults to None.
+            report_format (str, optional): If given, the report is returned as an sh:ValidationReport document in this RDF format. Defaults to None.
 
         Returns:
-            Union[dict[str, Any], str]: The report as a dict, or as a document if report_format is given.
+            Union[dict[str, Any], str]: The report as a dict of conforms and results (dicts of focus_node, path, value, source_shape, constraint_component, severity and messages, terms as Raphtory names), or as a document if report_format is given.
 
         Raises:
-            GraphError: If the shapes use an unsupported SHACL feature or are not a valid shapes graph, if validation fails, or if RDF/XML cannot hold the report.
+            GraphError: If the shapes are not a valid shapes graph or the validation fails.
             ValueError: If the shapes do not parse or a format is unknown.
             TypeError: If shapes is neither bytes nor a path.
         """
@@ -8193,18 +8134,12 @@ class RdfView(object):
 
 class RdfGraph(RdfView):
     """
-    A graph viewed as RDF, with persistent semantics: the place to load, retract and query
-    triples.
+    A graph viewed as RDF with persistent semantics: the place to load, retract and query triples.
 
-    Each triple s p o is an edge from s to o in the layer of p, and a retraction is a deletion.
-    Wrapping a Graph shares its storage, so nothing is copied and writes through either handle
-    are seen by both. On an event Graph a retraction is a deletion event: it ends nothing, so
-    event views still show the triple, and a triple that was only retracted appears as an edge
-    (g.valid() drops it). The whole graph shows every triple ever asserted or retracted: valid()
-    is the current state and at(t) the state as of t.
+    Each triple s p o is an edge from s to o in the layer of p. Wrapping a Graph shares its storage.
 
     Arguments:
-        graph (Graph | PersistentGraph, optional): The graph to view as RDF. If not given, a new empty graph is created. Defaults to None.
+        graph (Graph | PersistentGraph, optional): The graph to view as RDF; a new empty graph if not given. Defaults to None.
     """
 
     def __new__(cls, graph: Optional[Graph | PersistentGraph] = None) -> RdfGraph:
@@ -8221,10 +8156,7 @@ class RdfGraph(RdfView):
         """
         Asserts one triple at timestamp.
 
-        The terms are names, as sparql() returns them, so its values can be passed straight back:
-        an absolute IRI as written (http://ex/alice), _:label for a blank node (used as written),
-        a literal in its N-Triples form ("Bob" or "42"^^<http://www.w3.org/2001/XMLSchema#integer>),
-        and any other name as it is (Alice).
+        Terms are names, as sparql() returns them.
 
         Arguments:
             timestamp (TimeInput): The time at which the triple is asserted.
@@ -8260,22 +8192,12 @@ class RdfGraph(RdfView):
         """
         Asserts every triple of an RDF document at timestamp.
 
-        Each triple s p o is added as an edge from s to o in the layer of p. Node names are RDF
-        terms: IRIs as written, blank nodes as _:label (renamed to fresh labels on every load) and
-        literals in their N-Triples form, such as "42"^^<http://www.w3.org/2001/XMLSchema#integer>,
-        so identical literals share a node. The layer of a predicate IRI not under raphtory: is
-        the IRI with %, /, :, ? and * percent-escaped as %25, %2F, %3A, %3F and %2A, so that layer
-        names are safe as file names: the layer of <http://ex/knows> is http%3A%2F%2Fex%2Fknows.
-        The layer of <raphtory:x> is x percent-decoded, and a predicate whose layer would be blank
-        or contain a control character, a backslash or any of / : * ? " < > | raises an error.
-        Named graphs are rejected. Each triple is written as one edge event, in document order, so
-        a load can run while other threads query or write the graph; it is not atomic: triples
-        read before an error stay in the graph.
+        Blank nodes get fresh labels and named graphs are rejected. Not atomic.
 
         Arguments:
             timestamp (TimeInput): The time at which the triples are asserted.
             source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
-            format (str, optional): The RDF format, as a file extension, name or media type (such as "ttl", "nt", "turtle", "text/turtle", "trig" or "rdf"). If not given, it is taken from the extension of a path (a missing or unknown extension raises an error), and is Turtle (which also reads N-Triples) for bytes. Defaults to None.
+            format (str, optional): The RDF format, such as "ttl", "nt" or "rdf"; by default the one a path's extension names, or Turtle for bytes. Defaults to None.
             base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
             event_id (int, optional): The optional integer which will be used as an event id.
 
@@ -8299,12 +8221,7 @@ class RdfGraph(RdfView):
         """
         Retracts every triple of an RDF document at timestamp.
 
-        Each triple s p o is deleted from the layer of p of the edge from s to o, with names
-        mapped as in load_rdf(), so from timestamp on it does not hold (until it is asserted
-        again). A retraction is recorded even if the triple was never asserted. Blank-node labels
-        are used as written, so they must be the stored labels (as returned by to_rdf() or
-        sparql()). Each triple is written as one edge event, in document order. The retraction
-        streams and is not atomic: triples before an error stay retracted.
+        Blank-node labels are used as written, so they must be the stored ones. Not atomic.
 
         Arguments:
             timestamp (TimeInput): The time at which the triples are retracted.
@@ -8333,8 +8250,6 @@ class RdfGraph(RdfView):
         """
         Retracts one triple at timestamp.
 
-        Terms are given as in add_triple().
-
         Arguments:
             timestamp (TimeInput): The time at which the triple is retracted.
             subject (str): The subject, such as http://ex/alice or _:b0.
@@ -8348,36 +8263,3 @@ class RdfGraph(RdfView):
         Raises:
             GraphError: If a term cannot be in its position (such as a literal subject), or the triple cannot be stored.
         """
-
-class ShaclWarning(object):
-    """
-    Why the results of a SHACL validation report may not be those of SHACL. Its string form is a
-    stable name: `partial_subclass_reasoning` or `recursive_shapes`.
-    """
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __int__(self):
-        """int(self)"""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def __str__(self):
-        """Return str(self)."""

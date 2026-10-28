@@ -1,6 +1,6 @@
 //! RDF import and export, storage semantics and formats.
-use super::{exported, layer_of, parse_graph, BLANK_NODES, DATATYPES, FOAF};
-use crate::{shacl::ShaclShapes, Literal, RdfError, RdfFormat, RdfGraph, RdfView};
+use super::{exported, parse_graph, BLANK_NODES, DATATYPES, FOAF};
+use crate::{shacl::ShaclShapes, RdfError, RdfFormat, RdfGraph, RdfView};
 use raphtory::{
     db::api::view::{IntoDynamic, StaticGraphViewOps},
     prelude::*,
@@ -24,7 +24,6 @@ fn layer_names<G: StaticGraphViewOps>(g: &G) -> BTreeSet<String> {
     g.unique_layers().map(|l| l.to_string()).collect()
 }
 
-/// A FOAF Turtle document: one edge per (subject, object), one layer per predicate.
 #[test]
 fn load_foaf_turtle() {
     let rg = RdfGraph::new();
@@ -55,19 +54,17 @@ fn load_foaf_turtle() {
             .map(|l| l.to_string())
             .collect::<BTreeSet<_>>(),
         BTreeSet::from([
-            layer_of("http://example.org/rel/worksWith"),
-            layer_of("http://xmlns.com/foaf/0.1/knows"),
+            "http://example.org/rel/worksWith".to_owned(),
+            "http://xmlns.com/foaf/0.1/knows".to_owned(),
         ])
     );
 
     // `42` (shorthand) and `"42"^^xsd:integer` are the same literal, so one node.
     let age = format!("\"42\"^^<{XSD_INTEGER}>");
     assert_eq!(pg.node(age.as_str()).unwrap().in_degree(), 2);
-    // the stored history is the load time
     assert_eq!(alice_bob.history().t().collect(), vec![1, 1]);
 }
 
-/// Blank nodes are renamed on load and matched as written on retraction.
 #[test]
 fn blank_nodes() {
     let rg = RdfGraph::new();
@@ -84,7 +81,6 @@ fn blank_nodes() {
     assert!(!blanks.contains(&"_:x".to_string()));
     assert_eq!(exported(&rg).len(), 4);
 
-    // retract one of the `_:x ex:p ex:o` triples using its label from the export
     let line = exported(&rg)
         .into_iter()
         .find(|l| l.contains("<http://ex/p>"))
@@ -107,10 +103,9 @@ fn blank_nodes() {
     assert!(rg.graph().node(label.as_str()).is_some());
 }
 
-/// A load stops at the first triple it cannot store and keeps the triples before it; on an
-/// integer-id graph that is the first triple.
 #[test]
 fn failed_loads_keep_earlier_triples() {
+    // integer node ids cannot hold names
     let g = Graph::new();
     g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     let doc = "<http://ex/s> <http://ex/p> <http://ex/o> .";
@@ -131,7 +126,6 @@ fn failed_loads_keep_earlier_triples() {
     assert_eq!(rg.graph().count_edges(), 1);
 }
 
-/// `base_iri` resolves relative IRIs.
 #[test]
 fn base_iri() {
     let rg = RdfGraph::new();
@@ -148,7 +142,6 @@ fn base_iri() {
     );
 }
 
-/// Export of a blank-free document parses back to the same RDF graph.
 #[test]
 fn export_round_trips_blank_free_fixtures() {
     for (data, format) in [(FOAF, RdfFormat::Turtle), (DATATYPES, RdfFormat::NTriples)] {
@@ -165,7 +158,6 @@ fn export_round_trips_blank_free_fixtures() {
     }
 }
 
-/// Plain (non-RDF) graphs export and re-load to the same names.
 #[test]
 fn plain_graph_round_trip() {
     let g = Graph::new();
@@ -177,7 +169,7 @@ fn plain_graph_round_trip() {
         "http://ex/carol",
         "Alice",
         NO_PROPS,
-        Some("http%3A%2F%2Fex%2Fknows"),
+        Some("http://ex/knows"),
     )
     .unwrap();
     g.add_edge(
@@ -185,7 +177,7 @@ fn plain_graph_round_trip() {
         "user:42",
         "raphtory:x",
         NO_PROPS,
-        Some("rel%3Awith%3Acolons"),
+        Some("rel:with:colons"),
     )
     .unwrap();
     g.add_edge(5, "", "\"x\"@EN", NO_PROPS, Some("42")).unwrap();
@@ -193,7 +185,7 @@ fn plain_graph_round_trip() {
         .unwrap();
     g.add_edge(7, "Bob", "Bob", NO_PROPS, Some("self")).unwrap();
     // `:` is not allowed in Turtle or SPARQL blank-node labels, so these are not blank nodes
-    g.add_edge(8, "_:a:b", "_::x", NO_PROPS, Some("_%3Ap%3Aq"))
+    g.add_edge(8, "_:a:b", "_::x", NO_PROPS, Some("_:p:q"))
         .unwrap();
 
     let u64_graph = Graph::new();
@@ -223,81 +215,6 @@ fn plain_graph_round_trip() {
     }
 }
 
-/// RDF/XML export skips what XML cannot write and stays parseable.
-#[test]
-fn rdf_xml_export_is_well_formed() {
-    const RDF_NS: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-    const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-    const XMLNS_FOO: &str = "http://www.w3.org/2000/xmlns/foo";
-    let g = Graph::new();
-    let edge = |s: &str, o: &str, p: &str| {
-        g.add_edge(1, s, o, NO_PROPS, Some(layer_of(p).as_str()))
-            .unwrap();
-    };
-    // a predicate without a local name
-    edge("http://ex/a", "http://ex/b", "http://ex/42");
-    // the local name can be a suffix of the last segment
-    edge("http://ex/a", "http://ex/b", "http://ex/4p");
-    // an RDF/XML syntax term (the serializer fails on it after it started the element of `a`)
-    edge(
-        "http://ex/a",
-        "http://ex/b",
-        &format!("{RDF_NS}Description"),
-    );
-    // an IRI in the `xmlns` namespace would be written as an `xmlns:foo` element
-    edge("http://ex/a", "http://ex/b", XMLNS_FOO);
-    // the first triple of `s` is an `rdf:type` whose object has no local name
-    edge("http://ex/s", "http://ex/42", RDF_TYPE);
-    edge("http://ex/s", "http://ex/o", "http://ex/p");
-    // the only triple of `t` is one
-    edge("http://ex/t", "http://ex/42", RDF_TYPE);
-    // an `rdf:type` object with a local name names the subject's element
-    edge("http://ex/u", "http://ex/Person", RDF_TYPE);
-    // a syntax term can be the object (the serializer writes an `rdf:Description` element)
-    edge("http://ex/r", &format!("{RDF_NS}li"), RDF_TYPE);
-    // blank nodes whose label is not an NCName (it starts with a digit) are renamed, and so are
-    // the labels they could collide with
-    edge("_:1", "http://ex/o", "http://ex/p");
-    edge("http://ex/v", "_:x1", "http://ex/p");
-    edge("http://ex/v", "_:x", "http://ex/p");
-    // literals with a character XML cannot hold, or without one
-    let literal = |value: &str| Literal::new_simple_literal(value).to_string();
-    edge("http://ex/w", &literal("bell\u{7}"), "http://ex/p");
-    edge("http://ex/w", &literal("tab\tnewline\n"), "http://ex/p");
-    let g = RdfGraph::from(g);
-
-    let all = export(&g, RdfFormat::NTriples).unwrap();
-    // the `rdf:type` triple of `s` comes first
-    let s_type = format!("<http://ex/s> <{RDF_TYPE}> <http://ex/42> .");
-    assert!(
-        all.find(&s_type).unwrap() < all.find("<http://ex/s> <http://ex/p>").unwrap(),
-        "{all}"
-    );
-    let expected = [
-        "<http://ex/a> <http://ex/4p> <http://ex/b> .".to_owned(),
-        s_type,
-        "<http://ex/s> <http://ex/p> <http://ex/o> .".to_owned(),
-        format!("<http://ex/u> <{RDF_TYPE}> <http://ex/Person> ."),
-        format!("<http://ex/r> <{RDF_TYPE}> <{RDF_NS}li> ."),
-        "_:x1 <http://ex/p> <http://ex/o> .".to_owned(),
-        "<http://ex/v> <http://ex/p> _:xx1 .".to_owned(),
-        "<http://ex/v> <http://ex/p> _:x .".to_owned(),
-        format!(
-            "<http://ex/w> <http://ex/p> {} .",
-            literal("tab\tnewline\n")
-        ),
-    ]
-    .join("\n");
-    let expected = parse_graph(&expected, RdfFormat::NTriples);
-
-    let mut out = Vec::new();
-    let stats = g.to_rdf(&mut out, RdfFormat::RdfXml).unwrap();
-    let doc = String::from_utf8(out).unwrap();
-    assert_eq!((stats.written, stats.skipped), (9, 5), "{doc}");
-    assert!(!doc.contains("<xmlns:"), "{doc}");
-    assert_eq!(parse_graph(&doc, RdfFormat::RdfXml), expected, "{doc}");
-}
-
 #[test]
 fn rdf_formats() {
     for (s, expected) in [
@@ -316,8 +233,6 @@ fn rdf_formats() {
     );
 }
 
-/// A file is read and written in the format its extension names unless one is given, and
-/// written as N-Triples without an extension.
 #[test]
 fn files() {
     let dir = tempfile::tempdir().unwrap();

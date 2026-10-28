@@ -2,7 +2,7 @@ use crate::{
     model::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
-            filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, NodesViewCollection},
+            filter_expr_input::GqlFilter,
             nested_edges::GqlNestedEdges,
             node::GqlNode,
             path_from_graph::GqlPathFromGraph,
@@ -23,12 +23,7 @@ use raphtory::{
             state::ops::DynNodeFilter,
             view::{filter_ops::Select, DynamicGraph, Filter},
         },
-        graph::{
-            nodes::{IntoDynNodes, Nodes},
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
-            },
-        },
+        graph::nodes::{IntoDynNodes, Nodes},
     },
     errors::GraphError,
     prelude::*,
@@ -75,7 +70,6 @@ impl GqlNodes {
     }
 
     /// Return a view of the nodes containing all layers specified.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -84,7 +78,6 @@ impl GqlNodes {
     }
 
     /// Return a view of the nodes containing all layers except those specified.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -94,13 +87,11 @@ impl GqlNodes {
     }
 
     /// Return a view of the nodes containing the specified layer.
-
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
     /// Return a view of the nodes containing all layers except those specified.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -117,7 +108,6 @@ impl GqlNodes {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     pub async fn rolling(
         &self,
         #[graphql(
@@ -150,7 +140,6 @@ impl GqlNodes {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     pub async fn expanding(
         &self,
         #[graphql(
@@ -172,7 +161,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -182,7 +170,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events at a specified time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -197,7 +184,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events that are valid at the specified time.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -212,7 +198,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events before specified end time (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -221,7 +206,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events after the specified start time (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -230,7 +214,6 @@ impl GqlNodes {
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
-
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -240,7 +223,6 @@ impl GqlNodes {
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
-
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -250,7 +232,6 @@ impl GqlNodes {
     }
 
     /// Filter nodes by node type.
-
     pub async fn type_filter(
         &self,
         #[graphql(desc = "Node-type names to keep.")] node_types: Vec<String>,
@@ -259,72 +240,12 @@ impl GqlNodes {
         blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
     }
 
-    /// Apply a list of views in the given order and return the resulting nodes
-    /// collection. Lets callers compose window, layer, filter, and snapshot
-    /// operations in a single call.
-
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, etc.) applied to the running result."
-        )]
-        views: Vec<NodesViewCollection>,
-    ) -> Result<GqlNodes, GraphError> {
-        let mut return_view: GqlNodes = GqlNodes::new(self.nn.clone());
-        for view in views {
-            return_view = match view {
-                NodesViewCollection::DefaultLayer(apply) => {
-                    if apply {
-                        return_view.default_layer().await
-                    } else {
-                        return_view
-                    }
-                }
-                NodesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                NodesViewCollection::Layers(layers) => return_view.layers(layers).await,
-                NodesViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                NodesViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                NodesViewCollection::At(at) => return_view.at(at).await,
-                NodesViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                NodesViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                NodesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                NodesViewCollection::Before(time) => return_view.before(time).await,
-                NodesViewCollection::After(time) => return_view.after(time).await,
-                NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                NodesViewCollection::NodeFilter(node_filter) => {
-                    return_view.filter(GqlFilter::Node(node_filter)).await?
-                }
-                NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
-            }
-        }
-
-        Ok(return_view)
-    }
-
     /////////////////
     //// Sorting ////
     /////////////////
 
     /// Sort the nodes. Multiple criteria are applied lexicographically (ties on the
     /// first key break to the second, etc.).
-
     pub async fn sorted(
         &self,
         #[graphql(
@@ -416,7 +337,6 @@ impl GqlNodes {
     /////////////////
 
     /// Number of nodes in the current view.
-
     /// The property keys this collection reports: the first member's registry
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
@@ -509,13 +429,12 @@ impl GqlNodes {
     /// E.g. restricting everything to a specific week:
     ///
     /// ```text
-    /// nodes { filter(expr: {window: {start: 1234, end: 5678}}) {
+    /// nodes { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
     ///   list { neighbours { list { name } } }   # neighbours still windowed
     /// } }
     /// ```
     ///
     /// Contrast with `select`, which applies here and is not carried through.
-
     pub async fn filter(
         &self,
         #[graphql(
@@ -525,8 +444,7 @@ impl GqlNodes {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -540,9 +458,9 @@ impl GqlNodes {
     /// neighbours active on Wednesday:
     ///
     /// ```text
-    /// nodes { select(expr: {window: {...monday...}}) {
-    ///   list { neighbours { select(expr: {window: {...tuesday...}}) {
-    ///     list { neighbours { select(expr: {window: {...wednesday...}}) {
+    /// nodes { select(expr: {view: [{window: {...monday...}}]}) {
+    ///   list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
+    ///     list { neighbours { select(expr: {view: [{window: {...wednesday...}}]}) {
     ///       list { name }
     ///     } } }
     ///   } } }
@@ -550,7 +468,6 @@ impl GqlNodes {
     /// ```
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
-
     pub async fn select(
         &self,
         #[graphql(
@@ -573,12 +490,11 @@ impl GqlNodes {
     /// Returns the neighbouring nodes of each node in the collection.
     pub async fn neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromGraph, GraphError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
@@ -587,12 +503,11 @@ impl GqlNodes {
     /// Returns the in-neighbours of each node in the collection.
     pub async fn in_neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromGraph, GraphError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
@@ -601,51 +516,41 @@ impl GqlNodes {
     /// Returns the out-neighbours of each node in the collection.
     pub async fn out_neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromGraph, GraphError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
     }
 
     /// Returns the incident edges (both directions) of each node in the collection.
-    pub async fn edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlNestedEdges, GraphError> {
+    pub async fn edges(&self, select: Option<GqlFilter>) -> Result<GqlNestedEdges, GraphError> {
         let base = self.nn.edges();
         if let Some(expr) = select {
-            let ef: CompositeEdgeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlNestedEdges::new(narrowed));
         }
         Ok(GqlNestedEdges::new(base))
     }
 
     /// Returns the incoming edges of each node in the collection.
-    pub async fn in_edges(
-        &self,
-        select: Option<GqlEdgeFilter>,
-    ) -> Result<GqlNestedEdges, GraphError> {
+    pub async fn in_edges(&self, select: Option<GqlFilter>) -> Result<GqlNestedEdges, GraphError> {
         let base = self.nn.in_edges();
         if let Some(expr) = select {
-            let ef: CompositeEdgeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlNestedEdges::new(narrowed));
         }
         Ok(GqlNestedEdges::new(base))
     }
 
     /// Returns the outgoing edges of each node in the collection.
-    pub async fn out_edges(
-        &self,
-        select: Option<GqlEdgeFilter>,
-    ) -> Result<GqlNestedEdges, GraphError> {
+    pub async fn out_edges(&self, select: Option<GqlFilter>) -> Result<GqlNestedEdges, GraphError> {
         let base = self.nn.out_edges();
         if let Some(expr) = select {
-            let ef: CompositeEdgeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlNestedEdges::new(narrowed));
         }
         Ok(GqlNestedEdges::new(base))

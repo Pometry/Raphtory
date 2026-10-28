@@ -156,6 +156,12 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
         self.max_page_len
     }
 
+    /// Cumulative chunk offsets (`num_chunks() + 1` entries, starting at 0)
+    #[inline]
+    pub fn offsets(&self) -> &[usize] {
+        &self.offsets
+    }
+
     /// Create an iterator over all valid global indices
     ///
     /// This iterates through all chunks and yields the global indices for each item.

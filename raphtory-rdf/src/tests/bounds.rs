@@ -3,9 +3,9 @@ use crate::{
     limits::count_triple_patterns, query::parse, QueryResultsFormat, RdfError, RdfFormat, RdfGraph,
     SparqlFormat, SparqlOptions,
 };
+use oxigraph::sparql::QueryEvaluationError;
 use raphtory::prelude::*;
 
-/// The number of triple patterns of `query`.
 fn patterns(query: &str) -> usize {
     count_triple_patterns(&parse(query).unwrap_or_else(|e| panic!("{query}: {e}")))
 }
@@ -52,7 +52,6 @@ fn every_construct_counts_its_triple_patterns() {
     for &(query, expected) in cases {
         assert_eq!(patterns(query), expected, "{query}");
     }
-    // rows of VALUES
     let values = |rows: usize| {
         let rows: String = (0..rows).map(|i| format!("({i} {i}) ")).collect();
         format!("ASK {{ VALUES (?x ?y) {{ {rows} }} }}")
@@ -80,7 +79,6 @@ fn star(n: usize) -> String {
     format!("SELECT ?s {{ {patterns} }}")
 }
 
-/// A query within the limit runs; one beyond it is rejected before anything is written.
 #[test]
 fn queries_with_too_many_triple_patterns_are_rejected() {
     let g = small_graph();
@@ -109,8 +107,6 @@ fn queries_with_too_many_triple_patterns_are_rejected() {
     assert!(g.sparql(&star(101), &SparqlOptions::default()).is_ok());
 }
 
-/// A query longer than the limit is rejected, and results larger than the limit fail with at
-/// most the limit written.
 #[test]
 fn long_queries_and_large_results_are_rejected() {
     let g = small_graph();
@@ -143,4 +139,18 @@ fn long_queries_and_large_results_are_rejected() {
         );
         assert!(out.len() < all.len());
     }
+}
+
+#[test]
+fn service_is_refused_by_sparql() {
+    let g = small_graph();
+    let query = "SELECT * { SERVICE <http://example.org/sparql> { ?s ?p ?o } }";
+    let error = g.sparql(query, &SparqlOptions::default()).unwrap_err();
+    assert!(
+        matches!(
+            &error,
+            RdfError::SparqlEvaluation(QueryEvaluationError::UnsupportedService(_))
+        ),
+        "{error:?}"
+    );
 }

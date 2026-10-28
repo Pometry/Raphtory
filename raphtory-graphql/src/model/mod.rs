@@ -350,6 +350,7 @@ impl Mut {
     }
 
     /// Load nodes
+    #[allow(clippy::too_many_arguments)]
     pub async fn load_nodes<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
@@ -429,6 +430,7 @@ impl Mut {
     }
 
     /// Load edges
+    #[allow(clippy::too_many_arguments)]
     pub async fn load_edges<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,

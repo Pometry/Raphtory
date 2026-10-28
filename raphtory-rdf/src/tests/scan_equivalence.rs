@@ -1,8 +1,7 @@
-//! Export and SPARQL see exactly the `(edge, layer)` pairs of a view: those of Raphtory's own
-//! edge iterator over the view, exploded into layers. Checked for a full scan and for patterns
-//! with a bound subject, predicate, object, or subject and object.
+//! Export and SPARQL see exactly the `(edge, layer)` pairs of Raphtory's edge iterator over a
+//! view, for a full scan and for every combination of bound terms.
 use super::{exported, select};
-use crate::{mapping::layer_term, term_of, RdfView};
+use crate::{mapping::iri_of, term_of, RdfView};
 use raphtory::{
     db::api::view::{DynamicGraph, IntoDynamic},
     prelude::*,
@@ -11,11 +10,8 @@ use raphtory::{
 const NODES: [&str; 3] = ["a", "b", "c"];
 const LAYERS: [&str; 3] = ["p", "q", "r"];
 
-/// A triple as `(subject, predicate, object)` terms in N-Triples form.
 type Spo = (String, String, String);
 
-/// The triples of the `(edge, layer)` pairs of a view, from Raphtory's own edge iterator,
-/// sorted.
 fn view_triples(view: &DynamicGraph) -> Vec<Spo> {
     let mut triples: Vec<Spo> = view
         .edges()
@@ -24,7 +20,7 @@ fn view_triples(view: &DynamicGraph) -> Vec<Spo> {
         .map(|e| {
             (
                 term_of(&e.src().name()).to_string(),
-                layer_term(&e.layer_name().unwrap()).to_string(),
+                iri_of(&e.layer_name().unwrap()).to_string(),
                 term_of(&e.dst().name()).to_string(),
             )
         })
@@ -33,8 +29,7 @@ fn view_triples(view: &DynamicGraph) -> Vec<Spo> {
     triples
 }
 
-/// The triples of `triples` that `keep` accepts, as SPARQL rows of the variables `?s ?p ?o`
-/// that are not bound.
+// as SPARQL rows of the unbound variables among `?s ?p ?o`
 fn rows(
     triples: &[Spo],
     keep: impl Fn(&Spo) -> bool,
@@ -102,7 +97,7 @@ fn reads_match_the_edges_of_the_view() {
         }
     }
     for layer in LAYERS {
-        let term = layer_term(layer).to_string();
+        let term = iri_of(layer).to_string();
         let query = format!("SELECT ?s ?o {{ ?s {term} ?o }}");
         let expected = rows(&triples, |(_, p, _)| *p == term, (false, true, false));
         assert_eq!(select(&rdf, &query), expected, "{query}");

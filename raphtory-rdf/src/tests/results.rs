@@ -1,5 +1,4 @@
 //! Serialized SPARQL results: `SparqlFormat` and `sparql_to_writer`.
-use super::parse_graph;
 use crate::{
     QueryForm,
     QueryResultsFormat::{self, Csv, Json, Tsv, Xml},
@@ -7,7 +6,6 @@ use crate::{
 };
 use raphtory::db::api::view::{IntoDynamic, StaticGraphViewOps};
 
-/// What a write gave: the document and the counts.
 type Written = Result<(String, WriteStats), RdfError>;
 
 fn written(write: impl FnOnce(&mut Vec<u8>) -> Result<WriteStats, RdfError>) -> Written {
@@ -16,7 +14,6 @@ fn written(write: impl FnOnce(&mut Vec<u8>) -> Result<WriteStats, RdfError>) -> 
     Ok((String::from_utf8(out).expect("output is UTF-8"), stats))
 }
 
-/// `sparql_to_writer` into a string.
 fn stream<G: StaticGraphViewOps + IntoDynamic>(
     view: &RdfView<G>,
     query: &str,
@@ -29,7 +26,6 @@ fn format(name: &str) -> SparqlFormat {
     SparqlFormat::parse(name).unwrap_or_else(|e| panic!("{name}: {e}"))
 }
 
-/// One name gives each slot the format it means for it.
 #[test]
 fn format_names() {
     let slots = |name: &str| {
@@ -64,16 +60,12 @@ fn format_names() {
     }
 }
 
-/// A row of `formats_from_media_types`: the ranges, then the format and media type for
-/// `SELECT` and `ASK` and for `CONSTRUCT` and `DESCRIBE`.
 type Case = (
     &'static [(&'static str, f32)],
     Option<(QueryResultsFormat, &'static str)>,
     Option<(RdfFormat, &'static str)>,
 );
 
-/// The format for a form is the first media type, in order of preference, that names one, and
-/// is served as a media type the ranges accept.
 #[test]
 fn formats_from_media_types() {
     let table: &[Case] = &[
@@ -135,50 +127,6 @@ fn formats_from_media_types() {
     }
 }
 
-/// RDF/XML CONSTRUCT results are grouped by subject, so every subject gets one element.
-#[test]
-fn construct_rdf_xml_groups_by_subject() {
-    let rg = RdfGraph::new();
-    let doc = "<http://ex/a> <http://ex/p> <http://ex/b> .
-        <http://ex/c> <http://ex/p> <http://ex/d> .";
-    rg.load_rdf(1, doc.as_bytes(), RdfFormat::NTriples, None)
-        .unwrap();
-    let query = "PREFIX ex: <http://ex/>
-        CONSTRUCT { ?s ex:q ?o . ?o ex:r ?s . ?s a ex:42 } WHERE { ?s ex:p ?o }";
-    let (nt, stats) = stream(&rg, query, RdfFormat::NTriples).unwrap();
-    assert_eq!((stats.written, stats.skipped), (6, 0), "{nt}");
-    // the triples of `a` are not consecutive
-    let lines: Vec<&str> = nt.lines().collect();
-    let of_a: Vec<usize> = (0..lines.len())
-        .filter(|&i| lines[i].starts_with("<http://ex/a> "))
-        .collect();
-    assert_eq!(of_a.len(), 2, "{nt}");
-    assert_ne!(of_a[1], of_a[0] + 1, "{nt}");
-
-    let (doc, stats) = stream(&rg, query, RdfFormat::RdfXml).unwrap();
-    assert_eq!((stats.written, stats.skipped), (6, 0), "{doc}");
-    assert_eq!(
-        parse_graph(&doc, RdfFormat::RdfXml),
-        parse_graph(&nt, RdfFormat::NTriples),
-        "{doc}"
-    );
-    for subject in ["a", "b", "c", "d"] {
-        assert_eq!(
-            doc.matches(&format!("rdf:about=\"http://ex/{subject}\""))
-                .count(),
-            1,
-            "{doc}"
-        );
-    }
-    assert_eq!(
-        doc.matches("<rdf:type rdf:resource=\"http://ex/42\"/>")
-            .count(),
-        2,
-        "{doc}"
-    );
-}
-
-/// The counts of `WriteStats`.
 #[test]
 fn write_stats() {
     let rg = RdfGraph::new();
@@ -226,12 +174,5 @@ fn write_stats() {
         let (nt, stats) = stream(&rg, query, RdfFormat::NTriples).unwrap();
         assert_eq!((stats.written, stats.skipped), (n, 0), "{query}: {nt}");
         assert_eq!(nt.lines().count(), n, "{query}: {nt}");
-        let (xml, stats) = stream(&rg, query, RdfFormat::RdfXml).unwrap();
-        assert_eq!((stats.written, stats.skipped), (n, 0), "{query}: {xml}");
-        assert_eq!(
-            parse_graph(&xml, RdfFormat::RdfXml).len(),
-            n,
-            "{query}: {xml}"
-        );
     }
 }

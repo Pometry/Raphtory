@@ -1,8 +1,4 @@
 //! Temporal SPARQL functions: since when a triple has held, and until when.
-//!
-//! [`temporal_functions_of`] registers four functions on a [`SparqlEvaluator`], answering for
-//! the triples of one view. [`RdfView::sparql`](crate::RdfView::sparql) and
-//! [`RdfView::sparql_to_writer`](crate::RdfView::sparql_to_writer) register them.
 use crate::{
     mapping::{layer_name_of, name_of, term_of},
     time_graph::TimeGraph,
@@ -23,34 +19,15 @@ use raphtory::{
 use raphtory_api::core::storage::timeindex::AsTime;
 use spareval::ExpressionTerm;
 
-/// `raphtory:validFrom(?s, ?p, ?o [, ?g])`: when the latest run of a triple started, as an
-/// `xsd:dateTime` (see [the rules](crate#the-rules-of-the-temporal-functions)).
-pub const VALID_FROM: &str = "raphtory:validFrom";
-
-/// `raphtory:validTo(?s, ?p, ?o [, ?g])`: the retraction that ended the latest run of a triple,
-/// as an `xsd:dateTime` (see [the rules](crate#the-rules-of-the-temporal-functions)).
-pub const VALID_TO: &str = "raphtory:validTo";
-
-/// `raphtory:validFromTime(?s, ?p, ?o [, ?g])`: [`VALID_FROM`] as an `xsd:integer`, the
-/// Raphtory time (epoch milliseconds).
-pub const VALID_FROM_TIME: &str = "raphtory:validFromTime";
-
-/// `raphtory:validToTime(?s, ?p, ?o [, ?g])`: [`VALID_TO`] as an `xsd:integer`, the Raphtory
-/// time (epoch milliseconds).
-pub const VALID_TO_TIME: &str = "raphtory:validToTime";
-
-/// Registers the temporal functions [`VALID_FROM`], [`VALID_TO`], [`VALID_FROM_TIME`] and
-/// [`VALID_TO_TIME`] on `evaluator`, answering for the triples of `view` (see
-/// [the rules](crate#the-rules-of-the-temporal-functions)).
 pub(crate) fn temporal_functions_of(
     evaluator: SparqlEvaluator,
     view: DynamicGraph,
 ) -> SparqlEvaluator {
     [
-        (VALID_FROM, End::From, Repr::DateTime),
-        (VALID_TO, End::To, Repr::DateTime),
-        (VALID_FROM_TIME, End::From, Repr::Time),
-        (VALID_TO_TIME, End::To, Repr::Time),
+        ("raphtory:validFrom", End::From, Repr::DateTime),
+        ("raphtory:validTo", End::To, Repr::DateTime),
+        ("raphtory:validFromTime", End::From, Repr::Time),
+        ("raphtory:validToTime", End::To, Repr::Time),
     ]
     .into_iter()
     .fold(evaluator, |evaluator, (name, end, repr)| {
@@ -69,25 +46,18 @@ pub(crate) fn temporal_functions_of(
     })
 }
 
-/// Which end of the run a function returns.
 #[derive(Clone, Copy)]
 enum End {
     From,
     To,
 }
 
-/// How a function returns a time.
 #[derive(Clone, Copy)]
 enum Repr {
-    /// An `xsd:dateTime`.
     DateTime,
-    /// An `xsd:integer`.
     Time,
 }
 
-/// The latest run `(from, to)` of the triple `args[..3]` in the scope (the view, or the time
-/// graph `args[3]` of it), or `None` if the triple is not visible in the scope or never held in
-/// it.
 fn latest_run(view: &DynamicGraph, args: &[Term]) -> Option<(i64, Option<i64>)> {
     let (s, p, o, scope) = match args {
         [s, p, o] => (s, p, o, view.clone()),
@@ -97,7 +67,7 @@ fn latest_run(view: &DynamicGraph, args: &[Term]) -> Option<(i64, Option<i64>)> 
         }
         _ => return None,
     };
-    // A canonicalised literal subject or predicate cannot be mapped back to its node or layer.
+    // a canonicalised literal subject or predicate cannot be mapped back to its node or layer
     if !passed_unchanged(s) || !passed_unchanged(p) {
         return None;
     }
@@ -118,8 +88,8 @@ fn latest_run(view: &DynamicGraph, args: &[Term]) -> Option<(i64, Option<i64>)> 
     run_of(&edge)
 }
 
-/// The latest run of `edge` in its view, by persistent semantics: it starts at the start of
-/// the view if the edge held there, and its end is `None` if the edge holds at the end.
+/// The latest period in which the edge held in its view: when it started, and the retraction
+/// that ended it (`None` while it still holds). Repeated assertions do not start a new period.
 fn run_of(edge: &EdgeView<DynamicGraph>) -> Option<(i64, Option<i64>)> {
     // the earliest time of an edge that held at the start of the view is that start
     let mut from = edge
@@ -143,9 +113,7 @@ fn run_of(edge: &EdgeView<DynamicGraph>) -> Option<(i64, Option<i64>)> {
     Some((from?, to))
 }
 
-/// Whether SPARQL hands `term` to functions as it is in the graph: IRIs, blank nodes, string
-/// literals and literals of other types do; a literal of an xsd value type (a number, boolean,
-/// date-time, ...) arrives in canonical form instead.
+// SPARQL passes literals of xsd value types (numbers, booleans, date-times..) in canonical form
 fn passed_unchanged(term: &Term) -> bool {
     matches!(
         ExpressionTerm::from(term.clone()),
@@ -157,8 +125,7 @@ fn passed_unchanged(term: &Term) -> bool {
     )
 }
 
-/// The canonical `xsd:dateTime` (UTC, millisecond precision) of a time, if it is in the years 1
-/// to 9999 (outside them oxsdatatypes misreads chrono's output).
+// outside the years 1 to 9999 oxsdatatypes misreads chrono's output
 fn date_time(t: i64) -> Option<Term> {
     let dt = DateTime::<Utc>::from_timestamp_millis(t)?;
     if !(1..=9999).contains(&dt.year()) {

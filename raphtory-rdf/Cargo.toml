@@ -22,7 +22,6 @@ spargebra.workspace = true
 oxiri.workspace = true
 percent-encoding.workspace = true
 chrono.workspace = true
-dashmap.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 rayon.workspace = true
@@ -32,7 +31,6 @@ thiserror.workspace = true
 # rudof's SHACL validator; it also turns on oxigraph's HTTP client, but queries refuse SERVICE calls
 shacl.workspace = true
 rudof_rdf.workspace = true
-prefixmap.workspace = true
 rudof_iri.workspace = true
 
 # python binding optional dependencies
@@ -49,6 +47,4 @@ python = [
     "dep:pyo3",
     "dep:raphtory-core",
     "raphtory/python",
-    "raphtory-api/python",
 ]
-panic-on-drop = ["raphtory/panic-on-drop"]

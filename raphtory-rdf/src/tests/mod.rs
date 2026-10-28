@@ -5,20 +5,15 @@ mod limits;
 mod loading;
 mod mapping;
 mod oracle;
-mod rdf12;
 mod results;
 mod scan_equivalence;
 mod shacl;
-mod shacl_report;
 mod temporal;
 mod time_graph;
 
-use crate::{
-    mapping::layer_name_of, NamedNode, RdfFormat, RdfView, SparqlOptions, SparqlResults, Term,
-    Triple,
-};
+use crate::{RdfFormat, RdfView, SparqlOptions, SparqlResults, Term, Triple};
 
-use oxigraph::{io::RdfParser, model::Graph as OxGraph};
+use oxigraph::{io::RdfParser, model::Graph};
 use raphtory::db::api::view::{IntoDynamic, StaticGraphViewOps};
 
 const FOAF: &str = include_str!("fixtures/foaf.ttl");
@@ -26,12 +21,6 @@ const DATATYPES: &str = include_str!("fixtures/datatypes.nt");
 const BLANK_NODES: &str = include_str!("fixtures/blank_nodes.ttl");
 const SOCIAL: &str = include_str!("fixtures/social.ttl");
 
-/// The layer name of the predicate `iri`.
-fn layer_of(iri: &str) -> String {
-    layer_name_of(NamedNode::new(iri).unwrap().as_ref().into()).unwrap()
-}
-
-/// Solution rows in N-Triples form (`UNDEF` where a variable is unbound), sorted.
 fn sorted_rows(rows: &[Vec<Option<Term>>]) -> Vec<Vec<String>> {
     let mut rows: Vec<Vec<String>> = rows
         .iter()
@@ -49,7 +38,6 @@ fn sorted_rows(rows: &[Vec<Option<Term>>]) -> Vec<Vec<String>> {
     rows
 }
 
-/// Runs a `SELECT` query and returns its [`sorted_rows`].
 fn select<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>, query: &str) -> Vec<Vec<String>> {
     match view
         .sparql(query, &SparqlOptions::default())
@@ -60,7 +48,6 @@ fn select<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>, query: &str) -
     }
 }
 
-/// Runs an `ASK` query.
 fn ask<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>, query: &str) -> bool {
     match view
         .sparql(query, &SparqlOptions::default())
@@ -71,7 +58,6 @@ fn ask<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>, query: &str) -> b
     }
 }
 
-/// The sorted N-Triples lines `to_rdf` writes for a view.
 fn exported<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>) -> Vec<String> {
     let mut out = Vec::new();
     view.to_rdf(&mut out, RdfFormat::NTriples).unwrap();
@@ -84,8 +70,7 @@ fn exported<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>) -> Vec<Strin
     lines
 }
 
-/// Parses a document into a set of triples, keeping blank-node labels.
-fn parse_graph(doc: &str, format: RdfFormat) -> OxGraph {
+fn parse_graph(doc: &str, format: RdfFormat) -> Graph {
     RdfParser::from_format(format.to_oxigraph())
         .for_reader(doc.as_bytes())
         .map(|quad| Triple::from(quad.unwrap_or_else(|e| panic!("{e}: {doc}"))))

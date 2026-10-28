@@ -1,21 +1,12 @@
-//! The SPARQL 1.1 Protocol endpoint: `/sparql/<graph path>` answers a SPARQL query by sending
-//! it, with the request's `Authorization` header, to the GraphQL endpoint as the `sparql` field
-//! of `rdfGraph(path:)`, so it gets the same permission checks, access filters and limits.
-//!
-//! The query runs on `valid` of the graph, the current state, unless it reads a time graph
-//! `<raphtory:asof:T>` ([`QueryOutline::reads_time_graphs`]): then it runs on the whole graph,
-//! since a time graph already holds the state at its time. `asof=T` runs it on
-//! `before(time: T + 1) { valid }`.
-//!
-//! The query is parsed, to choose the view and the format, before the GraphQL endpoint
-//! authenticates the request.
+//! The SPARQL 1.1 Protocol endpoint `/sparql/<graph path>`: it runs the query as the `sparql`
+//! field of `rdfGraph(path:)` on the GraphQL endpoint, with the same permission checks and limits.
 use crate::{
-    model::graph::rdf_graph::GqlSparqlFormat,
+    auth::AuthenticatedGraphQL,
     paths::PathValidationError,
     rayon::blocking_compute,
-    sparql::{accept, SparqlError, CODE_RESULTS_TOO_LARGE},
+    sparql::{config::CODE_RESULTS_TOO_LARGE, format::GqlSparqlFormat, SparqlError},
 };
-use async_graphql::Value;
+use async_graphql::{Executor, Value};
 use itertools::Itertools;
 use poem::{
     error::ResponseError,
@@ -29,12 +20,35 @@ use poem::{
 use raphtory_api::core::utils::time::ParseTimeError;
 use raphtory_rdf::{QueryForm, QueryOutline, SparqlFormat, SparqlOptions, TimeGraph};
 use serde_json::{json, Value as Json};
+use std::sync::Arc;
 use thiserror::Error;
 use url::form_urlencoded;
 
 const ALLOWED: &str = "GET, POST, OPTIONS";
 
-/// Why a protocol request failed. The response is the message as plain text.
+const SPARQL: &str = "sparql(query: $query, format: $format)";
+
+// poem's `Accept` is sorted best first
+fn media_ranges(accept: &[Mime]) -> Vec<(&str, f32)> {
+    if accept.is_empty() {
+        return vec![("*/*", 1.0)];
+    }
+    accept
+        .iter()
+        .filter_map(|range| {
+            let q = match range.get_param("q") {
+                Some(q) => q
+                    .as_str()
+                    .parse::<f32>()
+                    .ok()
+                    .filter(|q| (0.0..=1.0).contains(q))?,
+                None => 1.0,
+            };
+            Some((range.essence_str(), q))
+        })
+        .collect()
+}
+
 #[derive(Debug, Error)]
 enum EndpointError {
     #[error("the request has more than one `{0}`")]
@@ -46,13 +60,6 @@ enum EndpointError {
          application/sparql-query"
     )]
     UnsupportedMediaType,
-    #[error("SPARQL Update is not supported: this endpoint answers queries only")]
-    UpdateNotSupported,
-    #[error(
-        "`default-graph-uri` and `named-graph-uri` are not supported: name time graphs \
-         <raphtory:asof:T> in the query"
-    )]
-    DatasetNotSupported,
     #[error("the request has no `query`")]
     NoQuery,
     #[error("invalid `asof`: {0}")]
@@ -61,11 +68,9 @@ enum EndpointError {
     Query(SparqlError),
     #[error("the Accept header allows no format of {} results", .0.name())]
     NotAcceptable(QueryForm),
-    /// The status and the messages of the errors of the GraphQL request.
     #[error("{1}")]
     GraphQL(StatusCode, String),
-    /// A graph that does not exist or that the caller cannot read; the two are
-    /// indistinguishable.
+    // also a graph the caller cannot read, so the two are indistinguishable
     #[error(transparent)]
     GraphNotFound(PathValidationError),
     #[error("the SPARQL endpoint answers GET and POST requests")]
@@ -77,13 +82,11 @@ impl ResponseError for EndpointError {
         match self {
             Self::DuplicateParam(_)
             | Self::QueryNotUtf8
-            | Self::DatasetNotSupported
             | Self::NoQuery
             | Self::InvalidAsof(_)
             | Self::Query(_) => StatusCode::BAD_REQUEST,
             Self::GraphQL(status, _) => *status,
             Self::UnsupportedMediaType => StatusCode::UNSUPPORTED_MEDIA_TYPE,
-            Self::UpdateNotSupported => StatusCode::NOT_IMPLEMENTED,
             Self::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
             Self::GraphNotFound(_) => StatusCode::NOT_FOUND,
             Self::MethodNotAllowed => StatusCode::METHOD_NOT_ALLOWED,
@@ -94,8 +97,6 @@ impl ResponseError for EndpointError {
 #[derive(Default)]
 struct Params {
     query: Option<String>,
-    update: bool,
-    dataset: bool,
     asof: Option<String>,
 }
 
@@ -110,10 +111,8 @@ impl Params {
         };
         match name {
             "query" => once(&mut self.query, "query", value)?,
-            "update" => self.update = true,
-            "default-graph-uri" | "named-graph-uri" => self.dataset = true,
             "asof" => once(&mut self.asof, "asof", value)?,
-            // other parameters (such as the `format` and `output` of some clients) are ignored
+            // such as the `format` and `output` of some clients
             _ => {}
         }
         Ok(())
@@ -127,21 +126,18 @@ impl Params {
     }
 }
 
-/// The SPARQL 1.1 Protocol endpoint for the graphs of a server.
-pub(crate) struct SparqlEndpoint<G> {
-    graphql: G,
+pub(crate) struct SparqlEndpoint<E> {
+    graphql: Arc<AuthenticatedGraphQL<E>>,
     options: SparqlOptions,
 }
 
-impl<G> SparqlEndpoint<G> {
-    /// An endpoint that sends queries to `graphql`, the GraphQL endpoint of the server, whose
-    /// SPARQL queries run with `options`.
-    pub(crate) fn new(graphql: G, options: SparqlOptions) -> Self {
+impl<E> SparqlEndpoint<E> {
+    pub(crate) fn new(graphql: Arc<AuthenticatedGraphQL<E>>, options: SparqlOptions) -> Self {
         Self { graphql, options }
     }
 }
 
-impl<G: Endpoint> Endpoint for SparqlEndpoint<G> {
+impl<E: Executor> Endpoint for SparqlEndpoint<E> {
     type Output = Response;
 
     async fn call(&self, req: Request) -> poem::Result<Response> {
@@ -166,7 +162,7 @@ impl<G: Endpoint> Endpoint for SparqlEndpoint<G> {
     }
 }
 
-impl<G: Endpoint> SparqlEndpoint<G> {
+impl<E: Executor> SparqlEndpoint<E> {
     async fn respond(&self, mut req: Request) -> poem::Result<Response> {
         let path = req.raw_path_param("path").unwrap_or_default().to_owned();
         let mut params = Params::default();
@@ -178,7 +174,6 @@ impl<G: Endpoint> SparqlEndpoint<G> {
                 .content_type()
                 .and_then(|value| value.parse::<Mime>().ok());
             match content_type.as_ref().map(Mime::essence_str) {
-                Some("application/sparql-update") => params.update = true,
                 Some("application/x-www-form-urlencoded") => {
                     params.add_form(&req.take_body().into_vec().await?)?
                 }
@@ -190,12 +185,6 @@ impl<G: Endpoint> SparqlEndpoint<G> {
                 _ => return Err(EndpointError::UnsupportedMediaType.into()),
             }
         }
-        if params.update {
-            return Err(EndpointError::UpdateNotSupported.into());
-        }
-        if params.dataset {
-            return Err(EndpointError::DatasetNotSupported.into());
-        }
         let query = params.query.ok_or(EndpointError::NoQuery)?;
         let asof = params
             .asof
@@ -203,39 +192,44 @@ impl<G: Endpoint> SparqlEndpoint<G> {
             .map(TimeGraph::parse_time)
             .transpose()
             .map_err(EndpointError::InvalidAsof)?;
+        // parsed before the GraphQL endpoint authenticates, to choose the view and the format
         let (parsed, options) = (query.clone(), self.options.clone());
         let outline = blocking_compute(move || QueryOutline::parse(&parsed, &options))
             .await
             .map_err(|error| EndpointError::Query(error.into()))?;
         let Accept(accept) = Accept::from_request_without_body(&req).await?;
         let (format, media_type) =
-            SparqlFormat::from_media_types(outline.form, accept::ranges(&accept))
+            SparqlFormat::from_media_types(outline.form, media_ranges(&accept))
                 .and_then(|(format, media_type)| {
                     Some((GqlSparqlFormat::naming(outline.form, format)?, media_type))
                 })
                 .ok_or(EndpointError::NotAcceptable(outline.form))?;
 
-        let sparql = "sparql(query: $query, format: $format)";
-        let (view, results) = match asof {
+        // the current state, or the whole graph for a query reading time graphs (they hold theirs)
+        let (selection, pointer) = match asof {
             Some(time) => (
                 format!(
-                    "before(time: {}) {{ valid {{ {sparql} }} }}",
+                    "before(time: {}) {{ valid {{ {SPARQL} }} }}",
                     time.saturating_add(1)
                 ),
                 "/data/rdfGraph/before/valid/sparql",
             ),
-            None if outline.reads_time_graphs => (sparql.to_owned(), "/data/rdfGraph/sparql"),
+            None if outline.reads_time_graphs => (SPARQL.to_owned(), "/data/rdfGraph/sparql"),
             None => (
-                format!("valid {{ {sparql} }}"),
+                format!("valid {{ {SPARQL} }}"),
                 "/data/rdfGraph/valid/sparql",
             ),
         };
-        let request = json!({
+        let body = json!({
             "query": format!(
                 "query SparqlEndpoint($path: String!, $query: String!, $format: SparqlFormat!) \
-                 {{ rdfGraph(path: $path) {{ {view} }} }}"
+                 {{ rdfGraph(path: $path) {{ {selection} }} }}"
             ),
-            "variables": { "path": path, "query": query, "format": Value::from(&format) },
+            "variables": {
+                "path": path,
+                "query": query,
+                "format": Value::from(&format),
+            },
         });
         let mut graphql = Request::builder()
             .method(Method::POST)
@@ -243,14 +237,18 @@ impl<G: Endpoint> SparqlEndpoint<G> {
         if let Some(authorization) = req.headers().get(AUTHORIZATION) {
             graphql = graphql.header(AUTHORIZATION, authorization.clone());
         }
-        let response = self
+        let mut response: Json = self
             .graphql
-            .call(graphql.body(request.to_string()))
+            .call(graphql.body(body.to_string()))
             .await?
-            .into_response();
-        let mut response: Json = response.into_body().into_json().await?;
+            .into_body()
+            .into_json()
+            .await?;
 
-        if let Some(errors) = response["errors"].as_array().filter(|e| !e.is_empty()) {
+        if let Some(errors) = response["errors"]
+            .as_array()
+            .filter(|errors| !errors.is_empty())
+        {
             // `rdfGraph` is the only root field, so no data means it failed (a missing graph or
             // one that cannot be loaded); an error below it leaves data
             let status = if response["data"].is_null() {
@@ -266,7 +264,7 @@ impl<G: Endpoint> SparqlEndpoint<G> {
                 .join("\n");
             return Err(EndpointError::GraphQL(status, messages).into());
         }
-        match response.pointer_mut(results).map(Json::take) {
+        match response.pointer_mut(pointer).map(Json::take) {
             Some(Json::String(results)) => {
                 Ok(Response::builder().content_type(media_type).body(results))
             }

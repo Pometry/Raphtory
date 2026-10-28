@@ -11,7 +11,7 @@ use crate::{
 use async_graphql::dynamic::Schema;
 use dynamic_graphql::Request;
 use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
-use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_META_PATH};
+use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_RAPH_PATH};
 use std::{path::Path, sync::Arc};
 
 pub(crate) struct TestSetup {
@@ -68,14 +68,14 @@ pub(crate) async fn run_mutation_as_user(schema: &Schema, query: &str) -> async_
 }
 
 /// Assert that `path` is an existing directory that is NOT a graph folder
-/// (no `ROOT_META_PATH`) and contains no leftover `DIRTY_PATH` marker.
+/// (no `ROOT_RAPH_PATH`) and contains no leftover `DIRTY_PATH` marker.
 pub(crate) fn assert_is_namespace_dir(path: &Path) {
     assert!(path.is_dir(), "expected directory at {:?}", path);
     assert!(
-        !path.join(ROOT_META_PATH).exists(),
+        !path.join(ROOT_RAPH_PATH).exists(),
         "{:?} contains a graph metadata file ({}); expected a plain namespace directory",
         path,
-        ROOT_META_PATH,
+        ROOT_RAPH_PATH,
     );
     assert!(
         !path.join(DIRTY_PATH).exists(),
@@ -88,7 +88,6 @@ pub(crate) fn assert_is_namespace_dir(path: &Path) {
 /// Fixtures of the RDF tests.
 #[cfg(feature = "rdf")]
 pub(crate) mod rdf {
-    use crate::{auth_policy::GraphPermission, model::graph::filtering::GraphAccessFilter};
     use oxigraph::{
         io::{RdfFormat as OxRdfFormat, RdfParser},
         model::Graph,
@@ -96,7 +95,6 @@ pub(crate) mod rdf {
     };
     use raphtory::prelude::PersistentGraph;
     use raphtory_rdf::{NamedNode, RdfFormat, RdfGraph, Term, Triple};
-    use serde_json::{from_value, json};
 
     pub(crate) const PEOPLE: &str = r#"
         @prefix ex: <http://ex/> .
@@ -162,15 +160,5 @@ pub(crate) mod rdf {
             .for_slice(document.as_bytes())
             .map(|quad| Triple::from(quad.unwrap()))
             .collect()
-    }
-
-    /// Read access to every node but `ex:carol` (see [`GraphAccessFilter`]).
-    pub(crate) fn without_carol() -> GraphPermission {
-        let filter = json!({
-            "filter": { "node": { "name": { "where": { "ne": { "str": "http://ex/carol" } } } } }
-        });
-        GraphPermission::Read {
-            filter: Some(from_value::<GraphAccessFilter>(filter).unwrap()),
-        }
     }
 }

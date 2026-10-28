@@ -17,7 +17,10 @@ use raphtory_api::core::{
     storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
 };
 use raphtory_core::entities::{GidRef, VID};
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+use raphtory_storage::{
+    durability_ops::DurabilityOps,
+    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -78,6 +81,7 @@ fn process_shared_properties(
     }
 }
 
+#[cfg(any(feature = "io", feature = "python"))]
 pub(crate) fn load_edge_deletions_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
 >(
@@ -122,6 +126,8 @@ pub(crate) fn load_edge_deletions_from_df<
     )
 }
 
+#[cfg(any(feature = "io", feature = "python"))]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edges_props_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
@@ -178,6 +184,8 @@ pub(crate) fn load_graph_props_from_df<
 
     #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
+    // Graph properties are written as regular updates, not bulk loaded.
+    let _transaction_manager = graph.core_graph().transaction_manager()?;
     let session = graph.write_session().map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {

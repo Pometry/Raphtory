@@ -1,7 +1,7 @@
 //! The oracle the suites compare Raphtory with: spareval over an `oxrdf::Dataset`, with the
 //! `raphtory:` prefix registered as `RdfView::sparql` registers it.
 //!
-//! Shared by `sparql_w3c.rs` and `bear.rs` (both include this file with `#[path]`).
+//! Included by `bear.rs` with `#[path]`.
 use oxigraph::{
     model::Dataset,
     sparql::{QueryResults, SparqlEvaluator},

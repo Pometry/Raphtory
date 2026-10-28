@@ -37,7 +37,7 @@ use tracing::debug;
 
 #[cfg(feature = "vectors")]
 use {
-    raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
+    raphtory_vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
     tracing::error,
 };
 
@@ -100,6 +100,7 @@ impl GraphWithVectors {
         });
         future.await
     }
+
     /// Swap in a read-only handle for the graph. No-op with a warning if the inner
     /// state is unexpectedly shared (only call right after construction).
     pub(crate) fn into_read_only(self) -> Self {

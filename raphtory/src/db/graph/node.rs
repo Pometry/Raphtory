@@ -287,8 +287,11 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
     }
 }
 
+/// A single node update: its time, layer and the `(prop id, value)` pairs that changed.
+pub type NodeUpdateRow = (EventTime, LayerId, Vec<(usize, Prop)>);
+
 impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
-    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, LayerId, Vec<(usize, Prop)>)>
+    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, NodeUpdateRow>
     where
         'graph: 'a,
     {
@@ -304,10 +307,7 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
         .into_dyn_boxed()
     }
 
-    pub fn rows_gs<'a>(
-        &'a self,
-        gs: &'graph GraphStorage,
-    ) -> BoxedLIter<'a, (EventTime, LayerId, Vec<(usize, Prop)>)>
+    pub fn rows_gs<'a>(&'a self, gs: &'graph GraphStorage) -> BoxedLIter<'a, NodeUpdateRow>
     where
         'graph: 'a,
     {

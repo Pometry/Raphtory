@@ -358,14 +358,15 @@ pub fn read_zip(path: &Path) -> Result<Vec<(String, String)>, String> {
         if entry.is_dir() {
             continue;
         }
+        let name = entry
+            .name()
+            .map_err(|e| format!("{}: {e}", path.display()))?
+            .into_owned();
         let mut data = Vec::new();
         entry
             .read_to_end(&mut data)
             .map_err(|e| format!("{}: {e}", path.display()))?;
-        files.push((
-            entry.name().to_owned(),
-            String::from_utf8_lossy(&data).into_owned(),
-        ));
+        files.push((name, String::from_utf8_lossy(&data).into_owned()));
     }
     Ok(files)
 }

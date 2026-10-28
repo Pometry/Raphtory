@@ -249,7 +249,6 @@ impl GqlEventTime {
     /// Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
     /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
     /// Raises an error if a time conversion fails.
-
     pub async fn datetime(
         &self,
         #[graphql(
