@@ -11,7 +11,7 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          echo "python-versions=[\"3.11\",\"3.14.0\"]" >> $GITHUB_OUTPUT
+          echo "python-versions=[\"3.10\",\"3.14.0\"]" >> $GITHUB_OUTPUT
   build-wheel:
     env:
       RUST_BACKTRACE: 1
