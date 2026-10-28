@@ -366,7 +366,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Select a segment using `row` as a hint and reserve a row in it.
     ///
     /// Also returns the segments this created, write-locked before they were published.
-    /// A bulk loader must hand them over with `WriteLockedGraph::extend_new`, other callers can drop them.
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS, NewNodeSegmentLocks) {
         let slot_idx = row % *N;
         let maybe_free_page = {
