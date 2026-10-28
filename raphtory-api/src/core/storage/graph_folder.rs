@@ -192,6 +192,39 @@ pub fn read_or_default_path_pointer(
     Ok(read_path_pointer(base_path, file_name, prefix)?.unwrap_or(default))
 }
 
+/// Parse the `data{id}` version from a path to a `graph{id}` directory.
+pub fn version(graph_path: impl AsRef<Path>) -> Result<u32, GraphFolderError> {
+    let graph_path = graph_path.as_ref();
+    let data_path = graph_path
+        .parent()
+        .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?;
+
+    let data_name = data_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?;
+
+    Ok(parse_path_pointer(data_name, DATA_PATH)?)
+}
+
+/// Return the source version of the graph at the given `graph{id}` path.
+pub fn src_version(graph_path: impl AsRef<Path>) -> Result<Option<u32>, GraphFolderError> {
+    let graph_path = graph_path.as_ref();
+    let data_path = graph_path
+        .parent()
+        .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?;
+
+    // Read the source version from the graph's meta file.
+    let graph_meta_path = data_path.join(GRAPH_META_PATH);
+    let mut file = File::open(graph_meta_path)?;
+    let mut json = String::new();
+    file.read_to_string(&mut json)?;
+
+    let graph_meta: Metadata = serde_json::from_str(&json)?;
+
+    Ok(graph_meta.src_version)
+}
+
 pub fn get_zip_data_path<R: Read + Seek>(
     zip: &mut ZipArchive<R>,
 ) -> Result<String, GraphFolderError> {
@@ -369,40 +402,12 @@ pub trait GraphPaths {
             .to_millis()?)
     }
 
-    /// Parse the version from a path to a `graph{id}` directory.
-    fn version(&self, graph_path: &str) -> Result<u32, GraphFolderError> {
-        let name = Path::new(graph_path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| GraphFolderError::InvalidGraphPath(PathBuf::from(graph_path)))?;
-
-        let version = parse_path_pointer(name, GRAPH_PATH)?;
-
-        Ok(version)
-    }
-
-    /// Return the source version of the graph at the given `graph{id}` path.
-    fn src_version(&self, graph_path: &str) -> Result<Option<u32>, GraphFolderError> {
-        let data_path = Path::new(graph_path)
-            .parent()
-            .ok_or_else(|| GraphFolderError::InvalidGraphPath(PathBuf::from(graph_path)))?;
-        let graph_meta_path = data_path.join(GRAPH_META_PATH);
-
-        let mut file = File::open(graph_meta_path)?;
-        let mut json = String::new();
-        file.read_to_string(&mut json)?;
-
-        let graph_meta: Metadata = serde_json::from_str(&json)?;
-
-        Ok(graph_meta.src_version)
-    }
-
-    /// Version of the active `data{id}/` directory.
+    /// Version number of the active graph in the graph folder.
     fn active_version(&self) -> Result<u32, GraphFolderError> {
         parse_path_pointer(&self.relative_data_path()?, DATA_PATH)
     }
 
-    /// All `data{id}/` versions under the graph root.
+    /// All versions available for this graph.
     fn all_versions(&self) -> Result<Vec<u32>, GraphFolderError> {
         let mut versions = BTreeSet::new();
 
@@ -444,7 +449,7 @@ pub trait GraphPaths {
         Ok(versions.into_iter().collect())
     }
 
-    /// Set the active version of this graph directory to `version`.
+    /// Set the active version of this graph folder to `version`.
     fn set_active_version(&self, version: u32) -> Result<(), GraphFolderError> {
         if !self.all_versions()?.contains(&version) {
             return Err(GraphFolderError::VersionNotFound(version));
