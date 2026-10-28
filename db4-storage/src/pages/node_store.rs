@@ -9,17 +9,14 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::nodes::{LockedNodeSegment, WriteLockedNodeSegments},
+        locked::nodes::{LockedNodeSegment, NewNodeSegmentLocks, WriteLockedNodeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::{
-    ArcRwLockWriteGuard,
-    core::entities::{GidType, LayerId, properties::meta::Meta},
-};
+use raphtory_api::core::entities::{GidType, LayerId, properties::meta::Meta};
 use raphtory_core::{
     entities::{EID, VID},
     storage::timeindex::AsTime,
@@ -352,7 +349,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ///
     /// Only for use behind the bulk load lock: no other thread may create node segments
     /// concurrently.
-    pub fn grow_locked(&self, new_len: usize) -> Vec<ArcRwLockWriteGuard<MemNodeSegment>> {
+    pub fn grow_locked(&self, new_len: usize) -> NewNodeSegmentLocks {
         let mut new_segments = Vec::new();
         while self.segments.count() < new_len {
             self.push_new_segment(Some(&mut new_segments));
@@ -368,10 +365,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ///
     /// Also returns the segments this created, write-locked before they were published.
     /// A bulk loader must hand them over with `WriteLockedGraph::extend_new`, other callers can drop them.
-    pub fn reserve_free_pos(
-        &self,
-        row: usize,
-    ) -> (usize, LocalPOS, Vec<ArcRwLockWriteGuard<MemNodeSegment>>) {
+    pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS, NewNodeSegmentLocks) {
         let slot_idx = row % *N;
         let maybe_free_page = {
             let segment_id = *self.free_segments[slot_idx].read_recursive();
@@ -448,10 +442,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     /// Push a new segment; if `new_segment_locks` is given, the segment is write-locked before it
     /// is published and its lock is pushed there.
-    fn push_new_segment(
-        &self,
-        new_segment_locks: Option<&mut Vec<ArcRwLockWriteGuard<MemNodeSegment>>>,
-    ) -> usize {
+    fn push_new_segment(&self, new_segment_locks: Option<&mut NewNodeSegmentLocks>) -> usize {
         let segment_id = self.segments.push_with(|segment_id| {
             let segment = Arc::new(NS::new(
                 segment_id,

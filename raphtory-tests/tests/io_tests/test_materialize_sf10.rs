@@ -212,8 +212,8 @@ fn test_materialize_filtered_sf1_matches() {
 }
 
 fn get_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Duration {
-    remove_dir_all_ignore_not_found(&materialize_graph_path).unwrap();
-    fs::create_dir_all(&materialize_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(materialize_graph_path).unwrap();
+    fs::create_dir_all(materialize_graph_path).unwrap();
 
     if !graph_path.exists() {
         panic!("SNB graph not found at {}", graph_path.display());
@@ -232,7 +232,7 @@ fn get_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Dur
     let materialize_start = Instant::now();
     let _materialized_graph = materialize_impl(
         &sf10_graph,
-        Some(&materialize_graph_path),
+        Some(materialize_graph_path),
         sf10_graph.core_graph().extension().config().clone(),
     )
     .unwrap();
@@ -244,7 +244,7 @@ fn get_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Dur
     drop(_materialized_graph);
     drop(sf10_graph);
     // free up disk space for next test
-    remove_dir_all_ignore_not_found(&materialize_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(materialize_graph_path).unwrap();
     materialize_elapsed
 }
 
@@ -253,8 +253,8 @@ fn get_parquet_decode_time(
     parquet_path: &Path,
     decode_graph_path: &Path,
 ) -> Duration {
-    remove_dir_all_ignore_not_found(&decode_graph_path).unwrap();
-    fs::create_dir_all(&decode_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(decode_graph_path).unwrap();
+    fs::create_dir_all(decode_graph_path).unwrap();
 
     if !graph_path.exists() {
         panic!("SNB graph not found at {}", graph_path.display());
@@ -280,8 +280,8 @@ fn get_parquet_decode_time(
     println!("Starting SF10 decode_parquet at {}", Local::now());
     let parquet_decode_start = Instant::now();
     let _parquet_graph = MaterializedGraph::decode_parquet(
-        &parquet_path,
-        Some(&decode_graph_path),
+        parquet_path,
+        Some(decode_graph_path),
         sf10_extension_config.into(),
     )
     .unwrap();
@@ -292,7 +292,7 @@ fn get_parquet_decode_time(
     );
     drop(_parquet_graph);
     // free up disk space for next test
-    remove_dir_all_ignore_not_found(&decode_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(decode_graph_path).unwrap();
     parquet_decode_elapsed
 }
 
@@ -315,8 +315,8 @@ fn parquet_prop_columns(path: &Path, exclude: &[&str]) -> Vec<String> {
 }
 
 fn get_parquet_encode_time(graph_path: &Path, parquet_graph_path: &Path) -> Duration {
-    remove_dir_all_ignore_not_found(&parquet_graph_path).unwrap();
-    fs::create_dir_all(&parquet_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(parquet_graph_path).unwrap();
+    fs::create_dir_all(parquet_graph_path).unwrap();
 
     if !graph_path.exists() {
         panic!("SNB graph not found at {}", graph_path.display());
@@ -348,8 +348,8 @@ fn get_parquet_df_loader_time(
     parquet_path: &Path,
     load_graph_path: &Path,
 ) -> Duration {
-    remove_dir_all_ignore_not_found(&load_graph_path).unwrap();
-    fs::create_dir_all(&load_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(load_graph_path).unwrap();
+    fs::create_dir_all(load_graph_path).unwrap();
 
     if !graph_path.exists() {
         panic!("SNB graph not found at {}", graph_path.display());
@@ -622,7 +622,7 @@ fn get_parquet_df_loader_time(
         replay_graph.count_temporal_edges(),
     );
     drop(replay_graph);
-    remove_dir_all_ignore_not_found(&load_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(load_graph_path).unwrap();
 
     parquet_load_elapsed
 }

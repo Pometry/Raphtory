@@ -132,6 +132,9 @@ mod deadlock_tests {
         .await;
     }
 
+    // Holding TEST_SERIAL (and the pool-jamming lock) across awaits is deliberate: it
+    // serialises tests that block the process-global pools.
+    #[allow(clippy::await_holding_lock)]
     async fn test_pool_lock(pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let _serial = super::TEST_SERIAL.lock();
         let tempdir = TempDir::new().unwrap();
@@ -151,13 +154,13 @@ mod deadlock_tests {
         let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
-        assert_eq!(health.healthy, false);
+        assert!(!health.healthy);
 
         let req = client.get(format!("http://localhost:{port}/health?timeout=5"));
         let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
-        assert_eq!(health.healthy, false);
+        assert!(!health.healthy);
     }
 }
 

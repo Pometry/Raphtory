@@ -8,7 +8,6 @@ use raphtory_api::core::{
     input::input_node::InputNode,
     storage::timeindex::TimeIndexOps,
 };
-use raphtory_api::ArcRwLockWriteGuard;
 use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::EventTime,
@@ -20,7 +19,6 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
     time::Duration,
 };
-use storage::segments::node::segment::MemNodeSegment;
 use storage::{
     api::{
         edges::EdgeSegmentOps,
@@ -36,7 +34,7 @@ use storage::{
             edges::WriteLockedEdgeSegments,
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
-            nodes::{LockedNodeSegment, WriteLockedNodeSegments},
+            nodes::{LockedNodeSegment, NewNodeSegmentLocks, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -514,7 +512,7 @@ where
             .lock_new_segments(&mut self.edges, timeout)
     }
 
-    pub fn extend_new(&mut self, mut new_segments: Vec<ArcRwLockWriteGuard<MemNodeSegment>>) {
+    pub fn extend_new(&mut self, mut new_segments: NewNodeSegmentLocks) {
         let nodes = self.graph.storage.nodes();
         // segments are pushed concurrently from several threads, so the ids arrive in any order
         new_segments.sort_unstable_by_key(|segment| segment.segment_id());

@@ -469,7 +469,7 @@ mod test {
     #[test]
     fn test_list_construction_errors_on_mixed_types() {
         let mixed = PropArray::try_from(vec![Prop::I64(1), Prop::str("a")]);
-        let err = mixed.err().expect("mixed list must not unify");
+        let err = mixed.expect_err("mixed list must not unify");
         assert_eq!(err.expected, PropType::I64);
         assert_eq!(err.actual, PropType::Str);
 

@@ -92,7 +92,7 @@ impl MemNodeTypeIndex {
 
     /// Drains `self` into a new instance, leaving this one empty.
     pub fn take(&mut self) -> Self {
-        std::mem::replace(self, Self::new())
+        std::mem::take(self)
     }
 
     /// Returns `(type_id, vids)` in ascending `type_id` order with ascending `VID`s per type.

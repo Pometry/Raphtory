@@ -938,8 +938,7 @@ mod io_tests {
             None,
             &g,
         )
-        .err()
-        .expect("an unknown endpoint must fail the load");
+        .expect_err("an unknown endpoint must fail the load");
         assert!(
             matches!(err, GraphError::NodeMissingError(_)),
             "expected NodeMissingError, got {err:?}"
@@ -980,8 +979,7 @@ mod io_tests {
             None,
             None,
         )
-        .err()
-        .expect("an unknown node must fail the load");
+        .expect_err("an unknown node must fail the load");
         assert!(
             matches!(err, GraphError::NodeMissingError(_)),
             "expected NodeMissingError, got {err:?}"

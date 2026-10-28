@@ -39,6 +39,7 @@ use std::{
     fmt::{Display, Formatter},
     hash::{DefaultHasher, Hash, Hasher},
     num::Wrapping,
+    ops::{Add, Div, Mul, Sub},
     sync::Arc,
 };
 use thiserror::Error;
@@ -789,6 +790,7 @@ impl Prop {
         }
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn as_signed_int(self) -> Option<Prop> {
         match self {
             Prop::U8(v) => Some(Prop::I32(v as i32)),
@@ -955,156 +957,6 @@ impl Prop {
         self.is_unsigned_int() || self.is_signed_int()
     }
 
-    /// Add two props. Same-type integer sums keep their type, bumping one size up on overflow
-    /// (`u8`→`u16`→…→`u64`→`Decimal`, `i32`→`i64`→`Decimal`). A *cross-type* numeric pair widens to
-    /// the widest type in the common family — two unsigned → `U64`, any signed → `I64`, any float →
-    /// `F64`, any `Decimal` → `Decimal` — spilling to `Decimal` past `u64`/`i64`, so the result is
-    /// never narrower than either operand. Strings and lists concatenate; other types return `None`.
-    pub fn add(self, other: Prop) -> Option<Prop> {
-        use Prop::*;
-        match (self, other) {
-            // Same integer type: checked add is the fast path; on overflow the sum always fits
-            // exactly one size up (two `u16`s fit a `u32`, …), so bump deterministically — no range
-            // checks. `u64`/`i64` have no wider integer, so they spill to exact `Decimal`.
-            (U8(a), U8(b)) => Some(match a.checked_add(b) {
-                Some(v) => U8(v),
-                None => U16(a as u16 + b as u16),
-            }),
-            (U16(a), U16(b)) => Some(match a.checked_add(b) {
-                Some(v) => U16(v),
-                None => U32(a as u32 + b as u32),
-            }),
-            (U32(a), U32(b)) => Some(match a.checked_add(b) {
-                Some(v) => U32(v),
-                None => U64(a as u64 + b as u64),
-            }),
-            (U64(a), U64(b)) => Some(match a.checked_add(b) {
-                Some(v) => U64(v),
-                None => Decimal(BigDecimal::from(a as u128 + b as u128)),
-            }),
-            (I32(a), I32(b)) => Some(match a.checked_add(b) {
-                Some(v) => I32(v),
-                None => I64(a as i64 + b as i64),
-            }),
-            (I64(a), I64(b)) => Some(match a.checked_add(b) {
-                Some(v) => I64(v),
-                None => Decimal(BigDecimal::from(a as i128 + b as i128)),
-            }),
-            (F32(a), F32(b)) => Some(F32(a + b)),
-            (F64(a), F64(b)) => Some(F64(a + b)),
-            (Str(a), Str(b)) => Some(Str((a.to_string() + b.as_ref()).into())),
-            (Decimal(a), Decimal(b)) => Some(Decimal(a + b)),
-            (List(a), List(b)) => Some(List(a.join(&b).ok()?)),
-            // Cross-type numeric pair: cast to a common compatible dtype, non-numeric fails
-            (a, b) => {
-                let (left, right) = a.try_cast_compatible_numeric(b)?;
-                left.add(right)
-            }
-        }
-    }
-
-    /// Subtract two numeric props, widening to the common family like [`add`](Prop::add). An
-    /// unsigned difference that goes negative drops to the signed family. `None` for non-numerics.
-    pub fn sub(self, other: Prop) -> Option<Prop> {
-        use Prop::*;
-        match (self, other) {
-            (U8(a), U8(b)) => match a.checked_sub(b) {
-                Some(v) => Some(U8(v)),
-                None => U8(a).as_signed_int()?.sub(U8(b).as_signed_int()?),
-            },
-            (U16(a), U16(b)) => match a.checked_sub(b) {
-                Some(v) => Some(U16(v)),
-                None => U16(a).as_signed_int()?.sub(U16(b).as_signed_int()?),
-            },
-            (U32(a), U32(b)) => match a.checked_sub(b) {
-                Some(v) => Some(U32(v)),
-                None => U32(a).as_signed_int()?.sub(U32(b).as_signed_int()?),
-            },
-            (U64(a), U64(b)) => match a.checked_sub(b) {
-                Some(v) => Some(U64(v)),
-                None => U64(a).as_signed_int()?.sub(U64(b).as_signed_int()?),
-            },
-            (I32(a), I32(b)) => Some(match a.checked_sub(b) {
-                Some(v) => I32(v),
-                None => I64(a as i64 - b as i64),
-            }),
-            (I64(a), I64(b)) => Some(match a.checked_sub(b) {
-                Some(v) => I64(v),
-                None => Decimal(BigDecimal::from(a as i128 - b as i128)),
-            }),
-            (F32(a), F32(b)) => Some(F32(a - b)),
-            (F64(a), F64(b)) => Some(F64(a - b)),
-            (Decimal(a), Decimal(b)) => Some(Decimal(a - b)),
-            (a, b) => {
-                let (a, b) = a.try_cast_compatible_numeric(b)?;
-                a.sub(b)
-            }
-        }
-    }
-
-    /// Multiply two numeric props, widening to the common family like [`add`](Prop::add) (spilling
-    /// to an exact `Decimal` past `u64`/`i64`). `None` for non-numerics.
-    pub fn mul(self, other: Prop) -> Option<Prop> {
-        use Prop::*;
-        match (self, other) {
-            (U8(a), U8(b)) => match a.checked_mul(b) {
-                Some(v) => Some(U8(v)),
-                None => U16(a as u16).mul(U16(b as u16)),
-            },
-            (U16(a), U16(b)) => match a.checked_mul(b) {
-                Some(v) => Some(U16(v)),
-                None => U32(a as u32).mul(U32(b as u32)),
-            },
-            (U32(a), U32(b)) => match a.checked_mul(b) {
-                Some(v) => Some(U32(v)),
-                None => U64(a as u64).mul(U64(b as u64)),
-            },
-            (U64(a), U64(b)) => match a.checked_mul(b) {
-                Some(v) => Some(U64(v)),
-                None => {
-                    Decimal(BigDecimal::from(a as i128)).mul(Decimal(BigDecimal::from(b as i128)))
-                }
-            },
-            (I32(a), I32(b)) => match a.checked_mul(b) {
-                Some(v) => Some(I32(v)),
-                None => I64(a as i64).mul(I64(b as i64)),
-            },
-            (I64(a), I64(b)) => match a.checked_mul(b) {
-                Some(v) => Some(I64(v)),
-                None => {
-                    Decimal(BigDecimal::from(a as i128)).mul(Decimal(BigDecimal::from(b as i128)))
-                }
-            },
-            (F32(a), F32(b)) => Some(F32(a * b)),
-            (F64(a), F64(b)) => Some(F64(a * b)),
-            (Decimal(a), Decimal(b)) => Some(Decimal(a * b)),
-            (a, b) => {
-                let (a, b) = a.try_cast_compatible_numeric(b)?;
-                a.mul(b)
-            }
-        }
-    }
-
-    /// Divide two numeric props by true division: integers divide as `f64` (`5 / 2 == 2.5`),
-    /// decimals divide exactly in `Decimal`. Division by zero is `None` for `Decimal` and otherwise
-    /// follows floating point division semantics.
-    pub fn div(self, other: Prop) -> Option<Prop> {
-        use Prop::*;
-        match self {
-            F64(v) => Some(F64(v / other.as_f64()?)),
-            F32(v) => Some(F32(v / other.as_f32()?)),
-            Decimal(v) => {
-                let other = other.into_big_decimal().ok()?;
-                if !other.is_zero() {
-                    Some(Decimal(v / other))
-                } else {
-                    None
-                }
-            }
-            _ => Some(F64(self.as_f64()? / other.as_f64()?)),
-        }
-    }
-
     pub fn min(self, other: Prop) -> Option<Prop> {
         self.compare(&other).map(|ord| match ord {
             Ordering::Less | Ordering::Equal => self,
@@ -1215,6 +1067,172 @@ impl Prop {
             (vals[n / 2 - 1].as_f64()? + vals[n / 2].as_f64()?) / 2.0
         };
         Some(Prop::F64(m))
+    }
+}
+
+impl Add for Prop {
+    type Output = Option<Prop>;
+
+    /// Add two props. Same-type integer sums keep their type, bumping one size up on overflow
+    /// (`u8`→`u16`→…→`u64`→`Decimal`, `i32`→`i64`→`Decimal`). A *cross-type* numeric pair widens to
+    /// the widest type in the common family — two unsigned → `U64`, any signed → `I64`, any float →
+    /// `F64`, any `Decimal` → `Decimal` — spilling to `Decimal` past `u64`/`i64`, so the result is
+    /// never narrower than either operand. Strings and lists concatenate; other types return `None`.
+    fn add(self, other: Prop) -> Self::Output {
+        use Prop::*;
+        match (self, other) {
+            // Same integer type: checked add is the fast path; on overflow the sum always fits
+            // exactly one size up (two `u16`s fit a `u32`, …), so bump deterministically — no range
+            // checks. `u64`/`i64` have no wider integer, so they spill to exact `Decimal`.
+            (U8(a), U8(b)) => Some(match a.checked_add(b) {
+                Some(v) => U8(v),
+                None => U16(a as u16 + b as u16),
+            }),
+            (U16(a), U16(b)) => Some(match a.checked_add(b) {
+                Some(v) => U16(v),
+                None => U32(a as u32 + b as u32),
+            }),
+            (U32(a), U32(b)) => Some(match a.checked_add(b) {
+                Some(v) => U32(v),
+                None => U64(a as u64 + b as u64),
+            }),
+            (U64(a), U64(b)) => Some(match a.checked_add(b) {
+                Some(v) => U64(v),
+                None => Decimal(BigDecimal::from(a as u128 + b as u128)),
+            }),
+            (I32(a), I32(b)) => Some(match a.checked_add(b) {
+                Some(v) => I32(v),
+                None => I64(a as i64 + b as i64),
+            }),
+            (I64(a), I64(b)) => Some(match a.checked_add(b) {
+                Some(v) => I64(v),
+                None => Decimal(BigDecimal::from(a as i128 + b as i128)),
+            }),
+            (F32(a), F32(b)) => Some(F32(a + b)),
+            (F64(a), F64(b)) => Some(F64(a + b)),
+            (Str(a), Str(b)) => Some(Str((a.to_string() + b.as_ref()).into())),
+            (Decimal(a), Decimal(b)) => Some(Decimal(a + b)),
+            (List(a), List(b)) => Some(List(a.join(&b).ok()?)),
+            // Cross-type numeric pair: cast to a common compatible dtype, non-numeric fails
+            (a, b) => {
+                let (left, right) = a.try_cast_compatible_numeric(b)?;
+                left.add(right)
+            }
+        }
+    }
+}
+
+impl Sub for Prop {
+    type Output = Option<Prop>;
+
+    /// Subtract two numeric props, widening to the common family like the [`Add`] impl. An
+    /// unsigned difference that goes negative drops to the signed family. `None` for non-numerics.
+    fn sub(self, other: Prop) -> Self::Output {
+        use Prop::*;
+        match (self, other) {
+            (U8(a), U8(b)) => match a.checked_sub(b) {
+                Some(v) => Some(U8(v)),
+                None => U8(a).as_signed_int()?.sub(U8(b).as_signed_int()?),
+            },
+            (U16(a), U16(b)) => match a.checked_sub(b) {
+                Some(v) => Some(U16(v)),
+                None => U16(a).as_signed_int()?.sub(U16(b).as_signed_int()?),
+            },
+            (U32(a), U32(b)) => match a.checked_sub(b) {
+                Some(v) => Some(U32(v)),
+                None => U32(a).as_signed_int()?.sub(U32(b).as_signed_int()?),
+            },
+            (U64(a), U64(b)) => match a.checked_sub(b) {
+                Some(v) => Some(U64(v)),
+                None => U64(a).as_signed_int()?.sub(U64(b).as_signed_int()?),
+            },
+            (I32(a), I32(b)) => Some(match a.checked_sub(b) {
+                Some(v) => I32(v),
+                None => I64(a as i64 - b as i64),
+            }),
+            (I64(a), I64(b)) => Some(match a.checked_sub(b) {
+                Some(v) => I64(v),
+                None => Decimal(BigDecimal::from(a as i128 - b as i128)),
+            }),
+            (F32(a), F32(b)) => Some(F32(a - b)),
+            (F64(a), F64(b)) => Some(F64(a - b)),
+            (Decimal(a), Decimal(b)) => Some(Decimal(a - b)),
+            (a, b) => {
+                let (a, b) = a.try_cast_compatible_numeric(b)?;
+                a.sub(b)
+            }
+        }
+    }
+}
+
+impl Mul for Prop {
+    type Output = Option<Prop>;
+
+    /// Multiply two numeric props, widening to the common family like the [`Add`] impl (spilling
+    /// to an exact `Decimal` past `u64`/`i64`). `None` for non-numerics.
+    fn mul(self, other: Prop) -> Self::Output {
+        use Prop::*;
+        match (self, other) {
+            (U8(a), U8(b)) => match a.checked_mul(b) {
+                Some(v) => Some(U8(v)),
+                None => U16(a as u16).mul(U16(b as u16)),
+            },
+            (U16(a), U16(b)) => match a.checked_mul(b) {
+                Some(v) => Some(U16(v)),
+                None => U32(a as u32).mul(U32(b as u32)),
+            },
+            (U32(a), U32(b)) => match a.checked_mul(b) {
+                Some(v) => Some(U32(v)),
+                None => U64(a as u64).mul(U64(b as u64)),
+            },
+            (U64(a), U64(b)) => match a.checked_mul(b) {
+                Some(v) => Some(U64(v)),
+                None => {
+                    Decimal(BigDecimal::from(a as i128)).mul(Decimal(BigDecimal::from(b as i128)))
+                }
+            },
+            (I32(a), I32(b)) => match a.checked_mul(b) {
+                Some(v) => Some(I32(v)),
+                None => I64(a as i64).mul(I64(b as i64)),
+            },
+            (I64(a), I64(b)) => match a.checked_mul(b) {
+                Some(v) => Some(I64(v)),
+                None => {
+                    Decimal(BigDecimal::from(a as i128)).mul(Decimal(BigDecimal::from(b as i128)))
+                }
+            },
+            (F32(a), F32(b)) => Some(F32(a * b)),
+            (F64(a), F64(b)) => Some(F64(a * b)),
+            (Decimal(a), Decimal(b)) => Some(Decimal(a * b)),
+            (a, b) => {
+                let (a, b) = a.try_cast_compatible_numeric(b)?;
+                a.mul(b)
+            }
+        }
+    }
+}
+
+impl Div for Prop {
+    type Output = Option<Prop>;
+
+    /// Divide two numeric props by true division: integers divide as `f64` (`5 / 2 == 2.5`),
+    /// decimals divide exactly in `Decimal`. Division by zero is `None` for `Decimal` and otherwise
+    /// follows floating point division semantics.
+    fn div(self, other: Prop) -> Self::Output {
+        use Prop::*;
+        match self {
+            F64(v) => Some(F64(v / other.as_f64()?)),
+            F32(v) => Some(F32(v / other.as_f32()?)),
+            Decimal(v) => {
+                let other = other.into_big_decimal().ok()?;
+                if !other.is_zero() {
+                    Some(Decimal(v / other))
+                } else {
+                    None
+                }
+            }
+            _ => Some(F64(self.as_f64()? / other.as_f64()?)),
+        }
     }
 }
 
@@ -1487,7 +1505,7 @@ mod agg_arith_tests {
             Prop::U64(u64::MAX),
         ]
         .into_iter()
-        .reduce(|a, b| a.add(b).expect("integer sum is always addable"));
+        .reduce(|a, b| (a + b).expect("integer sum is always addable"));
         assert_eq!(
             sum,
             Some(Prop::Decimal(BigDecimal::from(3u128 * u64::MAX as u128)))

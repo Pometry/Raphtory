@@ -494,7 +494,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
                 ext.memory_tracker().clone(),
             ))
             .into(),
-            segment_id: segment_id,
+            segment_id,
             num_edges: AtomicU32::new(0),
             _ext: ext,
         }

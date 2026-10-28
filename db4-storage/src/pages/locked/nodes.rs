@@ -20,6 +20,12 @@ use std::{
     path::Path,
 };
 
+/// Write locks on the node segments created during a bulk load, each taken before its segment was
+/// published so no reader can see its uninitialised nodes.
+///
+/// Hand them over with `WriteLockedGraph::extend_new`.
+pub type NewNodeSegmentLocks = Vec<ArcRwLockWriteGuard<MemNodeSegment>>;
+
 /// The head lock of a [`LockedNodeSegment`]: borrowed for segments that existed when the graph
 /// was locked, owned for segments created and locked during the bulk load.
 #[derive(Debug)]

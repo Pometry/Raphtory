@@ -20,7 +20,6 @@ use raphtory_api::core::{
     },
     storage::dict_mapper::MaybeNew,
 };
-use raphtory_api::ArcRwLockWriteGuard;
 use raphtory_core::{
     entities::{
         nodes::node_ref::{AsNodeRef, NodeRef},
@@ -32,11 +31,13 @@ use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
+    pages::{
+        locked::nodes::NewNodeSegmentLocks, node_page::writer::NodeWriters, resolve_pos,
+        session::EdgeWriteSession,
+    },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
-    segments::node::segment::MemNodeSegment,
     transaction::TransactionGuard,
     wal::LSN,
     ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
@@ -250,7 +251,7 @@ impl InternalAdditionOps for TemporalGraph {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcRwLockWriteGuard<MemNodeSegment>>), Self::Error> {
+    ) -> Result<(MaybeNew<VID>, NewNodeSegmentLocks), Self::Error> {
         let vid = match self.gid_resolver.get(id) {
             Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
             None => {

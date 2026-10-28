@@ -486,8 +486,8 @@ pub fn row_group_par_iter<I: From<usize>>(
     max_seg_len: u32,
     max_actual_seg_len: u32,
 ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = I>)> {
-    let (num_chunks, chunk_size) = if num_segments != 0 {
-        let chunk_size = (chunk_size / num_segments).max(1);
+    let (num_chunks, chunk_size) = if let Some(per_segment) = chunk_size.checked_div(num_segments) {
+        let chunk_size = per_segment.max(1);
         let num_chunks = (max_seg_len as usize).div_ceil(chunk_size);
         (num_chunks, chunk_size)
     } else {

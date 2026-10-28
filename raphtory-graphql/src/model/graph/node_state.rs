@@ -422,7 +422,7 @@ impl GqlNodeState {
                 return None;
             }
             for value in values {
-                acc = acc.add(value)?;
+                acc = (acc + value)?;
             }
             Some(GqlPropertyOutputVal(acc))
         })
