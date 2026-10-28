@@ -3,6 +3,7 @@ use super::{
 };
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    pages::locked::nodes::LockedNodeHead,
     persist::strategy::PersistenceStrategy,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     wal::LSN,
@@ -24,7 +25,7 @@ pub struct EdgeWriteSession<
     GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > {
-    node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
+    node_writers: NodeWriters<'a, LockedNodeHead<'a>, NS>,
     edge_writer: EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>,
     graph: &'a GraphStore<NS, ES, GS, EXT>,
 }
@@ -38,7 +39,7 @@ impl<
 > EdgeWriteSession<'a, NS, ES, GS, EXT>
 {
     pub fn new(
-        node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
+        node_writers: NodeWriters<'a, LockedNodeHead<'a>, NS>,
         edge_writer: EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>,
         graph: &'a GraphStore<NS, ES, GS, EXT>,
     ) -> Self {
@@ -194,9 +195,7 @@ impl<
         MaybeNew::New(edge_id)
     }
 
-    pub fn node_writers(
-        &mut self,
-    ) -> &mut NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
+    pub fn node_writers(&mut self) -> &mut NodeWriters<'a, LockedNodeHead<'a>, NS> {
         &mut self.node_writers
     }
 

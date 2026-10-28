@@ -3,13 +3,16 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     dir::GraphDir,
     error::StorageError,
-    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
+    pages::{
+        edge_store::ReadLockedEdgeStorage, locked::nodes::LockedNodeHead,
+        node_store::ReadLockedNodeStorage,
+    },
     persist::{
         config::ConfigOps,
         control_file::{ControlFileOps, DBState},
         strategy::PersistenceStrategy,
     },
-    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    segments::edge::segment::MemEdgeSegment,
     state::StateIndex,
     wal::{GraphWalOps, WalOps},
 };
@@ -318,10 +321,7 @@ impl<
         self.event_id.fetch_max(value, atomic::Ordering::Relaxed)
     }
 
-    pub fn node_writer(
-        &self,
-        node_segment: usize,
-    ) -> NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS> {
+    pub fn node_writer(&self, node_segment: usize) -> NodeWriter<'_, LockedNodeHead<'_>, NS> {
         self.nodes().writer(node_segment)
     }
 
