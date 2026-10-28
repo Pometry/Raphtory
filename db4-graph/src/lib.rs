@@ -8,6 +8,7 @@ use raphtory_api::core::{
     input::input_node::InputNode,
     storage::timeindex::TimeIndexOps,
 };
+use raphtory_api::ArcRwLockWriteGuard;
 use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::EventTime,
@@ -19,6 +20,7 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
     time::Duration,
 };
+use storage::segments::node::segment::MemNodeSegment;
 use storage::{
     api::{
         edges::EdgeSegmentOps,
@@ -34,7 +36,7 @@ use storage::{
             edges::WriteLockedEdgeSegments,
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
-            nodes::{ArcNodeSegmentWGuard, LockedNodeSegment, WriteLockedNodeSegments},
+            nodes::{LockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -512,7 +514,7 @@ where
             .lock_new_segments(&mut self.edges, timeout)
     }
 
-    pub fn extend_new(&mut self, mut new_segments: Vec<ArcNodeSegmentWGuard>) {
+    pub fn extend_new(&mut self, mut new_segments: Vec<ArcRwLockWriteGuard<MemNodeSegment>>) {
         let nodes = self.graph.storage.nodes();
         // segments are pushed concurrently from several threads, so the ids arrive in any order
         new_segments.sort_unstable_by_key(|segment| segment.segment_id());
@@ -535,7 +537,7 @@ where
     /// A node segment created without handing over its lock would let readers see its
     /// uninitialised nodes.
     fn assert_all_nodes_locked(&self) {
-        debug_assert_eq!(
+        assert_eq!(
             self.nodes.len(),
             self.graph.storage.nodes().num_segments(),
             "node segments were created during the bulk load without handing over their locks"

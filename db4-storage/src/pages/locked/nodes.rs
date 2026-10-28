@@ -10,7 +10,8 @@ use crate::{
     persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
-use parking_lot::{ArcRwLockWriteGuard, RawRwLock, RwLockWriteGuard};
+use parking_lot::RwLockWriteGuard;
+use raphtory_api::ArcRwLockWriteGuard;
 use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
@@ -19,18 +20,12 @@ use std::{
     path::Path,
 };
 
-/// Write lock on the head of a node segment created during a bulk load, taken before the
-/// segment was published so no reader can see its uninitialised nodes.
-///
-/// Hand it over with `WriteLockedGraph::extend_new`.
-pub type ArcNodeSegmentWGuard = ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>;
-
 /// The head lock of a [`LockedNodeSegment`]: borrowed for segments that existed when the graph
 /// was locked, owned for segments created and locked during the bulk load.
 #[derive(Debug)]
 pub enum LockedNodeHead<'a> {
     Borrowed(RwLockWriteGuard<'a, MemNodeSegment>),
-    Arc(ArcNodeSegmentWGuard),
+    Arc(ArcRwLockWriteGuard<MemNodeSegment>),
 }
 
 impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
@@ -39,8 +34,8 @@ impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
     }
 }
 
-impl From<ArcNodeSegmentWGuard> for LockedNodeHead<'_> {
-    fn from(head: ArcNodeSegmentWGuard) -> Self {
+impl From<ArcRwLockWriteGuard<MemNodeSegment>> for LockedNodeHead<'_> {
+    fn from(head: ArcRwLockWriteGuard<MemNodeSegment>) -> Self {
         Self::Arc(head)
     }
 }

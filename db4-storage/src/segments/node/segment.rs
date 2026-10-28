@@ -3,7 +3,6 @@ use crate::{
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
-    pages::locked::nodes::ArcNodeSegmentWGuard,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
         HasRow, SegmentContainer,
@@ -12,7 +11,7 @@ use crate::{
     wal::LSN,
 };
 use either::Either;
-use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
+use parking_lot::RwLock;
 use raphtory_api::core::{
     Direction,
     entities::{
@@ -23,6 +22,7 @@ use raphtory_api::core::{
         },
     },
 };
+use raphtory_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard};
 use raphtory_core::{
     entities::{ELID, nodes::structure::adj::Adj},
     storage::timeindex::{AsTime, EventTime},
@@ -418,15 +418,12 @@ pub struct NodeSegmentView<EXT> {
 
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
-    inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+    inner: ArcRwLockReadGuard<MemNodeSegment>,
     num_nodes: u32,
 }
 
 impl ArcLockedSegmentView {
-    pub fn new(
-        inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
-        num_nodes: u32,
-    ) -> Self {
+    pub fn new(inner: ArcRwLockReadGuard<MemNodeSegment>, num_nodes: u32) -> Self {
         Self { inner, num_nodes }
     }
 }
@@ -511,12 +508,12 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     #[inline(always)]
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemNodeSegment> {
         self.inner.read_arc_recursive()
     }
 
     #[inline(always)]
-    fn head_mut_arc(&self) -> ArcNodeSegmentWGuard {
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemNodeSegment> {
         self.inner.write_arc()
     }
 

@@ -16,6 +16,7 @@ use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
 };
+use raphtory_api::ArcRwLockWriteGuard;
 use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::{
     durability_ops::DurabilityOps,
@@ -27,7 +28,8 @@ use std::{
     hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::pages::{locked::nodes::ArcNodeSegmentWGuard, resolve_pos};
+use storage::pages::resolve_pos;
+use storage::segments::node::segment::MemNodeSegment;
 
 pub mod edge_props;
 pub mod edges;
@@ -283,7 +285,13 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<(FxDashMap<GidRef<'a>, VID>, Vec<ArcNodeSegmentWGuard>), GraphError> {
+) -> Result<
+    (
+        FxDashMap<GidRef<'a>, VID>,
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     resolve_nodes_with_cache_generic(
         cols_to_resolve,
         |vid: &VID, idx, col_idx| {

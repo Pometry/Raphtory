@@ -18,9 +18,10 @@ use raphtory_api::{
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
     inherit::Base,
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
-use storage::{pages::locked::nodes::ArcNodeSegmentWGuard, wal::LSN, Extension};
+use storage::{segments::node::segment::MemNodeSegment, wal::LSN, Extension};
 
 /// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.
 pub type NodeTypeResolution = MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>;
@@ -46,7 +47,7 @@ pub trait InternalAdditionOps {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentWGuard>), Self::Error>;
+    ) -> Result<(MaybeNew<VID>, Vec<ArcRwLockWriteGuard<MemNodeSegment>>), Self::Error>;
 
     /// validate the GidRef is the correct type
     fn validate_gids<'a>(
@@ -242,7 +243,7 @@ impl InternalAdditionOps for GraphStorage {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentWGuard>), Self::Error> {
+    ) -> Result<(MaybeNew<VID>, Vec<ArcRwLockWriteGuard<MemNodeSegment>>), Self::Error> {
         self.mutable()?.bulk_load_resolve_node(id)
     }
 
@@ -338,7 +339,7 @@ where
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, Vec<ArcNodeSegmentWGuard>), Self::Error> {
+    ) -> Result<(MaybeNew<VID>, Vec<ArcRwLockWriteGuard<MemNodeSegment>>), Self::Error> {
         self.base().bulk_load_resolve_node(id)
     }
 

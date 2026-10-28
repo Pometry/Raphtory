@@ -328,10 +328,12 @@ impl Hash for Prop {
             Prop::U32(u) => u.hash(state),
             Prop::U64(u) => u.hash(state),
             Prop::F32(f) => {
+                // 0.0 and -0.0 are equal but have different bits, so coerce them to the same hash.
                 let bits = if *f == 0.0 { 0.0f32 } else { *f }.to_bits();
                 bits.hash(state);
             }
             Prop::F64(f) => {
+                // 0.0 and -0.0 are equal but have different bits, so coerce them to the same hash.
                 let bits = if *f == 0.0 { 0.0f64 } else { *f }.to_bits();
                 bits.hash(state);
             }

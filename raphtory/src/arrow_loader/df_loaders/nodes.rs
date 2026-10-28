@@ -18,6 +18,7 @@ use raphtory_api::{
         },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::{
     entities::{GidRef, VID},
@@ -34,8 +35,9 @@ use storage::{
     api::nodes::NodeSegmentOps,
     pages::locked::{
         node_type_index::WriteLockedNodeTypeIndex,
-        nodes::{ArcNodeSegmentWGuard, LockedNodeSegment, WriteLockedNodeSegments},
+        nodes::{LockedNodeSegment, WriteLockedNodeSegments},
     },
+    segments::node::segment::MemNodeSegment,
     Extension, NS, NTI,
 };
 
@@ -527,7 +529,14 @@ fn get_or_resolve_node_vids<
     resolve_nodes: bool,
     df: &'b DFChunk,
     src_col: &'a NodeCol,
-) -> Result<(&'c [VID], Vec<Resolved<'a>>, Vec<ArcNodeSegmentWGuard>), GraphError> {
+) -> Result<
+    (
+        &'c [VID],
+        Vec<Resolved<'a>>,
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     if resolve_nodes {
         let cache = node_resolve_cache
             .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
@@ -570,7 +579,14 @@ fn resolve_node_vids_and_types_with_cache<
     node_col: &'a NodeCol,
     node_types: &[usize],
     len: usize,
-) -> Result<(&'a [VID], Vec<Resolved<'a>>, Vec<ArcNodeSegmentWGuard>), GraphError> {
+) -> Result<
+    (
+        &'a [VID],
+        Vec<Resolved<'a>>,
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     node_col_resolved.resize_with(len, Default::default);
     let atomic_node_col = atomic_vid_from_mut_slice(node_col_resolved);
 
@@ -700,7 +716,14 @@ fn get_or_resolve_node_vids_no_events<
     src_col: &'a NodeCol,
     node_type_col: LayerCol<'a>,
     is_materializing: bool,
-) -> Result<(&'c [VID], &'c [usize], Vec<ArcNodeSegmentWGuard>), GraphError> {
+) -> Result<
+    (
+        &'c [VID],
+        &'c [usize],
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     assert!(!(node_type_ids_col.is_none() ^ node_id_col.is_none())); // both some or both none
     if let Some((node_type_index, node_id_col)) = node_type_ids_col.zip(node_id_col) {
         set_meta_for_pre_resolved_nodes_and_node_ids(
@@ -736,7 +759,14 @@ fn resolve_node_and_meta_for_node_col<
     src_col: &NodeCol,
     node_type_col: LayerCol<'a>,
     is_materializing: bool,
-) -> Result<(&'a [VID], &'a [usize], Vec<ArcNodeSegmentWGuard>), GraphError> {
+) -> Result<
+    (
+        &'a [VID],
+        &'a [usize],
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     node_col_resolved.resize_with(df.len(), Default::default);
     node_type_resolved.resize_with(df.len(), Default::default);
 
@@ -809,7 +839,14 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
     node_type_col: LayerCol<'_>,
     node_type_index: usize,
     node_id_col: usize,
-) -> Result<(&'b [VID], &'b [usize], Vec<ArcNodeSegmentWGuard>), GraphError> {
+) -> Result<
+    (
+        &'b [VID],
+        &'b [usize],
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     let srcs = df.chunk[node_id_col]
         .as_primitive_opt::<UInt64Type>()
         .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[node_id_col].data_type().clone()))?

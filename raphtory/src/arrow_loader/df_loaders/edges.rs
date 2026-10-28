@@ -29,6 +29,7 @@ use raphtory_api::{
         entities::{properties::prop::AsPropRef, LayerId, EID},
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
@@ -45,10 +46,11 @@ use storage::{
     pages::{
         locked::{
             edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
-            nodes::{ArcNodeSegmentWGuard, LockedNodeSegment},
+            nodes::LockedNodeSegment,
         },
         resolve_pos,
     },
+    segments::node::segment::MemNodeSegment,
     Extension,
 };
 use tracing::error;
@@ -498,7 +500,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
         &'a [VID],
         &'a [VID],
         Vec<(GidRef<'a>, VID)>,
-        Vec<ArcNodeSegmentWGuard>,
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
     ),
     GraphError,
 > {
@@ -556,7 +558,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
             }
             Ok::<_, GraphError>(new_segment_guards)
         })
-        .collect::<Result<Vec<Vec<ArcNodeSegmentWGuard>>, GraphError>>()?
+        .collect::<Result<Vec<Vec<ArcRwLockWriteGuard<MemNodeSegment>>>, GraphError>>()?
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
@@ -603,7 +605,7 @@ pub fn get_or_resolve_node_vids<
         &'c [VID],
         &'c [VID],
         Vec<(GidRef<'a>, VID)>,
-        Vec<ArcNodeSegmentWGuard>,
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
     ),
     GraphError,
 > {
