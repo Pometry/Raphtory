@@ -10,7 +10,6 @@ pub trait ServerPlugin: Clone + Send + Sync + 'static {
     type Extension: ServerExtension + clap::Args + Clone;
 
     /// Create a new plugin instance
-
     fn new(&self) -> Self::Extension;
 }
 

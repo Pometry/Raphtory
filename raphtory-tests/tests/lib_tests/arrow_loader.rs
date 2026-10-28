@@ -210,10 +210,11 @@ mod test {
         );
     }
 
+    /// One chunk of `(ids, node_types, times)` columns.
+    type NodeTypeChunk<'a> = (Vec<u64>, Vec<Option<&'a str>>, Vec<i64>);
+
     /// Builds a node dataframe with an `id`/`node_type`/`time` column per chunk.
-    fn node_type_df(
-        chunks: Vec<(Vec<u64>, Vec<Option<&str>>, Vec<i64>)>,
-    ) -> DFView<IntoIter<Result<DFChunk, GraphError>>> {
+    fn node_type_df(chunks: Vec<NodeTypeChunk>) -> DFView<IntoIter<Result<DFChunk, GraphError>>> {
         let num_rows = chunks.iter().map(|(ids, ..)| ids.len()).sum();
 
         DFView {
@@ -544,7 +545,7 @@ mod test {
             .iter()
             .next()
             .is_none());
-        assert_eq!(storage.node_type_index().head().num_entries(), 2);
+        assert_eq!(storage.node_type_index().head_shared_arc().num_entries(), 2);
         assert_eq!(
             storage
                 .node_type_index()
@@ -572,7 +573,11 @@ mod test {
         )
         .expect("failed to load nodes");
 
-        let entries_before = graph.core_graph().node_type_index().head().num_entries();
+        let entries_before = graph
+            .core_graph()
+            .node_type_index()
+            .head_shared_arc()
+            .num_entries();
 
         load_nodes_with_type_col(
             &graph,
@@ -585,7 +590,7 @@ mod test {
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
 
         assert_eq!(
-            storage.node_type_index().head().num_entries(),
+            storage.node_type_index().head_shared_arc().num_entries(),
             entries_before
         );
         assert_eq!(entries_before, 2);

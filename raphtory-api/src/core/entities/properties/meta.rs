@@ -1,7 +1,7 @@
 use crate::core::{
     entities::{
         properties::prop::{
-            check_for_unification, unify_types, PropError, PropType, PropTypeError,
+            check_for_unification, unify_types, Prop, PropError, PropType, PropTypeError,
         },
         LayerId, LayerIds,
     },
@@ -22,6 +22,9 @@ use std::{
         Arc,
     },
 };
+
+/// A property as `(name, id, value)`, tagged with whether its id was newly created.
+pub type PropWithStatus<PN> = MaybeNew<(PN, usize, Prop)>;
 
 // Internal const props for node id and type.
 pub const NODE_ID_PROP_KEY: &str = "_raphtory_node_id";

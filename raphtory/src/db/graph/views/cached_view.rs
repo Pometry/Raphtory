@@ -63,7 +63,7 @@ impl<'graph, G: GraphViewOps<'graph>> Base for CachedView<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for CachedView<G> {}
-impl<'graph, G: GraphView> InheritTimeSemantics for CachedView<G> {}
+impl<G: GraphView> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for CachedView<G> {}

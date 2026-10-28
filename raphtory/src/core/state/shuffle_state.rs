@@ -90,7 +90,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .for_each(|p| p.reset_states(ss, states));
     }
 
-    pub fn reset_global_states(&mut self, ss: usize, states: &Vec<u32>) {
+    pub fn reset_global_states(&mut self, ss: usize, states: &[u32]) {
         self.global.reset_states(ss, states);
     }
 

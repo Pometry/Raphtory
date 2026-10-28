@@ -9,7 +9,6 @@ path = "src/main.rs"
 
 [dependencies]
 raphtory-graphql = { workspace = true }
-auth = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]

@@ -85,7 +85,7 @@ pub(crate) fn properties_to_input(
         .map(|(k, v)| {
             Ok(ObjectEntry {
                 key: k.clone(),
-                value: Value::try_from(v)?,
+                value: Value::from(v),
             })
         })
         .collect()

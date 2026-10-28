@@ -166,14 +166,14 @@ struct Infection {
 ///
 /// - `graph` - the graph
 /// - `recovery_rate` - Optional recovery rate (actual recovery times are sampled from an exponential
-///                     distribution with this rate). If `None`, nodes never recover (i.e. SI model)
+///   distribution with this rate). If `None`, nodes never recover (i.e. SI model)
 /// - `incubation_rate` - Optional incubation rate (the time nodes take to transition from exposed to infected
-///                       is sampled from an exponential distribution with this rate). If `None`,
-///                       the incubation time is `1`, i.e., an infected nodes becomes infectious at
-///                       the next time step
+///   is sampled from an exponential distribution with this rate). If `None`,
+///   the incubation time is `1`, i.e., an infected nodes becomes infectious at
+///   the next time step
 /// - `initial_infection` - time stamp for the initial infection events
 /// - `seeds` - Specify how to choose seeds, can be either a list of nodes, `Number(n: usize)` for
-///             sampling a fixed number `n` of seed nodes, or `Probability(p: f64)` in which case a node is initially infected with probability `p`.
+///   sampling a fixed number `n` of seed nodes, or `Probability(p: f64)` in which case a node is initially infected with probability `p`.
 /// - `rng` - The random number generator to use
 ///
 /// # Returns

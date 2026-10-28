@@ -10,7 +10,7 @@ use crate::{
 };
 use raphtory_api::core::storage::graph_folder::{
     get_zip_graph_path, GraphFolder, GraphPaths, Metadata, RelativePath, DEFAULT_DATA_PATH,
-    DEFAULT_GRAPH_PATH, GRAPH_META_PATH, ROOT_META_PATH,
+    DEFAULT_GRAPH_PATH, GRAPH_META_PATH, ROOT_RAPH_PATH,
 };
 use std::{
     fs::File,
@@ -32,7 +32,7 @@ pub trait StableEncode: StaticGraphViewOps + AdditionOps {
 impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
     fn encode_to_zip<W: Write + Seek>(&self, mut writer: ZipWriter<W>) -> Result<(), GraphError> {
         let graph_meta = build_graph_metadata(self);
-        writer.start_file(ROOT_META_PATH, SimpleFileOptions::default())?;
+        writer.start_file(ROOT_RAPH_PATH, SimpleFileOptions::default())?;
         writer.write_all(&serde_json::to_vec(&RelativePath {
             path: DEFAULT_DATA_PATH.to_string(),
         })?)?;
@@ -67,13 +67,17 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
             let write_folder = folder.init_write()?;
             self.encode_parquet(write_folder.graph_path()?)?;
             let data_folder = write_folder.data_path()?;
+
             let meta = Metadata {
                 path: data_folder.relative_graph_path()?,
                 meta: build_graph_metadata(self),
             };
+
             data_folder.write_metadata(meta)?;
-            write_folder.finish()?;
+            let cleanup_old = true;
+            write_folder.finish(cleanup_old)?;
         }
+
         Ok(())
     }
 }
@@ -193,17 +197,16 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         args: Args,
     ) -> Result<Self, GraphError> {
         target.init()?;
-        let graph;
-        if path.is_zip() {
+        let graph = if path.is_zip() {
             let reader = path.read_zip()?;
-            graph = Self::decode_from_zip_at(reader, target, args)?;
+            Self::decode_from_zip_at(reader, target, args)?
         } else {
-            graph = Self::decode_parquet(
+            Self::decode_parquet(
                 path.graph_path()?,
                 Some(target.graph_path()?.as_path()),
                 args,
-            )?;
-        }
+            )?
+        };
         let meta = Metadata {
             path: target.relative_graph_path()?,
             meta: build_graph_metadata(&graph),

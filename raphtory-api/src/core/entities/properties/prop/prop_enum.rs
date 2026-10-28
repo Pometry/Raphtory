@@ -227,7 +227,7 @@ impl<'de> Deserialize<'de> for PropExact {
                 while let Some(v) = seq.next_element::<PropExact>()? {
                     values.push(v.0);
                 }
-                Ok(Prop::list(values).map_err(de::Error::custom)?)
+                Prop::list(values).map_err(de::Error::custom)
             }
             fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Prop, A::Error> {
                 let mut values = PropMap::default();
@@ -260,6 +260,12 @@ pub enum Prop {
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Decimal(BigDecimal),
+}
+
+impl From<usize> for Prop {
+    fn from(value: usize) -> Self {
+        Prop::U64(value as u64)
+    }
 }
 
 impl From<GidRef<'_>> for Prop {

@@ -1,4 +1,7 @@
-use crate::db::api::{storage::storage::Storage, view::internal::InternalStorageOps};
+use crate::db::api::{
+    storage::storage::Storage,
+    view::internal::{InternalStorageOps, Static},
+};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::path::Path;
 
@@ -11,12 +14,17 @@ pub mod property_schema;
 pub mod time_props;
 pub mod time_semantics;
 
+impl Static for GraphStorage {}
+
 impl InternalStorageOps for GraphStorage {
     fn get_storage(&self) -> Option<&Storage> {
         None
     }
 
     fn disk_storage_path(&self) -> Option<&Path> {
-        self.disk_storage_path()
+        match self {
+            GraphStorage::Locked(graph) => graph.graph.disk_storage_path(),
+            GraphStorage::Unlocked(graph) => graph.disk_storage_path(),
+        }
     }
 }

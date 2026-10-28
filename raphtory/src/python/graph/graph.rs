@@ -1179,6 +1179,7 @@ impl PyGraph {
     #[pyo3(
         signature = (data, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, batch_size = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_edge_metadata(
         &self,
         data: &Bound<PyAny>,

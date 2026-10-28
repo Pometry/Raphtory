@@ -49,19 +49,20 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (shard, global)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn run_task_v2<S: 'static>(
         &self,
         shard_state: &Shard<CS>,
         global_state: &Global<CS>,
         morcel: &mut [S],
         prev_local_state: &Vec<S>,
-        reverse_vids: &Vec<VID>,
+        reverse_vids: &[VID],
         storage: &GraphStorage,
         index: &Index<VID>,
         atomic_done: &AtomicBool,
         morcel_size: usize,
         morcel_id: usize,
-        task: &Box<dyn Task<G, CS, S> + Send + Sync>,
+        task: &(dyn Task<G, CS, S> + Send + Sync),
     ) -> (Shard<CS>, Global<CS>) {
         // the view for this task of the global state
         let shard_state_view = shard_state.as_cow();
@@ -71,9 +72,8 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let mut done = true;
         let node_state = EVState::rc_from(shard_state_view, global_state_view);
         let local = PrevLocalState::new(prev_local_state);
-        let mut v_ref = morcel_id * morcel_size;
 
-        for local_state in morcel {
+        for (v_ref, local_state) in (morcel_id * morcel_size..).zip(morcel) {
             let node = reverse_vids[v_ref];
             // if g.has_node(VID(v_ref)) {
             let eval_graph = EvalGraph {
@@ -93,7 +93,6 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 Step::Done => {}
             }
             // }
-            v_ref += 1;
         }
 
         if !done {
@@ -123,6 +122,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn run_task_list<S: Send + Sync + 'static>(
         &mut self,
         tasks: &[Job<G, CS, S>],
@@ -132,7 +132,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         global_state: Global<CS>,
         mut local_state: Vec<S>,
         prev_local_state: &Vec<S>,
-        reverse_vids: &Vec<VID>,
+        reverse_vids: &[VID],
         storage: &GraphStorage,
         index: &Index<VID>,
     ) -> (bool, Shard<CS>, Global<CS>, Vec<S>) {
@@ -161,7 +161,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                 &atomic_done,
                                 morcel_size,
                                 morcel_id,
-                                task,
+                                task.as_ref(),
                             )
                         })
                         .reduce_with(|a, b| self.merge_states(a, b)),
@@ -181,7 +181,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                     &atomic_done,
                                     morcel_size,
                                     morcel_id,
-                                    task,
+                                    task.as_ref(),
                                 );
                             });
                         None
@@ -222,6 +222,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (init.clone(), init)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn run<
         B,
         F: FnOnce(
@@ -259,6 +260,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
     /// Execute tasks over nodes in `node_index`. Used for running algorithms over a super- or subset
     /// of the nodes in the graph view.
+    #[allow(clippy::too_many_arguments)]
     pub fn run_with_index<
         B,
         F: FnOnce(

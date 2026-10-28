@@ -26,7 +26,6 @@ raphtory-graphql = { workspace = true, features = [
     "python",
 ] }
 raphtory-rdf = { workspace = true, optional = true }
-auth = { workspace = true }
 raphtory-vectors = { workspace = true, optional = true, features = ["python"] }
 
 

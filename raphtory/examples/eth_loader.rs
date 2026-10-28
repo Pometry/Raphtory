@@ -46,11 +46,11 @@ fn load_eth_graph(parquet_path: &Path, graph: &Graph) -> Result<(), GraphError> 
 fn main() {
     let parquet_path = std::env::args()
         .nth(1)
-        .map(|dir| PathBuf::from(dir))
+        .map(PathBuf::from)
         .unwrap_or_else(|| panic!("Usage: snb_loader <data_dir>"));
     let graph_path = std::env::args()
         .nth(2)
-        .map(|graph| PathBuf::from(graph))
+        .map(PathBuf::from)
         .unwrap_or_else(|| parquet_path.join("..").join("graph"));
     if graph_path.exists() {
         let now = std::time::Instant::now();

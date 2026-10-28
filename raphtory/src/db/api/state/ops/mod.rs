@@ -10,13 +10,19 @@ use crate::db::api::{
 pub use history::*;
 pub use node::*;
 pub use properties::*;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{properties::prop::PropType, VID};
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
 
 pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
+
+    /// The output type of this operation used for validation.
+    /// Returns `PropType::Empty` by default (unknown type).
+    fn prop_type(&self) -> PropType {
+        PropType::Empty
+    }
 
     /// The domain of validity for this node op
     fn domain(&self, storage: &GraphStorage) -> NodeList;
@@ -133,11 +139,18 @@ pub struct ArrowMap<Op: NodeOp, A> {
     _phantom: PhantomData<A>,
 }
 
+/// Maps the output of `Op` to `V` and exposes the result as the arrow struct `A`.
+pub type ArrowMapped<Op, V, A> = ArrowMap<Map<Op, V>, A>;
+
 impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
     type Output = V;
 
     fn domain(&self, storage: &GraphStorage) -> NodeList {
         self.op.domain(storage)
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.op.prop_type()
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
@@ -172,6 +185,10 @@ impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
     type Output = V;
     fn apply(&self, storage: &GraphStorage, node: VID) -> V {
         self.deref().apply(storage, node)
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.deref().prop_type()
     }
 
     fn const_value(&self) -> Option<Self::Output> {

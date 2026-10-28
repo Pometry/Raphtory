@@ -18,6 +18,8 @@ use std::{
 };
 use tracing::{error, info};
 
+type JsonDeserializer = Deserializer<IoRead<BufReader<Box<dyn io::Read>>>>;
+
 #[derive(Debug)]
 pub enum JsonErr {
     /// An IO error that occurred during file read.
@@ -216,10 +218,7 @@ impl<REC: DeserializeOwned + std::fmt::Debug + Sync> JsonLinesLoader<REC> {
         Ok(())
     }
 
-    fn json_reader(
-        &self,
-        file_path: PathBuf,
-    ) -> Result<Deserializer<IoRead<BufReader<Box<dyn io::Read>>>>, JsonErr> {
+    fn json_reader(&self, file_path: PathBuf) -> Result<JsonDeserializer, JsonErr> {
         let is_gziped = file_path
             .file_name()
             .and_then(|name| name.to_str())

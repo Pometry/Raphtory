@@ -307,12 +307,12 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> GraphView:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> GraphView:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             GraphView: The filtered view
@@ -2428,12 +2428,12 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Node:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Node:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Node: The filtered view
@@ -2922,12 +2922,12 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Nodes:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Nodes:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Nodes: The filtered view
@@ -3437,12 +3437,12 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> PathFromNode:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromNode:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromNode: The filtered view
@@ -3912,12 +3912,12 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> PathFromGraph:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromGraph:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromGraph: The filtered view
@@ -4472,12 +4472,12 @@ class Edge(object):
             Edges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Edge:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edge:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edge: The filtered view
@@ -4942,12 +4942,12 @@ class Edges(object):
             Edges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> Edges:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edges:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edges: The filtered view
@@ -5271,6 +5271,8 @@ class Edges(object):
         """
 
 class NestedEdges(object):
+    """A list of edges per node."""
+
     def __bool__(self):
         """True if self else False"""
 
@@ -5435,28 +5437,28 @@ class NestedEdges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self) -> Edges:
+    def explode(self) -> NestedEdges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Edges:
+            NestedEdges:
         """
 
-    def explode_layers(self) -> Edges:
+    def explode_layers(self) -> NestedEdges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Edges:
+            NestedEdges:
         """
 
-    def filter(self, filter: filter.FilterExpr) -> NestedEdges:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> NestedEdges:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             NestedEdges: The filtered view
