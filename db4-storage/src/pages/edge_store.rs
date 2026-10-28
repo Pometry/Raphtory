@@ -402,10 +402,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             ))
         });
 
-        while self.segments.get(segment_id).is_none() {
-            // wait
-        }
-
         segment_id
     }
 

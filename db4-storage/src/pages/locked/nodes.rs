@@ -18,10 +18,8 @@ use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::{ops::DerefMut, path::Path};
 
-/// Write locks on the node segments created during a bulk load, each taken before its segment was
-/// published so no reader can see its uninitialised nodes.
-///
-/// Hand them over with `WriteLockedGraph::extend_new`.
+/// Write locks on the node segments, each taken before its segment was published so
+/// no reader can see its uninitialised nodes.
 pub type NewNodeSegmentLocks = Vec<ArcRwLockWriteGuard<MemNodeSegment>>;
 
 #[derive(Debug)]

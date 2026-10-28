@@ -461,10 +461,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             segment
         });
 
-        while self.segments.get(segment_id).is_none() {
-            std::thread::yield_now();
-        }
-
         segment_id
     }
 
