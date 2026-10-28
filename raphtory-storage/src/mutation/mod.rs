@@ -16,7 +16,7 @@ use storage::{
     error::StorageError,
     pages::{
         edge_page::writer::EdgeWriter, graph_prop_page::writer::GraphPropWriter,
-        locked::nodes::LockedNodeHead, node_page::writer::NodeWriter,
+        locked::nodes::WriteLockedNodeHead, node_page::writer::NodeWriter,
     },
     resolver::mapping_resolver::InvalidNodeId,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
@@ -28,7 +28,7 @@ pub mod addition_ops;
 pub mod addition_ops_ext;
 pub mod property_addition_ops;
 
-pub type NodeWriterT<'a> = NodeWriter<'a, LockedNodeHead<'a>, NS<Extension>>;
+pub type NodeWriterT<'a> = NodeWriter<'a, WriteLockedNodeHead<'a>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
 pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 

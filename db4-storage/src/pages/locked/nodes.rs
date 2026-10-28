@@ -31,24 +31,24 @@ pub type NewNodeSegmentLocks = Vec<ArcRwLockWriteGuard<MemNodeSegment>>;
 /// The head lock of a [`LockedNodeSegment`]: borrowed for segments that existed when the graph
 /// was locked, owned for segments created and locked during the bulk load.
 #[derive(Debug)]
-pub enum LockedNodeHead<'a> {
+pub enum WriteLockedNodeHead<'a> {
     Borrowed(RwLockWriteGuard<'a, MemNodeSegment>),
     Arc(ArcRwLockWriteGuard<MemNodeSegment>),
 }
 
-impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
+impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for WriteLockedNodeHead<'a> {
     fn from(head: RwLockWriteGuard<'a, MemNodeSegment>) -> Self {
         Self::Borrowed(head)
     }
 }
 
-impl From<ArcRwLockWriteGuard<MemNodeSegment>> for LockedNodeHead<'_> {
+impl From<ArcRwLockWriteGuard<MemNodeSegment>> for WriteLockedNodeHead<'_> {
     fn from(head: ArcRwLockWriteGuard<MemNodeSegment>) -> Self {
         Self::Arc(head)
     }
 }
 
-impl Deref for LockedNodeHead<'_> {
+impl Deref for WriteLockedNodeHead<'_> {
     type Target = MemNodeSegment;
 
     #[inline(always)]
@@ -60,7 +60,7 @@ impl Deref for LockedNodeHead<'_> {
     }
 }
 
-impl DerefMut for LockedNodeHead<'_> {
+impl DerefMut for WriteLockedNodeHead<'_> {
     #[inline(always)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
@@ -76,7 +76,7 @@ pub struct LockedNodeSegment<'a, NS> {
     max_page_len: u32,
     layer_counter: &'a GraphStats,
     segment: &'a NS,
-    head: LockedNodeHead<'a>,
+    head: WriteLockedNodeHead<'a>,
 }
 
 impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
@@ -85,7 +85,7 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
         layer_counter: &'a GraphStats,
         max_page_len: u32,
         segment: &'a NS,
-        head: impl Into<LockedNodeHead<'a>>,
+        head: impl Into<WriteLockedNodeHead<'a>>,
     ) -> Self {
         Self {
             id,

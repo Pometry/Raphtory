@@ -4,7 +4,7 @@ use crate::{
     dir::GraphDir,
     error::StorageError,
     pages::{
-        edge_store::ReadLockedEdgeStorage, locked::nodes::LockedNodeHead,
+        edge_store::ReadLockedEdgeStorage, locked::nodes::WriteLockedNodeHead,
         node_store::ReadLockedNodeStorage,
     },
     persist::{
@@ -321,7 +321,7 @@ impl<
         self.event_id.fetch_max(value, atomic::Ordering::Relaxed)
     }
 
-    pub fn node_writer(&self, node_segment: usize) -> NodeWriter<'_, LockedNodeHead<'_>, NS> {
+    pub fn node_writer(&self, node_segment: usize) -> NodeWriter<'_, WriteLockedNodeHead<'_>, NS> {
         self.nodes().writer(node_segment)
     }
 

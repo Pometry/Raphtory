@@ -2,7 +2,7 @@ use crate::{
     LocalPOS,
     api::nodes::NodeSegmentOps,
     error::StorageError,
-    pages::{layer_counter::GraphStats, locked::nodes::LockedNodeHead, resolve_pos},
+    pages::{layer_counter::GraphStats, locked::nodes::WriteLockedNodeHead, resolve_pos},
     segments::node::segment::MemNodeSegment,
     wal::LSN,
 };
@@ -292,11 +292,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 }
 
-impl<'a, NS: NodeSegmentOps> NodeWriter<'a, LockedNodeHead<'a>, NS> {
+impl<'a, NS: NodeSegmentOps> NodeWriter<'a, WriteLockedNodeHead<'a>, NS> {
     pub fn unlocked<R>(&mut self, op: impl FnOnce() -> R) -> R {
         match &mut self.writer {
-            LockedNodeHead::Borrowed(writer) => RwLockWriteGuard::unlocked(writer, op),
-            LockedNodeHead::Arc(writer) => ArcRwLockWriteGuard::unlocked(writer, op),
+            WriteLockedNodeHead::Borrowed(writer) => RwLockWriteGuard::unlocked(writer, op),
+            WriteLockedNodeHead::Arc(writer) => ArcRwLockWriteGuard::unlocked(writer, op),
         }
     }
 }

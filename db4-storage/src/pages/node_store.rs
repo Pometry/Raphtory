@@ -10,7 +10,7 @@ use crate::{
         SegmentCounts,
         layer_counter::GraphStats,
         locked::nodes::{
-            LockedNodeHead, LockedNodeSegment, NewNodeSegmentLocks, WriteLockedNodeSegments,
+            LockedNodeSegment, NewNodeSegmentLocks, WriteLockedNodeHead, WriteLockedNodeSegments,
         },
         row_group_par_iter,
     },
@@ -407,7 +407,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &self,
         row: usize,
         num_rows: u32,
-    ) -> (LocalPOS, NodeWriter<'_, LockedNodeHead<'_>, NS>) {
+    ) -> (LocalPOS, NodeWriter<'_, WriteLockedNodeHead<'_>, NS>) {
         let slot_idx = row % *N;
         // No point in multiple threads getting past here as they would just content on the writer lock
         let mut slot = self.free_segments[slot_idx].write();
@@ -488,10 +488,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     #[inline(always)]
-    pub fn writer<'a>(&'a self, segment_id: usize) -> NodeWriter<'a, LockedNodeHead<'a>, NS> {
+    pub fn writer<'a>(&'a self, segment_id: usize) -> NodeWriter<'a, WriteLockedNodeHead<'a>, NS> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.head_mut();
-        NodeWriter::new(segment, &self.stats, LockedNodeHead::Borrowed(head))
+        NodeWriter::new(segment, &self.stats, WriteLockedNodeHead::Borrowed(head))
     }
 
     #[inline(always)]
@@ -499,21 +499,21 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &'a self,
         segment_id: usize,
         head: ArcRwLockWriteGuard<MemNodeSegment>,
-    ) -> NodeWriter<'a, LockedNodeHead<'a>, NS> {
+    ) -> NodeWriter<'a, WriteLockedNodeHead<'a>, NS> {
         let segment = &self.segments[segment_id];
-        NodeWriter::new(segment, &self.stats, LockedNodeHead::Arc(head))
+        NodeWriter::new(segment, &self.stats, WriteLockedNodeHead::Arc(head))
     }
 
     pub fn try_writer<'a>(
         &'a self,
         segment_id: usize,
-    ) -> Option<NodeWriter<'a, LockedNodeHead<'a>, NS>> {
+    ) -> Option<NodeWriter<'a, WriteLockedNodeHead<'a>, NS>> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.try_head_mut()?;
         Some(NodeWriter::new(
             segment,
             &self.stats,
-            LockedNodeHead::Borrowed(head),
+            WriteLockedNodeHead::Borrowed(head),
         ))
     }
 
