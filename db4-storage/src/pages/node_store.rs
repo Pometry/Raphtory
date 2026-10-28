@@ -17,7 +17,7 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
 };
-use parking_lot::{RwLock, RwLockWriteGuard};
+use parking_lot::RwLock;
 use raphtory_api::{
     ArcRwLockWriteGuard,
     core::entities::{GidType, LayerId, properties::meta::Meta},
@@ -352,8 +352,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     /// Create segments until there are `new_len`, returning them locked.
     ///
-    /// Only for use behind the bulk load lock: no other thread may create node segments
-    /// concurrently.
     pub fn grow_locked(&self, new_len: usize) -> NewNodeSegmentLocks {
         let mut new_segments = Vec::new();
         while self.segments.count() < new_len {
@@ -447,8 +445,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         increment_and_clamp(segment.nodes_counter(), rows, self.max_segment_len())
     }
 
-    /// Push a new segment; if `new_segment_locks` is given, the segment is write-locked before it
-    /// is published and its lock is pushed there.
+    /// Push a new segment; the segment is write-locked before it
+    /// is published and its lock is pushed into new_segment_locks.
     fn push_new_segment(&self, new_segment_locks: &mut NewNodeSegmentLocks) -> usize {
         let segment_id = self.segments.push_with(|segment_id| {
             let segment = Arc::new(NS::new(

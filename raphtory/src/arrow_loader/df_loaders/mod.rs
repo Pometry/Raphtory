@@ -284,25 +284,13 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
 ) -> Result<(FxDashMap<GidRef<'a>, VID>, NewNodeSegmentLocks), GraphError> {
-    resolve_nodes_with_cache_generic(
-        cols_to_resolve,
-        |vid: &VID, idx, col_idx| {
-            resolved_cols[col_idx][idx].store(vid.0, Ordering::Relaxed);
-        },
-        |gid, _, _| {
-            let (vid, guards) =
-                unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
-            Ok((vid.inner(), guards))
-        },
-    )
-}
-
-fn resolve_nodes_with_cache_generic<'a, V: Send + Sync, B: Send + Sync>(
-    cols_to_resolve: &[&'a NodeCol],
-    update_fn: impl Fn(&V, usize, usize) + Send + Sync,
-    new_fn: impl Fn(GidRef<'a>, usize, usize) -> Result<(V, Vec<B>), GraphError> + Send + Sync,
-) -> Result<(FxDashMap<GidRef<'a>, V>, Vec<B>), GraphError> {
-    let gid_str_cache: dashmap::DashMap<GidRef<'_>, V, _> = FxDashMap::default();
+    let update_fn = |vid: &VID, idx, col_idx| {
+        // these types are needed apparently
+        let atomics: &&mut [AtomicUsize] = &resolved_cols[col_idx];
+        let atomic: &AtomicUsize = &atomics[idx];
+        atomic.store(vid.0, Ordering::Relaxed);
+    };
+    let gid_str_cache = FxDashMap::default();
     let hasher_factory = gid_str_cache.hasher().clone();
 
     let new_seg_guards = gid_str_cache
@@ -316,7 +304,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync, B: Send + Sync>(
             let hash_key = |key: &GidRef<'_>| -> u64 { hasher_factory.hash_one(key) };
 
             let hasher_fn =
-                |tuple: &(GidRef<'_>, SharedValue<V>)| -> u64 { hasher_factory.hash_one(tuple.0) };
+                |tuple: &(GidRef<'_>, SharedValue<_>)| -> u64 { hasher_factory.hash_one(tuple.0) };
 
             let mut segment_guards = vec![];
 
@@ -335,8 +323,10 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync, B: Send + Sync>(
                         let v = value.get();
                         update_fn(v, row, col_id);
                     } else {
-                        let (v, new_seg_guards) = new_fn(gid, row, col_id)?;
-                        segment_guards.extend(new_seg_guards);
+                        let (v, guards) =
+                            unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+                        segment_guards.extend(guards);
+                        let v = v.inner();
 
                         update_fn(&v, row, col_id);
                         let data = (gid, SharedValue::new(v));
@@ -347,7 +337,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync, B: Send + Sync>(
 
             Ok::<_, GraphError>(segment_guards)
         })
-        .collect::<Result<Vec<Vec<B>>, GraphError>>()?;
+        .collect::<Result<Vec<Vec<_>>, GraphError>>()?;
 
     let new_seg_guards = new_seg_guards
         .into_iter()

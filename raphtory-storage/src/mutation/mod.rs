@@ -19,7 +19,7 @@ use storage::{
         locked::nodes::WriteLockedNodeHead, node_page::writer::NodeWriter,
     },
     resolver::mapping_resolver::InvalidNodeId,
-    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    segments::edge::segment::MemEdgeSegment,
     Extension, ES, GS, NS,
 };
 use thiserror::Error;

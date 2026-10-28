@@ -5,7 +5,7 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     pages::locked::nodes::WriteLockedNodeHead,
     persist::strategy::PersistenceStrategy,
-    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    segments::edge::segment::MemEdgeSegment,
     wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
