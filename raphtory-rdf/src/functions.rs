@@ -88,6 +88,8 @@ fn latest_run(view: &DynamicGraph, args: &[Term]) -> Option<(i64, Option<i64>)> 
     run_of(&edge)
 }
 
+/// The latest period in which the edge held in its view: when it started, and the retraction
+/// that ended it (`None` while it still holds). Repeated assertions do not start a new period.
 fn run_of(edge: &EdgeView<DynamicGraph>) -> Option<(i64, Option<i64>)> {
     // the earliest time of an edge that held at the start of the view is that start
     let mut from = edge

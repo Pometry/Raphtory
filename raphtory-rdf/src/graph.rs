@@ -1,9 +1,14 @@
 //! [`RdfView`] and [`RdfGraph`]: the RDF APIs over a persistent graph view.
+//! Writing a triple is one `add_edge` or `delete_edge` event.
 use crate::{
-    export, import, query, results,
+    export::write_rdf,
+    mapping::{is_rdf11_term, layer_name_of, name_of},
+    query, results,
     shacl::{ShaclOptions, ShaclReport, ShaclShapes},
-    RdfError, RdfFormat, SparqlFormat, SparqlOptions, SparqlResults, TripleRef, WriteStats,
+    RdfError, RdfFormat, SparqlFormat, SparqlOptions, SparqlResults, TermRef, TripleRef,
+    WriteStats,
 };
+use oxigraph::io::RdfParser;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -22,7 +27,10 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::{core::utils::time::TryIntoInputTime, GraphType};
+use raphtory_api::{
+    core::utils::time::{InputTime, TryIntoInputTime},
+    GraphType,
+};
 use std::{
     fs::File,
     io::{Read, Write},
@@ -54,7 +62,7 @@ impl RdfGraph {
     ) -> Result<usize, RdfError> {
         let time = time.try_into_input_time()?;
         let format = format.into().unwrap_or(RdfFormat::Turtle);
-        import::read_document(&self.0, time, data, format, base_iri, false)
+        read_document(&self.0, time, data, format, base_iri, false)
     }
 
     /// [`load_rdf`](Self::load_rdf) of a file, in `format` or the one its extension names.
@@ -65,7 +73,7 @@ impl RdfGraph {
         format: impl Into<Option<RdfFormat>>,
         base_iri: Option<&str>,
     ) -> Result<usize, RdfError> {
-        let (file, format) = import::open_document(path.as_ref(), format.into())?;
+        let (file, format) = open_document(path.as_ref(), format.into())?;
         self.load_rdf(time, file, format, base_iri)
     }
 
@@ -80,7 +88,7 @@ impl RdfGraph {
     ) -> Result<usize, RdfError> {
         let time = time.try_into_input_time()?;
         let format = format.into().unwrap_or(RdfFormat::Turtle);
-        import::read_document(&self.0, time, data, format, base_iri, true)
+        read_document(&self.0, time, data, format, base_iri, true)
     }
 
     /// [`retract_rdf`](Self::retract_rdf) of a file, as [`load_rdf_path`](Self::load_rdf_path).
@@ -91,7 +99,7 @@ impl RdfGraph {
         format: impl Into<Option<RdfFormat>>,
         base_iri: Option<&str>,
     ) -> Result<usize, RdfError> {
-        let (file, format) = import::open_document(path.as_ref(), format.into())?;
+        let (file, format) = open_document(path.as_ref(), format.into())?;
         self.retract_rdf(time, file, format, base_iri)
     }
 
@@ -102,7 +110,7 @@ impl RdfGraph {
         triple: impl Into<TripleRef<'a>>,
     ) -> Result<(), RdfError> {
         let time = time.try_into_input_time()?;
-        import::write_triple(&self.0, time, triple.into(), false)
+        write_triple(&self.0, time, triple.into(), false)
     }
 
     /// Retracts one triple at `time`. Blank-node labels are used as written.
@@ -112,7 +120,7 @@ impl RdfGraph {
         triple: impl Into<TripleRef<'a>>,
     ) -> Result<(), RdfError> {
         let time = time.try_into_input_time()?;
-        import::write_triple(&self.0, time, triple.into(), true)
+        write_triple(&self.0, time, triple.into(), true)
     }
 }
 
@@ -219,7 +227,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
         format: impl Into<Option<RdfFormat>>,
     ) -> Result<WriteStats, RdfError> {
         let format = format.into().unwrap_or(RdfFormat::NTriples);
-        export::write_rdf(self.0.clone().into_dynamic(), writer, format)
+        write_rdf(self.0.clone().into_dynamic(), writer, format)
     }
 
     /// [`to_rdf`](Self::to_rdf) into a string.
@@ -291,4 +299,82 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
     ) -> Result<ShaclReport, RdfError> {
         shapes.validate(self.0.clone().into_dynamic(), options)
     }
+}
+
+fn unstorable(t: TermRef<'_>) -> RdfError {
+    if is_rdf11_term(t) {
+        RdfError::NonCanonicalTerm(t.to_string())
+    } else {
+        RdfError::Rdf12Term(t.to_string())
+    }
+}
+
+fn name(t: TermRef<'_>) -> Result<String, RdfError> {
+    name_of(t).ok_or_else(|| unstorable(t))
+}
+
+fn layer(t: TermRef<'_>) -> Result<String, RdfError> {
+    layer_name_of(t).ok_or_else(|| unstorable(t))
+}
+
+fn write_triple<G: AdditionOps + DeletionOps>(
+    g: &G,
+    time: InputTime,
+    triple: TripleRef<'_>,
+    retract: bool,
+) -> Result<(), RdfError> {
+    let s = name(triple.subject.into())?;
+    let p = layer(triple.predicate.into())?;
+    let o = name(triple.object)?;
+    if retract {
+        g.delete_edge(time, &s, &o, Some(&p))?;
+    } else {
+        g.add_edge(time, &s, &o, NO_PROPS, Some(&p))?;
+    }
+    Ok(())
+}
+
+fn read_document<G: AdditionOps + DeletionOps>(
+    g: &G,
+    time: InputTime,
+    data: impl Read,
+    format: RdfFormat,
+    base_iri: Option<&str>,
+    retract: bool,
+) -> Result<usize, RdfError> {
+    let mut parser = RdfParser::from_format(format.to_oxigraph()).without_named_graphs();
+    if !retract {
+        parser = parser.rename_blank_nodes();
+    }
+    if let Some(base_iri) = base_iri {
+        parser = parser.with_base_iri(base_iri).map_err(RdfError::from)?;
+    }
+    let mut count = 0;
+    // the parsers buffer their input themselves
+    for quad in parser.for_reader(data) {
+        let quad = quad.map_err(RdfError::from)?;
+        let triple = quad.as_ref().into();
+        write_triple(g, time, triple, retract)?;
+        count += 1;
+    }
+    Ok(count)
+}
+
+pub(crate) fn open_document(
+    path: &Path,
+    format: Option<RdfFormat>,
+) -> Result<(File, RdfFormat), RdfError> {
+    let format = format.map_or_else(|| RdfFormat::from_path(path), Ok)?;
+    // `File::open` opens a directory on Unix, and reading it fails later with a vaguer error
+    if path.is_dir() {
+        return Err(GraphError::IOErrorMsg(format!(
+            "cannot open '{}': it is a directory",
+            path.display()
+        ))
+        .into());
+    }
+    let file = File::open(path).map_err(|error| {
+        GraphError::IOErrorMsg(format!("cannot open '{}': {error}", path.display()))
+    })?;
+    Ok((file, format))
 }

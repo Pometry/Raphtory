@@ -6,7 +6,7 @@ pub use limits::ShaclLimit;
 
 use crate::{
     export::for_each_triple,
-    import::open_document,
+    graph::open_document,
     mapping::{layer_name_of, term_name},
     RdfError, RdfFormat,
 };
