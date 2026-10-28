@@ -205,7 +205,7 @@ pub struct DataInner {
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
     /// Shared by every `Data` over these graphs, as probes load graphs through one without a
     /// policy. Weak because the policy can hold such a `Data`.
-    mutation_policy: std::sync::RwLock<Option<Weak<dyn AuthorizationPolicy>>>,
+    auth_policy: std::sync::RwLock<Option<Weak<dyn AuthorizationPolicy>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -347,7 +347,7 @@ impl Data {
                 graph_args,
                 read_only: ReadOnlyGraphs::from_config(cache_configs),
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
-                mutation_policy: Default::default(),
+                auth_policy: Default::default(),
             }),
             auth_policy: None,
         }
@@ -366,7 +366,8 @@ impl Data {
     /// Handed to every graph this `Data` loads, so successful writes reach the authorization policy.
     fn mutation_listener(&self) -> MutationListener {
         let policy = self
-            .mutation_policy
+            .inner
+            .auth_policy
             .read()
             .unwrap_or_else(PoisonError::into_inner);
         MutationListener::new(policy.clone())
@@ -381,7 +382,8 @@ impl Data {
 
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
         *self
-            .mutation_policy
+            .inner
+            .auth_policy
             .write()
             .unwrap_or_else(PoisonError::into_inner) = Some(Arc::downgrade(&policy));
         self.auth_policy = Some(policy)
