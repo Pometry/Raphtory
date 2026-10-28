@@ -12,17 +12,19 @@ use crate::{
 };
 use either::Either;
 use parking_lot::RwLock;
-use raphtory_api::core::{
-    Direction,
-    entities::{
-        EID, LayerId, VID,
-        properties::{
-            meta::Meta,
-            prop::{AsPropRef, Prop},
+use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
+    core::{
+        Direction,
+        entities::{
+            EID, LayerId, VID,
+            properties::{
+                meta::Meta,
+                prop::{AsPropRef, Prop},
+            },
         },
     },
 };
-use raphtory_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard};
 use raphtory_core::{
     entities::{ELID, nodes::structure::adj::Adj},
     storage::timeindex::{AsTime, EventTime},

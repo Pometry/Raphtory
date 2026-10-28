@@ -11,8 +11,10 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::ArcRwLockWriteGuard;
-use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::entities::{LayerId, properties::prop::Prop},
+};
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::{

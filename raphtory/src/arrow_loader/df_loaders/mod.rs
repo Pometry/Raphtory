@@ -27,8 +27,7 @@ use std::{
     hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::pages::locked::nodes::NewNodeSegmentLocks;
-use storage::pages::resolve_pos;
+use storage::pages::{locked::nodes::NewNodeSegmentLocks, resolve_pos};
 
 pub mod edge_props;
 pub mod edges;

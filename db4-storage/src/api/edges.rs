@@ -1,13 +1,15 @@
 use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::ArcRwLockReadGuard;
-use raphtory_api::core::entities::{
-    LayerId,
-    edges::edge_ref::Dir,
-    properties::{
-        meta::Meta,
-        prop::{AsPropRef, Prop},
-        tprop::TPropOps,
+use raphtory_api::{
+    ArcRwLockReadGuard,
+    core::entities::{
+        LayerId,
+        edges::edge_ref::Dir,
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop},
+            tprop::TPropOps,
+        },
     },
 };
 use raphtory_core::{

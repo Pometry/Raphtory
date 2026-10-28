@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard};
 use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
     core::{
         Direction,
         entities::properties::{

@@ -11,16 +11,18 @@ use crate::{
     utils::Iter4,
     wal::LSN,
 };
-use raphtory_api::ArcRwLockReadGuard;
-use raphtory_api::core::{
-    entities::{
-        LayerId, VID,
-        properties::{
-            meta::{Meta, STATIC_GRAPH_LAYER_ID},
-            prop::AsPropRef,
+use raphtory_api::{
+    ArcRwLockReadGuard,
+    core::{
+        entities::{
+            LayerId, VID,
+            properties::{
+                meta::{Meta, STATIC_GRAPH_LAYER_ID},
+                prop::AsPropRef,
+            },
         },
+        storage::dict_mapper::MaybeNew,
     },
-    storage::dict_mapper::MaybeNew,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{

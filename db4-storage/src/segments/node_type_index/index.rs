@@ -1,8 +1,7 @@
 use dashmap::mapref::{multiple::RefMulti, one::Ref};
 use itertools::Itertools;
 use ouroboros::self_referencing;
-use raphtory_api::ArcRwLockReadGuard;
-use raphtory_api::{core::storage::FxDashMap, iter::IntoDynBoxed};
+use raphtory_api::{ArcRwLockReadGuard, core::storage::FxDashMap, iter::IntoDynBoxed};
 use raphtory_core::{entities::VID, utils::iter::GenLockedIter};
 use std::{
     collections::BTreeSet,
