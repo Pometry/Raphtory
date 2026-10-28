@@ -379,7 +379,8 @@ impl InternalAdditionOps for TemporalGraph {
                 match nodes.reserve_segment_row(dst_writer.segment) {
                     None => {
                         let (src_id, src_writer) = dst_writer.unlocked(|| {
-                            // existing segment is full, need to get a new one, unlock dst_writer such that the segment can be evicted from the free segments
+                            // existing segment is full, need to get a new one, unlock dst_writer
+                            // so that the segment can be evicted from the free segments
                             let (src_pos, src_writer) = nodes.reserve_and_lock_segment(
                                 self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                                 1,
@@ -423,7 +424,8 @@ impl InternalAdditionOps for TemporalGraph {
                 match nodes.reserve_segment_row(src_writer.segment) {
                     None => {
                         let (dst_id, dst_writer) = src_writer.unlocked(|| {
-                            // unlocked to make sure we can evict this segment from the free segments to avoid deadlocking
+                            // unlocked to make sure we can evict this segment from the free
+                            // segments to avoid deadlocking
                             let (dst_pos, dst_writer) = nodes.reserve_and_lock_segment(
                                 self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                                 1,

@@ -220,6 +220,8 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemNodeSegment>;
 
+    fn try_head_mut_arc(&self) -> Option<ArcRwLockWriteGuard<MemNodeSegment>>;
+
     fn head(&self) -> RwLockReadGuard<'_, MemNodeSegment>;
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;

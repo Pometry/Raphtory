@@ -2,11 +2,10 @@ use crate::{
     LocalPOS,
     api::nodes::NodeSegmentOps,
     error::StorageError,
-    pages::{layer_counter::GraphStats, locked::nodes::WriteLockedNodeHead, resolve_pos},
+    pages::{layer_counter::GraphStats, resolve_pos},
     segments::node::segment::MemNodeSegment,
     wal::LSN,
 };
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     ArcRwLockWriteGuard,
     core::entities::{
@@ -292,12 +291,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 }
 
-impl<'a, NS: NodeSegmentOps> NodeWriter<'a, WriteLockedNodeHead<'a>, NS> {
+impl<'a, NS: NodeSegmentOps> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
     pub fn unlocked<R>(&mut self, op: impl FnOnce() -> R) -> R {
-        match &mut self.writer {
-            WriteLockedNodeHead::Borrowed(writer) => RwLockWriteGuard::unlocked(writer, op),
-            WriteLockedNodeHead::Arc(writer) => ArcRwLockWriteGuard::unlocked(writer, op),
-        }
+        ArcRwLockWriteGuard::unlocked(&mut self.writer, op)
     }
 }
 

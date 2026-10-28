@@ -34,7 +34,7 @@ use storage::{
     api::nodes::NodeSegmentOps,
     pages::locked::{
         node_type_index::WriteLockedNodeTypeIndex,
-        nodes::{LockedNodeSegment, NewNodeSegmentLocks, WriteLockedNodeSegments},
+        nodes::{NewNodeSegmentLocks, WriteLockedNodeSegment, WriteLockedNodeSegments},
     },
     Extension, NS, NTI,
 };
@@ -854,7 +854,7 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
 #[inline(never)]
 fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[Resolved<'_>],
-    locked_page: &mut LockedNodeSegment<'_, NS>,
+    locked_page: &mut WriteLockedNodeSegment<'_, NS>,
 ) {
     let mut writer = locked_page.writer();
 

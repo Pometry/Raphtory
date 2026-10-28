@@ -37,7 +37,7 @@ use std::{
 };
 use storage::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    pages::locked::{edges::LockedEdgeSegment, nodes::LockedNodeSegment},
+    pages::locked::{edges::LockedEdgeSegment, nodes::WriteLockedNodeSegment},
     Extension,
 };
 use tracing::error;
@@ -268,7 +268,7 @@ fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
 #[inline(never)]
 fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
     eid_col_shared: &&mut [AtomicUsize],
-    locked_page: &mut LockedNodeSegment<'_, NS>,
+    locked_page: &mut WriteLockedNodeSegment<'_, NS>,
     zip: impl Iterator<Item = (&'a VID, &'a VID)>,
 ) -> Result<(), LoadError> {
     let writer = locked_page.writer();

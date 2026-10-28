@@ -10,17 +10,13 @@ use crate::{
     persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     ArcRwLockWriteGuard,
     core::entities::{LayerId, properties::prop::Prop},
 };
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
-use std::{
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::{ops::DerefMut, path::Path};
 
 /// Write locks on the node segments created during a bulk load, each taken before its segment was
 /// published so no reader can see its uninitialised nodes.
@@ -28,71 +24,29 @@ use std::{
 /// Hand them over with `WriteLockedGraph::extend_new`.
 pub type NewNodeSegmentLocks = Vec<ArcRwLockWriteGuard<MemNodeSegment>>;
 
-/// The head lock of a [`LockedNodeSegment`]: borrowed for segments that existed when the graph
-/// was locked, owned for segments created and locked during the bulk load.
 #[derive(Debug)]
-pub enum WriteLockedNodeHead<'a> {
-    Borrowed(RwLockWriteGuard<'a, MemNodeSegment>),
-    Arc(ArcRwLockWriteGuard<MemNodeSegment>),
-}
-
-impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for WriteLockedNodeHead<'a> {
-    fn from(head: RwLockWriteGuard<'a, MemNodeSegment>) -> Self {
-        Self::Borrowed(head)
-    }
-}
-
-impl From<ArcRwLockWriteGuard<MemNodeSegment>> for WriteLockedNodeHead<'_> {
-    fn from(head: ArcRwLockWriteGuard<MemNodeSegment>) -> Self {
-        Self::Arc(head)
-    }
-}
-
-impl Deref for WriteLockedNodeHead<'_> {
-    type Target = MemNodeSegment;
-
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Borrowed(head) => head,
-            Self::Arc(head) => head,
-        }
-    }
-}
-
-impl DerefMut for WriteLockedNodeHead<'_> {
-    #[inline(always)]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            Self::Borrowed(head) => head,
-            Self::Arc(head) => head,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct LockedNodeSegment<'a, NS> {
+pub struct WriteLockedNodeSegment<'a, NS> {
     id: usize,
     max_page_len: u32,
     layer_counter: &'a GraphStats,
     segment: &'a NS,
-    head: WriteLockedNodeHead<'a>,
+    head: ArcRwLockWriteGuard<MemNodeSegment>,
 }
 
-impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
+impl<'a, NS: NodeSegmentOps> WriteLockedNodeSegment<'a, NS> {
     pub fn new(
         id: usize,
         layer_counter: &'a GraphStats,
         max_page_len: u32,
         segment: &'a NS,
-        head: impl Into<WriteLockedNodeHead<'a>>,
+        head: ArcRwLockWriteGuard<MemNodeSegment>,
     ) -> Self {
         Self {
             id,
             layer_counter,
             max_page_len,
             segment,
-            head: head.into(),
+            head,
         }
     }
 
@@ -148,7 +102,7 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
 }
 
 pub struct WriteLockedNodeSegments<'a, NS> {
-    segments: Vec<LockedNodeSegment<'a, NS>>,
+    segments: Vec<WriteLockedNodeSegment<'a, NS>>,
 }
 
 impl<NS> Default for WriteLockedNodeSegments<'_, NS> {
@@ -162,7 +116,7 @@ impl<NS> Default for WriteLockedNodeSegments<'_, NS> {
 impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     WriteLockedNodeSegments<'a, NS>
 {
-    pub fn new(segments: Vec<LockedNodeSegment<'a, NS>>) -> Self {
+    pub fn new(segments: Vec<WriteLockedNodeSegment<'a, NS>>) -> Self {
         Self { segments }
     }
 
@@ -184,25 +138,27 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     }
 
     /// Append the page for the next segment; pages are indexed by segment id.
-    pub fn push(&mut self, page: LockedNodeSegment<'a, NS>) {
+    pub fn push(&mut self, page: WriteLockedNodeSegment<'a, NS>) {
         assert_eq!(page.segment_id(), self.segments.len());
         self.segments.push(page);
     }
 
     #[inline]
-    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedNodeSegment<'a, NS>> {
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut WriteLockedNodeSegment<'a, NS>> {
         self.segments.get_mut(segment_id)
     }
 
-    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedNodeSegment<'a, NS>> {
+    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, WriteLockedNodeSegment<'a, NS>> {
         self.segments.par_iter_mut()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedNodeSegment<'a, NS>> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, WriteLockedNodeSegment<'a, NS>> {
         self.segments.iter_mut()
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedNodeSegment<'a, NS>> + 'a {
+    pub fn into_par_iter(
+        self,
+    ) -> impl ParallelIterator<Item = WriteLockedNodeSegment<'a, NS>> + 'a {
         self.segments.into_par_iter()
     }
 
@@ -216,7 +172,7 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.segments
             .par_iter_mut()
             .try_for_each(|locked_segment| {
-                let LockedNodeSegment { segment, head, .. } = locked_segment;
+                let WriteLockedNodeSegment { segment, head, .. } = locked_segment;
                 segment.vacuum(head.deref_mut())
             })?;
 

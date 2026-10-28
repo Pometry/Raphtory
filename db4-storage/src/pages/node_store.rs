@@ -9,9 +9,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::nodes::{
-            LockedNodeSegment, NewNodeSegmentLocks, WriteLockedNodeHead, WriteLockedNodeSegments,
-        },
+        locked::nodes::{NewNodeSegmentLocks, WriteLockedNodeSegment, WriteLockedNodeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -338,12 +336,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             self.segments
                 .iter()
                 .map(|(segment_id, page)| {
-                    LockedNodeSegment::new(
+                    WriteLockedNodeSegment::new(
                         segment_id,
                         &self.stats,
                         self.max_segment_len(),
                         page.as_ref(),
-                        page.head_mut(),
+                        page.head_mut_arc(),
                     )
                 })
                 .collect(),
@@ -405,7 +403,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &self,
         row: usize,
         num_rows: u32,
-    ) -> (LocalPOS, NodeWriter<'_, WriteLockedNodeHead<'_>, NS>) {
+    ) -> (
+        LocalPOS,
+        NodeWriter<'_, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
+    ) {
         let slot_idx = row % *N;
         // No point in multiple threads getting past here as they would just content on the writer lock
         let mut slot = self.free_segments[slot_idx].write();
@@ -486,10 +487,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     #[inline(always)]
-    pub fn writer<'a>(&'a self, segment_id: usize) -> NodeWriter<'a, WriteLockedNodeHead<'a>, NS> {
+    pub fn writer<'a>(
+        &'a self,
+        segment_id: usize,
+    ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         let segment = self.get_or_create_segment(segment_id);
-        let head = segment.head_mut();
-        NodeWriter::new(segment, &self.stats, WriteLockedNodeHead::Borrowed(head))
+        let head = segment.head_mut_arc();
+        NodeWriter::new(segment, &self.stats, head)
     }
 
     #[inline(always)]
@@ -497,22 +501,18 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &'a self,
         segment_id: usize,
         head: ArcRwLockWriteGuard<MemNodeSegment>,
-    ) -> NodeWriter<'a, WriteLockedNodeHead<'a>, NS> {
+    ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         let segment = &self.segments[segment_id];
-        NodeWriter::new(segment, &self.stats, WriteLockedNodeHead::Arc(head))
+        NodeWriter::new(segment, &self.stats, head)
     }
 
     pub fn try_writer<'a>(
         &'a self,
         segment_id: usize,
-    ) -> Option<NodeWriter<'a, WriteLockedNodeHead<'a>, NS>> {
+    ) -> Option<NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS>> {
         let segment = self.get_or_create_segment(segment_id);
-        let head = segment.try_head_mut()?;
-        Some(NodeWriter::new(
-            segment,
-            &self.stats,
-            WriteLockedNodeHead::Borrowed(head),
-        ))
+        let head = segment.try_head_mut_arc()?;
+        Some(NodeWriter::new(segment, &self.stats, head))
     }
 
     pub fn id_type(&self) -> Option<GidType> {

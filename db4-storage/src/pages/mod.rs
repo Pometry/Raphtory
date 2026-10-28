@@ -3,16 +3,13 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     dir::GraphDir,
     error::StorageError,
-    pages::{
-        edge_store::ReadLockedEdgeStorage, locked::nodes::WriteLockedNodeHead,
-        node_store::ReadLockedNodeStorage,
-    },
+    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{
         config::ConfigOps,
         control_file::{ControlFileOps, DBState},
         strategy::PersistenceStrategy,
     },
-    segments::edge::segment::MemEdgeSegment,
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     state::StateIndex,
     wal::{GraphWalOps, WalOps},
 };
@@ -23,7 +20,10 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder};
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder},
+};
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
@@ -321,7 +321,10 @@ impl<
         self.event_id.fetch_max(value, atomic::Ordering::Relaxed)
     }
 
-    pub fn node_writer(&self, node_segment: usize) -> NodeWriter<'_, WriteLockedNodeHead<'_>, NS> {
+    pub fn node_writer(
+        &self,
+        node_segment: usize,
+    ) -> NodeWriter<'_, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         self.nodes().writer(node_segment)
     }
 

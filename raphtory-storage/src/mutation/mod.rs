@@ -9,18 +9,17 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::entities::properties::prop::{InvalidBigDecimal, PropError},
     inherit::Base,
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::entities::properties::props::{MetadataError, TPropError};
 use std::sync::Arc;
 use storage::{
-    error::StorageError,
-    pages::{
+    ES, Extension, GS, NS, error::StorageError, pages::{
         edge_page::writer::EdgeWriter, graph_prop_page::writer::GraphPropWriter,
-        locked::nodes::WriteLockedNodeHead, node_page::writer::NodeWriter,
-    },
-    resolver::mapping_resolver::InvalidNodeId,
-    segments::edge::segment::MemEdgeSegment,
-    Extension, ES, GS, NS,
+        node_page::writer::NodeWriter,
+    }, resolver::mapping_resolver::InvalidNodeId, segments::{
+        edge::segment::MemEdgeSegment, node::segment::MemNodeSegment
+    }
 };
 use thiserror::Error;
 
@@ -28,7 +27,7 @@ pub mod addition_ops;
 pub mod addition_ops_ext;
 pub mod property_addition_ops;
 
-pub type NodeWriterT<'a> = NodeWriter<'a, WriteLockedNodeHead<'a>, NS<Extension>>;
+pub type NodeWriterT<'a> = NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
 pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 

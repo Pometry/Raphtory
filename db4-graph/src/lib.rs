@@ -34,7 +34,7 @@ use storage::{
             edges::WriteLockedEdgeSegments,
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
-            nodes::{LockedNodeSegment, NewNodeSegmentLocks, WriteLockedNodeSegments},
+            nodes::{NewNodeSegmentLocks, WriteLockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -521,7 +521,7 @@ where
             let segment = nodes
                 .get_segment(segment_id)
                 .expect("locked segment must exist");
-            self.nodes.push(LockedNodeSegment::new(
+            self.nodes.push(WriteLockedNodeSegment::new(
                 segment_id,
                 nodes.stats(),
                 nodes.max_segment_len(),

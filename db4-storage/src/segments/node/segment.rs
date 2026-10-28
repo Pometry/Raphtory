@@ -2,7 +2,7 @@ use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
-    loop_lock_write,
+    loop_lock_write, loop_lock_write_arc,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
         HasRow, SegmentContainer,
@@ -516,7 +516,11 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     #[inline(always)]
     fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemNodeSegment> {
-        self.inner.write_arc()
+        loop_lock_write_arc(&self.inner)
+    }
+
+    fn try_head_mut_arc(&self) -> Option<ArcRwLockWriteGuard<MemNodeSegment>> {
+        self.inner.try_write_arc()
     }
 
     #[inline(always)]
