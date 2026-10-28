@@ -14,12 +14,14 @@ use raphtory_api::{
 use raphtory_core::entities::properties::props::{MetadataError, TPropError};
 use std::sync::Arc;
 use storage::{
-    ES, Extension, GS, NS, error::StorageError, pages::{
+    error::StorageError,
+    pages::{
         edge_page::writer::EdgeWriter, graph_prop_page::writer::GraphPropWriter,
         node_page::writer::NodeWriter,
-    }, resolver::mapping_resolver::InvalidNodeId, segments::{
-        edge::segment::MemEdgeSegment, node::segment::MemNodeSegment
-    }
+    },
+    resolver::mapping_resolver::InvalidNodeId,
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    Extension, ES, GS, NS,
 };
 use thiserror::Error;
 
