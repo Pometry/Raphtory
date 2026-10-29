@@ -1,7 +1,8 @@
 use crate::error::StorageError;
 use arrow_array::{
+    builder::StringViewBuilder,
     ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array, Int64Array,
-    StringViewArray, TimestampMillisecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
+    TimestampMillisecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
 };
 use arrow_schema::DECIMAL128_MAX_PRECISION;
 use bigdecimal::ToPrimitive;
@@ -166,9 +167,14 @@ impl Properties {
             PropColumn::F64(lazy_vec) => Ok(Some(Arc::new(Float64Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
             )))),
-            PropColumn::Str(lazy_vec) => Ok(Some(Arc::new(StringViewArray::from_iter(
-                indices.map(|i| lazy_vec.get_opt(i)),
-            )))),
+            PropColumn::Str(lazy_vec) => {
+                // repeated strings (e.g. a block hash shared by its transactions) are written once
+                let mut builder = StringViewBuilder::new().with_deduplicate_strings();
+                for i in indices {
+                    builder.append_option(lazy_vec.get_opt(i));
+                }
+                Ok(Some(Arc::new(builder.finish())))
+            }
             PropColumn::DTime(lazy_vec) => Ok(Some(Arc::new(
                 TimestampMillisecondArray::from_iter(
                     indices.map(|i| lazy_vec.get_opt(i).copied().map(|dt| dt.timestamp_millis())),

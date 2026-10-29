@@ -14,21 +14,30 @@ static GLOBAL: Jemalloc = Jemalloc;
 fn load_eth_graph(parquet_path: &Path, graph: &Graph) -> Result<(), GraphError> {
     // ── Static Nodes ──────────────────────────────────────────────────────
 
+    // ┌────────────────────────────────────────────────────────────────────────────────┐
+    // │                                   *.parquet                                    │
+    // │                                                                                │
+    // │ gas                         bigint       hash                        varchar   │
+    // │ input                       varchar      nonce                       bigint    │
+    // │ value                       double       block_number                bigint    │
+    // │ block_hash                  varchar      transaction_index           bigint    │
+    // │ from_address                varchar      to_address                  varchar   │
+    // │ gas_price                   bigint       receipt_cumulative_gas_used bigint    │
+    // │ receipt_gas_used            bigint       receipt_contract_address    varchar   │
+    // │ receipt_status              bigint       receipt_effective_gas_price bigint    │
+    // │ transaction_type            bigint       max_fee_per_gas             bigint    │
+    // │ max_priority_fee_per_gas    bigint       block_timestamp             timestamp │
+    // │ date                        varchar      last_modified               timestamp │
+    // └────────────────────────────────────────────────────────────────────────────────┘
     load_edges_from_parquet(
         graph,
         parquet_path,
-        ColumnNames::new(
-            "transaction_timestamp",
-            None,
-            "transfer_sender_cluster_id",
-            "transfer_receiver_cluster_id",
-            None,
-        ),
+        ColumnNames::new("block_timestamp", None, "from_address", "to_address", None),
         true,
-        &["receiver_address", "transfer_amount_usd"],
+        &["gas", "value", "block_hash", "transaction_type", "hash"],
         &[],
         None,
-        Some("dac"),
+        None,
         None,
         None,
     )?;
@@ -66,3 +75,4 @@ fn main() {
         load_eth_graph(&parquet_path, &graph).unwrap()
     }
 }
+
