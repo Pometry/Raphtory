@@ -6,7 +6,7 @@ use crate::{
     query, results,
     shacl::{ShaclOptions, ShaclReport, ShaclShapes},
     RdfError, RdfFormat, SparqlFormat, SparqlOptions, SparqlResults, TermRef, TripleRef,
-    WriteStats,
+    WriteStats, RESERVED_NS,
 };
 use oxigraph::io::RdfParser;
 use raphtory::{
@@ -32,6 +32,7 @@ use raphtory_api::{
     GraphType,
 };
 use std::{
+    borrow::Cow,
     fs::File,
     io::{Read, Write},
     path::Path,
@@ -110,7 +111,7 @@ impl RdfGraph {
         triple: impl Into<TripleRef<'a>>,
     ) -> Result<(), RdfError> {
         let time = time.try_into_input_time()?;
-        write_triple(&self.0, time, triple.into(), false)
+        write_triple(&self.0, time, triple.into(), false, false)
     }
 
     /// Retracts one triple at `time`. Blank-node labels are used as written.
@@ -120,7 +121,7 @@ impl RdfGraph {
         triple: impl Into<TripleRef<'a>>,
     ) -> Result<(), RdfError> {
         let time = time.try_into_input_time()?;
-        write_triple(&self.0, time, triple.into(), true)
+        write_triple(&self.0, time, triple.into(), true, false)
     }
 }
 
@@ -317,21 +318,37 @@ fn layer(t: TermRef<'_>) -> Result<String, RdfError> {
     layer_name_of(t).ok_or_else(|| unstorable(t))
 }
 
+/// `parsed_iris`: the IRIs were checked by a parser as `NamedNode::new` checks them, so an IRI
+/// outside [`RESERVED_NS`] is its own node and layer name and needs no round trip.
 fn write_triple<G: AdditionOps + DeletionOps>(
     g: &G,
     time: InputTime,
     triple: TripleRef<'_>,
     retract: bool,
+    parsed_iris: bool,
 ) -> Result<(), RdfError> {
-    let s = name(triple.subject.into())?;
-    let p = layer(triple.predicate.into())?;
-    let o = name(triple.object)?;
+    let s = named(triple.subject.into(), parsed_iris, name)?;
+    let p = named(triple.predicate.into(), parsed_iris, layer)?;
+    let o = named(triple.object, parsed_iris, name)?;
     if retract {
-        g.delete_edge(time, &s, &o, Some(&p))?;
+        g.delete_edge(time, &*s, &*o, Some(&p))?;
     } else {
-        g.add_edge(time, &s, &o, NO_PROPS, Some(&p))?;
+        g.add_edge(time, &*s, &*o, NO_PROPS, Some(&p))?;
     }
     Ok(())
+}
+
+fn named<'a>(
+    t: TermRef<'a>,
+    parsed_iris: bool,
+    full: fn(TermRef<'_>) -> Result<String, RdfError>,
+) -> Result<Cow<'a, str>, RdfError> {
+    match t {
+        TermRef::NamedNode(n) if parsed_iris && !n.as_str().starts_with(RESERVED_NS) => {
+            Ok(Cow::Borrowed(n.as_str()))
+        }
+        _ => full(t).map(Cow::Owned),
+    }
 }
 
 fn read_document<G: AdditionOps + DeletionOps>(
@@ -349,12 +366,14 @@ fn read_document<G: AdditionOps + DeletionOps>(
     if let Some(base_iri) = base_iri {
         parser = parser.with_base_iri(base_iri).map_err(RdfError::from)?;
     }
+    let parsed_iris =
+        base_iri.is_none() && matches!(format, RdfFormat::NTriples | RdfFormat::NQuads);
     let mut count = 0;
     // the parsers buffer their input themselves
     for quad in parser.for_reader(data) {
         let quad = quad.map_err(RdfError::from)?;
         let triple = quad.as_ref().into();
-        write_triple(g, time, triple, retract)?;
+        write_triple(g, time, triple, retract, parsed_iris)?;
         count += 1;
     }
     Ok(count)

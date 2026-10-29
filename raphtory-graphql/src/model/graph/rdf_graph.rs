@@ -5,12 +5,9 @@ use crate::{
     data::{Data, GqlGraphType},
     model::{
         graph::{
-            filtering::{GqlFilter, GraphViewCollection},
-            graph::GqlGraph,
-            node_id::GqlNodeId,
-            timeindex::GqlTimeInput,
-            windowset::GqlGraphWindowSet,
-            GqlAlignmentUnit, WindowDuration,
+            filter_expr_input::GqlFilter, graph::GqlGraph, node_id::GqlNodeId,
+            timeindex::GqlTimeInput, windowset::GqlGraphWindowSet, GqlAlignmentUnit,
+            WindowDuration,
         },
         QueryRoot,
     },
@@ -224,14 +221,6 @@ impl GqlRdfGraph {
         expr: Option<GqlFilter>,
     ) -> Result<Self, GraphError> {
         Ok(self.graph.filter(expr).await?.into())
-    }
-
-    /// Applies a list of view operations in order, as `Graph.applyViews`.
-    async fn apply_views(
-        &self,
-        #[graphql(desc = "Ordered list of view operations.")] views: Vec<GraphViewCollection>,
-    ) -> Result<Self, GraphError> {
-        Ok(self.graph.apply_views(views).await?.into())
     }
 
     /// The same view as a property graph.

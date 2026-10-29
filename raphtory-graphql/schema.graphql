@@ -6918,16 +6918,7 @@ type RdfGraph {
 		"""
 		Filter expression; if omitted, applies the identity filter.
 		"""
-		expr: GqlFilter
-	): RdfGraph!
-	"""
-	Applies a list of view operations in order, as `Graph.applyViews`.
-	"""
-	applyViews(
-		"""
-		Ordered list of view operations.
-		"""
-		views: [GraphViewCollection!]!
+		expr: FilterExpr
 	): RdfGraph!
 	"""
 	The same view as a property graph.

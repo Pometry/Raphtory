@@ -2,6 +2,7 @@ mod bounds;
 mod functions;
 mod import_export;
 mod limits;
+mod loading;
 mod mapping;
 mod oracle;
 mod results;

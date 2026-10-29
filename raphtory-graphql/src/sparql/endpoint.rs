@@ -26,9 +26,9 @@ use url::form_urlencoded;
 
 const ALLOWED: &str = "GET, POST, OPTIONS";
 
-const QUERY: &str = "query SparqlEndpoint($path: String!, $views: [GraphViewCollection!]!, \
-                     $query: String!, $format: SparqlFormat!) { rdfGraph(path: $path) { \
-                     applyViews(views: $views) { sparql(query: $query, format: $format) } } }";
+const QUERY: &str = "query SparqlEndpoint($path: String!, $expr: FilterExpr, $query: String!, \
+                     $format: SparqlFormat!) { rdfGraph(path: $path) { filter(expr: $expr) { \
+                     sparql(query: $query, format: $format) } } }";
 
 // poem's `Accept` is sorted best first
 fn media_ranges(accept: &[Mime]) -> Vec<(&str, f32)> {
@@ -207,17 +207,20 @@ impl<E: Executor> SparqlEndpoint<E> {
                 })
                 .ok_or(EndpointError::NotAcceptable(outline.form))?;
 
-        // the current state, or the whole graph for a query reading time graphs (they hold theirs)
-        let views = match asof {
-            Some(time) => json!([{ "before": time.saturating_add(1) }, { "valid": true }]),
-            None if outline.reads_time_graphs => json!([]),
-            None => json!([{ "valid": true }]),
+        // the current state, or the whole graph for a query reading time graphs (they hold theirs),
+        // through the identity filter of a null `expr`
+        let expr = match asof {
+            Some(time) => {
+                json!({ "view": [{ "before": time.saturating_add(1) }, { "kind": "VALID" }] })
+            }
+            None if outline.reads_time_graphs => Json::Null,
+            None => json!({ "view": [{ "kind": "VALID" }] }),
         };
         let body = json!({
             "query": QUERY,
             "variables": {
                 "path": path,
-                "views": views,
+                "expr": expr,
                 "query": query,
                 "format": Value::from(&format),
             },
@@ -256,7 +259,7 @@ impl<E: Executor> SparqlEndpoint<E> {
             return Err(EndpointError::GraphQL(status, messages).into());
         }
         match response
-            .pointer_mut("/data/rdfGraph/applyViews/sparql")
+            .pointer_mut("/data/rdfGraph/filter/sparql")
             .map(Json::take)
         {
             Some(Json::String(results)) => {
