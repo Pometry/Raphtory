@@ -307,7 +307,7 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
         .into_dyn_boxed()
     }
 
-    pub fn rows_gs<'a>(&'a self, gs: &'graph GraphStorage) -> BoxedLIter<'a, NodeUpdateRow>
+    pub fn rows_gs<'a>(&'a self, gs: &'a GraphStorage) -> BoxedLIter<'a, NodeUpdateRow>
     where
         'graph: 'a,
     {

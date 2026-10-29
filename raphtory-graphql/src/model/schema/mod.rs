@@ -14,7 +14,7 @@ pub(crate) mod property_schema;
 
 const ENUM_BOUNDARY: usize = 20;
 
-const DEFAULT_NODE_TYPE: &'static str = "None";
+const DEFAULT_NODE_TYPE: &str = "None";
 
 fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<'graph, G>) -> String {
     match node.node_type() {
@@ -29,7 +29,7 @@ fn merge_schemas(mut s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregat
     for ((key, prop_type), set2) in s2 {
         if let Some(set1) = s1.get_mut(&(key.clone(), prop_type.clone())) {
             // Here, an empty set means: too many values to be interpreted as an enumerated type
-            if set1.len() > 0 && set2.len() > 0 {
+            if !set1.is_empty() && !set2.is_empty() {
                 set1.extend(set2);
             }
             if set1.len() > ENUM_BOUNDARY {

@@ -631,14 +631,14 @@ impl GqlGraph {
                     n.neighbours()
                         .collect()
                         .iter()
-                        .map(|vv| vv.clone())
+                        .cloned()
                         .collect::<HashSet<NodeView<DynamicGraph>>>()
                 })
                 .collect();
 
             let intersection = neighbours.iter().fold(None, |acc, n| match acc {
                 None => Some(n.clone()),
-                Some(acc) => Some(acc.intersection(n).map(|vv| vv.clone()).collect()),
+                Some(acc) => Some(acc.intersection(n).cloned().collect()),
             });
             match intersection {
                 Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),

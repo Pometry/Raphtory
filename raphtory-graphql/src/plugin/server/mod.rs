@@ -64,6 +64,7 @@ fn get_plugins() -> impl Iterator<Item = &'static dyn ServerPluginImpl> {
 
 /// Whether a plugin with this name was registered at compile time. Lets a build report which
 /// optional extensions it was compiled with.
+#[cfg(feature = "python")]
 pub(crate) fn is_registered(name: &str) -> bool {
     EXTENSIONS.contains_key(name)
 }

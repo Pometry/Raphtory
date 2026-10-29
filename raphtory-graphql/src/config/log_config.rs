@@ -2,7 +2,7 @@ use field_types::FieldName;
 use serde::Deserialize;
 use tracing_subscriber::EnvFilter;
 
-pub const DEFAULT_LOG_LEVEL: &'static str = "INFO";
+pub const DEFAULT_LOG_LEVEL: &str = "INFO";
 
 #[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize, FieldName)]
 pub struct LoggingConfig {

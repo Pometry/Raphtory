@@ -1,3 +1,6 @@
+// Path validation errors are large (~136 bytes) but deliberately not boxed.
+#![allow(clippy::result_large_err)]
+
 use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
@@ -237,6 +240,7 @@ impl PartialEq for WorkDirWriteGuard {
 
 impl Eq for WorkDirWriteGuard {}
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for WorkDirWriteGuard {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.path().partial_cmp(other.path())
@@ -271,6 +275,7 @@ impl PartialEq for WorkDirGuard {
 
 impl Eq for WorkDirGuard {}
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for WorkDirGuard {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.path().partial_cmp(other.path())
@@ -286,7 +291,7 @@ impl Ord for WorkDirGuard {
 impl WorkDirGuard {
     pub fn path(&self) -> &Path {
         match self {
-            WorkDirGuard::Read { guard } => &guard,
+            WorkDirGuard::Read { guard } => guard,
             WorkDirGuard::Write(guard) => guard.path(),
         }
     }
@@ -478,10 +483,11 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
+        let key = folder.local_path().to_owned();
         let args = self.graph_args.clone();
 
         self.cache
-            .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
+            .invalidate_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_io(move || {
                     folder.write_graph_bytes(bytes, args)?;
@@ -1186,7 +1192,7 @@ pub(crate) mod data_tests {
         graphs: &HashMap<String, MaterializedGraph>,
     ) -> Result<(), InsertionError> {
         let work_dir = data.work_dir_write().await;
-        for (name, graph) in graphs.into_iter() {
+        for (name, graph) in graphs.iter() {
             let folder = work_dir.clone().validate_path_for_insert(name, true)?;
             data.insert_graph(folder, graph.clone()).await?;
         }
@@ -1377,7 +1383,7 @@ pub(crate) mod data_tests {
                 .add_node(0, node, [("doc", node.to_string())], None, None)
                 .unwrap();
         }
-        graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+        graph.encode(tmp_work_dir.path().join(name)).unwrap();
 
         let configs = AppConfigBuilder::new().build();
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
@@ -1465,7 +1471,7 @@ pub(crate) mod data_tests {
         graph
             .add_node(0, name, [("doc", name.to_string())], None, None)
             .unwrap();
-        graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+        graph.encode(tmp_work_dir.path().join(name)).unwrap();
 
         let configs = AppConfigBuilder::new().build();
         let _embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
@@ -1556,7 +1562,7 @@ pub(crate) mod data_tests {
             graph
                 .add_node(0, name, [("doc", name.to_string())], None, None)
                 .unwrap();
-            graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+            graph.encode(tmp_work_dir.path().join(name)).unwrap();
         }
 
         // capacity 1: reading either graph evicts the other, so the second read of each is a
@@ -1629,8 +1635,8 @@ pub(crate) mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
 
-        graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
-        graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
+        graph.encode(tmp_work_dir.path().join("test_g")).unwrap();
+        graph.encode(tmp_work_dir.path().join("test_g2")).unwrap();
 
         let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
 
