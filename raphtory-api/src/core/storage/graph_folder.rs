@@ -451,13 +451,29 @@ pub trait GraphPaths {
 
     /// Set the active version of this graph folder to `version`.
     fn set_active_version(&self, version: u32) -> Result<(), GraphFolderError> {
+        if self.is_zip() {
+            return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
+        }
+
         if !self.all_versions()?.contains(&version) {
             return Err(GraphFolderError::VersionNotFound(version));
         }
 
-        let mut graph_meta = self.read_graph_meta()?;
-        graph_meta.src_version = Some(version);
-        self.write_graph_meta(graph_meta)
+        let raph_path = self.root().join(ROOT_RAPH_PATH);
+        let mut tmp_file = NamedTempFile::new_in(self.root())?;
+
+        // Point to the new version in the temporary raph file.
+        serde_json::to_writer(
+            &mut tmp_file,
+            &RelativePath {
+                path: format!("{DATA_PATH}{version}"),
+            },
+        )?;
+
+        tmp_file.as_file().sync_all()?;
+        tmp_file.persist(raph_path).map_err(io::Error::from)?;
+
+        Ok(())
     }
 }
 

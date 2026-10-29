@@ -462,7 +462,7 @@ impl GraphStorage {
 }
 
 impl GraphStorage {
-    /// Return the `data{id}` version of the loaded graph directory.
+    /// The currently loaded version of this graph.
     pub fn version(&self) -> Result<u32, StorageError> {
         let graph_path = self.graph_path()?;
         Ok(version(&graph_path)?)
