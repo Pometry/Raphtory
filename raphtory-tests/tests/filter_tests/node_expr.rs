@@ -906,3 +906,28 @@ fn not_of_a_subgraph_visits_every_node() {
     );
     assert_eq!(selected_names(outside(), &g), vec!["c", "d", "e"]);
 }
+
+/// A node filter's count agrees with the nodes it lists, on the
+/// graph and on the collection. Every node has its own update, so none
+/// leaves the filtered graph by losing its edges.
+#[test]
+fn a_filtered_count_matches_what_is_listed() {
+    let g = build_domain_graph();
+    for filter in [
+        NodeFilter.name().eq("a"),
+        NodeFilter
+            .name()
+            .is_in(vec!["a".into_prop(), "c".into_prop()]),
+        NodeFilter.id().eq("a"),
+    ] {
+        let view = g.filter(filter.clone()).unwrap();
+        let listed = view.nodes().iter().count();
+        assert_eq!(view.count_nodes(), listed, "{filter}");
+        assert_eq!(view.nodes().len(), listed, "{filter}");
+        assert_eq!(
+            g.nodes().select(filter.clone()).unwrap().len(),
+            listed,
+            "{filter}"
+        );
+    }
+}

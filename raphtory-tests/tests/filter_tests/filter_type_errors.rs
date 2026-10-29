@@ -2,13 +2,14 @@ use raphtory::{
     db::{
         api::view::{Filter, IntoDynamic},
         graph::views::filter::model::{
+            edge_filter::EdgeFilter,
             expr::NodeExpr,
             filter_operator::{BinaryOp, UnaryOp},
             node_filter::{NodeFilter, NodeFilterFactory},
             EntityAggOps, EntityExprFilterOps, PropertyExprFactory,
         },
     },
-    prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
+    prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -242,4 +243,40 @@ fn the_static_checks_answer_before_any_graph() {
         err,
         "Invalid filter: string operator requires a Str property, but the property type is U64"
     );
+}
+
+/// ```text
+/// time    1          2
+/// x       l=[1,2]    other=1
+/// a→b     l=[1,2]    other=1
+/// ```
+/// `all()` goes after the comparison it qualifies. Before it, on
+/// the list `last()` picks, it is refused; after it, x and a→b are kept though
+/// their later update lacks `l`.
+#[test]
+fn all_after_last_follows_the_comparison() {
+    let g = Graph::new();
+    let l = || Prop::list([1i64, 2]).unwrap();
+    g.add_node(1, "x", [("l", l())], None, None).unwrap();
+    g.add_node(2, "x", [("other", Prop::I64(1))], None, None)
+        .unwrap();
+    g.add_edge(1, "a", "b", [("l", l())], None).unwrap();
+    g.add_edge(2, "a", "b", [("other", Prop::I64(1))], None)
+        .unwrap();
+    let last = || NodeFilter.property("l").temporal().last();
+    assert!(refused(&g, last().all().gt(0i64)).ends_with(
+        "this expression gives the list itself (List<I64>), so compare it first and put \
+         any()/all() after the comparison"
+    ));
+    let nodes = g.filter(last().gt(0i64).all()).unwrap();
+    assert_eq!(nodes.nodes().name().collect::<Vec<_>>(), ["x"]);
+    let edges = g
+        .filter(EdgeFilter.property("l").temporal().last().gt(0i64).all())
+        .unwrap();
+    let ids: Vec<(String, String)> = edges
+        .edges()
+        .iter()
+        .map(|e| (e.src().name(), e.dst().name()))
+        .collect();
+    assert_eq!(ids, [("a".to_string(), "b".to_string())]);
 }

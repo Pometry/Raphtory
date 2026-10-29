@@ -1492,3 +1492,30 @@ def test_first_reduces_each_update_and_earliest_picks_one():
     # An update is only a thing on a history.
     with pytest.raises(Exception, match="pick an update of a temporal history"):
         graph.filter(filter.Node.property("list").latest() == [3, 2, 1]).nodes.id
+
+
+def test_any_all_after_last_follow_the_comparison():
+    """`all()` goes after the comparison it qualifies. Before it,
+    on the list `last()` picks, it is refused; after it, x and a→b are kept
+    though their later update lacks `l`.
+
+    time    1          2
+    x       l=[1,2]    other=1
+    a→b     l=[1,2]    other=1
+    """
+    from raphtory import Graph
+
+    g = Graph()
+    g.add_node(1, "x", {"l": [1, 2]})
+    g.add_node(2, "x", {"other": 1})
+    g.add_edge(1, "a", "b", {"l": [1, 2]})
+    g.add_edge(2, "a", "b", {"other": 1})
+    with pytest.raises(
+        Exception,
+        match=r"compare it first and put any\(\)/all\(\) after the comparison",
+    ):
+        g.filter(filter.Node.property("l").temporal().last().all() > 0)
+    node_expr = (filter.Node.property("l").temporal().last() > 0).all()
+    assert sorted(g.filter(node_expr).nodes.id) == ["x"]
+    edge_expr = (filter.Edge.property("l").temporal().last() > 0).all()
+    assert sorted(g.filter(edge_expr).edges.id) == [("a", "b")]

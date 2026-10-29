@@ -47,8 +47,9 @@ impl PyRemoteNestedEdges {
 
 #[pymethods]
 impl PyRemoteNestedEdges {
-    /// Filter this collection by an edge filter. **Propagates** to downstream
-    /// traversals from the matching edges. Lazy — no RPC.
+    /// Filter this collection by an edge filter. Every edge stays; the filter
+    /// scopes what is reached through them and carries through later
+    /// traversals. Lazy — no RPC.
     ///
     /// Arguments:
     ///     filter (filter.FilterExpr): an edge filter expression from `raphtory.filter`.

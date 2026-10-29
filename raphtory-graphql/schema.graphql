@@ -1699,10 +1699,9 @@ type Edges {
 	"""
 	list: [Edge!]!
 	"""
-	Narrow the collection to edges matching `expr`. The filter sticks to the
-	returned view — every subsequent traversal through these edges (their
-	properties, their endpoints' neighbours, etc.) continues to see the
-	filtered scope.
+	Keep every edge in the collection and scope what is reached through them
+	by `expr`: their properties, their endpoints and the endpoints'
+	neighbours all see the filtered graph, and so does every later traversal.
 	
 	Useful when you want one scoping rule to apply across the whole query.
 	E.g. restricting everything to a specific week:
@@ -1713,7 +1712,8 @@ type Edges {
 	} }
 	```
 	
-	Contrast with `select`, which applies here and is not carried through.
+	Contrast with `select`, which keeps only the edges matching `expr` and
+	is not carried through.
 	"""
 	filter(
 		"""
@@ -4556,38 +4556,83 @@ type Node {
 	steps through. The returned nodes are on the full graph so their other-layer neighbours stay
 	queryable.
 	"""
-	inComponent(select: FilterExpr): Nodes!
+	inComponent(
+		"""
+		Filter expression scoping which nodes and edges the walk steps through; a node it excludes is neither returned nor walked through.
+		"""
+		select: FilterExpr
+	): Nodes!
 	"""
 	Nodes reachable from this one via out-edges. `select` is a filter expression — node and edge
 	predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
 	steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
 	neighbours remain queryable.
 	"""
-	outComponent(select: FilterExpr): Nodes!
+	outComponent(
+		"""
+		Filter expression scoping which nodes and edges the walk steps through; a node it excludes is neither returned nor walked through.
+		"""
+		select: FilterExpr
+	): Nodes!
 	"""
 	Returns all connected edges.
 	"""
-	edges(select: FilterExpr): Edges!
+	edges(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): Edges!
 	"""
 	Returns outgoing edges.
 	"""
-	outEdges(select: FilterExpr): Edges!
+	outEdges(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): Edges!
 	"""
 	Returns incoming edges.
 	"""
-	inEdges(select: FilterExpr): Edges!
+	inEdges(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): Edges!
 	"""
 	Returns neighbouring nodes.
 	"""
-	neighbours(select: FilterExpr): PathFromNode!
+	neighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromNode!
 	"""
 	Returns the number of neighbours that have at least one in-going edge to this node.
 	"""
-	inNeighbours(select: FilterExpr): PathFromNode!
+	inNeighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromNode!
 	"""
 	Returns the number of neighbours that have at least one out-going edge from this node.
 	"""
-	outNeighbours(select: FilterExpr): PathFromNode!
+	outNeighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromNode!
+	"""
+	Return this node with `expr` applied to everything reached through it:
+	its neighbours, edges, degrees and properties all see the filtered graph,
+	and so does every later traversal.
+	"""
 	filter(
 		"""
 		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -5489,9 +5534,9 @@ type Nodes {
 	"""
 	ids: [String!]!
 	"""
-	Narrow the collection to nodes matching `expr`. The filter sticks to the
-	returned view — every subsequent traversal through these nodes (their
-	neighbours, edges, properties) continues to see the filtered scope.
+	Keep every node in the collection and scope what is reached through them
+	by `expr`: their neighbours, edges, degrees and properties all see the
+	filtered graph, and so does every later traversal.
 	
 	Useful when you want one scoping rule to apply across the whole query.
 	E.g. restricting everything to a specific week:
@@ -5502,7 +5547,8 @@ type Nodes {
 	} }
 	```
 	
-	Contrast with `select`, which applies here and is not carried through.
+	Contrast with `select`, which keeps only the nodes matching `expr` and
+	is not carried through.
 	"""
 	filter(
 		"""
@@ -5539,27 +5585,57 @@ type Nodes {
 	"""
 	Returns the neighbouring nodes of each node in the collection.
 	"""
-	neighbours(select: FilterExpr): PathFromGraph!
+	neighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromGraph!
 	"""
 	Returns the in-neighbours of each node in the collection.
 	"""
-	inNeighbours(select: FilterExpr): PathFromGraph!
+	inNeighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromGraph!
 	"""
 	Returns the out-neighbours of each node in the collection.
 	"""
-	outNeighbours(select: FilterExpr): PathFromGraph!
+	outNeighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromGraph!
 	"""
 	Returns the incident edges (both directions) of each node in the collection.
 	"""
-	edges(select: FilterExpr): NestedEdges!
+	edges(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): NestedEdges!
 	"""
 	Returns the incoming edges of each node in the collection.
 	"""
-	inEdges(select: FilterExpr): NestedEdges!
+	inEdges(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): NestedEdges!
 	"""
 	Returns the outgoing edges of each node in the collection.
 	"""
-	outEdges(select: FilterExpr): NestedEdges!
+	outEdges(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): NestedEdges!
 }
 
 """
@@ -5874,17 +5950,32 @@ type PathFromGraph {
 	Returns the neighbouring nodes reachable one further hop from each source
 	path (both directions), as a nested `PathFromGraph`.
 	"""
-	neighbours(select: FilterExpr): PathFromGraph!
+	neighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromGraph!
 	"""
 	Returns the in-neighbours reachable one further hop from each source
 	path, as a nested `PathFromGraph`.
 	"""
-	inNeighbours(select: FilterExpr): PathFromGraph!
+	inNeighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromGraph!
 	"""
 	Returns the out-neighbours reachable one further hop from each source
 	path, as a nested `PathFromGraph`.
 	"""
-	outNeighbours(select: FilterExpr): PathFromGraph!
+	outNeighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromGraph!
 	"""
 	Returns the incident edges (both directions) of each source path, as a
 	nested `NestedEdges` collection.
@@ -6208,17 +6299,32 @@ type PathFromNode {
 	Returns the neighbouring nodes reachable one further hop from this path
 	(both directions), as a flat `PathFromNode`.
 	"""
-	neighbours(select: FilterExpr): PathFromNode!
+	neighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromNode!
 	"""
 	Returns the in-neighbours reachable one further hop from this path, as a
 	flat `PathFromNode`.
 	"""
-	inNeighbours(select: FilterExpr): PathFromNode!
+	inNeighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromNode!
 	"""
 	Returns the out-neighbours reachable one further hop from this path, as a
 	flat `PathFromNode`.
 	"""
-	outNeighbours(select: FilterExpr): PathFromNode!
+	outNeighbours(
+		"""
+		Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+		"""
+		select: FilterExpr
+	): PathFromNode!
 	"""
 	Returns the incident edges (both directions) of the nodes in this path,
 	as a flat `Edges` collection.

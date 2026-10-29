@@ -673,7 +673,8 @@ impl PyNodeFilter {
         PyExpr(self.0.clone().name().into())
     }
 
-    /// Selects the node type field for filtering.
+    /// Selects the node type field for filtering. A node created without a
+    /// type is matched as the type `_default`.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -778,7 +779,9 @@ impl PyNodeFilter {
         Self(self.0.clone().before(time))
     }
 
-    /// Evaluates filters against the latest available state of each node.
+    /// Evaluates filters at the graph's latest time, as `GraphView.latest()`
+    /// does: a node whose last update is earlier has no value there. For each
+    /// node's own last value, use `snapshot_latest()`.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -1020,7 +1023,8 @@ impl PyNode {
         PyNodeFilter::root().name()
     }
 
-    /// Selects the node type field for filtering.
+    /// Selects the node type field for filtering. A node created without a
+    /// type is matched as the type `_default`.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -1135,7 +1139,9 @@ impl PyNode {
         PyNodeFilter::root().before(time)
     }
 
-    /// Evaluates filters against the latest available state of each node.
+    /// Evaluates filters at the graph's latest time, as `GraphView.latest()`
+    /// does: a node whose last update is earlier has no value there. For each
+    /// node's own last value, use `snapshot_latest()`.
     ///
     /// Returns:
     ///     filter.NodeFilter:

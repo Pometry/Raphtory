@@ -1,19 +1,26 @@
 use raphtory::{
     db::{
-        api::view::filter_ops::Select,
+        api::view::{
+            filter_ops::{Filter, Select},
+            StaticGraphViewOps,
+        },
         graph::{
             edges::{EdgeItem, Edges},
-            views::filter::model::{
-                edge_filter::EdgeFilter,
-                exploded_edge_filter::ExplodedEdgeFilter,
-                graph_filter::GraphFilter,
-                node_filter::{NodeFilter, NodeFilterFactory},
-                EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
+            views::{
+                deletion_graph::PersistentGraph,
+                filter::model::{
+                    edge_filter::EdgeFilter,
+                    exploded_edge_filter::ExplodedEdgeFilter,
+                    graph_filter::GraphFilter,
+                    node_filter::{NodeFilter, NodeFilterFactory},
+                    EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
+                },
             },
         },
     },
     prelude::{
-        AdditionOps, EdgeViewOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, TimeOps,
+        AdditionOps, DeletionOps, EdgeViewOps, EntityExprFilterOps, Graph, GraphViewOps,
+        NodeViewOps, PropertyAdditionOps, TimeOps,
     },
 };
 use raphtory_api::core::storage::timeindex::AsTime;
@@ -192,4 +199,108 @@ fn exists_without_a_view_is_refused() {
             "{entity}: {error:?}"
         );
     }
+}
+
+/// a→b w=1 @1, w=3 @3 · b→c w=2 @2, both edges with metadata m=1
+fn scoped_fixture<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(g: G) -> G {
+    g.add_edge(1, "a", "b", [("w", 1i64)], None).unwrap();
+    g.add_edge(3, "a", "b", [("w", 3i64)], None).unwrap();
+    g.add_edge(2, "b", "c", [("w", 2i64)], None).unwrap();
+    for (src, dst) in [("a", "b"), ("b", "c")] {
+        g.edge(src, dst)
+            .unwrap()
+            .add_metadata([("m", 1i64)], None)
+            .unwrap();
+    }
+    g
+}
+
+fn check_scoped_exploded_reads<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(g: G) {
+    let g = scoped_fixture(g);
+    let ab = |t| ("a".to_string(), "b".to_string(), t);
+    let none: Vec<(String, String, i64)> = vec![];
+
+    let cases = [
+        (
+            ExplodedEdgeFilter.window(0, 2).property("w").is_some(),
+            vec![ab(1)],
+        ),
+        (
+            ExplodedEdgeFilter.window(0, 2).property("w").eq(3i64),
+            none.clone(),
+        ),
+        (
+            ExplodedEdgeFilter.at(3).property("w").eq(1i64),
+            none.clone(),
+        ),
+        (ExplodedEdgeFilter.at(3).property("w").eq(3i64), vec![ab(3)]),
+        (
+            ExplodedEdgeFilter.window(0, 2).metadata("m").is_some(),
+            vec![ab(1)],
+        ),
+        (ExplodedEdgeFilter.window(0, 2).is_active(), vec![ab(1)]),
+        // A scoped state predicate is judged per exploded edge
+        (ExplodedEdgeFilter.at(3).is_active(), vec![ab(3)]),
+    ];
+    for (filter, expected) in cases {
+        let filtered = g.filter(filter.clone()).unwrap();
+        assert_eq!(exploded(&filtered.edges()), expected, "filter {filter}");
+        let selected = g.edges().explode().select(filter.clone()).unwrap();
+        assert_eq!(exploded(&selected), expected, "select {filter}");
+    }
+
+    let edge_filter = EdgeFilter.window(0, 2).property("w").is_some();
+    let selected = g.edges().explode().select(edge_filter).unwrap();
+    assert_eq!(exploded(&selected), vec![ab(1)]);
+}
+
+/// A property or metadata read of an exploded edge through a view has an
+/// answer only when the view includes that exploded edge: a window or `at`
+/// that leaves the update out reads nothing, as `is_active` already does.
+#[test]
+fn a_scoped_exploded_property_reads_only_inside_its_view() {
+    check_scoped_exploded_reads(Graph::new());
+    check_scoped_exploded_reads(PersistentGraph::new());
+}
+
+/// ```text
+/// time          1    2    3    4    5    6    7    8    9   10
+/// a→b           ●+                  ●-        ●+
+/// window(6,10)                           [===================)
+/// ```
+/// a→b added @1, deleted @5, added again @7.
+fn added_deleted_readded<G: StaticGraphViewOps + AdditionOps + DeletionOps>(g: G) -> G {
+    g.add_edge(1, "a", "b", [("w", 1i64)], None).unwrap();
+    g.delete_edge(5, "a", "b", None).unwrap();
+    g.add_edge(7, "a", "b", [("w", 1i64)], None).unwrap();
+    g
+}
+
+/// On an event graph each exploded edge is an addition and none of them
+/// is itself deleted, so `is_deleted()` keeps none, though the edge as a whole
+/// has a deletion.
+#[test]
+fn exploded_is_deleted_is_judged_per_exploded_edge() {
+    let g = added_deleted_readded(Graph::new());
+    assert!(g.edge("a", "b").unwrap().is_deleted());
+    let none: Vec<(String, String, i64)> = vec![];
+    let filter = ExplodedEdgeFilter.is_deleted();
+    let filtered = g.filter(filter.clone()).unwrap();
+    assert_eq!(exploded(&filtered.edges()), none);
+    let selected = g.edges().explode().select(filter).unwrap();
+    assert_eq!(exploded(&selected), none);
+}
+
+/// On a persistent graph `window(6, 10).is_valid()` keeps the
+/// addition @7, valid in the window, and not the addition @1, whose edge was
+/// deleted @5.
+#[test]
+fn exploded_is_valid_in_a_window_is_judged_per_exploded_edge() {
+    let g = added_deleted_readded(PersistentGraph::new());
+    let ab7 = vec![("a".to_string(), "b".to_string(), 7)];
+    let filter = ExplodedEdgeFilter.window(6, 10).is_valid();
+    let filtered = g.filter(filter.clone()).unwrap();
+    assert_eq!(exploded(&filtered.edges()), ab7);
+    let selected = g.edges().explode().select(filter).unwrap();
+    assert_eq!(exploded(&selected), ab7);
 }

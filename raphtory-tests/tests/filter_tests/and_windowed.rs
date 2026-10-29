@@ -6,6 +6,8 @@ use raphtory::{
             filter::model::{
                 expr::{EdgeLeaf, Expr, FilterExpr, ViewOp},
                 filter_operator::BinaryOp,
+                node_filter::{NodeFilter, NodeFilterFactory},
+                EntityExprFilterOps,
             },
         },
     },
@@ -315,4 +317,46 @@ fn an_and_resolves_its_window_when_built() {
     let predicates = filtered(&g, and(vec![w_gt(0), w_lt(10)]));
     assert_eq!(predicates.start(), g.start());
     assert_eq!(predicates.end(), g.end());
+}
+
+/// ```text
+/// time        1    5    10
+///             |    |    |
+/// a           ●
+/// b                     ●
+/// after(5)         (=========
+/// ```
+/// A time view under `and` with a node predicate keeps what the graph
+/// view of the same name keeps, then applies the predicate inside it:
+/// `after(5) & name in [a, b]` keeps b only.
+#[test]
+fn a_time_view_under_and_restricts_like_the_graph_view() {
+    let g = Graph::new();
+    g.add_node(1, "a", NO_PROPS, None, None).unwrap();
+    g.add_node(10, "b", NO_PROPS, None, None).unwrap();
+    let names = || FilterExpr::from(NodeFilter.name().is_in(vec!["a", "b"]));
+    let legs: [(ViewOp, DynamicGraph); 5] = [
+        (ViewOp::At(EventTime::start(1)), g.at(1).into_dynamic()),
+        (
+            ViewOp::Before(EventTime::start(5)),
+            g.before(5).into_dynamic(),
+        ),
+        (
+            ViewOp::After(EventTime::start(5)),
+            g.after(5).into_dynamic(),
+        ),
+        (ViewOp::Latest, g.latest().into_dynamic()),
+        (
+            ViewOp::SnapshotAt(EventTime::start(5)),
+            g.snapshot_at(5).into_dynamic(),
+        ),
+    ];
+    for (op, viewed) in legs {
+        let label = format!("{op:?}");
+        let and = filtered(&g, and(vec![FilterExpr::View(vec![op]), names()]));
+        let chained = viewed.filter(names()).unwrap().into_dynamic();
+        assert_eq!(node_names(&and), node_names(&chained), "{label}");
+    }
+    let after = FilterExpr::View(vec![ViewOp::After(EventTime::start(5))]);
+    assert_eq!(node_names(&filtered(&g, and(vec![after, names()]))), ["b"]);
 }

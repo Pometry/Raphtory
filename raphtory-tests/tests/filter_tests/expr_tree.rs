@@ -675,6 +675,24 @@ fn before_and_at_agree_with_the_graph_views() {
         ["carol->dave"]
     );
 
+    // so is an end bound that carries one.
+    let until_second_event = EventTime::start(2).set_event_id(1);
+    assert_eq!(edge_names(&g.window(0, until_second_event)), ["alice->bob"]);
+    assert_eq!(
+        edges(
+            &g,
+            &view(ViewOp::Window {
+                start: EventTime::start(0),
+                end: until_second_event,
+            }),
+        ),
+        ["alice->bob"]
+    );
+    assert_eq!(
+        applied(&g, typed(EdgeFilter.window(0, until_second_event))),
+        ["alice->bob"]
+    );
+
     // `after(t)` excludes `t` and everything before it.
     assert_eq!(edge_names(&g.after(2)), ["eve->fay"]);
     assert_eq!(

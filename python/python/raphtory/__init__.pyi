@@ -307,7 +307,14 @@ class GraphView(object):
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> GraphView:
         """
-        Return a filtered view that only includes nodes and edges that satisfy the filter
+        Return a view with the filter applied.
+
+        On a graph the view only includes the nodes and edges that satisfy the
+        filter. On a node, an edge or a collection every member stays, and the
+        filter scopes what is reached through them: their neighbours, endpoints,
+        edges, degrees and properties all see the filtered graph, and so does
+        every later traversal. To keep only the members that satisfy the filter,
+        index the collection with it instead: `nodes[expr]` or `edges[expr]`.
 
         Arguments:
             filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
@@ -828,11 +835,12 @@ class Graph(GraphView):
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
 
-        The index describes the graph as of this call: values written
-        afterwards are not searchable through it until the next build, so call
-        this again after loading more data. Filters over properties the index
-        does not cover fall back to a scan and stay correct either way; an
-        index only changes how fast they run.
+        The index describes the graph as of this call. Values written
+        afterwards are still found, served by a scan beside the index, so
+        answers stay correct and only the speed-up is lost for them until the
+        next build; call this again after loading more data. Filters over
+        properties the index does not cover fall back to a scan in the same
+        way; an index only changes how fast they run.
 
         Arguments:
             props (list[str], optional): the property names to index, replacing
@@ -1575,11 +1583,12 @@ class PersistentGraph(GraphView):
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
 
-        The index describes the graph as of this call: values written
-        afterwards are not searchable through it until the next build, so call
-        this again after loading more data. Filters over properties the index
-        does not cover fall back to a scan and stay correct either way; an
-        index only changes how fast they run.
+        The index describes the graph as of this call. Values written
+        afterwards are still found, served by a scan beside the index, so
+        answers stay correct and only the speed-up is lost for them until the
+        next build; call this again after loading more data. Filters over
+        properties the index does not cover fall back to a scan in the same
+        way; an index only changes how fast they run.
 
         Arguments:
             props (list[str], optional): the property names to index, replacing
@@ -2428,7 +2437,14 @@ class Node(object):
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> Node:
         """
-        Return a filtered view that only includes nodes and edges that satisfy the filter
+        Return a view with the filter applied.
+
+        On a graph the view only includes the nodes and edges that satisfy the
+        filter. On a node, an edge or a collection every member stays, and the
+        filter scopes what is reached through them: their neighbours, endpoints,
+        edges, degrees and properties all see the filtered graph, and so does
+        every later traversal. To keep only the members that satisfy the filter,
+        index the collection with it instead: `nodes[expr]` or `edges[expr]`.
 
         Arguments:
             filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
@@ -2922,7 +2938,14 @@ class Nodes(object):
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> Nodes:
         """
-        Return a filtered view that only includes nodes and edges that satisfy the filter
+        Return a view with the filter applied.
+
+        On a graph the view only includes the nodes and edges that satisfy the
+        filter. On a node, an edge or a collection every member stays, and the
+        filter scopes what is reached through them: their neighbours, endpoints,
+        edges, degrees and properties all see the filtered graph, and so does
+        every later traversal. To keep only the members that satisfy the filter,
+        index the collection with it instead: `nodes[expr]` or `edges[expr]`.
 
         Arguments:
             filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
@@ -3437,7 +3460,14 @@ class PathFromNode(object):
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromNode:
         """
-        Return a filtered view that only includes nodes and edges that satisfy the filter
+        Return a view with the filter applied.
+
+        On a graph the view only includes the nodes and edges that satisfy the
+        filter. On a node, an edge or a collection every member stays, and the
+        filter scopes what is reached through them: their neighbours, endpoints,
+        edges, degrees and properties all see the filtered graph, and so does
+        every later traversal. To keep only the members that satisfy the filter,
+        index the collection with it instead: `nodes[expr]` or `edges[expr]`.
 
         Arguments:
             filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
@@ -3912,7 +3942,14 @@ class PathFromGraph(object):
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> PathFromGraph:
         """
-        Return a filtered view that only includes nodes and edges that satisfy the filter
+        Return a view with the filter applied.
+
+        On a graph the view only includes the nodes and edges that satisfy the
+        filter. On a node, an edge or a collection every member stays, and the
+        filter scopes what is reached through them: their neighbours, endpoints,
+        edges, degrees and properties all see the filtered graph, and so does
+        every later traversal. To keep only the members that satisfy the filter,
+        index the collection with it instead: `nodes[expr]` or `edges[expr]`.
 
         Arguments:
             filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
@@ -4472,7 +4509,14 @@ class Edge(object):
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edge:
         """
-        Return a filtered view that only includes nodes and edges that satisfy the filter
+        Return a view with the filter applied.
+
+        On a graph the view only includes the nodes and edges that satisfy the
+        filter. On a node, an edge or a collection every member stays, and the
+        filter scopes what is reached through them: their neighbours, endpoints,
+        edges, degrees and properties all see the filtered graph, and so does
+        every later traversal. To keep only the members that satisfy the filter,
+        index the collection with it instead: `nodes[expr]` or `edges[expr]`.
 
         Arguments:
             filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
@@ -4942,7 +4986,14 @@ class Edges(object):
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edges:
         """
-        Return a filtered view that only includes nodes and edges that satisfy the filter
+        Return a view with the filter applied.
+
+        On a graph the view only includes the nodes and edges that satisfy the
+        filter. On a node, an edge or a collection every member stays, and the
+        filter scopes what is reached through them: their neighbours, endpoints,
+        edges, degrees and properties all see the filtered graph, and so does
+        every later traversal. To keep only the members that satisfy the filter,
+        index the collection with it instead: `nodes[expr]` or `edges[expr]`.
 
         Arguments:
             filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
@@ -5453,7 +5504,14 @@ class NestedEdges(object):
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> NestedEdges:
         """
-        Return a filtered view that only includes nodes and edges that satisfy the filter
+        Return a view with the filter applied.
+
+        On a graph the view only includes the nodes and edges that satisfy the
+        filter. On a node, an edge or a collection every member stays, and the
+        filter scopes what is reached through them: their neighbours, endpoints,
+        edges, degrees and properties all see the filtered graph, and so does
+        every later traversal. To keep only the members that satisfy the filter,
+        index the collection with it instead: `nodes[expr]` or `edges[expr]`.
 
         Arguments:
             filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.

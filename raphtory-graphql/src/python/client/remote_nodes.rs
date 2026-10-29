@@ -55,10 +55,10 @@ impl PyRemoteNodes {
     }
 
     /// Filter this collection by a filter expression from `raphtory.filter`
-    /// (the same builder used by local graphs). The filter **propagates**:
-    /// it narrows the current collection AND applies to downstream
-    /// traversals from the matching nodes (e.g. their `.neighbours`,
-    /// `.edges`). For a narrow-here-only variant, use `.select(...)`.
+    /// (the same builder used by local graphs). Every node stays in the
+    /// collection; the filter scopes what is reached through them (their
+    /// `.neighbours`, `.edges`, properties) and carries through later
+    /// traversals. To keep only the matching nodes, use `.select(...)`.
     /// Lazy — no RPC.
     ///
     /// Arguments:

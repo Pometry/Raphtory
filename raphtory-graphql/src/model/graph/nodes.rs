@@ -421,9 +421,9 @@ impl GqlNodes {
         )
     }
 
-    /// Narrow the collection to nodes matching `expr`. The filter sticks to the
-    /// returned view — every subsequent traversal through these nodes (their
-    /// neighbours, edges, properties) continues to see the filtered scope.
+    /// Keep every node in the collection and scope what is reached through them
+    /// by `expr`: their neighbours, edges, degrees and properties all see the
+    /// filtered graph, and so does every later traversal.
     ///
     /// Useful when you want one scoping rule to apply across the whole query.
     /// E.g. restricting everything to a specific week:
@@ -434,7 +434,8 @@ impl GqlNodes {
     /// } }
     /// ```
     ///
-    /// Contrast with `select`, which applies here and is not carried through.
+    /// Contrast with `select`, which keeps only the nodes matching `expr` and
+    /// is not carried through.
     pub async fn filter(
         &self,
         #[graphql(
@@ -490,6 +491,9 @@ impl GqlNodes {
     /// Returns the neighbouring nodes of each node in the collection.
     pub async fn neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
     ) -> Result<GqlPathFromGraph, GraphError> {
         let base = self.nn.neighbours();
@@ -503,6 +507,9 @@ impl GqlNodes {
     /// Returns the in-neighbours of each node in the collection.
     pub async fn in_neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
     ) -> Result<GqlPathFromGraph, GraphError> {
         let base = self.nn.in_neighbours();
@@ -516,6 +523,9 @@ impl GqlNodes {
     /// Returns the out-neighbours of each node in the collection.
     pub async fn out_neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
     ) -> Result<GqlPathFromGraph, GraphError> {
         let base = self.nn.out_neighbours();
@@ -527,7 +537,13 @@ impl GqlNodes {
     }
 
     /// Returns the incident edges (both directions) of each node in the collection.
-    pub async fn edges(&self, select: Option<GqlFilter>) -> Result<GqlNestedEdges, GraphError> {
+    pub async fn edges(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlNestedEdges, GraphError> {
         let base = self.nn.edges();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -537,7 +553,13 @@ impl GqlNodes {
     }
 
     /// Returns the incoming edges of each node in the collection.
-    pub async fn in_edges(&self, select: Option<GqlFilter>) -> Result<GqlNestedEdges, GraphError> {
+    pub async fn in_edges(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlNestedEdges, GraphError> {
         let base = self.nn.in_edges();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -547,7 +569,13 @@ impl GqlNodes {
     }
 
     /// Returns the outgoing edges of each node in the collection.
-    pub async fn out_edges(&self, select: Option<GqlFilter>) -> Result<GqlNestedEdges, GraphError> {
+    pub async fn out_edges(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlNestedEdges, GraphError> {
         let base = self.nn.out_edges();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;

@@ -93,11 +93,10 @@ impl RemoteNodes {
         }
     }
 
-    /// Filter this collection by a filter expression. **The filter
-    /// propagates**: it applies to the current collection's membership
-    /// *and* to downstream traversals from the matching nodes (e.g. their
-    /// `.neighbours`, `.edges`). For a narrow-here-only variant, use
-    /// `.select(...)`. Recorded in `ctx` so members materialized via
+    /// Filter this collection by a filter expression. Every node stays in
+    /// the collection; the filter scopes what is reached through them (their
+    /// `.neighbours`, `.edges`) and carries through later traversals. To keep
+    /// only the matching nodes, use `.select(...)`. Recorded in `ctx` so members materialized via
     /// `.collect()` replay it per handle (server field `filter` on `Node`).
     /// Lazy — no RPC.
     pub fn filter(

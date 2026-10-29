@@ -86,8 +86,9 @@ impl RemotePathFromNode {
         }
     }
 
-    /// Filter this collection by a node filter. **Propagates** to downstream
-    /// traversals from the matching nodes. Mirrors the local
+    /// Filter this collection by a node filter. Every node stays; the filter
+    /// scopes what is reached through them and carries through later
+    /// traversals. Mirrors the local
     /// `PathFromNode.filter(FilterExpr)`. Recorded in `ctx` so members
     /// materialized via `.collect()` replay it per handle. Lazy — no RPC.
     pub fn filter(
