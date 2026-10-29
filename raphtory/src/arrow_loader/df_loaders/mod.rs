@@ -27,7 +27,7 @@ use std::{
     hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::pages::resolve_pos;
+use storage::{pages::resolve_pos, segments::graph_prop::segment::MemGraphPropSegment};
 
 pub mod edge_props;
 pub mod edges;
@@ -202,6 +202,15 @@ pub(crate) fn load_graph_props_from_df<
                     .resolve_graph_property(key, dtype, true)
                     .map_err(into_graph_err)
             })?;
+        // the rows below write with ids resolved here, without going through validation
+        mark_chunk_prop_presence(
+            graph.graph_props_meta(),
+            None,
+            &[MemGraphPropSegment::DEFAULT_LAYER],
+            &prop_cols,
+            &metadata_cols,
+            &[],
+        );
         let time_col = df.time_col(time_index)?;
 
         // Load the secondary index column if it exists, otherwise generate from start_id.

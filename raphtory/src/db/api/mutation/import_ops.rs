@@ -314,6 +314,7 @@ fn import_node_internal<
             .validate_props(
                 false,
                 graph.node_meta(),
+                l,
                 row.into_iter().map(|(prop_id, prop)| {
                     let prop_key = &keys[prop_id];
                     (prop_key, prop)

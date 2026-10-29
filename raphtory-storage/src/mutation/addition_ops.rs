@@ -89,20 +89,23 @@ pub trait InternalAdditionOps {
         layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error>;
 
+    /// Validates props, resolving their ids, and marks them present in `layer`.
     fn validate_props<PN: AsRef<str>>(
         &self,
         is_static: bool,
         meta: &Meta,
+        layer: LayerId,
         prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error>;
 
-    /// Validates props and returns them with their creation status (new vs existing)
+    /// As [`Self::validate_props`], also returning each prop's creation status (new vs existing)
     fn validate_props_with_status<PN: AsRef<str>>(
         &self,
         is_static: bool,
         meta: &Meta,
+        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error>;
+    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error>;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -245,19 +248,21 @@ impl InternalAdditionOps for GraphStorage {
         &self,
         is_static: bool,
         meta: &Meta,
+        layer: LayerId,
         prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        self.mutable()?.validate_props(is_static, meta, prop)
+        self.mutable()?.validate_props(is_static, meta, layer, prop)
     }
 
     fn validate_props_with_status<PN: AsRef<str>>(
         &self,
         is_static: bool,
         meta: &Meta,
+        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
+    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error> {
         self.mutable()?
-            .validate_props_with_status(is_static, meta, props)
+            .validate_props_with_status(is_static, meta, resolve_layer, props)
     }
 
     fn validate_gids<'a>(
@@ -358,9 +363,10 @@ where
         &self,
         is_static: bool,
         meta: &Meta,
+        layer: LayerId,
         prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        self.base().validate_props(is_static, meta, prop)
+        self.base().validate_props(is_static, meta, layer, prop)
     }
 
     #[inline]
@@ -368,10 +374,11 @@ where
         &self,
         is_static: bool,
         meta: &Meta,
+        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
+    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error> {
         self.base()
-            .validate_props_with_status(is_static, meta, props)
+            .validate_props_with_status(is_static, meta, resolve_layer, props)
     }
 
     #[inline]

@@ -18,6 +18,7 @@ use storage::{
     error::StorageError,
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
+    segments::graph_prop::segment::MemGraphPropSegment,
     wal::{GraphReplay, TransactionID, LSN},
     ES, GS, NS,
 };
@@ -182,6 +183,11 @@ where
 
             // Insert prop ids into edge meta.
             unify_types(edge_meta, &props, true)?;
+            // Replay marks presence while holding segment locks. This is only safe because it runs
+            // before any locked graph exists.
+            edge_meta
+                .temporal_prop_mapper()
+                .mark_props_in_layer(layer_id, props.iter().map(|(_, id, _)| *id));
 
             let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
@@ -242,6 +248,11 @@ where
             let edge_meta = self.graph().edge_meta();
 
             unify_types(edge_meta, &props, false)?;
+            // Replay marks presence while holding segment locks. This is only safe because it runs
+            // before any locked graph exists.
+            edge_meta
+                .metadata_mapper()
+                .mark_props_in_layer(layer_id, props.iter().map(|(_, id, _)| *id));
 
             let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
@@ -487,6 +498,11 @@ where
             let node_meta = self.graph().node_meta();
 
             unify_types(node_meta, &props, true)?;
+            // Replay marks presence while holding segment locks. This is only safe because it runs
+            // before any locked graph exists.
+            node_meta
+                .temporal_prop_mapper()
+                .mark_props_in_layer(layer_id, props.iter().map(|(_, id, _)| *id));
 
             // Set node type metadata early to prevent issues with borrowing node_writer.
             if let Some((ref node_type, node_type_id)) = node_type_and_id {
@@ -553,6 +569,11 @@ where
             let node_meta = self.graph().node_meta();
 
             unify_types(node_meta, &props, false)?;
+            // Replay marks presence while holding segment locks. This is only safe because it runs
+            // before any locked graph exists.
+            node_meta
+                .metadata_mapper()
+                .mark_props_in_layer(STATIC_GRAPH_LAYER_ID, props.iter().map(|(_, id, _)| *id));
 
             let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
@@ -625,6 +646,11 @@ where
             let graph_props_meta = self.graph().graph_props_meta();
 
             unify_types(graph_props_meta, &props, true)?;
+            // Safe under segment locks: locked graphs never hold the graph-props presence bitset.
+            graph_props_meta.temporal_prop_mapper().mark_props_in_layer(
+                MemGraphPropSegment::DEFAULT_LAYER,
+                props.iter().map(|(_, id, _)| *id),
+            );
 
             let props = props.into_iter().map(|(_, id, prop)| (id, prop));
             let graph_props = &mut self.graph_props;
@@ -649,6 +675,11 @@ where
             let graph_props_meta = self.graph().graph_props_meta();
 
             unify_types(graph_props_meta, &props, false)?;
+            // Safe under segment locks: locked graphs never hold the graph-props presence bitset.
+            graph_props_meta.metadata_mapper().mark_props_in_layer(
+                MemGraphPropSegment::DEFAULT_LAYER,
+                props.iter().map(|(_, id, _)| *id),
+            );
 
             let props = props.into_iter().map(|(_, id, prop)| (id, prop));
             let graph_props = &mut self.graph_props;
@@ -671,7 +702,7 @@ fn unify_types(
     } else {
         meta.temporal_prop_mapper()
     };
-    let mut write_locked_mapper = prop_mapper.write_locked();
+    let mut write_locked_mapper = prop_mapper.write_locked_mappers();
     for (prop_name, prop_id, prop_value) in props {
         write_locked_mapper.set_or_unify_id_and_dtype(
             prop_name.as_ref(),

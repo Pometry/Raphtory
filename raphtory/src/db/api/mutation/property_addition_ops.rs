@@ -10,7 +10,10 @@ use raphtory_storage::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     },
 };
-use storage::wal::{GraphWalOps, WalOps};
+use storage::{
+    segments::graph_prop::segment::MemGraphPropSegment,
+    wal::{GraphWalOps, WalOps},
+};
 
 pub trait PropertyAdditionOps:
     InternalPropertyAdditionOps<Error: Into<GraphError>> + InternalAdditionOps<Error: Into<GraphError>>
@@ -59,10 +62,11 @@ impl<
         let session = self.write_session().map_err(|err| err.into())?;
         let t = time_from_input_session(&session, t)?;
 
-        let props_with_status = self
+        let (props_with_status, _) = self
             .validate_props_with_status(
                 false,
                 self.graph_props_meta(),
+                || Ok(MemGraphPropSegment::DEFAULT_LAYER),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
@@ -136,10 +140,11 @@ where
     let wal = graph.core_graph().wal()?;
     let transaction_id = transaction_manager.begin_transaction();
 
-    let props_with_status = graph
+    let (props_with_status, _) = graph
         .validate_props_with_status(
             true,
             graph.graph_props_meta(),
+            || Ok(MemGraphPropSegment::DEFAULT_LAYER),
             props.into_iter().map(|(k, v)| (k, v.into())),
         )
         .map_err(into_graph_err)?;

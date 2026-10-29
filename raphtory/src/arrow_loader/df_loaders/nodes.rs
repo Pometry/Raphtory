@@ -173,6 +173,8 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 .resolve_node_property(key, dtype, true)
                 .map_err(into_graph_err)
         })?;
+        // resolved outside the chunk's columns, so marked separately below
+        let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
         #[cfg(feature = "progress")]
         let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
@@ -212,23 +214,36 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             // Two paths:
             // Fast path (parquet round-trip) when both layer_col and layer_id_col are provided.
             // Slow path (user-facing CSV/parquet without numeric ids) resolve by name
-            let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
-                let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
-                let layer_id_values = layer_id_index
-                    .map(|idx| {
-                        df.chunk[idx]
-                            .as_primitive_opt::<UInt64Type>()
-                            .ok_or_else(|| {
-                                LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
-                            })
-                            .map(|array| array.values().as_ref())
-                    })
-                    .transpose()?;
+            let (layer_col_resolved, distinct_layers) =
+                if layer.is_some() || layer_col_index.is_some() {
+                    let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
+                    let layer_id_values = layer_id_index
+                        .map(|idx| {
+                            df.chunk[idx]
+                                .as_primitive_opt::<UInt64Type>()
+                                .ok_or_else(|| {
+                                    LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
+                                })
+                                .map(|array| array.values().as_ref())
+                        })
+                        .transpose()?;
 
-                Some(layer_col.resolve_layer(layer_id_values, graph, true)?)
-            } else {
-                None
-            };
+                    let (layer_resolved, distinct_layers) =
+                        layer_col.resolve_layer(layer_id_values, graph, true)?;
+                    (Some(layer_resolved), distinct_layers)
+                } else {
+                    (None, vec![STATIC_GRAPH_LAYER_ID])
+                };
+
+            // mark this chunk's (layer, prop) presence once
+            mark_chunk_prop_presence(
+                graph.node_meta(),
+                layer_col_resolved.as_deref(),
+                &distinct_layers,
+                &prop_cols,
+                &metadata_cols,
+                &shared_metadata_ids,
+            );
 
             let time_col = df.time_col(time_index)?;
             let node_col = df.node_col(node_id_index)?;
@@ -389,6 +404,8 @@ pub fn load_node_props_from_df<
             .resolve_node_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
+    // resolved outside the chunk's columns, marked separately below
+    let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
     let resolve_nodes = node_type_ids_col.is_some() && node_id_index.is_some();
 
@@ -418,12 +435,23 @@ pub fn load_node_props_from_df<
             node_col.validate(graph, LoadError::InvalidNodeError)?;
         }
         // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
-        let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
+        let (layer_col_resolved, distinct_layers) = if layer.is_some() || layer_col_index.is_some()
+        {
             let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
-            Some(layer_col.resolve_layer(None, graph, true)?)
+            let (layer_resolved, distinct_layers) = layer_col.resolve_layer(None, graph, true)?;
+            (Some(layer_resolved), distinct_layers)
         } else {
-            None
+            (None, vec![STATIC_GRAPH_LAYER_ID])
         };
+
+        // mark this chunk's (layer, prop) presence once
+        mark_chunk_metadata_presence(
+            graph.node_meta(),
+            layer_col_resolved.as_deref(),
+            &distinct_layers,
+            &metadata_cols,
+            &shared_metadata_ids,
+        );
 
         let (node_col_resolved, node_type_col_resolved) = get_or_resolve_node_vids_no_events::<G>(
             graph,

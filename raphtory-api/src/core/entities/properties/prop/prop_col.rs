@@ -1,5 +1,7 @@
 use crate::{
-    core::entities::properties::prop::{Prop, PropArray, PropMapRef, PropNum, PropRef},
+    core::entities::properties::prop::{
+        Prop, PropArray, PropMapRef, PropNum, PropRef, EMPTY_MAP_FIELD_NAME,
+    },
     iter::IntoDynBoxed,
 };
 use arrow_array::{
@@ -37,12 +39,18 @@ pub trait PropCol: Send + Sync + std::fmt::Debug {
             .map(move |i| self.get_ref(i))
             .into_dyn_boxed()
     }
+
+    fn is_all_null(&self) -> bool {
+        let array = self.as_array();
+        array.is_empty() || array.logical_null_count() == array.len()
+    }
 }
 
 #[derive(Debug)]
 pub struct MapCol {
     validity: Option<NullBuffer>,
     values: Vec<(String, Box<dyn PropCol>)>,
+    len: usize,
 }
 
 impl MapCol {
@@ -52,9 +60,21 @@ impl MapCol {
             .fields()
             .iter()
             .zip(arr.columns())
-            .map(|(field, col)| (field.name().clone(), lift_property_col(col.as_ref())))
+            .filter_map(|(field, col)| {
+                if field.data_type().is_null() && field.name() == EMPTY_MAP_FIELD_NAME {
+                    // drop the empty field here
+                    None
+                } else {
+                    Some((field.name().clone(), lift_property_col(col)))
+                }
+            })
             .collect();
-        Self { validity, values }
+        let len = arr.len();
+        Self {
+            validity,
+            values,
+            len,
+        }
     }
 }
 impl PropCol for MapCol {
@@ -91,11 +111,23 @@ impl PropCol for MapCol {
             .map(|(name, col)| Field::new(name, col.as_array().data_type().clone(), true))
             .collect::<Vec<_>>();
         let columns = self.values.iter().map(|(_, col)| col.as_array()).collect();
-        Arc::new(StructArray::new(
-            fields.into(),
-            columns,
-            self.validity.clone(),
-        ))
+        Arc::new(
+            StructArray::try_new_with_length(
+                fields.into(),
+                columns,
+                self.validity.clone(),
+                self.len,
+            )
+            .unwrap(),
+        )
+    }
+
+    fn is_all_null(&self) -> bool {
+        self.len == 0
+            || self
+                .validity
+                .as_ref()
+                .is_some_and(|validity| validity.null_count() == self.len)
     }
 }
 
