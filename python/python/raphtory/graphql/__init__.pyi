@@ -233,7 +233,7 @@ class RaphtoryClient(object):
     A client for handling GraphQL operations in the context of Raphtory.
 
     Arguments:
-        url (str): the URL of the Raphtory GraphQL server
+        url (str): the URL of the Raphtory GraphQL server (can also be a unix socket URL)
         token (str, optional): a bearer token sent with every request; omit for
             an unauthenticated server.
     """
@@ -2467,6 +2467,30 @@ class RemoteNodes(object):
             RemotePathFromGraph: each member's out-neighbours, grouped per source node.
         """
 
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[RemoteNode]:
+        """
+        One page of this collection as a list of `RemoteNode` handles — the
+        bounded counterpart of `collect()`. At most `limit` handles, starting
+        `page_index * limit + offset` nodes in. Both `offset` and `page_index`
+        default to 0. Fires one RPC.
+
+        A result shorter than `limit` means the collection is exhausted. Prefer
+        this to `collect()` on a large collection, and use it where the server
+        runs with bulk list endpoints disabled — `collect()` is rejected there.
+
+        Returns handles, so a read on each fires its own RPC.
+
+        Arguments:
+            limit (int): maximum number of nodes in the page.
+            offset (int, optional): additional nodes to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[RemoteNode]: at most `limit` handles.
+        """
+
     @property
     def properties(self) -> RemotePropertiesView:
         """
@@ -2933,6 +2957,30 @@ class RemotePathFromNode(object):
 
         Returns:
             RemotePathFromNode: the out-neighbours one further hop from this path.
+        """
+
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[RemoteNode]:
+        """
+        One page of this collection as a list of `RemoteNode` handles — the
+        bounded counterpart of `collect()`. At most `limit` handles, starting
+        `page_index * limit + offset` nodes in. Both `offset` and `page_index`
+        default to 0. Fires one RPC.
+
+        A result shorter than `limit` means the collection is exhausted. Prefer
+        this to `collect()` on a large collection, and use it where the server
+        runs with bulk list endpoints disabled — `collect()` is rejected there.
+
+        Returns handles, so a read on each fires its own RPC.
+
+        Arguments:
+            limit (int): maximum number of nodes in the page.
+            offset (int, optional): additional nodes to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[RemoteNode]: at most `limit` handles.
         """
 
     @property
@@ -3831,6 +3879,31 @@ class RemoteEdges(object):
           RemotePathFromNode: the other-end nodes, in collection order.
         """
 
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[RemoteEdge]:
+        """
+        One page of this collection — the bounded counterpart of `collect()`,
+        materialized identically. At most `limit` edges, starting
+        `page_index * limit + offset` in. Both `offset` and `page_index` default
+        to 0. Fires one RPC.
+
+        A result shorter than `limit` means the collection is exhausted. Prefer
+        this to `collect()` on a large collection, and use it where the server
+        runs with bulk list endpoints disabled — `collect()` is rejected there.
+
+        Paging is not a snapshot: each page is its own traversal, so concurrent
+        writes can shift members between pages.
+
+        Arguments:
+            limit (int): maximum number of edges in the page.
+            offset (int, optional): additional edges to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[RemoteEdge]: at most `limit` edges.
+        """
+
     @property
     def properties(self) -> RemotePropertiesView:
         """
@@ -4294,6 +4367,31 @@ class RemoteNestedEdges(object):
 
         Returns:
           RemotePathFromGraph: the other-end nodes, grouped per source node.
+        """
+
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[list[RemoteEdge]]:
+        """
+        One page of this collection — the bounded counterpart of `collect()`,
+        materialized identically. At most `limit` source groups, starting
+        `page_index * limit + offset` in. Both `offset` and `page_index` default
+        to 0. Fires one RPC.
+
+        A result shorter than `limit` means the collection is exhausted. Prefer
+        this to `collect()` on a large collection, and use it where the server
+        runs with bulk list endpoints disabled — `collect()` is rejected there.
+
+        Paging is not a snapshot: each page is its own traversal, so concurrent
+        writes can shift members between pages.
+
+        Arguments:
+            limit (int): maximum number of source groups in the page.
+            offset (int, optional): additional source groups to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[list[RemoteEdge]]: at most `limit` source groups.
         """
 
     @property
