@@ -3,6 +3,8 @@
 //! (cold, unless the OS cache already holds it), the second runs on a warm cache.
 //!
 //! Usage: graph_algos <graph_dir> [workload ...]
+//! With no workloads it runs all of `DEFAULT_WORKLOADS`; `triangle_count` only runs when named
+//! (about 110s on SNB-10).
 use raphtory::{
     algorithms::{
         centrality::pagerank::page_rank,
@@ -14,6 +16,16 @@ use raphtory::{
 };
 use rayon::prelude::*;
 use std::{hint::black_box, path::PathBuf, time::Instant};
+
+const DEFAULT_WORKLOADS: [&str; 7] = [
+    "degree",
+    "node_edge_history",
+    "edge_explode",
+    "page_rank",
+    "wcc",
+    "scc",
+    "k_core",
+];
 
 const WORKLOADS: [&str; 8] = [
     "degree",
@@ -73,6 +85,16 @@ fn run(graph: &Graph, workload: &str) -> String {
 }
 
 fn main() {
+    // strongly_connected_components recurses once per node on a path (Tarjan)
+    std::thread::Builder::new()
+        .stack_size(4 << 30)
+        .spawn(run_all)
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+fn run_all() {
     let mut args = std::env::args().skip(1);
     let graph_path = args
         .next()
@@ -80,7 +102,7 @@ fn main() {
         .unwrap_or_else(|| panic!("Usage: graph_algos <graph_dir> [workload ...]"));
     let mut workloads: Vec<String> = args.collect();
     if workloads.is_empty() {
-        workloads = WORKLOADS.iter().map(|w| w.to_string()).collect();
+        workloads = DEFAULT_WORKLOADS.iter().map(|w| w.to_string()).collect();
     }
 
     let now = Instant::now();
