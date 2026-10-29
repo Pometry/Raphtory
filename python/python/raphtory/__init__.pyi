@@ -7858,12 +7858,12 @@ class RdfView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: filter.FilterExpr) -> RdfView:
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> RdfView:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             RdfView: The filtered view
