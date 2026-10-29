@@ -258,9 +258,12 @@ impl PyGraphServer {
                     None => server.start().await?,
                     Some(port) => server.start_with_port(port).await?,
                 };
-                if let Err(_) = start_sender.send(ServerStarted {
-                    port: running_server.port(),
-                }) {
+                if start_sender
+                    .send(ServerStarted {
+                        port: running_server.port(),
+                    })
+                    .is_err()
+                {
                     // This happens if the other end of the channel doesn't exist
                     running_server.stop().await;
                     return Ok(());

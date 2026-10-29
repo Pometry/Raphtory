@@ -48,6 +48,7 @@ pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
 }
 
+#[allow(clippy::result_large_err)] // `coalesce` hands both runs back in its `Err` by design
 pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
     // helpers for extracting data from fixtures
     let get_fixture_metadata_map = |c_props: &Vec<(String, Prop)>| -> HashMap<ArcStr, Prop> {

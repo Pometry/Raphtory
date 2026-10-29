@@ -17,10 +17,7 @@ fn group_by_value(map: &HashMap<String, usize>) -> Vec<HashSet<String>> {
     let mut grouped: HashMap<usize, HashSet<String>> = HashMap::new();
 
     for (key, &value) in map {
-        grouped
-            .entry(value)
-            .or_insert_with(HashSet::new)
-            .insert(key.clone());
+        grouped.entry(value).or_default().insert(key.clone());
     }
 
     grouped.into_values().collect()

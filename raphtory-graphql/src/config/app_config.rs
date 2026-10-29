@@ -129,7 +129,7 @@ impl AppConfigBuilder {
         if let Some(auth_public_key) = server_args.auth_public_key.clone() {
             builder
                 .with_auth_public_key(Some(auth_public_key))
-                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+                .map_err(io::Error::other)?;
         }
         if let Some(public_dir) = server_args.public_dir.clone() {
             builder.with_public_dir(Some(public_dir));

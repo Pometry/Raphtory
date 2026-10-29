@@ -7,6 +7,7 @@ pub mod edge;
 pub mod edges;
 pub mod filter_expr_input;
 pub mod filtering;
+#[allow(clippy::module_inception)]
 pub mod graph;
 pub mod history;
 pub mod meta_graph;

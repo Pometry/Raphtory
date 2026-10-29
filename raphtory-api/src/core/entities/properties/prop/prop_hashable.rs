@@ -196,6 +196,50 @@ mod tests {
         }
     }
 
+    /// Pairs that differ only in the sign of a zero, bare and nested in maps and lists.
+    fn signed_zero_pairs() -> Vec<(Prop, Prop)> {
+        vec![
+            (Prop::F32(0.0), Prop::F32(-0.0)),
+            (Prop::F64(0.0), Prop::F64(-0.0)),
+            (
+                Prop::map([("k", Prop::F32(0.0))]),
+                Prop::map([("k", Prop::F32(-0.0))]),
+            ),
+            (
+                Prop::map([("k", Prop::F64(0.0))]),
+                Prop::map([("k", Prop::F64(-0.0))]),
+            ),
+            (
+                Prop::list_unchecked([Prop::F32(1.0), Prop::F32(0.0)]),
+                Prop::list_unchecked([Prop::F32(1.0), Prop::F32(-0.0)]),
+            ),
+            (
+                Prop::map([("k", Prop::list_unchecked([Prop::F64(-0.0)]))]),
+                Prop::map([("k", Prop::list_unchecked([Prop::F64(0.0)]))]),
+            ),
+        ]
+    }
+
+    #[test]
+    fn test_prop_hash_signed_zero() {
+        // `Prop`'s `PartialEq` says these are equal, so `Hash` must agree
+        for (pos, neg) in signed_zero_pairs() {
+            assert_eq!(pos, neg);
+            let set: HashSet<Prop> = [neg.clone()].into_iter().collect();
+            assert!(set.contains(&pos), "{pos} not found in {{{neg}}}");
+        }
+    }
+
+    #[test]
+    fn test_hashable_prop_signed_zero_nested() {
+        // the `is_in` / `is_not_in` filters look values up in a `HashSet<HashableProp>`
+        for (pos, neg) in signed_zero_pairs() {
+            assert_eq!(HashableProp(pos.clone()), HashableProp(neg.clone()));
+            let set: HashSet<HashableProp> = [HashableProp(neg.clone())].into_iter().collect();
+            assert!(set.contains(pos.as_ref()), "{pos} not found in {{{neg}}}");
+        }
+    }
+
     #[test]
     fn test_inf_and_nan() {
         let members = [

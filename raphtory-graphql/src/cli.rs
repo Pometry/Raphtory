@@ -47,6 +47,7 @@ pub struct Args {
 }
 
 #[derive(Subcommand, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum Commands {
     #[command(about = "Run the GraphQL server")]
     Server(ServerArgs),

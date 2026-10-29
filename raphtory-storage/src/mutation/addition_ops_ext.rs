@@ -31,7 +31,10 @@ use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
+    pages::{
+        locked::nodes::MemNodeSegmentGuards, node_page::writer::NodeWriters, resolve_pos,
+        session::EdgeWriteSession,
+    },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
@@ -245,105 +248,20 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(id)
     }
 
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        match id {
-            NodeRef::External(id) => {
-                let id = match self.gid_resolver.get_or_init(id)? {
-                    MaybeInit::VID(vid) => MaybeNew::Existing(vid),
-                    MaybeInit::Init(init) => {
-                        let (seg, pos) = self.storage().nodes().reserve_free_pos(
-                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
-                        );
-                        let vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
-                        init.init(vid)?;
-                        MaybeNew::New(vid)
-                    }
-                };
-                Ok(id)
-            }
-            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
-        }
-    }
-
-    fn resolve_and_update_node_and_type(
+    unsafe fn bulk_load_resolve_node(
         &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        let vid = self.resolve_node(id)?;
-        let (segment_id, local_pos) = self.storage().nodes().resolve_pos(vid.inner());
-        let mut writer = self.storage().nodes().writer(segment_id);
-
-        let node_type_id = match node_type {
-            None => {
-                if let Some(gid) = id.as_gid_ref() {
-                    writer.store_node_id(local_pos, gid.to_owned());
-                }
-
-                MaybeNew::Existing(DEFAULT_NODE_TYPE_ID)
-            }
-            Some(node_type) => {
-                let existing_type_id = writer
-                    .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
-                    .into_u64();
-
-                match existing_type_id {
-                    None => {
-                        let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
-
-                        writer.store_node_id_and_node_type(
-                            local_pos,
-                            id.as_gid_ref(),
-                            node_type_id.inner(),
-                        );
-
-                        node_type_id
-                    }
-                    Some(existing_type_id) => {
-                        // Node types cannot be changed once set.
-                        // Fail if trying to set a different type_id.
-                        let node_type_id = self
-                            .node_meta()
-                            .get_node_type_id(node_type)
-                            .filter(|&node_type_id| node_type_id == existing_type_id as usize)
-                            .ok_or(MutationError::NodeTypeError)?;
-
-                        MaybeNew::Existing(node_type_id)
-                    }
-                }
-            }
-        };
-
-        Ok(vid.map(|_| (vid, node_type_id)))
-    }
-
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
-        let vid = self.resolve_node(id)?.inner();
-        let node_type_id = match node_type {
-            Some(node_type) => self
-                .node_meta()
-                .get_or_create_node_type_id(node_type)
-                .inner(),
-            None => DEFAULT_NODE_TYPE_ID,
-        };
-        Ok((vid, node_type_id))
-    }
-
-    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
+        id: GidRef<'_>,
+    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), Self::Error> {
         let vid = match self.gid_resolver.get(id) {
-            Some(vid) => MaybeNew::Existing(vid),
+            Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
             None => {
-                let (seg, pos) = self
+                let (seg, pos, new_locks) = self
                     .storage()
                     .nodes()
                     .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
                 let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
                 self.gid_resolver.set(id, new_vid)?;
-                MaybeNew::New(new_vid)
+                (MaybeNew::New(new_vid), new_locks)
             }
         };
 
@@ -383,7 +301,8 @@ impl InternalAdditionOps for TemporalGraph {
                 Some(MaybeInit::VID(dst_id)),
             ),
             (NodeRef::External(src_gid), NodeRef::External(dst_gid)) => {
-                // resolve the smaller id first to avoid deadlocks when adding the same edge in both directions
+                // resolve the smaller id first to avoid deadlocks when adding the same edge
+                // in both directions
                 match src_gid.cmp(&dst_gid) {
                     std::cmp::Ordering::Less => (
                         self.gid_resolver.get_or_init(src_gid)?,
@@ -461,7 +380,8 @@ impl InternalAdditionOps for TemporalGraph {
                 match nodes.reserve_segment_row(dst_writer.segment) {
                     None => {
                         let (src_id, src_writer) = dst_writer.unlocked(|| {
-                            // existing segment is full, need to get a new one, unlock dst_writer such that the segment can be evicted from the free segments
+                            // existing segment is full, need to get a new one, unlock dst_writer
+                            // so that the segment can be evicted from the free segments
                             let (src_pos, src_writer) = nodes.reserve_and_lock_segment(
                                 self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                                 1,
@@ -505,7 +425,8 @@ impl InternalAdditionOps for TemporalGraph {
                 match nodes.reserve_segment_row(src_writer.segment) {
                     None => {
                         let (dst_id, dst_writer) = src_writer.unlocked(|| {
-                            // unlocked to make sure we can evict this segment from the free segments to avoid deadlocking
+                            // unlocked to make sure we can evict this segment from the free
+                            // segments to avoid deadlocking
                             let (dst_pos, dst_writer) = nodes.reserve_and_lock_segment(
                                 self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                                 1,

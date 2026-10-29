@@ -10,6 +10,7 @@ pub trait ServerPlugin: Clone + Send + Sync + 'static {
     type Extension: ServerExtension + clap::Args + Clone;
 
     /// Create a new plugin instance
+    #[allow(clippy::wrong_self_convention)]
     fn new(&self) -> Self::Extension;
 }
 

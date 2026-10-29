@@ -402,10 +402,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             ))
         });
 
-        while self.segments.get(segment_id).is_none() {
-            // wait
-        }
-
         segment_id
     }
 
@@ -415,6 +411,17 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         segment.increment_num_edges();
     }
 
+    fn wait_for_segment(&self, segment_id: usize) -> &Arc<ES> {
+        loop {
+            if let Some(segment) = self.segments.get(segment_id) {
+                return segment;
+            } else {
+                // Wait for the segment to be created.
+                std::thread::yield_now();
+            }
+        }
+    }
+
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<ES> {
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
@@ -422,16 +429,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
         let count = self.segments.count();
 
-        if count > segment_id {
+        if segment_id < count {
             // Something has allocated the segment, wait for it to be added.
-            loop {
-                if let Some(segment) = self.segments.get(segment_id) {
-                    return segment;
-                } else {
-                    // wait for the segment to be created
-                    std::thread::yield_now();
-                }
-            }
+            self.wait_for_segment(segment_id)
         } else {
             // We need to create the segment.
             self.segments.reserve(segment_id + 1 - count);
@@ -446,15 +446,8 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                     ))
                 });
 
-                if new_segment_id >= segment_id {
-                    loop {
-                        if let Some(segment) = self.segments.get(segment_id) {
-                            return segment;
-                        } else {
-                            // Wait for the segment to be created.
-                            std::thread::yield_now();
-                        }
-                    }
+                if segment_id <= new_segment_id {
+                    return self.wait_for_segment(segment_id);
                 }
             }
         }

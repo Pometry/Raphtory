@@ -129,7 +129,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     /// Compute the sum of all property values, or `None` if the dtype is not additive or the
     /// property is empty.
     pub fn sum(&self) -> Option<Prop> {
-        utils::generalised_reduce(self.values(), |a, b| a.add(b), |p| p.dtype().has_add())
+        utils::generalised_reduce(self.values(), |a, b| a + b, |p| p.dtype().has_add())
     }
 
     /// Find the minimum `(time, value)` pair, or `None` if the dtype is not comparable or the

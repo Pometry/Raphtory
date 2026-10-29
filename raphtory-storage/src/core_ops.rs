@@ -131,7 +131,7 @@ pub trait CoreGraphOps: Send + Sync {
 
     #[inline]
     fn get_layer_id(&self, name: &str) -> Option<LayerId> {
-        self.edge_meta().get_layer_id(name).map(|id| id)
+        self.edge_meta().get_layer_id(name)
     }
 
     #[inline]

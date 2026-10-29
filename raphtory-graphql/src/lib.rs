@@ -713,7 +713,7 @@ mod graphql_test {
             let mut out: Vec<&Value> = v["unique"].as_array().unwrap().iter().collect();
             // serde_json::Value has a deterministic total order for same-typed values
             // and groups by type for mixed inputs — fine for this test.
-            out.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            out.sort_by_key(|a| a.to_string());
             out
         }
 
@@ -2679,7 +2679,7 @@ mod graphql_test {
                 inner
                     .into_iter()
                     .sorted_by(|l, r| name_sort_key(l).cmp(&name_sort_key(r)))
-                    .map(|inner_value| json_sort_by_name(inner_value))
+                    .map(json_sort_by_name)
                     .collect(),
             ),
             Value::Object(inner) => Value::Object(
