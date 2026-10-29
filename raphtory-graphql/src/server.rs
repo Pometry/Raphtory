@@ -23,6 +23,12 @@ use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
     trace::{SdkTracerProvider, Tracer},
 };
+#[cfg(feature = "rdf")]
+use poem::{
+    endpoint::make_sync,
+    http::{header::VARY, StatusCode},
+    middleware::SetHeader,
+};
 use poem::{
     get,
     listener::{Acceptor, Listener, TcpListener},
@@ -30,8 +36,6 @@ use poem::{
     web::CompressionLevel,
     Endpoint, EndpointExt, Route, Server,
 };
-#[cfg(feature = "rdf")]
-use poem::{http::header::VARY, middleware::SetHeader};
 use raphtory::db::api::storage::storage::Args;
 use serde_json::json;
 use std::{
@@ -149,6 +153,14 @@ impl GraphServer {
             create_dir_all(&work_dir)?;
         }
         let config = app_config.unwrap_or_default();
+        #[cfg(feature = "rdf")]
+        if config.schema.disable_rdf && !config.schema.disable_sparql_endpoint {
+            return Err(ConfigError::Message(
+                "`disable_rdf` requires `disable_sparql_endpoint`, as the endpoint runs on `rdfGraph`"
+                    .to_string(),
+            )
+            .into());
+        }
         configure_pools(PoolSettings {
             max_concurrent_loads: config.concurrency.max_concurrent_loads,
         });
@@ -354,7 +366,11 @@ impl GraphServer {
     pub async fn build_schema(self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
         let schema_cfg = &self.config.schema;
 
-        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins)
+        #[cfg(feature = "rdf")]
+        let rdf = !schema_cfg.disable_rdf;
+        #[cfg(not(feature = "rdf"))]
+        let rdf = false;
+        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins, rdf)
             .data(self.data)
             .data(self.config.concurrency);
 
@@ -413,14 +429,18 @@ impl GraphServer {
         // `Cors` replaces `Vary`, so the SPARQL answers, whose format depends on the `Accept`
         // header, add `Vary: Accept` outside it
         #[cfg(feature = "rdf")]
-        let app = Route::new()
-            .at(
+        let app = if config.schema.disable_sparql_endpoint {
+            // registered anyway so that `/` (the UI or GraphQL) does not answer it
+            Route::new().at("/sparql/*path", make_sync(|_| StatusCode::NOT_FOUND))
+        } else {
+            Route::new().at(
                 "/sparql/*path",
                 SparqlEndpoint::new(graphql, sparql_options(&config.concurrency))
                     .with(Cors::new())
                     .with(SetHeader::new().appending(VARY, "Accept")),
             )
-            .nest_no_strip("/", app);
+        }
+        .nest_no_strip("/", app);
         Ok(app.with(Compression::new().with_quality(CompressionLevel::Fastest)))
     }
 

@@ -3,10 +3,8 @@
 use crate::{
     export::write_rdf,
     mapping::{is_rdf11_term, layer_name_of, name_of},
-    query, results,
-    shacl::{ShaclOptions, ShaclReport, ShaclShapes},
-    RdfError, RdfFormat, SparqlFormat, SparqlOptions, SparqlResults, TermRef, TripleRef,
-    WriteStats, RESERVED_NS,
+    query, results, RdfError, RdfFormat, SparqlFormat, SparqlOptions, SparqlResults, TermRef,
+    TripleRef, WriteStats, RESERVED_NS,
 };
 use oxigraph::io::RdfParser;
 use raphtory::{
@@ -290,15 +288,6 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
         let mut document = Vec::new();
         self.sparql_to_writer(query, &mut document, format, options)?;
         Ok(String::from_utf8(document)?)
-    }
-
-    /// Validates the triples [`to_rdf`](Self::to_rdf) writes against SHACL shapes.
-    pub fn validate_shacl(
-        &self,
-        shapes: &ShaclShapes,
-        options: &ShaclOptions,
-    ) -> Result<ShaclReport, RdfError> {
-        shapes.validate(self.0.clone().into_dynamic(), options)
     }
 }
 

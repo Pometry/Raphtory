@@ -43,7 +43,6 @@ impl From<RdfError> for PyErr {
         match err {
             RdfError::Graph(err) => err.into(),
             RdfError::SparqlSyntax(_)
-            | RdfError::SparqlTooDeep { .. }
             | RdfError::Parse(_)
             | RdfError::UnknownFormat(_)
             | RdfError::NoPathFormat(_)
@@ -55,7 +54,7 @@ impl From<RdfError> for PyErr {
 }
 
 #[derive(FromPyObject)]
-pub(crate) enum RdfSource {
+enum RdfSource {
     Bytes(PyBackedBytes),
     Path(PathBuf),
 }
@@ -139,7 +138,7 @@ fn input_time(
 
 /// A view of an RdfGraph: one RDF triple per edge and layer visible in a persistent graph view.
 ///
-/// Every view method returns an RdfView; sparql, to_rdf and validate_shacl see its triples.
+/// Every view method returns an RdfView; sparql and to_rdf see its triples.
 #[pyclass(name = "RdfView", frozen, subclass, module = "raphtory")]
 pub struct PyRdfView {
     pub(crate) view: RdfView,

@@ -1,4 +1,4 @@
-use crate::{shacl::ShaclLimit, QueryForm};
+use crate::QueryForm;
 use oxigraph::{
     io::RdfParseError,
     model::{IriParseError, NamedNode, TryFromTermError},
@@ -6,9 +6,9 @@ use oxigraph::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::utils::time::ParseTimeError;
-use std::{any::Any, error::Error, io, path::PathBuf, string::FromUtf8Error};
+use std::{any::Any, io, path::PathBuf, string::FromUtf8Error};
 
-/// Errors raised by RDF import, export, SPARQL evaluation and SHACL validation.
+/// Errors raised by RDF import, export and SPARQL evaluation.
 /// Messages include the wrapped error, so `source()` does not return it again.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
@@ -22,18 +22,6 @@ pub enum RdfError {
 
     #[error("SPARQL syntax error: {0}")]
     SparqlSyntax(SparqlSyntaxError),
-
-    /// Brackets nesting deeper than [`MAX_SPARQL_NESTING`](crate::MAX_SPARQL_NESTING).
-    #[error(
-        "SPARQL syntax error: brackets nest more than {max} deep at line {line}, column {column}"
-    )]
-    SparqlTooDeep {
-        max: usize,
-        /// From 1.
-        line: usize,
-        /// In characters, from 1.
-        column: usize,
-    },
 
     #[error("SPARQL evaluation error: {0}")]
     SparqlEvaluation(QueryEvaluationError),
@@ -115,31 +103,19 @@ pub enum RdfError {
     #[error("RDF output is not UTF-8: {0}")]
     NotUtf8(FromUtf8Error),
 
-    /// A shapes graph that does not compile, or a validation that failed.
-    #[error("SHACL error: {0}")]
-    Shacl(Box<dyn Error + Send + Sync>),
-
-    /// A shapes graph past a limit of the validator, or rejected recursive shapes.
-    #[error("SHACL error: {0}")]
-    ShaclLimit(ShaclLimit),
-
-    /// A panic of SPARQL evaluation or SHACL validation, with its message.
+    /// A panic of SPARQL evaluation, with its message.
     #[error("{0}")]
     Panicked(String),
 }
 
 impl RdfError {
-    pub(crate) fn shacl(error: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
-        Self::Shacl(error.into())
-    }
-
-    pub(crate) fn panicked(what: &str, panic: Box<dyn Any + Send>) -> Self {
+    pub(crate) fn panicked(panic: Box<dyn Any + Send>) -> Self {
         let message = panic
             .downcast_ref::<&str>()
             .copied()
             .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
             .unwrap_or("unknown panic");
-        Self::Panicked(format!("{what} panicked: {message}"))
+        Self::Panicked(format!("the query panicked: {message}"))
     }
 }
 

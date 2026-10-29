@@ -182,6 +182,14 @@ impl AppConfigBuilder {
         if let Some(disable_introspection) = server_args.disable_introspection {
             builder.with_disable_introspection(disable_introspection);
         }
+        #[cfg(feature = "rdf")]
+        if let Some(disable_rdf) = server_args.disable_rdf {
+            builder.with_disable_rdf(disable_rdf);
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(disable_sparql_endpoint) = server_args.disable_sparql_endpoint {
+            builder.with_disable_sparql_endpoint(disable_sparql_endpoint);
+        }
         Ok(builder)
     }
 
@@ -462,6 +470,20 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            #[cfg(feature = "rdf")]
+                            SchemaConfigFieldName::DisableRdf => {
+                                self.with_disable_rdf(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            SchemaConfigFieldName::DisableSparqlEndpoint => {
+                                self.with_disable_sparql_endpoint(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -687,6 +709,18 @@ impl AppConfigBuilder {
 
     pub fn with_disable_ui(&mut self, disable_ui: bool) -> &mut Self {
         self.config.schema.disable_ui = disable_ui;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_disable_rdf(&mut self, disable_rdf: bool) -> &mut Self {
+        self.config.schema.disable_rdf = disable_rdf;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_disable_sparql_endpoint(&mut self, disable_sparql_endpoint: bool) -> &mut Self {
+        self.config.schema.disable_sparql_endpoint = disable_sparql_endpoint;
         self
     }
 

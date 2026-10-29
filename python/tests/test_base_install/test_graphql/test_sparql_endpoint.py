@@ -1,6 +1,7 @@
 """The SPARQL 1.1 Protocol endpoint `/sparql/<graph path>` of the GraphQL server."""
 
 import json
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -164,3 +165,13 @@ def test_rdflib_sparqlstore(endpoint):
     age = graph.query("SELECT ?age { <http://ex/alice> <http://ex/age> ?age }")
     assert [row.age.toPython() for row in age] == [42]
     assert set(graph.query(KNOWN_BY).graph) == KNOWN_BY_NOW
+
+
+def test_results_over_the_size_cap_are_too_large():
+    with graphql_server({"concurrency": {"max_sparql_result_bytes": 10}}) as server:
+        server.get_client().send_graph(path="g", graph=people().graph)
+        url = f"http://localhost:{server.port()}/sparql/g?{urlencode({'query': KNOWS})}"
+        with pytest.raises(HTTPError) as error:
+            fetch(url)
+        assert error.value.code == 413
+        assert "max_sparql_result_bytes" in error.value.read().decode()

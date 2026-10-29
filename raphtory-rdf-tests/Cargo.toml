@@ -30,8 +30,6 @@ bzip2 = { workspace = true, optional = true }
 csv = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 rustc-hash = { workspace = true, optional = true }
-rudof_rdf = { workspace = true, optional = true }
-shacl = { workspace = true, optional = true }
 
 [dev-dependencies]
 url = { workspace = true }
@@ -45,8 +43,6 @@ rdf = [
     "dep:zip",
     "dep:tar",
     "dep:bzip2",
-    "dep:rudof_rdf",
-    "dep:shacl",
     "dep:rustc-hash",
     "dep:rayon",
 ]
@@ -60,11 +56,6 @@ bench = [
 # The W3C SPARQL and Turtle test suites (test-suites/rdf-tests).
 [[test]]
 name = "sparql_w3c"
-required-features = ["rdf"]
-
-# The W3C SHACL test suite (test-suites/data-shapes).
-[[test]]
-name = "shacl_w3c"
 required-features = ["rdf"]
 
 # BEAR-B, read from $RAPHTORY_RDF_DATA/bear-b (`make bear-b-fetch`).

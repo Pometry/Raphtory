@@ -781,11 +781,14 @@ impl Mut {
 }
 
 #[derive(App)]
-pub struct App(
+pub struct App(BaseApp, #[cfg(feature = "rdf")] RdfGraphQuery<'static>);
+
+/// `App` without `rdfGraph`
+#[derive(App)]
+struct BaseApp(
     QueryRoot,
     MutRoot,
     #[cfg(feature = "vectors")] VectorQuery<'static>,
-    #[cfg(feature = "rdf")] RdfGraphQuery<'static>,
     Mut,
     Plugins,
 );
@@ -793,9 +796,14 @@ pub struct App(
 impl App {
     pub fn create_schema_with_plugins(
         plugins: impl IntoIterator<Item: AsRef<dyn RegisterPlugin>>,
+        rdf: bool,
     ) -> SchemaBuilder {
         let mut registry = Registry::new();
-        registry = registry.register::<Self>();
+        registry = if rdf {
+            registry.register::<Self>()
+        } else {
+            registry.register::<BaseApp>()
+        };
         for plugin in plugins {
             registry = plugin.as_ref().register(registry);
         }

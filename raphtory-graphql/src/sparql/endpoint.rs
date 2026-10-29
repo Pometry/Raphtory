@@ -6,12 +6,12 @@ use crate::{
     rayon::blocking_compute,
     sparql::{config::CODE_RESULTS_TOO_LARGE, format::GqlSparqlFormat, SparqlError},
 };
-use async_graphql::{Executor, Value};
+use async_graphql::{value, BatchResponse, Executor, Value, Variables};
 use itertools::Itertools;
 use poem::{
     error::ResponseError,
     http::{
-        header::{HeaderValue, ALLOW, AUTHORIZATION},
+        header::{HeaderValue, ALLOW},
         Method, StatusCode,
     },
     web::{headers::Mime, Accept},
@@ -19,7 +19,6 @@ use poem::{
 };
 use raphtory_api::core::utils::time::ParseTimeError;
 use raphtory_rdf::{QueryForm, QueryOutline, SparqlFormat, SparqlOptions, TimeGraph};
-use serde_json::{json, Value as Json};
 use std::sync::Arc;
 use thiserror::Error;
 use url::form_urlencoded;
@@ -194,7 +193,7 @@ impl<E: Executor> SparqlEndpoint<E> {
             .map(TimeGraph::parse_time)
             .transpose()
             .map_err(EndpointError::InvalidAsof)?;
-        // parsed before the GraphQL endpoint authenticates, to choose the view and the format
+        // runs before authentication, safe given the length cap and `on_query_stack`
         let (parsed, options) = (query.clone(), self.options.clone());
         let outline = blocking_compute(move || QueryOutline::parse(&parsed, &options))
             .await
@@ -211,58 +210,57 @@ impl<E: Executor> SparqlEndpoint<E> {
         // through the identity filter of a null `expr`
         let expr = match asof {
             Some(time) => {
-                json!({ "view": [{ "before": time.saturating_add(1) }, { "kind": "VALID" }] })
+                value!({ "view": [{ "before": time.saturating_add(1) }, { "kind": "VALID" }] })
             }
-            None if outline.reads_time_graphs => Json::Null,
-            None => json!({ "view": [{ "kind": "VALID" }] }),
+            None if outline.reads_time_graphs => Value::Null,
+            None => value!({ "view": [{ "kind": "VALID" }] }),
         };
-        let body = json!({
-            "query": QUERY,
-            "variables": {
-                "path": path,
-                "expr": expr,
-                "query": query,
-                "format": Value::from(&format),
-            },
+        let variables = value!({
+            "path": path,
+            "expr": expr,
+            "query": query,
+            "format": Value::from(&format),
         });
-        let mut graphql = Request::builder()
-            .method(Method::POST)
-            .content_type("application/json");
-        if let Some(authorization) = req.headers().get(AUTHORIZATION) {
-            graphql = graphql.header(AUTHORIZATION, authorization.clone());
-        }
-        let mut response: Json = self
-            .graphql
-            .call(graphql.body(body.to_string()))
-            .await?
-            .into_body()
-            .into_json()
-            .await?;
+        let request =
+            async_graphql::Request::new(QUERY).variables(Variables::from_value(variables));
+        let caller = self.graphql.authenticate(req.headers()).await?;
+        let BatchResponse::Single(response) =
+            self.graphql.execute_as(caller, request.into()).await?
+        else {
+            unreachable!("a single request has a single response")
+        };
 
-        if let Some(errors) = response["errors"]
-            .as_array()
-            .filter(|errors| !errors.is_empty())
-        {
+        if !response.errors.is_empty() {
             // `rdfGraph` is the only root field, so no data means it failed (a missing graph or
             // one that cannot be loaded); an error below it leaves data
-            let status = if response["data"].is_null() {
+            let status = if response.data == Value::Null {
                 StatusCode::NOT_FOUND
-            } else if errors[0]["extensions"]["code"] == CODE_RESULTS_TOO_LARGE {
+            } else if response.errors[0]
+                .extensions
+                .as_ref()
+                .and_then(|extensions| extensions.get("code"))
+                == Some(&Value::from(CODE_RESULTS_TOO_LARGE))
+            {
                 StatusCode::PAYLOAD_TOO_LARGE
             } else {
                 StatusCode::BAD_REQUEST
             };
-            let messages = errors
+            let messages = response
+                .errors
                 .iter()
-                .filter_map(|error| error["message"].as_str())
+                .map(|error| &error.message)
                 .join("\n");
             return Err(EndpointError::GraphQL(status, messages).into());
         }
-        match response
-            .pointer_mut("/data/rdfGraph/filter/sparql")
-            .map(Json::take)
-        {
-            Some(Json::String(results)) => {
+        let results =
+            ["rdfGraph", "filter", "sparql"]
+                .into_iter()
+                .try_fold(response.data, |value, name| match value {
+                    Value::Object(mut fields) => fields.swap_remove(name),
+                    _ => None,
+                });
+        match results {
+            Some(Value::String(results)) => {
                 Ok(Response::builder().content_type(media_type).body(results))
             }
             // `rdfGraph` is null: the caller cannot read the graph

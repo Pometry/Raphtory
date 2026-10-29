@@ -225,6 +225,22 @@ pub struct ConfigArgs {
     )]
     pub(crate) disable_introspection: Option<bool>,
 
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_RDF",
+        help = help_with_default!("Leave the `rdfGraph` field out of the schema. Requires `--disable-sparql-endpoint`.", false)
+    )]
+    pub(crate) disable_rdf: Option<bool>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_SPARQL_ENDPOINT",
+        help = help_with_default!("Do not serve the SPARQL endpoint `/sparql`.", false)
+    )]
+    pub(crate) disable_sparql_endpoint: Option<bool>,
+
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", help = "Public directory path")]
     pub(crate) public_dir: Option<PathBuf>,
 

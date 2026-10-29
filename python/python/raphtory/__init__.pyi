@@ -7722,7 +7722,7 @@ class RdfView(object):
     """
     A view of an RdfGraph: one RDF triple per edge and layer visible in a persistent graph view.
 
-    Every view method returns an RdfView; sparql, to_rdf and validate_shacl see its triples.
+    Every view method returns an RdfView; sparql and to_rdf see its triples.
     """
 
     def after(self, start: TimeInput) -> RdfView:
@@ -8084,31 +8084,6 @@ class RdfView(object):
 
         Returns:
              RdfView: The layered view
-        """
-
-    def validate_shacl(
-        self,
-        shapes: bytes | str | PathLike,
-        format: Optional[str] = None,
-        base_iri: Optional[str] = None,
-        report_format: Optional[str] = None,
-    ) -> Union[dict[str, Any], str]:
-        """
-        Validates the triples of this view (those to_rdf() writes) against a SHACL shapes graph.
-
-        Arguments:
-            shapes (bytes | str | PathLike): The shapes graph: the document as bytes, or the path of a file to read.
-            format (str, optional): The RDF format of the shapes; by default the one a path's extension names, or Turtle for bytes. Defaults to None.
-            base_iri (str, optional): The IRI against which relative IRIs of the shapes are resolved. Defaults to None.
-            report_format (str, optional): If given, the report is returned as an sh:ValidationReport document in this RDF format. Defaults to None.
-
-        Returns:
-            Union[dict[str, Any], str]: The report as a dict of conforms and results (dicts of focus_node, path, value, source_shape, constraint_component, severity and messages, terms as Raphtory names), or as a document if report_format is given.
-
-        Raises:
-            GraphError: If the shapes are not a valid shapes graph or the validation fails.
-            ValueError: If the shapes do not parse or a format is unknown.
-            TypeError: If shapes is neither bytes nor a path.
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> RdfView:

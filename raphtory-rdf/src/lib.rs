@@ -1,4 +1,4 @@
-//! RDF import and export, SPARQL 1.1 queries and SHACL validation for Raphtory graphs.
+//! RDF import and export and SPARQL 1.1 queries for Raphtory graphs.
 //! A triple `s p o` is an edge `name(s) -> name(o)` in layer `p` ([`term_of`], [`RdfGraph`]).
 //!
 //! ```
@@ -41,7 +41,6 @@ pub mod python;
 mod query;
 mod results;
 mod scan;
-pub mod shacl;
 mod time_graph;
 
 #[cfg(test)]
@@ -55,7 +54,7 @@ pub use oxigraph::{
     model::{Literal, NamedNode, Term, TermRef, Triple, TripleRef},
     sparql::Variable,
 };
-pub use query::{QueryForm, QueryOutline, SparqlOptions, SparqlResults, MAX_SPARQL_NESTING};
+pub use query::{QueryForm, QueryOutline, SparqlOptions, SparqlResults};
 pub use results::SparqlFormat;
 pub use time_graph::{TimeGraph, ASOF_NS};
 

@@ -11491,43 +11491,6 @@ The format of the results: JSON (the default), XML, CSV or TSV for SELECT and AS
 
 </td>
 </tr>
-<tr>
-<td colspan="2" valign="top"><strong id="rdfgraph.validateshacl">validateShacl</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Validates the triples of this view against SHACL shapes and returns the report.
-Recursive shapes are rejected; null if the validation fails unexpectedly.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">shapes</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-The shapes graph, as an RDF document.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">format</td>
-<td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
-<td>
-
-The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">reportFormat</td>
-<td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
-<td>
-
-The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
-
-</td>
-</tr>
 </tbody>
 </table>
 
@@ -15860,7 +15823,7 @@ Earliest time
 ### SparqlFormat
 
 A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
-CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
+CONSTRUCT and DESCRIBE.
 
 <table>
 <thead>

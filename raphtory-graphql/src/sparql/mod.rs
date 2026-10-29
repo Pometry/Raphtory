@@ -11,6 +11,7 @@ use crate::{
 };
 use raphtory_rdf::{RdfError, SparqlOptions};
 use thiserror::Error;
+use tracing::error;
 
 #[derive(Debug, Error)]
 pub(crate) enum SparqlError {
@@ -45,8 +46,11 @@ pub(crate) async fn run_limited<T: Send + 'static>(
     let options = sparql_options(&config.cloned().unwrap_or_default());
     match blocking_compute(move || f(&options)).await {
         Ok(value) => Ok(Some(value)),
-        // its message can name data the caller may not read
-        Err(RdfError::Panicked(_)) => Ok(None),
+        // logged, not returned: the message can name data the caller may not read
+        Err(RdfError::Panicked(message)) => {
+            error!(error = %message, "SPARQL query panicked");
+            Ok(None)
+        }
         Err(error) => Err(SparqlError::from(error).into_gql_error()),
     }
 }
