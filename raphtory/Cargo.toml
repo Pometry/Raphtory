@@ -152,3 +152,7 @@ required-features = ["io"]
 [[example]]
 name = "snb_loader"
 required-features = ["io"]
+
+[[example]]
+name = "graph_algos"
+required-features = ["io"]
