@@ -67,6 +67,8 @@ pub struct GraphWithVectorsInner {
 }
 
 /// Tells the authorization policy that a graph's contents changed. Empty when there is no policy.
+/// Weak for the same reason as `DataInner::auth_policy`: the graph is cached in a `DataInner` the
+/// policy holds.
 #[derive(Clone, Default)]
 pub struct MutationListener(Option<Weak<dyn AuthorizationPolicy>>);
 

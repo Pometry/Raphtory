@@ -203,8 +203,9 @@ pub struct DataInner {
     pub(crate) graph_args: Args,
     pub(crate) read_only: ReadOnlyGraphs,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
-    /// Shared by every `Data` over these graphs, as probes load graphs through one without a
-    /// policy. Weak because the policy can hold such a `Data`.
+    /// Needed so that graphs loaded through the policy's probe `Data` (which has no
+    /// `auth_policy`) still notify it. Weak, not Arc: the auth policy holds this probe `Data` (and
+    /// `DataInner`). An Arc back would be a cycle, so `DataInner` would never drop or flush its graphs.
     auth_policy: std::sync::RwLock<Option<Weak<dyn AuthorizationPolicy>>>,
 }
 
@@ -306,6 +307,8 @@ impl WorkDirGuard {
 #[derive(Clone)]
 pub struct Data {
     pub inner: Arc<DataInner>,
+    /// Enforced on requests through this `Data`, so `None` on the policy's unrestricted probe
+    /// `Data`. Also what keeps the policy alive (in the server), as `DataInner` only holds it weakly.
     pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
