@@ -30,7 +30,7 @@ pub const ROOT_RAPH_PATH: &str = "raph.json";
 /// Outer most directory containing all data.
 pub const DATA_PATH: &str = "data";
 pub const DEFAULT_DATA_PATH: &str = "data0";
-/// Metadata file that stores path to the graph folder and graph metadata.
+/// Metadata file that stores path to the graph folder.
 pub const GRAPH_META_PATH: &str = "meta.json";
 /// Directory that stores graph data.
 pub const GRAPH_PATH: &str = "graph";
@@ -39,6 +39,41 @@ pub const DEFAULT_GRAPH_PATH: &str = "graph0";
 pub const VECTORS_PATH: &str = "vectors";
 /// Temporary metadata file for atomic replacement.
 pub const DIRTY_PATH: &str = "dirty.json";
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Raph {
+    /// Path to a `data{id}` folder.
+    pub path: String,
+}
+
+impl Raph {
+    pub fn from_data_path(path: impl Into<String>) -> Self {
+        Self { path: path.into() }
+    }
+
+    pub fn from_version(version: u32) -> Self {
+        Self {
+            path: format!("{DATA_PATH}{version}"),
+        }
+    }
+
+    /// Atomically write this raph file into `raph_path`.
+    pub fn write(&self, raph_path: &Path) -> std::io::Result<()> {
+        let parent_path = raph_path.parent().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "raph_path has no parent directory",
+            )
+        })?;
+
+        let mut tmp_file = NamedTempFile::new_in(parent_path)?;
+        serde_json::to_writer(&mut tmp_file, self).map_err(std::io::Error::other)?;
+        tmp_file.as_file().sync_all()?;
+        tmp_file.persist(raph_path).map_err(io::Error::from)?;
+
+        Ok(())
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Metadata {
@@ -297,20 +332,6 @@ pub trait GraphPaths {
         Ok(path)
     }
 
-    fn is_zip(&self) -> bool {
-        self.root().is_file()
-    }
-
-    fn read_zip(&self) -> Result<ZipArchive<File>, GraphFolderError> {
-        if self.is_zip() {
-            let file = File::open(self.root())?;
-            let archive = ZipArchive::new(file)?;
-            Ok(archive)
-        } else {
-            Err(GraphFolderError::NotAZip)
-        }
-    }
-
     fn relative_data_path(&self) -> Result<String, GraphFolderError> {
         let path = if self.is_zip() {
             let mut zip = self.read_zip()?;
@@ -329,6 +350,20 @@ pub trait GraphPaths {
         } else {
             let data_path = self.data_path()?;
             read_or_default_path_pointer(data_path.as_ref(), GRAPH_META_PATH, GRAPH_PATH)
+        }
+    }
+
+    fn is_zip(&self) -> bool {
+        self.root().is_file()
+    }
+
+    fn read_zip(&self) -> Result<ZipArchive<File>, GraphFolderError> {
+        if self.is_zip() {
+            let file = File::open(self.root())?;
+            let archive = ZipArchive::new(file)?;
+            Ok(archive)
+        } else {
+            Err(GraphFolderError::NotAZip)
         }
     }
 
@@ -360,7 +395,7 @@ pub trait GraphPaths {
         self.graph_meta_path().is_ok_and(|path| path.is_file())
     }
 
-    /// Initialise the data folder and metadata pointer.
+    /// Initialise data directories and metadata files in this path.
     fn init(&self) -> Result<(), GraphFolderError> {
         if self.root().is_dir() {
             let non_empty = self.root().read_dir()?.next().is_some();
@@ -371,13 +406,11 @@ pub trait GraphPaths {
             fs::create_dir_all(self.root())?
         }
 
-        // Create the data folder and have the root metadata file point to it.
+        // Create the data folder and have the root raph file point to it.
+        let raph_path = self.root_raph_path();
         let data_path = self.relative_data_path()?;
         fs::create_dir(self.root().join(&data_path))?;
-        fs::write(
-            self.root_raph_path(),
-            serde_json::to_string(&RelativePath { path: data_path })?,
-        )?;
+        Raph::from_data_path(data_path).write(&raph_path)?;
 
         // Create the graph folder inside the data folder.
         let graph_path = self.graph_path()?;
@@ -459,19 +492,7 @@ pub trait GraphPaths {
             return Err(GraphFolderError::VersionNotFound(version));
         }
 
-        let raph_path = self.root().join(ROOT_RAPH_PATH);
-        let mut tmp_file = NamedTempFile::new_in(self.root())?;
-
-        // Point to the new version in the temporary raph file.
-        serde_json::to_writer(
-            &mut tmp_file,
-            &RelativePath {
-                path: format!("{DATA_PATH}{version}"),
-            },
-        )?;
-
-        tmp_file.as_file().sync_all()?;
-        tmp_file.persist(raph_path).map_err(io::Error::from)?;
+        Raph::from_version(version).write(&self.root().join(ROOT_RAPH_PATH))?;
 
         Ok(())
     }
@@ -534,19 +555,11 @@ impl GraphFolder {
 
         self.ensure_clean_root_dir()?;
 
-        let relative_data_path = self.relative_data_path()?;
-        let dirty = serde_json::to_string(&RelativePath {
-            path: relative_data_path.clone(),
-        })?;
-
-        // Create a `dirty` file to indicate that a graph is being written.
+        // Create a new data folder and point the dirty file to it.
         let dirty_path = self.root.join(DIRTY_PATH);
-        let mut dirty_file = File::create_new(&dirty_path)?;
-
-        dirty_file.write_all(dirty.as_bytes())?;
-        dirty_file.sync_all()?;
-
-        fs::create_dir_all(self.root.join(relative_data_path))?;
+        let data_path = self.relative_data_path()?;
+        fs::create_dir_all(self.root.join(&data_path))?;
+        Raph::from_data_path(data_path).write(&dirty_path)?;
 
         Ok(WriteableGraphFolder { path: self.root })
     }
@@ -586,16 +599,12 @@ impl GraphFolder {
                 // Prepare a new data folder with an incremented id for the swap.
                 let new_relative_data_path =
                     make_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
-                let new_data_path = self.root.join(&new_relative_data_path);
-                let meta = serde_json::to_string(&RelativePath {
-                    path: new_relative_data_path,
-                })?;
 
-                let mut dirty_file = File::create_new(self.root.join(DIRTY_PATH))?;
-                dirty_file.write_all(meta.as_bytes())?;
-                dirty_file.sync_all()?;
+                // Point the dirty file to the new data folder.
+                Raph::from_data_path(new_relative_data_path.clone())
+                    .write(&self.root.join(DIRTY_PATH))?;
 
-                new_data_path
+                self.root.join(new_relative_data_path)
             }
         };
 
