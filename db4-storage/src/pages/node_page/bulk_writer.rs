@@ -23,7 +23,8 @@ pub struct BulkNodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: No
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
     From<NodeWriter<'a, MP, NS>> for BulkNodeWriter<'a, MP, NS>
 {
-    fn from(value: NodeWriter<'a, MP, NS>) -> Self {
+    fn from(mut value: NodeWriter<'a, MP, NS>) -> Self {
+        value.writer.set_bulk_additions(true);
         Self {
             nw: value,
             layers: Vec::new(),
@@ -138,6 +139,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment>, ES: NodeSegmentOps> Drop
     for BulkNodeWriter<'a, MP, ES>
 {
     fn drop(&mut self) {
+        self.nw.writer.set_bulk_additions(false);
         for (layer_id, count) in self.layers.iter().enumerate() {
             self.nw.graph_stats.increment_by(LayerId(layer_id), *count);
         }

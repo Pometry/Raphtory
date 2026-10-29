@@ -23,6 +23,10 @@ pub struct LockedNodeSegment<'a, NS> {
     layer_counter: &'a GraphStats,
     segment: &'a NS,
     head: RwLockWriteGuard<'a, MemNodeSegment>,
+    /// a bulk writer was used, so addition cells may be unsorted (see `finish_bulk_load`)
+    bulk_used: bool,
+    /// `NodeSegmentOps::wait_for_flush`, captured here so `Drop` needs no trait bound
+    wait_for_flush: fn(&NS),
 }
 
 impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
@@ -39,9 +43,13 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
             max_page_len,
             segment,
             head,
+            bulk_used: false,
+            wait_for_flush: NS::wait_for_flush,
         }
     }
 
+    /// Restores sorted addition cells after bulk writes: waits for any flush that may still
+    /// hold an unsorted frozen head, then sorts the head. Runs on drop if not called.
     pub fn segment(&self) -> &NS {
         self.segment
     }
@@ -53,6 +61,7 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkNodeWriter<'_, &mut MemNodeSegment, NS> {
+        self.bulk_used = true;
         NodeWriter::new(self.segment, self.layer_counter, self.head.deref_mut()).into()
     }
 
@@ -90,6 +99,23 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
         self.head
             .get_metadata(pos, layer_id, prop_id)
             .or_else(|| self.segment.get_metadata_immut(pos, layer_id, prop_id))
+    }
+}
+
+impl<NS> LockedNodeSegment<'_, NS> {
+    /// Restores sorted addition cells after bulk writes: waits for any flush that may still
+    /// hold an unsorted frozen head, then sorts the head. Runs on drop if not called.
+    pub fn finish_bulk_load(&mut self) {
+        if std::mem::take(&mut self.bulk_used) {
+            (self.wait_for_flush)(self.segment);
+            self.head.sort_additions();
+        }
+    }
+}
+
+impl<NS> Drop for LockedNodeSegment<'_, NS> {
+    fn drop(&mut self) {
+        self.finish_bulk_load();
     }
 }
 
@@ -173,6 +199,13 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.segments
             .par_iter_mut()
             .try_for_each(|locked_segment| locked_segment.flush())
+    }
+
+    /// [`LockedNodeSegment::finish_bulk_load`] on every segment, in parallel.
+    pub fn finish_bulk_load(&mut self) {
+        self.segments
+            .par_iter_mut()
+            .for_each(|locked_segment| locked_segment.finish_bulk_load());
     }
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {

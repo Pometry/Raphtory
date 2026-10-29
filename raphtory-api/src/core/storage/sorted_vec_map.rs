@@ -96,6 +96,30 @@ impl<K: Ord, V> SVM<K, V> {
         }
     }
 
+    /// Appends without keeping the map sorted (bulk loading); call [`Self::sort_dedup`] before
+    /// any lookup or ordered iteration.
+    #[inline]
+    pub fn push_unsorted(&mut self, k: K, v: V) {
+        self.0.push((k, v));
+    }
+
+    /// Restores the map after [`Self::push_unsorted`]: sorts by key (stably) and keeps the last
+    /// value pushed for a repeated key, as [`Self::insert`] would have.
+    pub fn sort_dedup(&mut self) {
+        if self.0.is_sorted_by(|a, b| a.0 < b.0) {
+            return;
+        }
+        self.0.sort_by(|a, b| a.0.cmp(&b.0));
+        // `dedup_by` keeps the first of a run; move the later value into it first
+        self.0.dedup_by(|later, kept| {
+            let same = later.0 == kept.0;
+            if same {
+                mem::swap(&mut later.1, &mut kept.1);
+            }
+            same
+        });
+    }
+
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&K, &V)> {
         self.0.iter().map(|(k, v)| (k, v))
     }
@@ -148,5 +172,24 @@ where
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SVM;
+
+    #[test]
+    fn sort_dedup_matches_insert() {
+        let ops = [(5, 'a'), (1, 'b'), (5, 'c'), (3, 'd'), (1, 'e'), (9, 'f'), (5, 'g')];
+        let mut inserted = SVM::new();
+        let mut pushed = SVM::new();
+        for (k, v) in ops {
+            inserted.insert(k, v);
+            pushed.push_unsorted(k, v);
+        }
+        pushed.sort_dedup();
+        assert_eq!(pushed.iter().collect::<Vec<_>>(), inserted.iter().collect::<Vec<_>>());
+        assert_eq!(pushed.get(&5), Some(&'g'));
     }
 }

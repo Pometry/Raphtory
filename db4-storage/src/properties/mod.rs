@@ -43,6 +43,8 @@ pub struct Properties {
     pub deletions_count: usize,
     /// Distinct `(timestamp, event_id)` temporal updates; see `t_additions_count()`.
     t_additions_count: usize,
+    /// some `additions` cells were appended to without sorting (bulk load)
+    unsorted_additions: bool,
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -129,6 +131,20 @@ impl Properties {
 
     pub fn has_deletions(&self) -> bool {
         self.has_deletions
+    }
+
+    /// Whether some `additions` cells still need [`Self::sort_additions`].
+    pub fn has_unsorted_additions(&self) -> bool {
+        self.unsorted_additions
+    }
+
+    /// Sorts the `additions` cells appended to by a bulk load.
+    pub fn sort_additions(&mut self) {
+        if std::mem::take(&mut self.unsorted_additions) {
+            for cell in &mut self.additions {
+                cell.sort_dedup();
+            }
+        }
     }
 
     pub(crate) fn column_as_array(
@@ -367,6 +383,22 @@ impl<'a> PropMutEntry<'a> {
         self.properties.has_additions = true;
         let prop_timestamps = &mut self.properties.additions[self.row];
         prop_timestamps.set(t, edge_id);
+
+        self.properties.update_earliest_latest(t);
+    }
+
+    /// As [`Self::addition_timestamp`], but appends without keeping the cell sorted; the cell
+    /// is sorted once, by [`Properties::sort_additions`] or when it is written to disk.
+    pub(crate) fn addition_timestamp_unsorted(&mut self, t: EventTime, edge_id: ELID) {
+        if self.properties.additions.len() <= self.row {
+            self.properties
+                .additions
+                .resize_with(self.row + 1, Default::default);
+        }
+
+        self.properties.has_additions = true;
+        self.properties.unsorted_additions = true;
+        self.properties.additions[self.row].push_unsorted(t, edge_id);
 
         self.properties.update_earliest_latest(t);
     }

@@ -270,6 +270,9 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn vacuum(&self, head: impl DerefMut<Target = MemNodeSegment>) -> Result<(), StorageError>;
 
+    /// Blocks until a flush in progress for this segment has finished.
+    fn wait_for_flush(&self) {}
+
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
 

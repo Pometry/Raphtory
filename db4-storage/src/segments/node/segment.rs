@@ -43,6 +43,8 @@ pub struct MemNodeSegment {
     global_mem_tracker: Arc<AtomicUsize>,
     est_size: usize,
     lsn: LSN,
+    /// set while a bulk writer is active: edge additions are appended unsorted
+    bulk_additions: bool,
 }
 
 impl Drop for MemNodeSegment {
@@ -168,6 +170,19 @@ impl MemNodeSegment {
             layers,
             est_size,
             lsn: self.lsn,
+            bulk_additions: false,
+        }
+    }
+
+    /// While set, edge additions are appended without keeping each node's cell sorted.
+    pub fn set_bulk_additions(&mut self, bulk: bool) {
+        self.bulk_additions = bulk;
+    }
+
+    /// Sorts the addition cells appended to while in bulk mode.
+    pub fn sort_additions(&mut self) {
+        for layer in &mut self.layers {
+            layer.properties_mut().sort_additions();
         }
     }
 
@@ -234,6 +249,7 @@ impl MemNodeSegment {
             global_mem_tracker,
             est_size: 0,
             lsn: 0,
+            bulk_additions: false,
         }
     }
 
@@ -309,7 +325,11 @@ impl MemNodeSegment {
             .get_mut_entry(row);
         let ts = EventTime::new(t.t(), t.i());
 
-        prop_mut_entry.addition_timestamp(ts, e_id);
+        if self.bulk_additions {
+            prop_mut_entry.addition_timestamp_unsorted(ts, e_id);
+        } else {
+            prop_mut_entry.addition_timestamp(ts, e_id);
+        }
     }
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) -> usize {
