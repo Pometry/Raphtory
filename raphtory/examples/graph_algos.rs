@@ -168,12 +168,43 @@ fn run_all() {
 fn run_workloads<G: StaticGraphViewOps>(view: &str, graph: &G, workloads: &[String]) {
     for workload in workloads {
         for pass in ["cold", "warm"] {
-            let now = Instant::now();
+            let (now, cpu) = (Instant::now(), cpu_seconds());
             let result = run(graph, workload);
             println!(
-                "ALGO {view} {workload} {pass} {:.2}s ({result})",
-                now.elapsed().as_secs_f64()
+                "ALGO {view} {workload} {pass} {:.2}s cpu {:.2}s ({result})",
+                now.elapsed().as_secs_f64(),
+                cpu_seconds() - cpu
             );
         }
     }
+}
+
+/// User + system CPU time of the whole process: steadier than wall time when a few slow
+/// tasks leave the other threads idle.
+fn cpu_seconds() -> f64 {
+    // the leading fields of `struct rusage`; the kernel writes the whole struct
+    #[repr(C)]
+    struct Timeval {
+        sec: i64,
+        usec: i64,
+    }
+    #[repr(C)]
+    struct Rusage {
+        utime: Timeval,
+        stime: Timeval,
+        rest: [i64; 14],
+    }
+    extern "C" {
+        fn getrusage(who: i32, usage: *mut Rusage) -> i32;
+    }
+    const RUSAGE_SELF: i32 = 0;
+    let mut usage = std::mem::MaybeUninit::<Rusage>::zeroed();
+    // SAFETY: `usage` is large enough for the C struct, and zeroed so padding reads as 0
+    let usage = unsafe {
+        assert_eq!(getrusage(RUSAGE_SELF, usage.as_mut_ptr()), 0);
+        usage.assume_init()
+    };
+    // macOS's `tv_usec` is 32 bits followed by padding; the zeroed padding keeps this right
+    let secs = |t: &Timeval| t.sec as f64 + (t.usec as u32) as f64 * 1e-6;
+    secs(&usage.utime) + secs(&usage.stime)
 }
