@@ -2,7 +2,13 @@
 //! scans, and a few algorithms. Each workload runs twice: the first run pages the data in
 //! (cold, unless the OS cache already holds it), the second runs on a warm cache.
 //!
-//! Usage: graph_algos <graph_dir> [workload ...]
+//! The workloads run on the whole graph, then on windows holding the last 1/5, 1/3 and 1/2 of
+//! its dated edge events: by count, not by time range, and ignoring the events at the
+//! earliest time (most of SNB's events are static relations at time 0, which would otherwise
+//! put the whole graph in the 1/3 and 1/2 windows). Windowed views also read event times to
+//! decide what is in the window.
+//!
+//! Usage: graph_algos <graph_dir> [--no-windows] [workload ...]
 //! With no workloads it runs all of `DEFAULT_WORKLOADS`; `triangle_count` only runs when named
 //! (about 110s on SNB-10).
 use raphtory::{
@@ -12,6 +18,8 @@ use raphtory::{
         cores::k_core::k_core_set,
         motifs::triangle_count::triangle_count,
     },
+    core::storage::timeindex::AsTime,
+    db::api::view::StaticGraphViewOps,
     prelude::*,
 };
 use rayon::prelude::*;
@@ -38,7 +46,7 @@ const WORKLOADS: [&str; 8] = [
     "triangle_count",
 ];
 
-fn run(graph: &Graph, workload: &str) -> String {
+fn run<G: StaticGraphViewOps>(graph: &G, workload: &str) -> String {
     match workload {
         // adjacency lists of every node
         "degree" => {
@@ -76,7 +84,8 @@ fn run(graph: &Graph, workload: &str) -> String {
             format!("labelled {} nodes", black_box(components).len())
         }
         "k_core" => {
-            let core = k_core_set(graph, 3, usize::MAX, None);
+            // capped like page_rank: on ETH, peeling to convergence takes hours
+            let core = k_core_set(graph, 3, 20, None);
             format!("3-core has {} nodes", core.len())
         }
         "triangle_count" => format!("{} triangles", triangle_count(graph, None)),
@@ -99,8 +108,10 @@ fn run_all() {
     let graph_path = args
         .next()
         .map(PathBuf::from)
-        .unwrap_or_else(|| panic!("Usage: graph_algos <graph_dir> [workload ...]"));
+        .unwrap_or_else(|| panic!("Usage: graph_algos <graph_dir> [--no-windows] [workload ...]"));
     let mut workloads: Vec<String> = args.collect();
+    let windows = !workloads.iter().any(|w| w == "--no-windows");
+    workloads.retain(|w| w != "--no-windows");
     if workloads.is_empty() {
         workloads = DEFAULT_WORKLOADS.iter().map(|w| w.to_string()).collect();
     }
@@ -114,12 +125,53 @@ fn run_all() {
         graph.count_edges()
     );
 
-    for workload in &workloads {
+    run_workloads("full", &graph, &workloads);
+    if !windows {
+        return;
+    }
+
+    let now = Instant::now();
+    let earliest = graph.earliest_time().unwrap().t();
+    let mut times: Vec<i64> = graph
+        .nodes()
+        .par_iter()
+        .flat_map_iter(|n| {
+            n.out_edges()
+                .explode()
+                .into_iter()
+                .filter_map(|e| e.time().ok().map(|t| t.t()))
+                .filter(|&t| t > earliest)
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    let latest = graph.latest_time().unwrap().t();
+    println!(
+        "ALGO collected {} edge event times after {earliest} for the windows in {:.2}s",
+        times.len(),
+        now.elapsed().as_secs_f64()
+    );
+    for (name, fraction) in [("last_1/5", 5), ("last_1/3", 3), ("last_1/2", 2)] {
+        let rank = times.len() - times.len() / fraction;
+        let (_, start, _) = times.select_nth_unstable(rank);
+        let start = *start;
+        let window = graph.window(start, latest + 1);
+        println!(
+            "ALGO {name} window [{start}, {}] ({} nodes, {} edges)",
+            latest + 1,
+            window.count_nodes(),
+            window.count_edges()
+        );
+        run_workloads(name, &window, &workloads);
+    }
+}
+
+fn run_workloads<G: StaticGraphViewOps>(view: &str, graph: &G, workloads: &[String]) {
+    for workload in workloads {
         for pass in ["cold", "warm"] {
             let now = Instant::now();
-            let result = run(&graph, workload);
+            let result = run(graph, workload);
             println!(
-                "ALGO {workload} {pass} {:.2}s ({result})",
+                "ALGO {view} {workload} {pass} {:.2}s ({result})",
                 now.elapsed().as_secs_f64()
             );
         }
