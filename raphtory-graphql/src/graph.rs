@@ -26,12 +26,11 @@ use raphtory_storage::{
     mutation::InheritMutationOps,
 };
 use std::{
-    future::poll_fn,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    task::Poll,
+    time::Duration,
 };
 use tracing::debug;
 
@@ -40,6 +39,8 @@ use {
     raphtory_vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
     tracing::error,
 };
+
+const INTO_INNER_RETRY_INTERVAL: Duration = Duration::from_millis(5);
 
 /// The element stored in the optional vectors slot of a graph. With the
 /// `vectors` feature this is a real `VectorisedGraph`; without it the slot is
@@ -79,26 +80,20 @@ impl GraphWithVectors {
         Self { inner }
     }
 
-    /// Calls `Arc::into_inner` on the underlying Arc until we hold the only reference and returns it
+    /// Waits until we hold the only reference to the underlying Arc and returns its contents.
+    /// Other holders (in-flight requests, background eviction flushes) don't notify us when they
+    /// drop, so poll for it.
     pub async fn into_inner(self) -> GraphWithVectorsInner {
-        let mut inner = Some(self.inner);
-        let future = poll_fn(move |_ctx| {
-            match inner.take() {
-                None => {
-                    unreachable!("poll called after ready returned")
-                }
-                Some(inner_arc) => {
-                    match Arc::try_unwrap(inner_arc) {
-                        Ok(inner) => Poll::Ready(inner),
-                        Err(inner_arc) => {
-                            inner = Some(inner_arc); // put back
-                            Poll::Pending
-                        }
-                    }
+        let mut inner = self.inner;
+        loop {
+            match Arc::try_unwrap(inner) {
+                Ok(inner) => return inner,
+                Err(shared) => {
+                    inner = shared;
+                    tokio::time::sleep(INTO_INNER_RETRY_INTERVAL).await;
                 }
             }
-        });
-        future.await
+        }
     }
 
     /// Swap in a read-only handle for the graph. No-op with a warning if the inner
@@ -145,6 +140,14 @@ impl GraphWithVectors {
         self.inner.is_flushing.store(is_flushing, Ordering::Release)
     }
 
+    /// Marks the graph as flushing, returning false if a flush was already in progress.
+    pub fn try_start_flush(&self) -> bool {
+        self.inner
+            .is_flushing
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+    }
+
     pub fn ref_count(&self) -> usize {
         Arc::strong_count(&self.inner)
     }
@@ -155,22 +158,28 @@ impl GraphWithVectors {
     /// flush re-marks the graph dirty. Both steps are attempted independently
     /// and the first error is returned; callers decide whether a failure
     /// should re-mark the graph dirty for a later retry.
+    ///
+    /// The flushing flag is always cleared on return, including when an eviction scan
+    /// claimed it through `try_start_flush` before handing the graph over.
     pub fn persist(&self) -> Result<(), GraphError> {
+        self.set_flushing(true);
+        let result = self.write_to_storage();
+        self.set_flushing(false);
+        result
+    }
+
+    fn write_to_storage(&self) -> Result<(), GraphError> {
         let graph = self.graph();
-        let is_immutable = graph.core_graph().is_immutable();
-        if !is_immutable {
-            self.set_flushing(true);
-            self.set_dirty(false);
-            let flushed = graph.flush();
-            let written = self
-                .folder()
-                .replace_graph_data(self.graph().clone())
-                .map_err(|e| GraphError::ExternalError(Arc::new(e)));
-            self.set_flushing(false);
-            flushed.and(written)
-        } else {
-            Ok(())
+        if graph.core_graph().is_immutable() {
+            return Ok(());
         }
+        self.set_dirty(false);
+        let flushed = graph.flush();
+        let written = self
+            .folder()
+            .replace_graph_data(graph.clone())
+            .map_err(|e| GraphError::ExternalError(Arc::new(e)));
+        flushed.and(written)
     }
 
     /// Generates and stores embeddings for a batch of nodes.
@@ -288,5 +297,37 @@ impl UpdateEmbeddings for EdgeView<GraphWithVectors> {
         self.graph
             .update_edge_embeddings(vec![(self.src().node, self.dst().node)])
             .await
+    }
+}
+
+#[cfg(test)]
+mod graph_with_vectors_tests {
+    use super::GraphWithVectors;
+    use crate::{data::Data, paths::ExistingGraphFolder};
+    use raphtory::prelude::{Graph, StableEncode};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn into_inner_waits_for_other_references_to_drop() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        Graph::new().encode(tmp_work_dir.path().join("g")).unwrap();
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
+        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, "g").unwrap();
+        let graph = GraphWithVectors::new(Graph::new().into(), None, folder);
+
+        let clone = graph.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            drop(clone);
+        });
+
+        let unwrapped = tokio::spawn(graph.into_inner());
+        assert!(
+            matches!(
+                tokio::time::timeout(Duration::from_secs(2), unwrapped).await,
+                Ok(Ok(_))
+            ),
+            "into_inner never woke up after the other reference was dropped"
+        );
     }
 }

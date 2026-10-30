@@ -3714,4 +3714,39 @@ mod graphql_test {
         let res = run_mutation(&setup.schema, query).await;
         assert_eq!(res.errors, vec![], "{:?}", res.errors);
     }
+
+    /// With a full cache, eviction scans hand dirty graphs to a background
+    /// flush that briefly holds an extra reference. `moveGraph`'s delete has
+    /// to wait for that reference to go away rather than hang forever.
+    #[tokio::test]
+    async fn test_move_graph_with_full_cache_does_not_hang() {
+        use crate::config::app_config::AppConfigBuilder;
+        use std::time::Duration;
+
+        let tmp_dir = TempDir::new().unwrap();
+        let configs = AppConfigBuilder::new().with_cache_capacity(2).build();
+        let data = Data::new(tmp_dir.path(), &configs, Args::default());
+        let schema = App::create_schema().data(data.clone()).finish().unwrap();
+
+        for i in 0..5 {
+            for query in [
+                format!(r#"mutation {{ newGraph(path: "tmp_{i}", graphType: EVENT) }}"#),
+                format!(
+                    r#"query {{ updateGraph(path: "tmp_{i}") {{ addMetadata(properties: [{{ key: "k", value: {{ str: "v" }} }}]) }} }}"#
+                ),
+                format!(r#"mutation {{ moveGraph(path: "tmp_{i}", newPath: "final_{i}") }}"#),
+                format!(
+                    r#"query {{ updateGraph(path: "final_{i}") {{ addMetadata(properties: [{{ key: "k2", value: {{ str: "v" }} }}]) }} }}"#
+                ),
+            ] {
+                let schema = schema.clone();
+                let request = tokio::spawn(async move { run_mutation(&schema, &query).await });
+                let res = tokio::time::timeout(Duration::from_secs(10), request)
+                    .await
+                    .unwrap_or_else(|_| panic!("request for graph {i} hung"))
+                    .unwrap();
+                assert_eq!(res.errors, vec![], "graph {i}: {:?}", res.errors);
+            }
+        }
+    }
 }
