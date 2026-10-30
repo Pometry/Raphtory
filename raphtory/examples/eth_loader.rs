@@ -11,7 +11,11 @@ use tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 /// Load ETH data from Parquet files into a Raphtory Graph.
-fn load_eth_graph(parquet_path: &Path, graph: &Graph) -> Result<(), GraphError> {
+fn load_eth_graph(
+    parquet_path: &Path,
+    graph: &Graph,
+    start: std::time::Instant,
+) -> Result<(), GraphError> {
     // ── Static Nodes ──────────────────────────────────────────────────────
 
     // ┌────────────────────────────────────────────────────────────────────────────────┐
@@ -50,8 +54,16 @@ fn load_eth_graph(parquet_path: &Path, graph: &Graph) -> Result<(), GraphError> 
         batch_size,
         None,
     )?;
+    let loaded = start.elapsed();
     graph.flush()?;
+    let flushed = start.elapsed();
     println!("  ✓ ETH edges");
+    println!(
+        "LOAD_TIMES load {:.2}s flush {:.2}s total {:.2}s",
+        loaded.as_secs_f64(),
+        (flushed - loaded).as_secs_f64(),
+        flushed.as_secs_f64()
+    );
 
     println!(
         "\n✅ Graph loaded: {} nodes, {} edges",
@@ -80,8 +92,12 @@ fn main() {
         );
         println!("Time taken: {:?}", now.elapsed());
     } else {
+        let start = std::time::Instant::now();
         let graph = Graph::new_at_path(&graph_path).unwrap();
-        load_eth_graph(&parquet_path, &graph).unwrap()
+        load_eth_graph(&parquet_path, &graph, start).unwrap();
+        // the graph is flushed to disk; exit without dropping it so the process's wall time
+        // doesn't include freeing memory
+        std::process::exit(0);
     }
 }
 
