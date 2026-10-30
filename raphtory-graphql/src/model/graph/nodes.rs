@@ -64,12 +64,14 @@ impl GqlNodes {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Return a view of the nodes containing only the default edge layer.
+    /// Returns a view of the nodes restricted to the default edge layer.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn default_layer(&self) -> Self {
         self.update(self.nn.default_layer())
     }
 
-    /// Return a view of the nodes containing all layers specified.
+    /// Returns a view of the nodes restricted to the listed layers.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -77,7 +79,8 @@ impl GqlNodes {
         self.update(self.nn.valid_layers(names))
     }
 
-    /// Return a view of the nodes containing all layers except those specified.
+    /// Returns a view of the nodes restricted to all layers except the excluded ones.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -86,12 +89,14 @@ impl GqlNodes {
         blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names))).await
     }
 
-    /// Return a view of the nodes containing the specified layer.
+    /// Returns a view of the nodes restricted to the specified layer.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
-    /// Return a view of the nodes containing all layers except those specified.
+    /// Returns a view of the nodes restricted to all layers except the excluded one.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -161,6 +166,7 @@ impl GqlNodes {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
+    /// Keeps the same items; only what each one shows changes.
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -170,6 +176,7 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events at a specified time.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -178,12 +185,14 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events at the latest time.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
     }
 
     /// Create a view of the nodes including all events that are valid at the specified time.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -192,12 +201,14 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events that are valid at the latest time.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn snapshot_latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
     }
 
     /// Create a view of the nodes including all events before specified end time (exclusive).
+    /// Keeps the same items; only what each one shows changes.
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -206,6 +217,7 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events after the specified start time (exclusive).
+    /// Keeps the same items; only what each one shows changes.
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -214,6 +226,7 @@ impl GqlNodes {
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
+    /// Keeps the same items; only what each one shows changes.
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -223,6 +236,7 @@ impl GqlNodes {
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
+    /// Keeps the same items; only what each one shows changes.
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -384,6 +398,8 @@ impl GqlNodes {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
+    ///
+    /// Order is unspecified (not insertion order); use `sorted` for a stable order.
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -406,6 +422,8 @@ impl GqlNodes {
 
     /// Materialise every node in the view. Rejected by the server when bulk list
     /// endpoints are disabled; use `page` for paginated access instead.
+    ///
+    /// Order is unspecified (not insertion order); use `sorted` for a stable order.
     pub async fn list(&self, ctx: &Context<'_>) -> Result<Vec<GqlNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -489,7 +507,7 @@ impl GqlNodes {
     //// Traversals /////
     /////////////////////
 
-    /// Returns the neighbouring nodes of each node in the collection.
+    /// Returns the neighbouring nodes of each node in the collection. Order is unspecified (not insertion order).
     pub async fn neighbours(
         &self,
         select: Option<GqlFilter>,
@@ -502,7 +520,7 @@ impl GqlNodes {
         Ok(GqlPathFromGraph::new(base))
     }
 
-    /// Returns the in-neighbours of each node in the collection.
+    /// Returns the in-neighbours of each node in the collection. Order is unspecified (not insertion order).
     pub async fn in_neighbours(
         &self,
         select: Option<GqlFilter>,
@@ -515,7 +533,7 @@ impl GqlNodes {
         Ok(GqlPathFromGraph::new(base))
     }
 
-    /// Returns the out-neighbours of each node in the collection.
+    /// Returns the out-neighbours of each node in the collection. Order is unspecified (not insertion order).
     pub async fn out_neighbours(
         &self,
         select: Option<GqlFilter>,

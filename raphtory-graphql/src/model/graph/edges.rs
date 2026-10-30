@@ -59,12 +59,14 @@ impl GqlEdges {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Returns a collection containing only edges in the default edge layer.
+    /// Returns a view of the edges restricted to the default edge layer.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn default_layer(&self) -> Self {
         self.update(self.ee.default_layer())
     }
 
-    /// Returns a collection containing only edges belonging to the listed layers.
+    /// Returns a view of the edges restricted to the listed layers.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -73,7 +75,8 @@ impl GqlEdges {
         blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
     }
 
-    /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
+    /// Returns a view of the edges restricted to all layers except the excluded ones.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -82,12 +85,14 @@ impl GqlEdges {
         blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
     }
 
-    /// Returns a collection containing edges belonging to the specified layer.
+    /// Returns a view of the edges restricted to the specified layer.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.ee.valid_layers(name))
     }
 
-    /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
+    /// Returns a view of the edges restricted to all layers except the excluded one.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -157,6 +162,7 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
+    /// Keeps the same items; only what each one shows changes.
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -166,6 +172,7 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events at a specified time.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -174,6 +181,7 @@ impl GqlEdges {
     }
 
     /// View showing only the latest state of each edge (equivalent to `at(latestTime)`).
+    /// Keeps the same items; only what each one shows changes.
     pub async fn latest(&self) -> Self {
         let e = self.ee.clone();
         let latest = blocking_compute(move || e.latest()).await;
@@ -181,6 +189,7 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -189,11 +198,13 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events that are valid at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn snapshot_latest(&self) -> Self {
         self.update(self.ee.snapshot_latest())
     }
 
     /// Creates a view of the Edge including all events before a specified end (exclusive).
+    /// Keeps the same items; only what each one shows changes.
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -202,6 +213,7 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events after a specified start (exclusive).
+    /// Keeps the same items; only what each one shows changes.
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -210,6 +222,7 @@ impl GqlEdges {
     }
 
     /// Set the start of the window.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -219,6 +232,7 @@ impl GqlEdges {
     }
 
     /// Set the end of the window.
+    /// Keeps the same items; only what each one shows changes.
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -365,6 +379,8 @@ impl GqlEdges {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
+    ///
+    /// Order is unspecified (not insertion order); use `sorted` for a stable order.
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -386,6 +402,8 @@ impl GqlEdges {
     }
 
     /// Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
+    ///
+    /// Order is unspecified (not insertion order); use `sorted` for a stable order.
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdge>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();

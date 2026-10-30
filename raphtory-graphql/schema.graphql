@@ -1443,11 +1443,13 @@ A lazy collection of edges from a graph view. Supports the usual view transforms
 """
 type Edges {
 	"""
-	Returns a collection containing only edges in the default edge layer.
+	Returns a view of the edges restricted to the default edge layer.
+	Keeps the same items; only what each one shows changes.
 	"""
 	defaultLayer: Edges!
 	"""
-	Returns a collection containing only edges belonging to the listed layers.
+	Returns a view of the edges restricted to the listed layers.
+	Keeps the same items; only what each one shows changes.
 	"""
 	layers(
 		"""
@@ -1456,7 +1458,8 @@ type Edges {
 		names: [String!]!
 	): Edges!
 	"""
-	Returns a collection containing edges belonging to all layers except the excluded list of layers.
+	Returns a view of the edges restricted to all layers except the excluded ones.
+	Keeps the same items; only what each one shows changes.
 	"""
 	excludeLayers(
 		"""
@@ -1465,7 +1468,8 @@ type Edges {
 		names: [String!]!
 	): Edges!
 	"""
-	Returns a collection containing edges belonging to the specified layer.
+	Returns a view of the edges restricted to the specified layer.
+	Keeps the same items; only what each one shows changes.
 	"""
 	layer(
 		"""
@@ -1474,7 +1478,8 @@ type Edges {
 		name: String!
 	): Edges!
 	"""
-	Returns a collection containing edges belonging to all layers except the excluded layer specified.
+	Returns a view of the edges restricted to all layers except the excluded one.
+	Keeps the same items; only what each one shows changes.
 	"""
 	excludeLayer(
 		"""
@@ -1528,6 +1533,7 @@ type Edges {
 	): EdgesWindowSet!
 	"""
 	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	window(
 		"""
@@ -1541,6 +1547,7 @@ type Edges {
 	): Edges!
 	"""
 	Creates a view of the Edge including all events at a specified time.
+	Keeps the same items; only what each one shows changes.
 	"""
 	at(
 		"""
@@ -1550,10 +1557,12 @@ type Edges {
 	): Edges!
 	"""
 	View showing only the latest state of each edge (equivalent to `at(latestTime)`).
+	Keeps the same items; only what each one shows changes.
 	"""
 	latest: Edges!
 	"""
 	Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+	Keeps the same items; only what each one shows changes.
 	"""
 	snapshotAt(
 		"""
@@ -1563,10 +1572,12 @@ type Edges {
 	): Edges!
 	"""
 	Creates a view of the Edge including all events that are valid at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+	Keeps the same items; only what each one shows changes.
 	"""
 	snapshotLatest: Edges!
 	"""
 	Creates a view of the Edge including all events before a specified end (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	before(
 		"""
@@ -1576,6 +1587,7 @@ type Edges {
 	): Edges!
 	"""
 	Creates a view of the Edge including all events after a specified start (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	after(
 		"""
@@ -1585,6 +1597,7 @@ type Edges {
 	): Edges!
 	"""
 	Set the start of the window.
+	Keeps the same items; only what each one shows changes.
 	"""
 	shrinkStart(
 		"""
@@ -1594,6 +1607,7 @@ type Edges {
 	): Edges!
 	"""
 	Set the end of the window.
+	Keeps the same items; only what each one shows changes.
 	"""
 	shrinkEnd(
 		"""
@@ -1679,6 +1693,8 @@ type Edges {
 	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
+	
+	Order is unspecified (not insertion order); use `sorted` for a stable order.
 	"""
 	page(
 		"""
@@ -1696,6 +1712,8 @@ type Edges {
 	): [Edge!]!
 	"""
 	Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
+	
+	Order is unspecified (not insertion order); use `sorted` for a stable order.
 	"""
 	list: [Edge!]!
 	"""
@@ -4062,11 +4080,13 @@ A nested collection of edges anchored to a source collection — the result of c
 """
 type NestedEdges {
 	"""
-	Returns a collection containing only edges in the default edge layer.
+	Returns a view of the edges restricted to the default edge layer.
+	Keeps the same items; only what each one shows changes.
 	"""
 	defaultLayer: NestedEdges!
 	"""
-	Returns a collection containing only edges belonging to the listed layers.
+	Returns a view of the edges restricted to the listed layers.
+	Keeps the same items; only what each one shows changes.
 	"""
 	layers(
 		"""
@@ -4075,7 +4095,8 @@ type NestedEdges {
 		names: [String!]!
 	): NestedEdges!
 	"""
-	Returns a collection containing edges belonging to all layers except the excluded list of layers.
+	Returns a view of the edges restricted to all layers except the excluded ones.
+	Keeps the same items; only what each one shows changes.
 	"""
 	excludeLayers(
 		"""
@@ -4084,7 +4105,8 @@ type NestedEdges {
 		names: [String!]!
 	): NestedEdges!
 	"""
-	Returns a collection containing edges belonging to the specified layer.
+	Returns a view of the edges restricted to the specified layer.
+	Keeps the same items; only what each one shows changes.
 	"""
 	layer(
 		"""
@@ -4093,7 +4115,8 @@ type NestedEdges {
 		name: String!
 	): NestedEdges!
 	"""
-	Returns a collection containing edges belonging to all layers except the excluded layer specified.
+	Returns a view of the edges restricted to all layers except the excluded one.
+	Keeps the same items; only what each one shows changes.
 	"""
 	excludeLayer(
 		"""
@@ -4103,6 +4126,7 @@ type NestedEdges {
 	): NestedEdges!
 	"""
 	Creates a view of the NestedEdges including all events between the specified start (inclusive) and end (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	window(
 		"""
@@ -4116,6 +4140,7 @@ type NestedEdges {
 	): NestedEdges!
 	"""
 	Creates a view of the NestedEdges including all events at a specified time.
+	Keeps the same items; only what each one shows changes.
 	"""
 	at(
 		"""
@@ -4125,10 +4150,12 @@ type NestedEdges {
 	): NestedEdges!
 	"""
 	View showing only the latest state of each edge (equivalent to `at(latestTime)`).
+	Keeps the same items; only what each one shows changes.
 	"""
 	latest: NestedEdges!
 	"""
 	Creates a view of the NestedEdges including all events that are valid at time.
+	Keeps the same items; only what each one shows changes.
 	"""
 	snapshotAt(
 		"""
@@ -4138,10 +4165,12 @@ type NestedEdges {
 	): NestedEdges!
 	"""
 	Creates a view of the NestedEdges including all events that are valid at the latest time.
+	Keeps the same items; only what each one shows changes.
 	"""
 	snapshotLatest: NestedEdges!
 	"""
 	Creates a view of the NestedEdges including all events before a specified end (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	before(
 		"""
@@ -4151,6 +4180,7 @@ type NestedEdges {
 	): NestedEdges!
 	"""
 	Creates a view of the NestedEdges including all events after a specified start (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	after(
 		"""
@@ -4160,6 +4190,7 @@ type NestedEdges {
 	): NestedEdges!
 	"""
 	Set the start of the window.
+	Keeps the same items; only what each one shows changes.
 	"""
 	shrinkStart(
 		"""
@@ -4169,6 +4200,7 @@ type NestedEdges {
 	): NestedEdges!
 	"""
 	Set the end of the window.
+	Keeps the same items; only what each one shows changes.
 	"""
 	shrinkEnd(
 		"""
@@ -4244,6 +4276,8 @@ type NestedEdges {
 	
 	For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
 	will be returned. Each entry is the per-source list of incident edges.
+	
+	Order is unspecified (not insertion order).
 	"""
 	page(
 		"""
@@ -4265,6 +4299,8 @@ type NestedEdges {
 	`list { list { src { name } dst { name } } }` to reach the per-source
 	edges. Rejected by the server when bulk list endpoints are disabled; use
 	`page` for paginated access instead.
+	
+	Order is unspecified (not insertion order).
 	"""
 	list: [Edges!]!
 	"""
@@ -4577,15 +4613,15 @@ type Node {
 	"""
 	inEdges(select: FilterExpr): Edges!
 	"""
-	Returns neighbouring nodes.
+	Returns neighbouring nodes. Order is unspecified (not insertion order).
 	"""
 	neighbours(select: FilterExpr): PathFromNode!
 	"""
-	Returns the number of neighbours that have at least one in-going edge to this node.
+	Returns the neighbours that have at least one in-going edge to this node. Order is unspecified (not insertion order).
 	"""
 	inNeighbours(select: FilterExpr): PathFromNode!
 	"""
-	Returns the number of neighbours that have at least one out-going edge from this node.
+	Returns the neighbours that have at least one out-going edge from this node. Order is unspecified (not insertion order).
 	"""
 	outNeighbours(select: FilterExpr): PathFromNode!
 	filter(
@@ -5245,11 +5281,13 @@ sorting. Iterated via `list` / `page` / `ids` / `count`.
 """
 type Nodes {
 	"""
-	Return a view of the nodes containing only the default edge layer.
+	Returns a view of the nodes restricted to the default edge layer.
+	Keeps the same items; only what each one shows changes.
 	"""
 	defaultLayer: Nodes!
 	"""
-	Return a view of the nodes containing all layers specified.
+	Returns a view of the nodes restricted to the listed layers.
+	Keeps the same items; only what each one shows changes.
 	"""
 	layers(
 		"""
@@ -5258,7 +5296,8 @@ type Nodes {
 		names: [String!]!
 	): Nodes!
 	"""
-	Return a view of the nodes containing all layers except those specified.
+	Returns a view of the nodes restricted to all layers except the excluded ones.
+	Keeps the same items; only what each one shows changes.
 	"""
 	excludeLayers(
 		"""
@@ -5267,7 +5306,8 @@ type Nodes {
 		names: [String!]!
 	): Nodes!
 	"""
-	Return a view of the nodes containing the specified layer.
+	Returns a view of the nodes restricted to the specified layer.
+	Keeps the same items; only what each one shows changes.
 	"""
 	layer(
 		"""
@@ -5276,7 +5316,8 @@ type Nodes {
 		name: String!
 	): Nodes!
 	"""
-	Return a view of the nodes containing all layers except those specified.
+	Returns a view of the nodes restricted to all layers except the excluded one.
+	Keeps the same items; only what each one shows changes.
 	"""
 	excludeLayer(
 		"""
@@ -5330,6 +5371,7 @@ type Nodes {
 	): NodesWindowSet!
 	"""
 	Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	window(
 		"""
@@ -5343,6 +5385,7 @@ type Nodes {
 	): Nodes!
 	"""
 	Create a view of the nodes including all events at a specified time.
+	Keeps the same items; only what each one shows changes.
 	"""
 	at(
 		"""
@@ -5352,10 +5395,12 @@ type Nodes {
 	): Nodes!
 	"""
 	Create a view of the nodes including all events at the latest time.
+	Keeps the same items; only what each one shows changes.
 	"""
 	latest: Nodes!
 	"""
 	Create a view of the nodes including all events that are valid at the specified time.
+	Keeps the same items; only what each one shows changes.
 	"""
 	snapshotAt(
 		"""
@@ -5365,10 +5410,12 @@ type Nodes {
 	): Nodes!
 	"""
 	Create a view of the nodes including all events that are valid at the latest time.
+	Keeps the same items; only what each one shows changes.
 	"""
 	snapshotLatest: Nodes!
 	"""
 	Create a view of the nodes including all events before specified end time (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	before(
 		"""
@@ -5378,6 +5425,7 @@ type Nodes {
 	): Nodes!
 	"""
 	Create a view of the nodes including all events after the specified start time (exclusive).
+	Keeps the same items; only what each one shows changes.
 	"""
 	after(
 		"""
@@ -5387,6 +5435,7 @@ type Nodes {
 	): Nodes!
 	"""
 	Set the start of the window to the larger of a specified start time and self.start().
+	Keeps the same items; only what each one shows changes.
 	"""
 	shrinkStart(
 		"""
@@ -5396,6 +5445,7 @@ type Nodes {
 	): Nodes!
 	"""
 	Set the end of the window to the smaller of a specified end and self.end().
+	Keeps the same items; only what each one shows changes.
 	"""
 	shrinkEnd(
 		"""
@@ -5475,6 +5525,8 @@ type Nodes {
 	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
+	
+	Order is unspecified (not insertion order); use `sorted` for a stable order.
 	"""
 	page(
 		"""
@@ -5493,6 +5545,8 @@ type Nodes {
 	"""
 	Materialise every node in the view. Rejected by the server when bulk list
 	endpoints are disabled; use `page` for paginated access instead.
+	
+	Order is unspecified (not insertion order); use `sorted` for a stable order.
 	"""
 	list: [Node!]!
 	"""
@@ -5549,15 +5603,15 @@ type Nodes {
 		expr: FilterExpr!
 	): Nodes!
 	"""
-	Returns the neighbouring nodes of each node in the collection.
+	Returns the neighbouring nodes of each node in the collection. Order is unspecified (not insertion order).
 	"""
 	neighbours(select: FilterExpr): PathFromGraph!
 	"""
-	Returns the in-neighbours of each node in the collection.
+	Returns the in-neighbours of each node in the collection. Order is unspecified (not insertion order).
 	"""
 	inNeighbours(select: FilterExpr): PathFromGraph!
 	"""
-	Returns the out-neighbours of each node in the collection.
+	Returns the out-neighbours of each node in the collection. Order is unspecified (not insertion order).
 	"""
 	outNeighbours(select: FilterExpr): PathFromGraph!
 	"""
@@ -6146,6 +6200,8 @@ type PathFromNode {
 	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
+	
+	Order is unspecified (not insertion order).
 	"""
 	page(
 		"""
@@ -6164,6 +6220,8 @@ type PathFromNode {
 	"""
 	Materialise every neighbour node in the path. Rejected by the server when
 	bulk list endpoints are disabled; use `page` for paginated access instead.
+	
+	Order is unspecified (not insertion order).
 	"""
 	list: [Node!]!
 	"""
@@ -6218,17 +6276,17 @@ type PathFromNode {
 	): PathFromNode!
 	"""
 	Returns the neighbouring nodes reachable one further hop from this path
-	(both directions), as a flat `PathFromNode`.
+	(both directions), as a flat `PathFromNode`. Order is unspecified (not insertion order).
 	"""
 	neighbours(select: FilterExpr): PathFromNode!
 	"""
 	Returns the in-neighbours reachable one further hop from this path, as a
-	flat `PathFromNode`.
+	flat `PathFromNode`. Order is unspecified (not insertion order).
 	"""
 	inNeighbours(select: FilterExpr): PathFromNode!
 	"""
 	Returns the out-neighbours reachable one further hop from this path, as a
-	flat `PathFromNode`.
+	flat `PathFromNode`. Order is unspecified (not insertion order).
 	"""
 	outNeighbours(select: FilterExpr): PathFromNode!
 	"""
