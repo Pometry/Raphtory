@@ -1,7 +1,7 @@
 //! Serialising SPARQL results.
 use crate::{
     limits::{check_query_length, Capped},
-    query::{dedup_triples, execute, on_query_stack, parse, QueryForm, SparqlOptions},
+    query::{dedup_triples, execute, on_stack, parse, QueryForm, SparqlOptions},
     QueryResultsFormat, RdfError, RdfFormat, WriteStats,
 };
 use oxigraph::{
@@ -184,7 +184,7 @@ pub(crate) fn sparql_to_writer<W: Write + Send>(
     options: &SparqlOptions,
 ) -> Result<WriteStats, RdfError> {
     check_query_length(query, options.max_query_length)?;
-    on_query_stack(query, || {
+    on_stack("the query", query.len(), || {
         let query = parse(query)?;
         format.check(QueryForm::of(&query))?;
         execute(view, query, options, |results| {

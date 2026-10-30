@@ -1,5 +1,5 @@
 //! Queries that would overflow the stack run on the query's own stack.
-use crate::{query::on_query_stack, RdfError, RdfGraph, SparqlOptions, SparqlResults};
+use crate::{query::on_stack, RdfError, RdfGraph, SparqlOptions, SparqlResults};
 use raphtory::prelude::*;
 use std::thread;
 
@@ -44,7 +44,9 @@ fn deeply_nested_queries_run_on_a_sparql_stack() {
 
 #[test]
 fn a_panic_is_an_error() {
-    let result = on_query_stack("ASK {}", || -> Result<(), RdfError> { panic!("boom") });
+    let result = on_stack("the query", 0, || -> Result<(), RdfError> {
+        panic!("boom")
+    });
     assert!(
         matches!(&result, Err(RdfError::Panicked(message)) if message.contains("boom")),
         "{result:?}"

@@ -17,13 +17,17 @@ use oxigraph::{
 };
 use oxiri::Iri;
 use raphtory::db::api::view::DynamicGraph;
+use rayon::ThreadPoolBuilder;
 use rustc_hash::{FxBuildHasher, FxHashSet};
 use spargebra::{
     algebra::{Expression, Function, GraphPattern},
     term::NamedNodePattern,
     Query, SparqlParser,
 };
-use std::thread;
+use std::{
+    io,
+    panic::{self, AssertUnwindSafe},
+};
 
 // refuses `SERVICE` calls so no query makes a network request, whatever oxigraph features are on
 pub(crate) fn evaluator() -> SparqlEvaluator {
@@ -131,7 +135,7 @@ impl QueryOutline {
     /// Parses `query` as [`RdfView::sparql`](crate::RdfView::sparql) does, with the same errors.
     pub fn parse(query: &str, options: &SparqlOptions) -> Result<Self, RdfError> {
         check_query_length(query, options.max_query_length)?;
-        on_query_stack(query, || {
+        on_stack("the query", query.len(), || {
             let query = parse(query)?;
             let from_names_time_graph = query
                 .dataset()
@@ -197,20 +201,22 @@ pub(crate) fn dedup_triples<'a>(
     })
 }
 
-// oxigraph recurses per nesting level and flat-chain term, unbounded; overflow aborts the process
-pub(crate) fn on_query_stack<R: Send>(
-    query: &str,
+// a stack overflow aborts the process, so recursion as deep as `len` input units needs room;
+// oxigraph recurses per nesting level and flat-chain term, rudof per shapes graph nesting level.
+// A one-thread pool rather than a thread, as rudof's validator uses `par_iter`.
+pub(crate) fn on_stack<R: Send>(
+    what: &str,
+    len: usize,
     f: impl FnOnce() -> Result<R, RdfError> + Send,
 ) -> Result<R, RdfError> {
-    let stack_size = (16usize << 20).saturating_add(query.len().saturating_mul(32 << 10));
-    thread::scope(|scope| {
-        thread::Builder::new()
-            .name("raphtory-sparql".to_owned())
-            .stack_size(stack_size)
-            .spawn_scoped(scope, f)?
-            .join()
-            .unwrap_or_else(|panic| Err(RdfError::panicked(panic)))
-    })
+    ThreadPoolBuilder::new()
+        .num_threads(1)
+        .thread_name(|_| "raphtory-rdf".to_owned())
+        .stack_size((16usize << 20).saturating_add(len.saturating_mul(32 << 10)))
+        .build()
+        .map_err(io::Error::other)?
+        .install(|| panic::catch_unwind(AssertUnwindSafe(f)))
+        .unwrap_or_else(|panic| Err(RdfError::panicked(what, panic)))
 }
 
 pub(crate) fn parse(query: &str) -> Result<Query, RdfError> {
@@ -242,7 +248,7 @@ pub(crate) fn sparql(
     options: &SparqlOptions,
 ) -> Result<SparqlResults, RdfError> {
     check_query_length(query, options.max_query_length)?;
-    on_query_stack(query, || {
+    on_stack("the query", query.len(), || {
         execute(
             view,
             parse(query)?,

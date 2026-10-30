@@ -7,8 +7,10 @@ use oxigraph::{
 use raphtory::errors::GraphError;
 use raphtory_api::core::utils::time::ParseTimeError;
 use std::{any::Any, io, path::PathBuf, string::FromUtf8Error};
+#[cfg(feature = "shacl")]
+use {crate::shacl::ShaclLimit, std::error::Error};
 
-/// Errors raised by RDF import, export and SPARQL evaluation.
+/// Errors raised by RDF import, export, SPARQL evaluation and SHACL validation.
 /// Messages include the wrapped error, so `source()` does not return it again.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
@@ -103,19 +105,35 @@ pub enum RdfError {
     #[error("RDF output is not UTF-8: {0}")]
     NotUtf8(FromUtf8Error),
 
-    /// A panic of SPARQL evaluation, with its message.
+    /// A shapes graph that does not compile, or a validation that failed.
+    #[cfg(feature = "shacl")]
+    #[error("SHACL error: {0}")]
+    Shacl(Box<dyn Error + Send + Sync>),
+
+    /// A shapes graph with a path rudof cannot expand, or recursive shapes rejected by
+    /// [`ShaclOptions`](crate::shacl::ShaclOptions).
+    #[cfg(feature = "shacl")]
+    #[error("SHACL error: {0}")]
+    ShaclLimit(ShaclLimit),
+
+    /// A panic of SPARQL evaluation or SHACL validation, with its message.
     #[error("{0}")]
     Panicked(String),
 }
 
 impl RdfError {
-    pub(crate) fn panicked(panic: Box<dyn Any + Send>) -> Self {
+    #[cfg(feature = "shacl")]
+    pub(crate) fn shacl(error: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
+        Self::Shacl(error.into())
+    }
+
+    pub(crate) fn panicked(what: &str, panic: Box<dyn Any + Send>) -> Self {
         let message = panic
             .downcast_ref::<&str>()
             .copied()
             .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
             .unwrap_or("unknown panic");
-        Self::Panicked(format!("the query panicked: {message}"))
+        Self::Panicked(format!("{what} panicked: {message}"))
     }
 }
 

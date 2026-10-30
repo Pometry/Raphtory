@@ -190,6 +190,10 @@ impl AppConfigBuilder {
         if let Some(disable_sparql_endpoint) = server_args.disable_sparql_endpoint {
             builder.with_disable_sparql_endpoint(disable_sparql_endpoint);
         }
+        #[cfg(feature = "rdf")]
+        if let Some(disable_shacl) = server_args.disable_shacl {
+            builder.with_disable_shacl(disable_shacl);
+        }
         Ok(builder)
     }
 
@@ -484,6 +488,13 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            #[cfg(feature = "rdf")]
+                            SchemaConfigFieldName::DisableShacl => {
+                                self.with_disable_shacl(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -721,6 +732,12 @@ impl AppConfigBuilder {
     #[cfg(feature = "rdf")]
     pub fn with_disable_sparql_endpoint(&mut self, disable_sparql_endpoint: bool) -> &mut Self {
         self.config.schema.disable_sparql_endpoint = disable_sparql_endpoint;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_disable_shacl(&mut self, disable_shacl: bool) -> &mut Self {
+        self.config.schema.disable_shacl = disable_shacl;
         self
     }
 

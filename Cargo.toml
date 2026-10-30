@@ -214,6 +214,12 @@ spargebra = { version = "0.4.7", features = ["sep-0006"] }
 # names the IRI type of spareval's `DefaultServiceHandler` (the handler that refuses SERVICE calls)
 oxiri = "0.2.11"
 percent-encoding = "2.3"
+# SHACL validation (rudof). Do not enable their `sparql` features (the native engine would then need a
+# SPARQL-capable store).
+shacl = { version = "0.3.35", default-features = false }
+rudof_rdf = { version = "0.3.35", default-features = false }
+rudof_iri = { version = "0.3.35", default-features = false }
+prefixmap = "0.3.35"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

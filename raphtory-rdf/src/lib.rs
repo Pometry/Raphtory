@@ -1,4 +1,4 @@
-//! RDF import and export and SPARQL 1.1 queries for Raphtory graphs.
+//! RDF import and export, SPARQL 1.1 queries and SHACL validation for Raphtory graphs.
 //! A triple `s p o` is an edge `name(s) -> name(o)` in layer `p` ([`term_of`], [`RdfGraph`]).
 //!
 //! ```
@@ -41,6 +41,8 @@ pub mod python;
 mod query;
 mod results;
 mod scan;
+#[cfg(feature = "shacl")]
+pub mod shacl;
 mod time_graph;
 
 #[cfg(test)]

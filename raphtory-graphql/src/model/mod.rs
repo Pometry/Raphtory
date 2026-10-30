@@ -43,7 +43,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::{error, warn};
 
 #[cfg(feature = "rdf")]
-pub use crate::model::graph::rdf_graph::RdfGraphQuery;
+pub use crate::model::graph::rdf_graph::{RdfGraphQuery, ShaclQuery};
 #[cfg(feature = "vectors")]
 pub use crate::model::graph::vectorised_graph::VectorQuery;
 use crate::{model::plugins::Plugins, plugin::schema::RegisterPlugin};
@@ -781,7 +781,11 @@ impl Mut {
 }
 
 #[derive(App)]
-pub struct App(BaseApp, #[cfg(feature = "rdf")] RdfGraphQuery<'static>);
+pub struct App(RdfApp, #[cfg(feature = "rdf")] ShaclQuery<'static>);
+
+/// `App` without `validateShacl`
+#[derive(App)]
+struct RdfApp(BaseApp, #[cfg(feature = "rdf")] RdfGraphQuery<'static>);
 
 /// `App` without `rdfGraph`
 #[derive(App)]
@@ -797,12 +801,14 @@ impl App {
     pub fn create_schema_with_plugins(
         plugins: impl IntoIterator<Item: AsRef<dyn RegisterPlugin>>,
         rdf: bool,
+        shacl: bool,
     ) -> SchemaBuilder {
         let mut registry = Registry::new();
-        registry = if rdf {
-            registry.register::<Self>()
-        } else {
-            registry.register::<BaseApp>()
+        // the dynamic schema has no `visible`, so the flags pick which `App` to register
+        registry = match (rdf, shacl) {
+            (true, true) => registry.register::<Self>(),
+            (true, false) => registry.register::<RdfApp>(),
+            (false, _) => registry.register::<BaseApp>(),
         };
         for plugin in plugins {
             registry = plugin.as_ref().register(registry);

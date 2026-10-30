@@ -6938,6 +6938,24 @@ type RdfGraph {
 		"""
 		format: SparqlFormat
 	): String
+	"""
+	Validates the triples of this view against SHACL shapes and returns the report.
+	Recursive shapes are rejected; null if the validation fails unexpectedly.
+	"""
+	validateShacl(
+		"""
+		The shapes graph, as an RDF document.
+		"""
+		shapes: String!,
+		"""
+		The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+		"""
+		format: SparqlFormat,
+		"""
+		The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+		"""
+		reportFormat: SparqlFormat
+	): String
 }
 
 """
@@ -7002,7 +7020,7 @@ enum SortByTime {
 
 """
 A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
-CONSTRUCT and DESCRIBE.
+CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
 """
 enum SparqlFormat {
 	"""
@@ -7697,4 +7715,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

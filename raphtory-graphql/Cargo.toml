@@ -84,7 +84,8 @@ quote = "1"
 [features]
 default = []
 vectors = ["dep:raphtory-vectors"]
-rdf = ["dep:raphtory-rdf"]
+# `rdfGraph`: graphs viewed as RDF, with SPARQL queries, SHACL validation and the `/sparql` endpoint
+rdf = ["dep:raphtory-rdf", "raphtory-rdf/shacl"]
 integration-test = ["opentelemetry_sdk/testing"]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python", "raphtory-vectors?/python"]
 panic-on-drop = ["raphtory/panic-on-drop", "raphtory-vectors?/panic-on-drop"]

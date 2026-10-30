@@ -263,4 +263,15 @@ fn files() {
     assert_eq!(exported(&copy), exported(&rg));
     assert_eq!(copy.retract_rdf_path(2, &ttl, None, None).unwrap(), n);
     assert!(exported(&copy.valid()).is_empty());
+
+    #[cfg(feature = "shacl")]
+    {
+        let shapes = dir.path().join("shapes.ttl");
+        fs::write(
+            &shapes,
+            "<http://ex/S> a <http://www.w3.org/ns/shacl#NodeShape> .",
+        )
+        .unwrap();
+        assert!(crate::shacl::ShaclShapes::parse_path(&shapes, None, None).is_ok());
+    }
 }

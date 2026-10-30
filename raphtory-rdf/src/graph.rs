@@ -289,6 +289,16 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
         self.sparql_to_writer(query, &mut document, format, options)?;
         Ok(String::from_utf8(document)?)
     }
+
+    /// Validates the triples [`to_rdf`](Self::to_rdf) writes against SHACL shapes.
+    #[cfg(feature = "shacl")]
+    pub fn validate_shacl(
+        &self,
+        shapes: &crate::shacl::ShaclShapes,
+        options: &crate::shacl::ShaclOptions,
+    ) -> Result<crate::shacl::ShaclReport, RdfError> {
+        shapes.validate(self.0.clone().into_dynamic(), options)
+    }
 }
 
 fn unstorable(t: TermRef<'_>) -> RdfError {
@@ -299,11 +309,11 @@ fn unstorable(t: TermRef<'_>) -> RdfError {
     }
 }
 
-fn name(t: TermRef<'_>) -> Result<String, RdfError> {
+pub(crate) fn name(t: TermRef<'_>) -> Result<String, RdfError> {
     name_of(t).ok_or_else(|| unstorable(t))
 }
 
-fn layer(t: TermRef<'_>) -> Result<String, RdfError> {
+pub(crate) fn layer(t: TermRef<'_>) -> Result<String, RdfError> {
     layer_name_of(t).ok_or_else(|| unstorable(t))
 }
 
@@ -327,7 +337,7 @@ fn write_triple<G: AdditionOps + DeletionOps>(
     Ok(())
 }
 
-fn named<'a>(
+pub(crate) fn named<'a>(
     t: TermRef<'a>,
     parsed_iris: bool,
     full: fn(TermRef<'_>) -> Result<String, RdfError>,

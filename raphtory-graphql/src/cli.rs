@@ -229,7 +229,7 @@ pub struct ConfigArgs {
     #[arg(
         long,
         env = "RAPHTORY_DISABLE_RDF",
-        help = help_with_default!("Leave the `rdfGraph` field out of the schema. Requires `--disable-sparql-endpoint`.", false)
+        help = help_with_default!("Leave the `rdfGraph` field out of the schema. This also turns off the SPARQL endpoint and SHACL.", false)
     )]
     pub(crate) disable_rdf: Option<bool>,
 
@@ -240,6 +240,14 @@ pub struct ConfigArgs {
         help = help_with_default!("Do not serve the SPARQL endpoint `/sparql`.", false)
     )]
     pub(crate) disable_sparql_endpoint: Option<bool>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_SHACL",
+        help = help_with_default!("Leave the `validateShacl` field of `rdfGraph` out of the schema.", false)
+    )]
+    pub(crate) disable_shacl: Option<bool>,
 
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", help = "Public directory path")]
     pub(crate) public_dir: Option<PathBuf>,

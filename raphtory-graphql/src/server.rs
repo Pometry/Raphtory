@@ -153,14 +153,6 @@ impl GraphServer {
             create_dir_all(&work_dir)?;
         }
         let config = app_config.unwrap_or_default();
-        #[cfg(feature = "rdf")]
-        if config.schema.disable_rdf && !config.schema.disable_sparql_endpoint {
-            return Err(ConfigError::Message(
-                "`disable_rdf` requires `disable_sparql_endpoint`, as the endpoint runs on `rdfGraph`"
-                    .to_string(),
-            )
-            .into());
-        }
         configure_pools(PoolSettings {
             max_concurrent_loads: config.concurrency.max_concurrent_loads,
         });
@@ -367,10 +359,10 @@ impl GraphServer {
         let schema_cfg = &self.config.schema;
 
         #[cfg(feature = "rdf")]
-        let rdf = !schema_cfg.disable_rdf;
+        let (rdf, shacl) = (!schema_cfg.disable_rdf, !schema_cfg.disable_shacl);
         #[cfg(not(feature = "rdf"))]
-        let rdf = false;
-        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins, rdf)
+        let (rdf, shacl) = (false, false);
+        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins, rdf, shacl)
             .data(self.data)
             .data(self.config.concurrency);
 
@@ -429,7 +421,7 @@ impl GraphServer {
         // `Cors` replaces `Vary`, so the SPARQL answers, whose format depends on the `Accept`
         // header, add `Vary: Accept` outside it
         #[cfg(feature = "rdf")]
-        let app = if config.schema.disable_sparql_endpoint {
+        let app = if config.schema.disable_rdf || config.schema.disable_sparql_endpoint {
             // registered anyway so that `/` (the UI or GraphQL) does not answer it
             Route::new().at("/sparql/*path", make_sync(|_| StatusCode::NOT_FOUND))
         } else {

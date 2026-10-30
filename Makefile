@@ -70,14 +70,14 @@ rust-test-all: rust-check
 	cargo nextest run --all
 
 # RDF tests and benchmarks (raphtory-rdf-tests). The W3C suites are git submodules of raphtory-rdf-tests.
-W3C_SUITES := raphtory-rdf-tests/test-suites/rdf-tests
+W3C_SUITES := raphtory-rdf-tests/test-suites/rdf-tests raphtory-rdf-tests/test-suites/data-shapes
 
 # --checkout works whatever `update` strategy .gitmodules sets.
 w3c-tests-init:
 	git submodule update --init --checkout $(W3C_SUITES)
 
 rust-test-rdf-w3c: w3c-tests-init
-	cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test sparql_w3c
+	cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test sparql_w3c --test shacl_w3c
 
 # The BEAR-B, BSBM and GO data is downloaded to RDF_DATA_DIR, outside the repository, and checked against the
 # checksums in raphtory-rdf-tests/tests/common (BEAR-B) and raphtory-rdf-tests/benches/common (BSBM, GO).

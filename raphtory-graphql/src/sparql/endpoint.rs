@@ -193,7 +193,7 @@ impl<E: Executor> SparqlEndpoint<E> {
             .map(TimeGraph::parse_time)
             .transpose()
             .map_err(EndpointError::InvalidAsof)?;
-        // runs before authentication, safe given the length cap and `on_query_stack`
+        // runs before authentication, safe given the length cap and `on_stack`
         let (parsed, options) = (query.clone(), self.options.clone());
         let outline = blocking_compute(move || QueryOutline::parse(&parsed, &options))
             .await

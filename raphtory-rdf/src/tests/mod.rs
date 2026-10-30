@@ -7,6 +7,8 @@ mod mapping;
 mod oracle;
 mod results;
 mod scan_equivalence;
+#[cfg(feature = "shacl")]
+mod shacl;
 mod temporal;
 mod time_graph;
 

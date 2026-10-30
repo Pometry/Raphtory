@@ -1,8 +1,8 @@
 use dynamic_graphql::Enum;
-use raphtory_rdf::{QueryForm, RdfError, SparqlFormat};
+use raphtory_rdf::{QueryForm, RdfError, RdfFormat, SparqlFormat};
 
 /// A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
-/// CONSTRUCT and DESCRIBE.
+/// CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
 #[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
 #[graphql(name = "SparqlFormat")]
 pub enum GqlSparqlFormat {
@@ -63,6 +63,10 @@ impl GqlSparqlFormat {
 
     pub(crate) fn sparql_format(self) -> Result<SparqlFormat, RdfError> {
         SparqlFormat::parse(self.name())
+    }
+
+    pub(crate) fn rdf_format(self) -> Result<RdfFormat, RdfError> {
+        RdfFormat::parse(self.name())
     }
 
     pub(crate) fn naming(form: QueryForm, format: SparqlFormat) -> Option<Self> {

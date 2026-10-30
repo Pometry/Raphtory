@@ -18,7 +18,10 @@ use dynamic_graphql::{
     ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields, Result,
 };
 use raphtory::errors::GraphError;
-use raphtory_rdf::{RdfError, RdfView, SparqlFormat};
+use raphtory_rdf::{
+    shacl::{ShaclOptions, ShaclShapes},
+    RdfError, RdfFormat, RdfView, SparqlFormat,
+};
 
 #[derive(ExpandObject)]
 pub struct RdfGraphQuery<'a>(&'a QueryRoot);
@@ -245,6 +248,41 @@ impl GqlRdfGraph {
     }
 }
 
+/// `validateShacl` on `RdfGraph`, left out of the schema by `disable_shacl`.
+#[derive(ExpandObject)]
+pub struct ShaclQuery<'a>(&'a GqlRdfGraph);
+
+#[ExpandObjectFields]
+impl<'a> ShaclQuery<'a> {
+    /// Validates the triples of this view against SHACL shapes and returns the report.
+    /// Recursive shapes are rejected; null if the validation fails unexpectedly.
+    async fn validate_shacl(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "The shapes graph, as an RDF document.")] shapes: String,
+        #[graphql(
+            desc = "The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors."
+        )]
+        format: Option<GqlSparqlFormat>,
+        #[graphql(
+            desc = "The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors."
+        )]
+        report_format: Option<GqlSparqlFormat>,
+    ) -> Result<Option<String>> {
+        let view = self.0.view()?;
+        let format = format.map(GqlSparqlFormat::rdf_format).transpose()?;
+        let report_format =
+            report_format.map_or(Ok(RdfFormat::Turtle), GqlSparqlFormat::rdf_format)?;
+        run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |_| {
+            let shapes = ShaclShapes::parse(shapes.as_bytes(), format, None)?;
+            let options = ShaclOptions::default().with_reject_recursive_shapes(true);
+            view.validate_shacl(&shapes, &options)?
+                .to_rdf_string(report_format)
+        })
+        .await
+    }
+}
+
 /// The windows of `rolling` or `expanding` on an `RdfGraph`, each an `RdfGraph`.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "RdfGraphWindowSet")]
@@ -289,15 +327,20 @@ mod tests {
         model::App,
         sparql::SparqlError,
         test_support::{
-            rdf::{graph, pairs, people, rows, AS_OF_3, COUNT, KNOWN_BY, KNOWN_BY_NOW, KNOWS, NOW},
+            rdf::{
+                ex, graph, pairs, people, rows, AS_OF_3, COUNT, KNOWN_BY, KNOWN_BY_NOW, KNOWS, NOW,
+            },
             setup_with_graphs,
         },
     };
     use async_graphql::{dynamic::Schema, ServerError};
     use dynamic_graphql::{Request, Variables};
-    use oxigraph::{io::RdfFormat as OxRdfFormat, model::Literal};
+    use oxigraph::{
+        io::RdfFormat as OxRdfFormat,
+        model::{Literal, NamedNodeRef},
+    };
     use raphtory::db::api::view::MaterializedGraph;
-    use raphtory_rdf::RdfError;
+    use raphtory_rdf::{shacl::ShaclLimit, RdfError};
     use serde_json::{json, Value as Json};
     use tempfile::TempDir;
 
@@ -393,6 +436,48 @@ mod tests {
         );
         // an event graph is served as persistent
         assert_eq!(rows_of(&data["events"]["valid"]["sparql"]), pairs(NOW));
+    }
+
+    #[tokio::test]
+    async fn views_validate_against_shacl_shapes() {
+        let work_dir = TempDir::new().unwrap();
+        let schema = setup(&work_dir).await;
+        let shapes = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
+            ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:knows ;
+                sh:property [ sh:path ex:age ; sh:minCount 1 ] .";
+        let document = r#"query Q($shapes: String!) {
+            rdfGraph(path: "pg") { at(time: 3) { validateShacl(shapes: $shapes, reportFormat: N_TRIPLES) } }
+        }"#;
+        let data = execute(&schema, document, json!({ "shapes": shapes }))
+            .await
+            .unwrap();
+        let report = graph(
+            data["rdfGraph"]["at"]["validateShacl"].as_str().unwrap(),
+            OxRdfFormat::NTriples,
+        );
+        let focus_node = NamedNodeRef::new_unchecked("http://www.w3.org/ns/shacl#focusNode");
+        // as of 3, bob knows carol but has no age
+        assert_eq!(
+            report
+                .triples_for_predicate(focus_node)
+                .map(|triple| triple.object.into_owned())
+                .collect::<Vec<_>>(),
+            [ex("bob").into()]
+        );
+
+        let recursive = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
+            ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
+                sh:property [ sh:path ex:knows ; sh:node ex:S ] .";
+        let document = r#"query Q($shapes: String!) {
+            rdfGraph(path: "pg") { validateShacl(shapes: $shapes) }
+        }"#;
+        let error = execute(&schema, document, json!({ "shapes": recursive }))
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            rdf_error(&error),
+            Some(RdfError::ShaclLimit(ShaclLimit::RecursiveShapes))
+        ));
     }
 
     #[tokio::test]

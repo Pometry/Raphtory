@@ -112,9 +112,10 @@ class GraphServer(object):
                                    overflows from pathologically structured queries),
                                    `max_directives_per_field` (int),
                                    `disable_introspection` (bool), `disable_rdf` (bool, leave
-                                   `rdfGraph` out of the schema; requires
-                                   `disable_sparql_endpoint`), `disable_sparql_endpoint` (bool,
-                                   do not serve `/sparql`)
+                                   `rdfGraph` out of the schema; also turns
+                                   off the SPARQL endpoint and SHACL),
+                                   `disable_sparql_endpoint` (bool, do not serve `/sparql`),
+                                   `disable_shacl` (bool, leave `validateShacl` out of the schema)
                                  * `parquet`: `allowed_paths` (list[str | PathLike]) - the paths
                                    parquet loading is restricted to
                                  * `public_dir` (str | PathLike): directory served as static
