@@ -11,7 +11,7 @@ use crate::{
 use async_graphql::dynamic::Schema;
 use dynamic_graphql::Request;
 use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
-use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_RAPH_PATH};
+use raphtory_api::core::storage::graph_folder::{DIRTY_DATA_PATH, ROOT_RAPH_PATH};
 use std::{path::Path, sync::Arc};
 
 pub(crate) struct TestSetup {
@@ -68,7 +68,7 @@ pub(crate) async fn run_mutation_as_user(schema: &Schema, query: &str) -> async_
 }
 
 /// Assert that `path` is an existing directory that is NOT a graph folder
-/// (no `ROOT_RAPH_PATH`) and contains no leftover `DIRTY_PATH` marker.
+/// (no `ROOT_RAPH_PATH`) and contains no leftover `DIRTY_DATA_DIR` directory.
 pub(crate) fn assert_is_namespace_dir(path: &Path) {
     assert!(path.is_dir(), "expected directory at {:?}", path);
     assert!(
@@ -78,9 +78,9 @@ pub(crate) fn assert_is_namespace_dir(path: &Path) {
         ROOT_RAPH_PATH,
     );
     assert!(
-        !path.join(DIRTY_PATH).exists(),
-        "{:?} contains a dirty marker ({}); expected a clean namespace directory",
+        !path.join(DIRTY_DATA_PATH).exists(),
+        "{:?} contains a staging directory ({}); expected a clean namespace directory",
         path,
-        DIRTY_PATH,
+        DIRTY_DATA_PATH,
     );
 }

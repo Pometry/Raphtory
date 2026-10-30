@@ -34,9 +34,7 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         let graph_meta = build_graph_metadata(self);
 
         writer.start_file(ROOT_RAPH_PATH, SimpleFileOptions::default())?;
-        writer.write_all(&serde_json::to_vec(&Raph::from_data_path(
-            DEFAULT_DATA_PATH,
-        ))?)?;
+        writer.write_all(&serde_json::to_vec(&Raph::new(DEFAULT_DATA_PATH))?)?;
 
         writer.start_file(
             [DEFAULT_DATA_PATH, GRAPH_META_PATH].join("/"),

@@ -3,12 +3,12 @@
 //! Folder structure:
 //!
 //! GraphFolder
-//! ├── raph.json    # Metadata file (json: {path: "data{id}"}) pointing at the current data folder
-//! ├── (dirty.json) # Optional, has same format as raph.json; present only during atomic swap of data folders
-//! └── data{id}/    # DataFolder (incremental id for atomic replacement)
-//!     ├── meta.json     # Metadata file (json: {path: "graph{id}", meta: {}}) pointing at the current graph folder
-//!     ├── graph{id}/    # Graph data (incremental id for atomic replacement)
-//!     └── vectors/      # Vector embeddings (optional)
+//! ├── raph.json    # Metadata file (json: {path: "data{id}"}) pointing at the active data folder
+//! ├── data{id}/    # DataFolder (incremental id for atomic replacement)
+//! │   ├── meta.json     # Metadata file (json: {path: "graph{id}", meta: {}}) pointing at the active graph folder
+//! │   ├── graph{id}/    # Graph data (incremental id for atomic replacement)
+//! │   └── vectors/      # Vector embeddings (optional)
+//! └── dirty.data/    # In-progress write/swap; renamed to `data{id}` on finish (same inner layout)
 
 use crate::{to_millis::ToMillis, GraphType};
 use itertools::Itertools;
@@ -37,18 +37,21 @@ pub const GRAPH_PATH: &str = "graph";
 pub const DEFAULT_GRAPH_PATH: &str = "graph0";
 /// Directory that stores vector embeddings of the graph.
 pub const VECTORS_PATH: &str = "vectors";
-/// Temporary metadata file for atomic replacement.
-pub const DIRTY_PATH: &str = "dirty.json";
+/// Temporary data directory while a write or swap is in progress.
+pub const DIRTY_DATA_PATH: &str = "dirty.data";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Raph {
-    /// Path to a `data{id}` folder.
+    /// Points to a `data{id}` folder.
     pub path: String,
 }
 
 impl Raph {
-    pub fn from_data_path(path: impl Into<String>) -> Self {
-        Self { path: path.into() }
+    pub fn new(path: impl Into<String>) -> Self {
+        let path = path.into();
+        assert!(path.starts_with(DATA_PATH));
+
+        Self { path }
     }
 
     pub fn from_version(version: u32) -> Self {
@@ -239,6 +242,10 @@ pub fn version(graph_path: impl AsRef<Path>) -> Result<u32, GraphFolderError> {
         .and_then(|s| s.to_str())
         .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?;
 
+    if data_name == DIRTY_DATA_PATH {
+        return Err(GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()));
+    }
+
     Ok(parse_path_pointer(data_name, DATA_PATH)?)
 }
 
@@ -353,6 +360,19 @@ pub trait GraphPaths {
         }
     }
 
+    fn dirty_data_path(&self) -> PathBuf {
+        self.root().join(DIRTY_DATA_PATH)
+    }
+
+    fn prepare_dirty_data_dir(&self) -> Result<(), GraphFolderError> {
+        let dir = self.dirty_data_path();
+        if dir.exists() {
+            fs::remove_dir_all(&dir)?;
+        }
+
+        Ok(fs::create_dir_all(dir)?)
+    }
+
     fn is_zip(&self) -> bool {
         self.root().is_file()
     }
@@ -410,7 +430,7 @@ pub trait GraphPaths {
         let raph_path = self.root_raph_path();
         let data_path = self.relative_data_path()?;
         fs::create_dir(self.root().join(&data_path))?;
-        Raph::from_data_path(data_path).write(&raph_path)?;
+        Raph::new(data_path).write(&raph_path)?;
 
         // Create the graph folder inside the data folder.
         let graph_path = self.graph_path()?;
@@ -457,6 +477,10 @@ pub trait GraphPaths {
                     continue;
                 };
 
+                if data_dir == DIRTY_DATA_PATH {
+                    continue;
+                }
+
                 if data_dir.starts_with(DATA_PATH) {
                     versions.insert(parse_path_pointer(data_dir, DATA_PATH)?);
                 }
@@ -472,6 +496,10 @@ pub trait GraphPaths {
                 }
 
                 if let Some(name) = entry.file_name().to_str() {
+                    if name == DIRTY_DATA_PATH {
+                        continue;
+                    }
+
                     if name.starts_with(DATA_PATH) {
                         versions.insert(parse_path_pointer(name, DATA_PATH)?);
                     }
@@ -554,61 +582,23 @@ impl GraphFolder {
         }
 
         self.ensure_clean_root_dir()?;
-
-        // Create a new data folder and point the dirty file to it.
-        let dirty_path = self.root.join(DIRTY_PATH);
-        let data_path = self.relative_data_path()?;
-        fs::create_dir_all(self.root.join(&data_path))?;
-        Raph::from_data_path(data_path).write(&dirty_path)?;
+        fs::create_dir_all(&self.root)?;
+        self.prepare_dirty_data_dir()?;
 
         Ok(WriteableGraphFolder { path: self.root })
     }
 
-    /// Prepare a new data folder for an atomic swap via a `dirty` file.
+    /// Prepare a new data folder for an atomic swap via a `dirty.data/` directory.
     ///
     /// Fails if the folder is to be encoded as zip. If a prior swap was interrupted
-    /// (`dirty` already exists), its data folder is cleared and reused.
+    /// (`dirty.data/` already exists), its contents are cleared and reused.
     pub fn init_swap(self) -> Result<WriteableGraphFolder, GraphFolderError> {
         if self.write_as_zip_format {
             return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
         }
 
-        let old_swap = match read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH) {
-            Ok(path) => path,
-            Err(_) => {
-                // dirty file is corrupted, clean it up
-                fs::remove_file(self.root.join(DIRTY_PATH))?;
-                None
-            }
-        };
-
         fs::create_dir_all(self.root())?;
-
-        let swap_path = match old_swap {
-            Some(relative_path) => {
-                // There was a prior swap, clear data folder and reuse.
-                let swap_path = self.root.join(relative_path);
-
-                if swap_path.exists() {
-                    fs::remove_dir_all(&swap_path)?;
-                }
-
-                swap_path
-            }
-            None => {
-                // Prepare a new data folder with an incremented id for the swap.
-                let new_relative_data_path =
-                    make_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
-
-                // Point the dirty file to the new data folder.
-                Raph::from_data_path(new_relative_data_path.clone())
-                    .write(&self.root.join(DIRTY_PATH))?;
-
-                self.root.join(new_relative_data_path)
-            }
-        };
-
-        fs::create_dir_all(swap_path)?;
+        self.prepare_dirty_data_dir()?;
 
         Ok(WriteableGraphFolder { path: self.root })
     }
@@ -698,9 +688,11 @@ impl GraphPaths for WriteableGraphFolder {
     }
 
     fn relative_data_path(&self) -> Result<String, GraphFolderError> {
-        let path = read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH)?
-            .ok_or(GraphFolderError::NoWriteInProgress)?;
-        Ok(path)
+        if !self.dirty_data_path().is_dir() {
+            return Err(GraphFolderError::NoWriteInProgress);
+        }
+
+        Ok(DIRTY_DATA_PATH.to_string())
     }
 
     fn relative_graph_path(&self) -> Result<String, GraphFolderError> {
@@ -715,17 +707,22 @@ impl GraphPaths for WriteableGraphFolder {
 }
 
 impl WriteableGraphFolder {
-    /// Finalise an in-progress write by atomically renaming the `dirty` file to `raph`.
-    /// Removes the previous `data{id}` folder if `cleanup_old` is true.
+    /// Finalise an in-progress write by promoting `dirty.data/` to `data{id}` and updating
+    /// the `raph` file. Removes the previous `data{id}` folder if `cleanup_old` is true.
     ///
-    /// This operation returns an error if there is no write in progress.
+    /// Returns an error if there is no write in progress.
     pub fn finish(self, cleanup_old: bool) -> Result<GraphFolder, GraphFolderError> {
-        let old_data_folder = read_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
+        let dirty_data_path = self.dirty_data_path();
+        if !dirty_data_path.is_dir() {
+            return Err(GraphFolderError::NoWriteInProgress);
+        }
 
-        fs::rename(
-            self.root().join(DIRTY_PATH),
-            self.root().join(ROOT_RAPH_PATH),
-        )?;
+        let old_data_folder = read_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
+        let new_data_folder = make_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
+        let new_data_path = self.root().join(&new_data_folder);
+
+        fs::rename(dirty_data_path, new_data_path)?;
+        Raph::new(new_data_folder).write(&self.root().join(ROOT_RAPH_PATH))?;
 
         if cleanup_old {
             if let Some(old_data_folder) = old_data_folder {
@@ -743,16 +740,14 @@ impl WriteableGraphFolder {
         })
     }
 
-    /// Abandon the current write by removing the data folder and the `dirty` file.
+    /// Abandon the current write by removing `dirty.data/`.
     ///
     /// The `raph` file is unchanged and points to the previous data folder.
     pub fn discard(self) -> Result<(), GraphFolderError> {
-        let data_path = self.data_path()?;
-        let dirty_path = self.root().join(DIRTY_PATH);
-
-        std::fs::remove_dir_all(data_path)?;
-        std::fs::remove_file(dirty_path)?;
-
+        let dirty_data_path = self.dirty_data_path();
+        if dirty_data_path.is_dir() {
+            std::fs::remove_dir_all(dirty_data_path)?;
+        }
         Ok(())
     }
 }
