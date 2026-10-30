@@ -1,6 +1,6 @@
 use super::input::input_node::parse_u64_strict;
-use crate::iter::IntoDynBoxed;
 use bytemuck::{Pod, Zeroable};
+use either::Either;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
@@ -654,21 +654,23 @@ impl LayerIds {
     }
 
     pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = LayerId> + use<'_> {
-        match self {
-            LayerIds::None => iter::empty().into_dyn_boxed(),
-            LayerIds::All => (0..num_layers).map(LayerId).into_dyn_boxed(),
-            LayerIds::One(id) => iter::once(*id).into_dyn_boxed(),
-            LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
-        }
+        let iter = match self {
+            LayerIds::None => Either::Left(0..0),
+            LayerIds::All => Either::Left(0..num_layers),
+            LayerIds::One(id) => Either::Left(id.0..id.0 + 1),
+            LayerIds::Multiple(ids) => Either::Right(ids.into_iter().map(|id|id.0)),
+        };
+        iter.map(LayerId)
     }
 
     pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = LayerId> {
-        match self {
-            LayerIds::None => iter::empty().into_dyn_boxed(),
-            LayerIds::All => (0..num_layers).map(LayerId).into_dyn_boxed(),
-            LayerIds::One(id) => iter::once(id).into_dyn_boxed(),
-            LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
-        }
+        let range = match self {
+            LayerIds::None => 0..0,
+            LayerIds::All => 0..num_layers,
+            LayerIds::One(id) => id.0..id.0 + 1,
+            LayerIds::Multiple(ids) => return Either::Right(ids.into_iter()),
+        };
+        Either::Left(range.map(LayerId))
     }
 }
 

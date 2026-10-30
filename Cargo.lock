@@ -6526,6 +6526,7 @@ dependencies = [
  "dashmap",
  "derive_more",
  "display-error-chain",
+ "either",
  "indexmap 2.14.2",
  "iter-enum",
  "itertools 0.15.0",
