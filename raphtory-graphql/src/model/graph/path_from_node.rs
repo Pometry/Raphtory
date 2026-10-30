@@ -357,6 +357,8 @@ impl GqlPathFromNode {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
+    ///
+    /// Order is unspecified (not insertion order).
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -379,6 +381,8 @@ impl GqlPathFromNode {
 
     /// Materialise every neighbour node in the path. Rejected by the server when
     /// bulk list endpoints are disabled; use `page` for paginated access instead.
+    ///
+    /// Order is unspecified (not insertion order).
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -457,7 +461,7 @@ impl GqlPathFromNode {
     /////////////////////
 
     /// Returns the neighbouring nodes reachable one further hop from this path
-    /// (both directions), as a flat `PathFromNode`.
+    /// (both directions), as a flat `PathFromNode`. Order is unspecified (not insertion order).
     pub async fn neighbours(
         &self,
         select: Option<GqlFilter>,
@@ -471,7 +475,7 @@ impl GqlPathFromNode {
     }
 
     /// Returns the in-neighbours reachable one further hop from this path, as a
-    /// flat `PathFromNode`.
+    /// flat `PathFromNode`. Order is unspecified (not insertion order).
     pub async fn in_neighbours(
         &self,
         select: Option<GqlFilter>,
@@ -485,7 +489,7 @@ impl GqlPathFromNode {
     }
 
     /// Returns the out-neighbours reachable one further hop from this path, as a
-    /// flat `PathFromNode`.
+    /// flat `PathFromNode`. Order is unspecified (not insertion order).
     pub async fn out_neighbours(
         &self,
         select: Option<GqlFilter>,

@@ -417,7 +417,7 @@ impl GqlNode {
         Ok(GqlEdges::new(base))
     }
 
-    /// Returns neighbouring nodes.
+    /// Returns neighbouring nodes. Order is unspecified (not insertion order).
     pub async fn neighbours(
         &self,
         select: Option<GqlFilter>,
@@ -430,7 +430,7 @@ impl GqlNode {
         Ok(GqlPathFromNode::new(base))
     }
 
-    /// Returns the number of neighbours that have at least one in-going edge to this node.
+    /// Returns the neighbours that have at least one in-going edge to this node. Order is unspecified (not insertion order).
     pub async fn in_neighbours(
         &self,
         select: Option<GqlFilter>,
@@ -443,7 +443,7 @@ impl GqlNode {
         Ok(GqlPathFromNode::new(base))
     }
 
-    /// Returns the number of neighbours that have at least one out-going edge from this node.
+    /// Returns the neighbours that have at least one out-going edge from this node. Order is unspecified (not insertion order).
     pub async fn out_neighbours(
         &self,
         select: Option<GqlFilter>,

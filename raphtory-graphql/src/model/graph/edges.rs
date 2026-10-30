@@ -27,6 +27,8 @@ use raphtory::{
 use raphtory_api::core::utils::time::IntoTime;
 
 /// A lazy collection of edges from a graph view. Supports the usual view transforms (window, layer, filter, ...), plus edge-specific ones like `explode` and `explodeLayers`, pagination, and sorting. `select` and `filter` on the collection returned by `explode` ask their question of each exploded edge.
+///
+/// Layer and time transforms (`layer`, `window`, `at`, `before`, ...) do not remove edges from the collection: every edge is still returned, but its properties and history only reflect the selected layers or time range. To narrow the set itself, apply the transform to the graph before selecting `edges`, or use `filter`.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]
 pub struct GqlEdges {
@@ -59,12 +61,12 @@ impl GqlEdges {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Returns a collection containing only edges in the default edge layer.
+    /// Returns a view of the edges restricted to the default edge layer.
     pub async fn default_layer(&self) -> Self {
         self.update(self.ee.default_layer())
     }
 
-    /// Returns a collection containing only edges belonging to the listed layers.
+    /// Returns a view of the edges restricted to the listed layers.
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -73,7 +75,7 @@ impl GqlEdges {
         blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
     }
 
-    /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
+    /// Returns a view of the edges restricted to all layers except the excluded ones.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -82,12 +84,12 @@ impl GqlEdges {
         blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
     }
 
-    /// Returns a collection containing edges belonging to the specified layer.
+    /// Returns a view of the edges restricted to the specified layer.
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.ee.valid_layers(name))
     }
 
-    /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
+    /// Returns a view of the edges restricted to all layers except the excluded one.
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -363,6 +365,8 @@ impl GqlEdges {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
+    ///
+    /// Order is unspecified (not insertion order); use `sorted` for a stable order.
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -384,6 +388,8 @@ impl GqlEdges {
     }
 
     /// Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
+    ///
+    /// Order is unspecified (not insertion order); use `sorted` for a stable order.
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdge>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();

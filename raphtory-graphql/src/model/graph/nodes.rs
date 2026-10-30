@@ -33,6 +33,8 @@ use raphtory_api::core::utils::time::IntoTime;
 /// A lazy collection of nodes from a graph view. Supports all the same view
 /// transforms as `Graph` (window, layer, filter, ...) plus pagination and
 /// sorting. Iterated via `list` / `page` / `ids` / `count`.
+///
+/// Layer and time transforms (`layer`, `window`, `at`, `before`, ...) do not remove nodes from the collection: every node is still returned, but its properties and history only reflect the selected layers or time range. To narrow the set itself, apply the transform to the graph before selecting `nodes`, or use `filter`.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Nodes")]
 pub struct GqlNodes {
@@ -64,12 +66,12 @@ impl GqlNodes {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Return a view of the nodes containing only the default edge layer.
+    /// Returns a view of the nodes restricted to the default edge layer.
     pub async fn default_layer(&self) -> Self {
         self.update(self.nn.default_layer())
     }
 
-    /// Return a view of the nodes containing all layers specified.
+    /// Returns a view of the nodes restricted to the listed layers.
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -77,7 +79,7 @@ impl GqlNodes {
         self.update(self.nn.valid_layers(names))
     }
 
-    /// Return a view of the nodes containing all layers except those specified.
+    /// Returns a view of the nodes restricted to all layers except the excluded ones.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -86,12 +88,12 @@ impl GqlNodes {
         blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names))).await
     }
 
-    /// Return a view of the nodes containing the specified layer.
+    /// Returns a view of the nodes restricted to the specified layer.
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
-    /// Return a view of the nodes containing all layers except those specified.
+    /// Returns a view of the nodes restricted to all layers except the excluded one.
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -382,6 +384,8 @@ impl GqlNodes {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
+    ///
+    /// Order is unspecified (not insertion order); use `sorted` for a stable order.
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -404,6 +408,8 @@ impl GqlNodes {
 
     /// Materialise every node in the view. Rejected by the server when bulk list
     /// endpoints are disabled; use `page` for paginated access instead.
+    ///
+    /// Order is unspecified (not insertion order); use `sorted` for a stable order.
     pub async fn list(&self, ctx: &Context<'_>) -> Result<Vec<GqlNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -487,7 +493,7 @@ impl GqlNodes {
     //// Traversals /////
     /////////////////////
 
-    /// Returns the neighbouring nodes of each node in the collection.
+    /// Returns the neighbouring nodes of each node in the collection. Order is unspecified (not insertion order).
     pub async fn neighbours(
         &self,
         select: Option<GqlFilter>,
@@ -500,7 +506,7 @@ impl GqlNodes {
         Ok(GqlPathFromGraph::new(base))
     }
 
-    /// Returns the in-neighbours of each node in the collection.
+    /// Returns the in-neighbours of each node in the collection. Order is unspecified (not insertion order).
     pub async fn in_neighbours(
         &self,
         select: Option<GqlFilter>,
@@ -513,7 +519,7 @@ impl GqlNodes {
         Ok(GqlPathFromGraph::new(base))
     }
 
-    /// Returns the out-neighbours of each node in the collection.
+    /// Returns the out-neighbours of each node in the collection. Order is unspecified (not insertion order).
     pub async fn out_neighbours(
         &self,
         select: Option<GqlFilter>,
