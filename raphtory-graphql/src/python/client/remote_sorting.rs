@@ -46,6 +46,9 @@ fn empty_node_sort_by(reverse: bool) -> NodeSortBy {
         type_: None,
         time: None,
         property: None,
+        degree: None,
+        in_degree: None,
+        out_degree: None,
     }
 }
 

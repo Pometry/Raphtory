@@ -3401,6 +3401,93 @@ mod graphql_test {
         );
     }
 
+    fn schema_with_max_sort_size(data: &Data, max_sort_size: Option<usize>) -> Schema {
+        App::create_schema()
+            .data(data.clone())
+            .data(crate::config::concurrency_config::ConcurrencyConfig {
+                max_sort_size,
+                ..Default::default()
+            })
+            .finish()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_sorted_respects_max_sort_size() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        g.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        g.add_edge(3, "c", "a", NO_PROPS, None).unwrap();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", g.into())], tmp_dir.path()).await;
+
+        let edges_query =
+            r#"{ graph(path: "g") { edges { sorted(sortBys: [{ time: LATEST }]) { count } } } }"#;
+        let nodes_query =
+            r#"{ graph(path: "g") { nodes { sorted(sortBys: [{ name: true }]) { count } } } }"#;
+
+        let capped = schema_with_max_sort_size(&setup.data, Some(2));
+        for query in [edges_query, nodes_query] {
+            let res = capped.execute(Request::new(query)).await;
+            assert_eq!(res.errors.len(), 1, "{query}: {:?}", res.errors);
+            assert!(
+                res.errors[0]
+                    .message
+                    .contains("sorting more than 2 items isn't supported"),
+                "{:?}",
+                res.errors
+            );
+        }
+
+        for schema in [
+            schema_with_max_sort_size(&setup.data, Some(3)),
+            schema_with_max_sort_size(&setup.data, None),
+        ] {
+            let res = schema.execute(Request::new(edges_query)).await;
+            assert_eq!(res.errors, vec![], "{:?}", res.errors);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "graph": { "edges": { "sorted": { "count": 3 } } } })
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_degree() {
+        let g = Graph::new();
+        g.add_edge(1, "hub", "a", NO_PROPS, None).unwrap();
+        g.add_edge(1, "hub", "b", NO_PROPS, None).unwrap();
+        g.add_edge(1, "hub", "c", NO_PROPS, None).unwrap();
+        g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", g.into())], tmp_dir.path()).await;
+
+        let names = |data: &Value| {
+            data["graph"]["nodes"]["sorted"]["list"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|n| n["name"].as_str().unwrap().to_string())
+                .collect_vec()
+        };
+        for (key, expected) in [
+            ("degree", ["hub", "a", "b", "c"]),
+            ("inDegree", ["b", "a", "c", "hub"]),
+            ("outDegree", ["hub", "a", "b", "c"]),
+        ] {
+            let query = format!(
+                r#"{{ graph(path: "g") {{ nodes {{ sorted(sortBys: [{{ {key}: true, reverse: true }}, {{ name: true }}]) {{ list {{ name }} }} }} }} }}"#
+            );
+            let res = setup.schema.execute(Request::new(query)).await;
+            assert_eq!(res.errors, vec![], "{key}: {:?}", res.errors);
+            assert_eq!(names(&res.data.into_json().unwrap()), expected, "{key}");
+        }
+
+        let both = r#"{ graph(path: "g") { nodes { sorted(sortBys: [{ degree: true, name: true }]) { count } } } }"#;
+        let res = setup.schema.execute(Request::new(both)).await;
+        assert_eq!(res.errors.len(), 1, "{:?}", res.errors);
+    }
+
     async fn neighbour_sort_setup(tmp: &std::path::Path) -> crate::test_support::TestSetup {
         // Anchor "hub" with edges in BOTH directions to typed + untyped neighbours.
         let g = Graph::new();

@@ -155,6 +155,9 @@ impl AppConfigBuilder {
         if let Some(max_page_size) = server_args.max_page_size {
             builder.with_max_page_size(Some(max_page_size));
         }
+        if let Some(max_sort_size) = server_args.max_sort_size {
+            builder.with_max_sort_size(Some(max_sort_size));
+        }
         if let Some(max_query_depth) = server_args.max_query_depth {
             builder.with_max_query_depth(Some(max_query_depth));
         }
@@ -382,6 +385,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            ConcurrencyConfigFieldName::MaxSortSize => {
+                                self.with_max_sort_size(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -589,6 +598,11 @@ impl AppConfigBuilder {
 
     pub fn with_max_page_size(&mut self, max_page_size: Option<usize>) -> &mut Self {
         self.config.concurrency.max_page_size = max_page_size;
+        self
+    }
+
+    pub fn with_max_sort_size(&mut self, max_sort_size: Option<usize>) -> &mut Self {
+        self.config.concurrency.max_sort_size = max_sort_size;
         self
     }
 

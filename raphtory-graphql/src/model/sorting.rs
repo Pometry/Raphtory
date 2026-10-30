@@ -1,5 +1,6 @@
 use dynamic_graphql::{Enum, InputObject};
 use raphtory::{db::api::view::sort, errors::GraphError};
+use raphtory_api::core::Direction;
 
 #[derive(InputObject, Clone, Debug, Eq, PartialEq)]
 pub struct EdgeSortBy {
@@ -36,6 +37,12 @@ pub struct NodeSortBy {
     pub time: Option<SortByTime>,
     /// Property
     pub property: Option<String>,
+    /// Number of distinct neighbours (in or out).
+    pub degree: Option<bool>,
+    /// Number of distinct in-neighbours.
+    pub in_degree: Option<bool>,
+    /// Number of distinct out-neighbours.
+    pub out_degree: Option<bool>,
 }
 
 #[derive(Enum, Clone, Copy, Debug, Eq, PartialEq)]
@@ -78,13 +85,22 @@ impl TryFrom<NodeSortBy> for sort::NodeSortBy {
         if let Some(p) = v.property {
             keys.push(sort::NodeSortKey::Property(p));
         }
+        if v.degree == Some(true) {
+            keys.push(sort::NodeSortKey::Degree(Direction::BOTH));
+        }
+        if v.in_degree == Some(true) {
+            keys.push(sort::NodeSortKey::Degree(Direction::IN));
+        }
+        if v.out_degree == Some(true) {
+            keys.push(sort::NodeSortKey::Degree(Direction::OUT));
+        }
         match <[sort::NodeSortKey; 1]>::try_from(keys) {
             Ok([key]) => Ok(sort::NodeSortBy {
                 reverse: v.reverse == Some(true),
                 key,
             }),
             Err(keys) => Err(GraphError::InvalidGqlFilter(format!(
-                "a node sort key must set exactly one of id/name/type/time/property, got {}",
+                "a node sort key must set exactly one of id/name/type/time/property/degree/inDegree/outDegree, got {}",
                 keys.len()
             ))),
         }
@@ -142,6 +158,9 @@ impl From<sort::NodeSortBy> for NodeSortBy {
             type_: None,
             time: None,
             property: None,
+            degree: None,
+            in_degree: None,
+            out_degree: None,
         };
         match v.key {
             sort::NodeSortKey::Id => out.id = Some(true),
@@ -149,6 +168,9 @@ impl From<sort::NodeSortBy> for NodeSortBy {
             sort::NodeSortKey::Type => out.type_ = Some(true),
             sort::NodeSortKey::Time(t) => out.time = Some(t.into()),
             sort::NodeSortKey::Property(p) => out.property = Some(p),
+            sort::NodeSortKey::Degree(Direction::BOTH) => out.degree = Some(true),
+            sort::NodeSortKey::Degree(Direction::IN) => out.in_degree = Some(true),
+            sort::NodeSortKey::Degree(Direction::OUT) => out.out_degree = Some(true),
         }
         out
     }

@@ -5,7 +5,7 @@ use crate::{
             properties::{Metadata, Properties},
             view::{
                 internal::{DynGraphArc, GraphView, InternalFilter, Static},
-                sort::{compare_edge, EdgeSortBy},
+                sort::{sort_edges, EdgeSortBy},
                 BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
                 IntoDynamic, Select, StaticGraphViewOps,
             },
@@ -22,9 +22,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use itertools::Itertools;
 use std::{
-    cmp::Ordering,
     fmt::{Debug, Formatter},
     sync::Arc,
 };
@@ -201,24 +199,30 @@ impl<'graph, G: GraphView + 'graph, K: EdgeItem> Edges<'graph, G, K> {
     /// compare by the first key, ties break to the next. Returns a new
     /// collection backed by an explicit edge list in the sorted order.
     pub fn sorted(&self, sort_bys: &[EdgeSortBy]) -> Self {
-        let sorted: Arc<[EdgeRef]> = self
-            .iter()
-            .sorted_by(|a, b| {
-                sort_bys.iter().fold(Ordering::Equal, |current, sort_by| {
-                    current.then_with(|| compare_edge(a, b, sort_by))
-                })
-            })
+        self.try_sorted(sort_bys, None)
+            .expect("an unbounded sort cannot exceed its limit")
+    }
+
+    /// Like [`Self::sorted`], but errors with [`GraphError::SortTooLarge`] instead
+    /// of sorting more than `max` edges.
+    pub fn try_sorted(
+        &self,
+        sort_bys: &[EdgeSortBy],
+        max: Option<usize>,
+    ) -> Result<Self, GraphError> {
+        let sorted: Arc<[EdgeRef]> = sort_edges(self.iter(), sort_bys, max)?
+            .into_iter()
             .map(|edge_view| edge_view.edge)
             .collect();
         // the sorted collection holds the same kind of item
-        Self::new(
+        Ok(Self::new(
             self.base_graph.clone(),
             Arc::new(move |_| {
                 let sorted = sorted.clone();
                 (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
             }),
         )
-        .with_kind(self.kind)
+        .with_kind(self.kind))
     }
 
     pub fn len(&self) -> usize {
