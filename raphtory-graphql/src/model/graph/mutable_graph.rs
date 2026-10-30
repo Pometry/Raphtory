@@ -298,7 +298,9 @@ impl GqlMutableGraph {
                     let node_type = node.node_type.as_str();
                     let layer = node.layer.as_str();
 
-                    for prop in node.updates.unwrap_or(vec![]) {
+                    let updates = node.updates.unwrap_or(vec![]);
+                    let type_applied_by_updates = !updates.is_empty();
+                    for prop in updates {
                         let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
                         self_clone.graph.add_node(
                             prop.time.into_input_time(),
@@ -309,7 +311,9 @@ impl GqlMutableGraph {
                         )?;
                     }
                     if let Some(node_type) = node.node_type.as_str() {
-                        self_clone.get_node_view(name)?.set_node_type(node_type)?;
+                        if !type_applied_by_updates {
+                            self_clone.get_node_view(name)?.set_node_type(node_type)?;
+                        }
                     }
                     let metadata = node.metadata.unwrap_or(vec![]);
                     if !metadata.is_empty() {
@@ -1351,6 +1355,108 @@ mod tests {
                 indexed_before,
                 "nothing should have been indexed while embedding was unavailable"
             );
+        }
+    }
+
+    fn typed_addition(
+        name: &str,
+        node_type: &str,
+        updates: Option<Vec<TemporalPropertyInput>>,
+    ) -> NodeAddition {
+        NodeAddition {
+            name: name.into(),
+            node_type: Some(node_type.to_string()),
+            metadata: None,
+            updates,
+            layer: None,
+        }
+    }
+
+    fn one_update_at(time: i64) -> Option<Vec<TemporalPropertyInput>> {
+        Some(vec![TemporalPropertyInput {
+            time: time.into(),
+            properties: None,
+        }])
+    }
+
+    fn type_of(graph: &GqlMutableGraph, name: &str) -> Option<String> {
+        graph
+            .graph
+            .node(name)
+            .and_then(|node| node.node_type().map(|t| t.to_string()))
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_sets_type_with_updates() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let context = create_mutable_graph(1760, work_dir.path()).await;
+            let graph = &context.mutable_graph;
+
+            graph
+                .add_nodes(vec![typed_addition("a", "person", one_update_at(1))])
+                .await
+                .unwrap();
+
+            assert_eq!(type_of(graph, "a").as_deref(), Some("person"));
+            context.embedding_server.stop().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_sets_type_without_updates() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let context = create_mutable_graph(1761, work_dir.path()).await;
+            let graph = &context.mutable_graph;
+            graph
+                .add_node(0.into(), "existing".into(), None, None, None)
+                .await
+                .unwrap();
+
+            graph
+                .add_nodes(vec![typed_addition("existing", "person", None)])
+                .await
+                .unwrap();
+            assert_eq!(type_of(graph, "existing").as_deref(), Some("person"));
+
+            let missing = graph
+                .add_nodes(vec![typed_addition("missing", "person", None)])
+                .await;
+            assert!(missing.is_err());
+            assert!(type_of(graph, "missing").is_none());
+            context.embedding_server.stop().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_rejects_changing_an_existing_type() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let context = create_mutable_graph(1762, work_dir.path()).await;
+            let graph = &context.mutable_graph;
+            graph
+                .add_nodes(vec![typed_addition("a", "person", one_update_at(1))])
+                .await
+                .unwrap();
+
+            let changed = graph
+                .add_nodes(vec![typed_addition("a", "robot", one_update_at(2))])
+                .await;
+            assert!(changed.is_err());
+            assert_eq!(type_of(graph, "a").as_deref(), Some("person"));
+
+            let unchanged = graph
+                .add_nodes(vec![typed_addition("a", "person", one_update_at(3))])
+                .await;
+            assert!(unchanged.is_ok());
+
+            let changed_without_updates = graph
+                .add_nodes(vec![typed_addition("a", "robot", None)])
+                .await;
+            assert!(changed_without_updates.is_err());
+            assert_eq!(type_of(graph, "a").as_deref(), Some("person"));
+            context.embedding_server.stop().await;
         }
     }
 
