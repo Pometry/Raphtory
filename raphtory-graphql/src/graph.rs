@@ -66,9 +66,11 @@ pub struct GraphWithVectorsInner {
     listener: MutationListener,
 }
 
-/// Tells the authorization policy that a graph's contents changed. Empty when there is no policy.
-/// Weak for the same reason as `DataInner::auth_policy`: the graph is cached in a `DataInner` the
-/// policy holds.
+/// Tells the authorization policy when a graph's contents change or it is evicted. Empty when
+/// there is no policy.
+// We use a weak reference because the graph (which holds this `MutationListener`) is cached in a
+// `DataInner` the policy holds, so a strong reference back to the policy would create a cycle, and
+// they would keep each other alive in memory forever.
 #[derive(Clone, Default)]
 pub struct MutationListener(Option<Weak<dyn AuthorizationPolicy>>);
 
@@ -81,6 +83,13 @@ impl MutationListener {
     pub fn notify(&self) {
         if let Some(policy) = self.0.as_ref().and_then(Weak::upgrade) {
             policy.on_graph_mutated();
+        }
+    }
+
+    /// Notify the auth policy that a graph was evicted.
+    pub fn notify_evicted(&self, path: &str) {
+        if let Some(policy) = self.0.as_ref().and_then(Weak::upgrade) {
+            policy.on_graph_evicted(path);
         }
     }
 }
@@ -176,6 +185,11 @@ impl GraphWithVectors {
     /// See [`MutationListener::notify`].
     pub fn notify_mutated(&self) {
         self.inner.listener.notify();
+    }
+
+    /// See [`MutationListener::notify_evicted`].
+    pub fn notify_evicted(&self, path: &str) {
+        self.inner.listener.notify_evicted(path);
     }
 
     /// For a handle rebuilt around the same graph.

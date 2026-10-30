@@ -224,6 +224,10 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Called after any graph on this server is successfully mutated. Default no-op.
     fn on_graph_mutated(&self) {}
 
+    /// Called when the graph at `path` is evicted from memory, so the policy can drop anything
+    /// that would keep it loaded. Default no-op.
+    fn on_graph_evicted(&self, _path: &str) {}
+
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling
     /// back the graph creation so the store and filesystem stay consistent.
