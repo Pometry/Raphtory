@@ -1,6 +1,6 @@
 use crate::{
-    data::GqlGraphType, model::graph::filtering::GraphAccessFilter, paths::UnlockedGraphFolder,
-    rayon::blocking_cache,
+    data::GqlGraphType, graph::GraphWithVectors, model::graph::filtering::GraphAccessFilter,
+    paths::UnlockedGraphFolder, rayon::blocking_cache,
 };
 use futures_util::future::BoxFuture;
 use raphtory::{
@@ -134,6 +134,16 @@ impl DynGraphWithFolder {
         let Self { folder, graph } = self;
         let graph = blocking_cache(move || graph.cache_view().into_dynamic()).await;
         Self { folder, graph }
+    }
+}
+
+/// Stops the graph cache evicting a graph while held by owning an Arc reference to it.
+#[derive(Clone)]
+pub struct GraphPin(#[allow(dead_code)] GraphWithVectors); // holds GraphWithVectors without exposing it
+
+impl GraphPin {
+    pub(crate) fn new(graph: GraphWithVectors) -> Self {
+        Self(graph)
     }
 }
 

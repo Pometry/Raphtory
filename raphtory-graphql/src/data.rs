@@ -1,8 +1,8 @@
 use crate::{
     auth::ContextValidation,
     auth_policy::{
-        AuthorizationPolicy, DynGraphWithFolder, GraphPermission, MaybeCachedFilteredRead,
-        PermissionLevel,
+        AuthorizationPolicy, DynGraphWithFolder, GraphPermission, GraphPin,
+        MaybeCachedFilteredRead, PermissionLevel,
     },
     cache::GraphCache,
     config::{app_config::AppConfig, cache_config::CacheConfig},
@@ -1091,6 +1091,17 @@ impl Data {
         graph_type: Option<GqlGraphType>,
         filter: Option<&GraphAccessFilter>,
     ) -> async_graphql::Result<DynGraphWithFolder> {
+        let (view, _pin) = self.load_filtered_pinned(path, graph_type, filter).await?;
+        Ok(view)
+    }
+
+    /// [`Self::load_filtered`], with the graph pinned in the cache until the [`GraphPin`] drops.
+    pub async fn load_filtered_pinned(
+        &self,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+        filter: Option<&GraphAccessFilter>,
+    ) -> async_graphql::Result<(DynGraphWithFolder, GraphPin)> {
         let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
@@ -1114,7 +1125,8 @@ impl Data {
             Some(f) => apply_access_filter(raw, f).await?,
             None => raw,
         };
-        Ok(DynGraphWithFolder::new(gwv.folder().clone(), graph))
+        let view = DynGraphWithFolder::new(gwv.folder().clone(), graph);
+        Ok((view, GraphPin::new(gwv)))
     }
 
     /// The read a refinement resolved to, applying its filter if it has one.
