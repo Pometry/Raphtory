@@ -50,6 +50,11 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
         EdgeWriter::new(self.num_edges, self.segment, self.head.deref_mut())
     }
 
+    /// Whether the edge at `pos` is in layer `layer_id`, in memory or on disk.
+    pub fn has_edge(&self, pos: LocalPOS, layer_id: LayerId) -> bool {
+        self.segment.has_edge(pos, layer_id, self.head.deref())
+    }
+
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkEdgeWriter<'_, &mut MemEdgeSegment, ES> {
         EdgeWriter::new(self.num_edges, self.segment, self.head.deref_mut()).into()
@@ -84,6 +89,13 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
 #[derive(Debug)]
 pub struct WriteLockedEdgeSegments<'a, ES> {
     segments: Vec<LockedEdgeSegment<'a, ES>>,
+}
+
+impl<'a, ES> WriteLockedEdgeSegments<'a, ES> {
+    /// Takes every held segment lock out, leaving none.
+    pub fn take_all(&mut self) -> Vec<LockedEdgeSegment<'a, ES>> {
+        std::mem::take(&mut self.segments)
+    }
 }
 
 impl<ES> Default for WriteLockedEdgeSegments<'_, ES> {

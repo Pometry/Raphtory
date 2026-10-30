@@ -494,22 +494,37 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         timeout: Duration,
     ) -> Result<(), StorageError> {
         for segment_id in pages.len()..self.segments.count() {
-            let page = self.get_or_create_segment(segment_id);
-            let lock = page
-                .try_head_mut_for(timeout)
-                .ok_or(StorageError::SegmentLockTimeout {
-                    kind: SegmentKind::Edge,
-                    segment_id,
-                })?;
-            pages.push(LockedEdgeSegment::new(
-                segment_id,
-                self.max_page_len(),
-                page.as_ref(),
-                &self.layer_counter,
-                lock,
-            ));
+            pages.push(self.lock_segment(segment_id, timeout)?);
         }
         Ok(())
+    }
+
+    /// Write-locks segment `segment_id`, creating it if needed.
+    pub fn lock_segment<'a>(
+        &'a self,
+        segment_id: usize,
+        timeout: Duration,
+    ) -> Result<LockedEdgeSegment<'a, ES>, StorageError> {
+        let page = self.get_or_create_segment(segment_id);
+        let lock = page
+            .try_head_mut_for(timeout)
+            .ok_or(StorageError::SegmentLockTimeout {
+                kind: SegmentKind::Edge,
+                segment_id,
+            })?;
+        Ok(LockedEdgeSegment::new(
+            segment_id,
+            self.max_page_len(),
+            page.as_ref(),
+            &self.layer_counter,
+            lock,
+        ))
+    }
+
+    /// Reserves the next free position in segment `segment_id`, or `None` if it is full.
+    pub fn reserve_pos_in(&self, segment_id: usize) -> Option<LocalPOS> {
+        let segment = self.segments.get(segment_id)?;
+        self.reserve_page_row(segment).map(LocalPOS)
     }
 
     /// Retrieve the segment for an edge given its EID

@@ -25,6 +25,7 @@ use storage::{pages::resolve_pos, segments::graph_prop::segment::MemGraphPropSeg
 
 pub mod edge_props;
 pub mod edges;
+pub mod edges2;
 pub mod nodes;
 
 pub(crate) mod cache;

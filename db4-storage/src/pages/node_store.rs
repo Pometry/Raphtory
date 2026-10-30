@@ -356,22 +356,31 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         timeout: Duration,
     ) -> Result<(), StorageError> {
         for segment_id in pages.len()..self.segments.count() {
-            let page = self.get_or_create_segment(segment_id);
-            let lock = page
-                .try_head_mut_for(timeout)
-                .ok_or(StorageError::SegmentLockTimeout {
-                    kind: SegmentKind::Node,
-                    segment_id,
-                })?;
-            pages.push(LockedNodeSegment::new(
-                segment_id,
-                &self.stats,
-                self.max_segment_len(),
-                page.as_ref(),
-                lock,
-            ));
+            pages.push(self.lock_segment(segment_id, timeout)?);
         }
         Ok(())
+    }
+
+    /// Write-locks segment `segment_id`, creating it if needed.
+    pub fn lock_segment<'a>(
+        &'a self,
+        segment_id: usize,
+        timeout: Duration,
+    ) -> Result<LockedNodeSegment<'a, NS>, StorageError> {
+        let page = self.get_or_create_segment(segment_id);
+        let lock = page
+            .try_head_mut_for(timeout)
+            .ok_or(StorageError::SegmentLockTimeout {
+                kind: SegmentKind::Node,
+                segment_id,
+            })?;
+        Ok(LockedNodeSegment::new(
+            segment_id,
+            &self.stats,
+            self.max_segment_len(),
+            page.as_ref(),
+            lock,
+        ))
     }
 
     pub fn is_dirty(&self) -> bool {

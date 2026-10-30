@@ -29,16 +29,25 @@ fn load_eth_graph(parquet_path: &Path, graph: &Graph) -> Result<(), GraphError> 
     // │ max_priority_fee_per_gas    bigint       block_timestamp             timestamp │
     // │ date                        varchar      last_modified               timestamp │
     // └────────────────────────────────────────────────────────────────────────────────┘
+    // ETH_NO_PROPS loads the edges alone; ETH_BATCH_SIZE sets the rows per chunk
+    let properties: &[&str] = if std::env::var_os("ETH_NO_PROPS").is_some() {
+        &[]
+    } else {
+        &["gas", "value", "block_hash", "transaction_type", "hash"]
+    };
+    let batch_size = std::env::var("ETH_BATCH_SIZE")
+        .ok()
+        .and_then(|v| v.parse().ok());
     load_edges_from_parquet(
         graph,
         parquet_path,
         ColumnNames::new("block_timestamp", None, "from_address", "to_address", None),
         true,
-        &["gas", "value", "block_hash", "transaction_type", "hash"],
+        properties,
         &[],
         None,
         None,
-        None,
+        batch_size,
         None,
     )?;
     graph.flush()?;

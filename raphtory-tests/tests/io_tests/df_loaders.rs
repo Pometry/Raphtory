@@ -13,6 +13,7 @@ mod io_tests {
             df_loaders::{
                 edge_props::load_edges_metadata_from_df,
                 edges::{load_edges_from_df, load_edges_from_df_prefetch, ColumnNames},
+                edges2::load_edges_from_df2,
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
@@ -402,6 +403,56 @@ mod io_tests {
             assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_eq!(count_edges, distinct_edges);
             assert_graph_equal(&g, &g2);
+        })
+    }
+
+    /// `load_edges_from_df2` (no properties yet) against the same edges added one by one.
+    fn check_load2(g: &Graph, edges: &[(u64, u64, i64, String, i64)], chunk_size: usize, layer: Option<&str>) {
+        load_edges_from_df2(
+            build_df(chunk_size, edges),
+            ColumnNames::new("time", None, "src", "dst", None),
+            layer,
+            g,
+        )
+        .unwrap();
+        let expected = Graph::new();
+        for (src, dst, time, _, _) in edges {
+            expected.add_edge(*time, *src, *dst, NO_PROPS, layer).unwrap();
+        }
+        assert_graph_equal(g, &expected);
+    }
+
+    #[test]
+    fn test_load_edges2_proptest() {
+        proptest!(|(edges in build_edge_list(1000, 100), chunk_size in 1usize..=1000)| {
+            check_load2(&Graph::new(), &edges, chunk_size, None);
+        })
+    }
+
+    #[test]
+    fn test_load_edges2_many_segments_proptest() {
+        proptest!(|(edges in build_edge_list(300, 50), chunk_size in 1usize..=300)| {
+            check_load2(&small_pages_graph(), &edges, chunk_size, None);
+        })
+    }
+
+    #[test]
+    fn test_load_edges2_layer_proptest() {
+        proptest!(|(edges in build_edge_list(300, 50), chunk_size in 1usize..=300)| {
+            check_load2(&Graph::new(), &edges, chunk_size, Some("layer"));
+        })
+    }
+
+    #[test]
+    fn test_load_edges2_str_proptest() {
+        proptest!(|(edges in build_edge_list_str(100, 100), chunk_size in 1usize..=100)| {
+            let g = Graph::new();
+            load_edges_from_df2(build_df_str(chunk_size, &edges), ColumnNames::new("time", None, "src", "dst", None), None, &g).unwrap();
+            let expected = Graph::new();
+            for (src, dst, time, _, _) in &edges {
+                expected.add_edge(*time, src, dst, NO_PROPS, None).unwrap();
+            }
+            assert_graph_equal(&g, &expected);
         })
     }
 

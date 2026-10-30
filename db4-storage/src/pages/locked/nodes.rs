@@ -123,6 +123,13 @@ pub struct WriteLockedNodeSegments<'a, NS> {
     segments: Vec<LockedNodeSegment<'a, NS>>,
 }
 
+impl<'a, NS> WriteLockedNodeSegments<'a, NS> {
+    /// Takes every held segment lock out, leaving none.
+    pub fn take_all(&mut self) -> Vec<LockedNodeSegment<'a, NS>> {
+        std::mem::take(&mut self.segments)
+    }
+}
+
 impl<NS> Default for WriteLockedNodeSegments<'_, NS> {
     fn default() -> Self {
         Self {
