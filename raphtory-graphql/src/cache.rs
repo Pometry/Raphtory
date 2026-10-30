@@ -44,7 +44,7 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
     }
 
     #[inline]
-    fn on_evict(&self, _state: &mut Self::RequestState, _key: String, graph: GraphWithVectors) {
+    fn on_evict(&self, _state: &mut Self::RequestState, key: String, graph: GraphWithVectors) {
         debug_assert_eq!(
             graph.ref_count(),
             1,
@@ -55,6 +55,8 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
             !graph.is_flushing(),
             "Graph should be already flushed on eviction"
         );
+        // Views the policy cached over this graph would otherwise keep its storage in memory.
+        graph.notify_evicted(&key);
 
         debug!(
             "Graph {} removed from cache (clean)",

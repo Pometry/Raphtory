@@ -6798,6 +6798,7 @@ dependencies = [
  "raphtory-storage",
  "rayon",
  "regex",
+ "roaring",
  "serde",
  "serde_json",
  "streaming-stats",

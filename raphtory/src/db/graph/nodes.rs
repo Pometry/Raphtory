@@ -276,12 +276,9 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
-        if let NodeList::List {
-            elems: Index::Sorted { keys, exact: true },
-        } = &self.nodes
-        {
-            if self.base_graph.node_list_trusted() {
-                return keys.len();
+        if let NodeList::List { elems } = &self.nodes {
+            if elems.dynamically_exact() && self.base_graph.node_list_trusted() {
+                return elems.len();
             }
         }
         if self.is_list_filtered() {

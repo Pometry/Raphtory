@@ -1,7 +1,7 @@
 use rayon::{ThreadPool, ThreadPoolBuilder};
 #[cfg(test)]
 use std::sync::Mutex;
-use std::sync::{LazyLock, OnceLock};
+use std::sync::{Arc, LazyLock, OnceLock};
 use tokio::sync::{oneshot, Semaphore};
 use tracing::warn;
 
@@ -84,6 +84,36 @@ pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>
     tokio::task::spawn_blocking(closure)
         .await
         .expect("graph load panicked")
+}
+
+/// Background graph view caching operations.
+static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    // using 4 cores was found to be optimal
+    let num_threads = (cores() > 6).then_some(4).unwrap_or((cores() / 2).max(1));
+    ThreadPoolBuilder::new()
+        .stack_size(16 * 1024 * 1024)
+        .num_threads(num_threads)
+        .thread_name(|t| format!("RAP-cache-{t}"))
+        .build()
+        .unwrap()
+});
+
+/// Limit to 1 caching operation at a time because they run in parallel.
+static CACHING_PERMITS: LazyLock<Arc<Semaphore>> = LazyLock::new(|| Arc::new(Semaphore::new(1)));
+
+/// Queue `closure` behind any other caching operation and run it on the caching pool.
+pub async fn blocking_cache<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
+    let permit = CACHING_PERMITS
+        .clone()
+        .acquire_owned()
+        .await
+        .expect("caching semaphore is never closed");
+    let (send, recv) = oneshot::channel();
+    CACHING_POOL.spawn(move || {
+        let _permit = permit;
+        let _ = send.send(closure());
+    });
+    recv.await.expect("graph view caching panicked")
 }
 
 /// Use a separate rayon threadpool to execute write tasks to avoid potential deadlocks

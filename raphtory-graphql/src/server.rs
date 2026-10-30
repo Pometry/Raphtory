@@ -185,6 +185,11 @@ impl GraphServer {
         &self.config
     }
 
+    /// The server's graphs. A clone shares them.
+    pub fn data(&self) -> &Data {
+        &self.data
+    }
+
     /// Set the authorization policy used for graph access checks.
     pub fn with_auth_policy(mut self, policy: Arc<dyn AuthorizationPolicy>) -> Self {
         self.data.set_auth_policy(policy);

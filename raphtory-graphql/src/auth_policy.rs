@@ -1,5 +1,12 @@
-use crate::model::graph::filtering::GraphAccessFilter;
+use crate::{
+    data::GqlGraphType, graph::GraphWithVectors, model::graph::filtering::GraphAccessFilter,
+    paths::UnlockedGraphFolder, rayon::blocking_cache,
+};
 use futures_util::future::BoxFuture;
+use raphtory::{
+    db::api::view::{DynamicGraph, IntoDynamic},
+    prelude::GraphViewOps,
+};
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
@@ -108,6 +115,46 @@ pub enum NamespacePermission {
     Write,
 }
 
+/// A loaded and filtered graph with its folder; what the authorization policy caches.
+#[derive(Clone)]
+pub struct DynGraphWithFolder {
+    folder: UnlockedGraphFolder,
+    graph: DynamicGraph,
+}
+
+impl DynGraphWithFolder {
+    pub(crate) fn new(folder: UnlockedGraphFolder, graph: DynamicGraph) -> Self {
+        Self { folder, graph }
+    }
+
+    pub(crate) fn into_parts(self) -> (UnlockedGraphFolder, DynamicGraph) {
+        (self.folder, self.graph)
+    }
+
+    pub async fn into_cached_view(self) -> Self {
+        let Self { folder, graph } = self;
+        let graph = blocking_cache(move || graph.cache_view().into_dynamic()).await;
+        Self { folder, graph }
+    }
+}
+
+/// Stops the graph cache evicting a graph while held by owning an Arc reference to it.
+#[derive(Clone)]
+pub struct GraphPin(#[allow(dead_code)] GraphWithVectors); // holds GraphWithVectors without exposing it
+
+impl GraphPin {
+    pub(crate) fn new(graph: GraphWithVectors) -> Self {
+        Self(graph)
+    }
+}
+
+/// A filter still to be applied, or a graph from the policy's cache.
+pub enum MaybeCachedFilteredRead {
+    Filter(Option<GraphAccessFilter>),
+    /// Read through the lazy filter until its cached view is ready.
+    FromCache(DynGraphWithFolder),
+}
+
 pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Resolves the effective permission level for a principal on a graph.
     ///
@@ -159,9 +206,16 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         &'a self,
         _ctx: &'a async_graphql::Context<'_>,
         _path: &'a str,
+        _graph_type: Option<GqlGraphType>,
         perm: GraphPermission,
-    ) -> BoxFuture<'a, Result<GraphPermission, AuthPolicyError>> {
-        Box::pin(std::future::ready(Ok(perm)))
+    ) -> BoxFuture<'a, Result<MaybeCachedFilteredRead, AuthPolicyError>> {
+        let filter = match perm {
+            GraphPermission::Read { filter } => filter,
+            _ => None,
+        };
+        Box::pin(std::future::ready(Ok(MaybeCachedFilteredRead::Filter(
+            filter,
+        ))))
     }
 
     /// Whether the principal has unfiltered read (`Write`, or `Read` with no filter) on the graph.
@@ -177,6 +231,13 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
             .graph_permissions(ctx, path)?
             .is_some_and(|p| p.level() >= PermissionLevel::Read))
     }
+
+    /// Called after any graph on this server is successfully mutated. Default no-op.
+    fn on_graph_mutated(&self) {}
+
+    /// Called when the graph at `path` is evicted from memory, so the policy can drop anything
+    /// that would keep it loaded. Default no-op.
+    fn on_graph_evicted(&self, _path: &str) {}
 
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling

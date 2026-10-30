@@ -23,6 +23,7 @@ use ahash::RandomState;
 use indexmap::IndexSet;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use itertools::Itertools;
+use ouroboros::self_referencing;
 use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{
     iter::{
@@ -31,6 +32,7 @@ use rayon::{
     },
     prelude::*,
 };
+use roaring::RoaringTreemap;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -45,7 +47,31 @@ use storage::state::{StateIndex, StateIndexIter};
 pub enum Index<K> {
     Full(Arc<StateIndex<K>>),
     Partial(Arc<IndexSet<K, RandomState>>),
-    Sorted { keys: Arc<[K]>, exact: bool },
+    Sorted {
+        keys: Arc<[K]>,
+        exact: bool,
+    },
+    /// Backed by roaring bitmap; in sorted order like `Sorted`.
+    Roaring {
+        keys: Arc<RoaringTreemap>,
+        exact: bool,
+    },
+}
+
+#[inline]
+fn roaring_key<K: Into<usize>>(key: K) -> u64 {
+    Into::<usize>::into(key) as u64
+}
+
+#[inline]
+fn from_roaring<K: From<usize>>(value: u64) -> K {
+    K::from(value as usize)
+}
+
+/// The key at position `i` of a [`Index::Roaring`] bitmap.
+#[inline]
+fn roaring_select<K: From<usize>>(keys: &RoaringTreemap, i: usize) -> Option<K> {
+    keys.select(i as u64).map(from_roaring)
 }
 
 /// Two-pointer intersection of ascending, deduplicated key slices.
@@ -99,6 +125,10 @@ impl<K> Clone for Index<K> {
             Index::Full(index) => Index::Full(index.clone()),
             Index::Partial(index) => Index::Partial(index.clone()),
             Index::Sorted { keys, exact } => Index::Sorted {
+                keys: keys.clone(),
+                exact: *exact,
+            },
+            Index::Roaring { keys, exact } => Index::Roaring {
                 keys: keys.clone(),
                 exact: *exact,
             },
@@ -161,6 +191,10 @@ pub struct IndexIter<'a, K> {
     /// For `Index::Full`, the chunks containing `start` and `end - 1`
     front_chunk: usize,
     back_chunk: usize,
+    /// For `Index::Roaring`, the bitmap walked from `start`
+    bitmap: Option<roaring::treemap::Iter<'a>>,
+    /// Whether the back of `bitmap` is at `end` yet; moved there on first use
+    bitmap_back_seeked: bool,
 }
 
 /// The chunk containing flat position `pos` (`offsets[0] == 0`, so this never underflows)
@@ -178,12 +212,26 @@ impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> IndexIter<'a, K> {
             }
             _ => (0, 0),
         };
+        let (bitmap, bitmap_back_seeked) = match index {
+            Index::Roaring { keys, .. } => {
+                let mut bitmap = keys.iter();
+                if start > 0 && start < end {
+                    if let Some(first) = keys.select(start as u64) {
+                        bitmap.advance_to(first);
+                    }
+                }
+                (Some(bitmap), end >= keys.len() as usize)
+            }
+            _ => (None, true),
+        };
         Self {
             index,
             start,
             end,
             front_chunk,
             back_chunk,
+            bitmap,
+            bitmap_back_seeked,
         }
     }
 }
@@ -212,6 +260,9 @@ impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> Iterator for IndexIter
             }
             Index::Partial(set) => *set.get_index(pos).unwrap(),
             Index::Sorted { keys, .. } => keys[pos],
+            Index::Roaring { .. } => {
+                from_roaring(self.bitmap.as_mut().and_then(Iterator::next).unwrap())
+            }
         })
     }
 
@@ -244,6 +295,16 @@ impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> DoubleEndedIterator fo
             }
             Index::Partial(set) => *set.get_index(pos).unwrap(),
             Index::Sorted { keys, .. } => keys[pos],
+            Index::Roaring { keys, .. } => {
+                let bitmap = self.bitmap.as_mut().unwrap();
+                if !self.bitmap_back_seeked {
+                    self.bitmap_back_seeked = true;
+                    if let Some(last) = keys.select(pos as u64) {
+                        bitmap.advance_back_to(last);
+                    }
+                }
+                from_roaring(bitmap.next_back().unwrap())
+            }
         })
     }
 }
@@ -304,10 +365,18 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         }
     }
 
+    /// Keys as a bitmap, in ascending `usize`-key order
+    pub fn from_bitmap(keys: Arc<RoaringTreemap>, exact: bool) -> Self {
+        Self::Roaring { keys, exact }
+    }
+
     /// True when this is a pushdown candidate list whose producer proved
     /// every key matches its filter.
     pub fn dynamically_exact(&self) -> bool {
-        matches!(self, Index::Sorted { exact: true, .. })
+        matches!(
+            self,
+            Index::Sorted { exact: true, .. } | Index::Roaring { exact: true, .. }
+        )
     }
 
     /// Drops any exactness claim, for when a filter that is *not* reflected in
@@ -317,6 +386,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     pub fn into_inexact(self) -> Self {
         match self {
             Index::Sorted { keys, exact: true } => Index::Sorted { keys, exact: false },
+            Index::Roaring { keys, exact: true } => Index::Roaring { keys, exact: false },
             other => other,
         }
     }
@@ -324,9 +394,12 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = K> + '_ {
         match self {
-            Index::Full(index) => Either::Left(index.iter()),
-            Index::Partial(index) => Either::Right(Either::Left(index.iter().copied())),
-            Index::Sorted { keys, .. } => Either::Right(Either::Right(keys.iter().copied())),
+            Index::Full(index) => Either::Left(Either::Left(index.iter())),
+            Index::Partial(index) => Either::Left(Either::Right(index.iter().copied())),
+            Index::Sorted { keys, .. } => Either::Right(Either::Left(keys.iter().copied())),
+            Index::Roaring { keys, .. } => {
+                Either::Right(Either::Right(keys.iter().map(from_roaring)))
+            }
         }
     }
 
@@ -340,6 +413,10 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             Index::Full(index) => index.resolve(*key),
             Index::Partial(index) => index.get_index_of(key),
             Index::Sorted { keys, .. } => sorted_rank(keys, key),
+            Index::Roaring { keys, .. } => {
+                let key = roaring_key(*key);
+                keys.contains(key).then(|| keys.rank(key) as usize - 1)
+            }
         }
     }
 
@@ -349,6 +426,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             Index::Full(index) => index.global_index(i),
             Index::Partial(index) => index.get_index(i).copied(),
             Index::Sorted { keys, .. } => keys.get(i).copied(),
+            Index::Roaring { keys, .. } => roaring_select(keys, i),
         }
     }
 
@@ -358,6 +436,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             Index::Full(index) => index.len(),
             Index::Partial(index) => index.len(),
             Index::Sorted { keys, .. } => keys.len(),
+            Index::Roaring { keys, .. } => keys.len() as usize,
         }
     }
 
@@ -371,6 +450,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             Index::Full(index) => index.resolve(*key).is_some(),
             Index::Partial(index) => index.contains(key),
             Index::Sorted { keys, .. } => sorted_rank(keys, key).is_some(),
+            Index::Roaring { keys, .. } => keys.contains(roaring_key(*key)),
         }
     }
 
@@ -413,14 +493,49 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
                 .copied()
                 .filter(|k| sorted_rank(b, k).is_some())
                 .collect(),
+            (Self::Roaring { keys: a, exact: ea }, Self::Roaring { keys: b, exact: eb }) => {
+                Self::Roaring {
+                    keys: Arc::new(a.as_ref() & b.as_ref()),
+                    exact: *ea && *eb,
+                }
+            }
+            (roaring @ Self::Roaring { .. }, Self::Full(_))
+            | (Self::Full(_), roaring @ Self::Roaring { .. }) => roaring.clone(),
+            (Self::Roaring { keys: a, exact: ea }, Self::Sorted { keys: b, exact: eb })
+            | (Self::Sorted { keys: b, exact: eb }, Self::Roaring { keys: a, exact: ea }) => {
+                Self::Sorted {
+                    keys: b
+                        .iter()
+                        .copied()
+                        .filter(|k| a.contains(roaring_key(*k)))
+                        .collect::<Vec<_>>()
+                        .into(),
+                    exact: *ea && *eb,
+                }
+            }
+            // a hash-set side carries no exactness claim
+            (Self::Roaring { keys: a, .. }, Self::Partial(b)) => Self::Sorted {
+                keys: a
+                    .iter()
+                    .map(from_roaring)
+                    .filter(|k| b.contains(k))
+                    .collect::<Vec<_>>()
+                    .into(),
+                exact: false,
+            },
+            (Self::Partial(a), Self::Roaring { keys: b, .. }) => a
+                .iter()
+                .copied()
+                .filter(|k| b.contains(roaring_key(*k)))
+                .collect(),
             _ => self.clone(),
         }
     }
 
     pub fn union(&self, other: &Self) -> Self {
         match (self, other) {
-            (Self::Full(index), Self::Partial(_) | Self::Sorted { .. })
-            | (Self::Partial(_) | Self::Sorted { .. }, Self::Full(index)) => {
+            (Self::Full(index), Self::Partial(_) | Self::Sorted { .. } | Self::Roaring { .. })
+            | (Self::Partial(_) | Self::Sorted { .. } | Self::Roaring { .. }, Self::Full(index)) => {
                 Self::Full(index.clone())
             }
             (Self::Full(left), Self::Full(right)) => Self::Full(Arc::new(left.union(right))),
@@ -446,6 +561,31 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             (Self::Partial(a), Self::Sorted { keys: b, .. }) => {
                 a.iter().copied().chain(b.iter().copied()).collect()
             }
+            (Self::Roaring { keys: a, exact: ea }, Self::Roaring { keys: b, exact: eb }) => {
+                Self::Roaring {
+                    keys: Arc::new(a.as_ref() | b.as_ref()),
+                    exact: *ea && *eb,
+                }
+            }
+            (Self::Roaring { keys: a, exact: ea }, Self::Sorted { keys: b, exact: eb })
+            | (Self::Sorted { keys: b, exact: eb }, Self::Roaring { keys: a, exact: ea }) => {
+                let mut keys = a.as_ref().clone();
+                keys.extend(b.iter().map(|k| roaring_key(*k)));
+                Self::Roaring {
+                    keys: Arc::new(keys),
+                    exact: *ea && *eb,
+                }
+            }
+            (Self::Roaring { keys: a, .. }, Self::Partial(b)) => a
+                .iter()
+                .map(from_roaring)
+                .chain(b.iter().copied())
+                .collect(),
+            (Self::Partial(a), Self::Roaring { keys: b, .. }) => a
+                .iter()
+                .copied()
+                .chain(b.iter().map(from_roaring))
+                .collect(),
         }
     }
 
@@ -472,6 +612,19 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             }
             (Index::Sorted { keys: a, .. }, Index::Sorted { keys: b, .. }) => {
                 sorted_is_subset(a, b)
+            }
+            (Index::Roaring { keys: a, .. }, Index::Roaring { keys: b, .. }) => a.is_subset(b),
+            (Index::Roaring { keys: a, .. }, Index::Sorted { keys: b, .. }) => a
+                .iter()
+                .all(|key| sorted_contains(b, from_roaring::<K>(key))),
+            (Index::Sorted { keys: a, .. }, Index::Roaring { keys: b, .. }) => {
+                a.iter().all(|key| b.contains(roaring_key(*key)))
+            }
+            (Index::Roaring { keys: a, .. }, Index::Partial(b)) => {
+                a.iter().all(|key| b.contains(&from_roaring::<K>(key)))
+            }
+            (Index::Partial(a), Index::Roaring { keys: b, .. }) => {
+                a.iter().all(|key| b.contains(roaring_key(*key)))
             }
         }
     }
@@ -590,11 +743,167 @@ impl<K: Copy> DoubleEndedIterator for SortedIndexIntoIter<K> {
 
 impl<K: Copy> ExactSizeIterator for SortedIndexIntoIter<K> {}
 
+/// Walks a [`Index::Roaring`] bitmap it owns with the bitmap's own iterator.
+/// `range` is the positions not yet yielded from either end.
+#[self_referencing]
+struct RoaringIter {
+    keys: Arc<RoaringTreemap>,
+    range: Range<usize>,
+    /// Whether the back of `iter` is at `range.end` yet; it is moved there lazily since iteration
+    /// from the front never needs it.
+    back_seeked: bool,
+    #[borrows(keys)]
+    #[covariant]
+    iter: roaring::treemap::Iter<'this>,
+}
+
+impl RoaringIter {
+    fn over(keys: Arc<RoaringTreemap>, range: Range<usize>) -> Self {
+        let (start, end) = (range.start, range.end);
+        RoaringIterBuilder {
+            back_seeked: end >= keys.len() as usize,
+            keys,
+            range,
+            iter_builder: |keys| {
+                let mut iter = keys.iter();
+                if start > 0 && start < end {
+                    if let Some(first) = keys.select(start as u64) {
+                        iter.advance_to(first);
+                    }
+                }
+                iter
+            },
+        }
+        .build()
+    }
+}
+
+impl Iterator for RoaringIter {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<u64> {
+        self.with_mut(|walk| {
+            walk.range.next()?;
+            walk.iter.next()
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.borrow_range().size_hint()
+    }
+
+    /// Faster than repeatedly calling next on the iterator.
+    fn nth(&mut self, n: usize) -> Option<u64> {
+        if n == 0 {
+            return self.next();
+        }
+        self.with_mut(|walk| {
+            let at = walk.range.nth(n)?;
+            walk.iter.advance_to(walk.keys.select(at as u64)?);
+            walk.iter.next()
+        })
+    }
+}
+
+impl DoubleEndedIterator for RoaringIter {
+    fn next_back(&mut self) -> Option<u64> {
+        self.with_mut(|walk| {
+            if !*walk.back_seeked {
+                *walk.back_seeked = true;
+                let last = walk.range.end.checked_sub(1);
+                if let Some(last) = last.and_then(|last| walk.keys.select(last as u64)) {
+                    walk.iter.advance_back_to(last);
+                }
+            }
+            walk.range.next_back()?;
+            walk.iter.next_back()
+        })
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<u64> {
+        if n == 0 {
+            return self.next_back();
+        }
+        self.with_mut(|walk| {
+            *walk.back_seeked = true;
+            let at = walk.range.nth_back(n)?;
+            walk.iter.advance_back_to(walk.keys.select(at as u64)?);
+            walk.iter.next_back()
+        })
+    }
+}
+
+/// The keys of a [`Index::Roaring`] bitmap.
+pub struct RoaringIndexIntoIter<K> {
+    walk: RoaringIter,
+    _key: PhantomData<K>,
+}
+
+impl<K> RoaringIndexIntoIter<K> {
+    fn new(keys: Arc<RoaringTreemap>) -> Self {
+        let len = keys.len() as usize;
+        Self {
+            walk: RoaringIter::over(keys, 0..len),
+            _key: PhantomData,
+        }
+    }
+}
+
+impl<K> Clone for RoaringIndexIntoIter<K> {
+    fn clone(&self) -> Self {
+        Self {
+            walk: RoaringIter::over(
+                self.walk.borrow_keys().clone(),
+                self.walk.borrow_range().clone(),
+            ),
+            _key: PhantomData,
+        }
+    }
+}
+
+impl<K: From<usize>> Iterator for RoaringIndexIntoIter<K> {
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.walk.next().map(from_roaring)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.walk.size_hint()
+    }
+
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.walk.borrow_range().len()
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.walk.nth(n).map(from_roaring)
+    }
+}
+
+impl<K: From<usize>> DoubleEndedIterator for RoaringIndexIntoIter<K> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.walk.next_back().map(from_roaring)
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        self.walk.nth_back(n).map(from_roaring)
+    }
+}
+
+impl<K: From<usize>> ExactSizeIterator for RoaringIndexIntoIter<K> {}
+
+impl<K: From<usize>> std::iter::FusedIterator for RoaringIndexIntoIter<K> {}
+
 #[derive(Clone, Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator)]
 pub enum IndexIntoIter<K> {
     Full(StateIndexIter<Arc<StateIndex<K>>, K>),
     Partial(PartialIndexIntoIter<K>),
     Sorted(SortedIndexIntoIter<K>),
+    Roaring(RoaringIndexIntoIter<K>),
 }
 
 impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> IntoIterator for Index<K> {
@@ -612,6 +921,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> IntoIterator
                 range: 0..keys.len(),
                 index: keys,
             }),
+            Index::Roaring { keys, .. } => IndexIntoIter::Roaring(RoaringIndexIntoIter::new(keys)),
         }
     }
 }
