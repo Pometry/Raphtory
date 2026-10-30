@@ -192,12 +192,6 @@ impl GraphWithVectors {
         self.inner.listener.notify_evicted(path);
     }
 
-    /// For a handle rebuilt around the same graph.
-    #[cfg(feature = "vectors")]
-    pub(crate) fn listener(&self) -> MutationListener {
-        self.inner.listener.clone()
-    }
-
     /// Flush in-memory writes to the storage engine and rewrite the on-disk
     /// metadata sidecar, so cache-miss namespace listings report accurate
     /// counts. The dirty flag is cleared up front so a mutation racing the

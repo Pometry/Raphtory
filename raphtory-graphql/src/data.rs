@@ -690,6 +690,7 @@ impl Data {
         // exactly the vectors it had.
         let cloned_folder = folder.clone();
         let fallback = graph;
+        let listener = self.mutation_listener();
         self.cache
             .insert_or_replace_with(folder.local_path(), |old_graph| async {
                 let current = old_graph.unwrap_or(fallback);
@@ -697,7 +698,7 @@ impl Data {
                     current.graph().clone(),
                     Some(vectors),
                     cloned_folder,
-                    current.listener(),
+                    listener,
                 );
                 updated.set_dirty(current.is_dirty());
                 Ok::<_, GQLError>(updated)
