@@ -74,7 +74,7 @@ impl Config {
     fn from_env() -> Self {
         let var = |name: &str| std::env::var(name).ok().and_then(|v| v.parse::<usize>().ok());
         let cores = std::thread::available_parallelism().map_or(8, |n| n.get());
-        let readers = var("RAPHTORY_LOAD2_READERS").unwrap_or(2).max(1);
+        let readers = var("RAPHTORY_LOAD2_READERS").unwrap_or(4).max(1);
         let owners = var("RAPHTORY_LOAD2_OWNERS")
             .unwrap_or(cores.saturating_sub(readers))
             .max(1);
@@ -85,6 +85,35 @@ impl Config {
             stats: std::env::var_os("RAPHTORY_LOAD2_STATS").is_some(),
         }
     }
+}
+
+/// The rows per chunk when the caller doesn't choose: big enough that resolution's fixed cost
+/// per call stays small, small enough to keep the pipeline busy.
+pub const DEFAULT_CHUNK_ROWS: usize = 256 * 1024;
+
+/// A run of input rows taken as one piece, in input order: either chunks already decoded, or
+/// row groups of a parquet file that the reader taking the unit decodes.
+pub struct InputUnit {
+    pub rows: usize,
+    pub decode: Box<dyn FnOnce() -> Result<Vec<DFChunk>, GraphError> + Send>,
+}
+
+impl InputUnit {
+    pub fn decoded(chunk: DFChunk) -> Self {
+        Self {
+            rows: chunk.len(),
+            decode: Box::new(move || Ok(vec![chunk])),
+        }
+    }
+}
+
+/// Whether a load of edges goes through `load_edges_from_df2`: `RAPHTORY_LOAD_V2` is set and
+/// the load is one it supports so far.
+pub fn use_load2(resolve_nodes: bool, delete: bool, graph: &impl StaticGraphViewOps) -> bool {
+    std::env::var_os("RAPHTORY_LOAD_V2").is_some()
+        && resolve_nodes
+        && !delete
+        && graph.count_edges() == 0
 }
 
 /// One chunk's columns, shared by every message about it. Dropping the last reference returns
@@ -154,8 +183,9 @@ struct ReaderStats {
     rows: u64,
     /// waiting for a slot in the in-flight budget
     budget_wait: Duration,
-    /// taking the next chunk from the input, which decodes it
+    /// taking the next unit from the input (under its lock)
     source: Duration,
+    decode: Duration,
     resolve: Duration,
     /// everything else: validation, layers, grouping, sending
     other: Duration,
@@ -170,7 +200,7 @@ struct OwnerStats {
     inbound_rows: u64,
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Loads the edges of `df_view`; see the module docs.
 pub fn load_edges_from_df2<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     column_names: ColumnNames,
@@ -180,8 +210,23 @@ pub fn load_edges_from_df2<G: StaticGraphViewOps + PropertyAdditionOps + Additio
     if df_view.is_empty() {
         return Ok(());
     }
+    let units = df_view
+        .chunks
+        .map(|chunk| chunk.map(InputUnit::decoded));
+    load_edges_from_units(df_view.names, units, column_names, layer, graph)
+}
+
+/// Loads the edges of `units`, whose chunks have the columns `names`; see the module docs.
+pub fn load_edges_from_units<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    names: Vec<String>,
+    units: impl Iterator<Item = Result<InputUnit, GraphError>> + Send,
+    column_names: ColumnNames,
+    layer: Option<&str>,
+    graph: &G,
+) -> Result<(), GraphError> {
     let config = Config::from_env();
     let load_start = Instant::now();
+    let df_view = DFView::new(names, (), None);
 
     let src_index = df_view.get_index(column_names.src)?;
     let dst_index = df_view.get_index(column_names.dst)?;
@@ -233,7 +278,7 @@ pub fn load_edges_from_df2<G: StaticGraphViewOps + PropertyAdditionOps + Additio
     let (req_tx, req_rx) = unbounded::<Request>();
     let (done_tx, done_rx) = unbounded::<()>();
 
-    let source = Mutex::new(df_view.chunks);
+    let source = Mutex::new(units);
     let first_error: Mutex<Option<GraphError>> = Mutex::new(None);
     let abort = AtomicBool::new(false);
 
@@ -441,133 +486,183 @@ struct ReaderCtx<'s, 'a, G, I> {
 impl<G, I> ReaderCtx<'_, '_, G, I>
 where
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
-    I: Iterator<Item = Result<DFChunk, GraphError>> + Send,
+    I: Iterator<Item = Result<InputUnit, GraphError>> + Send,
 {
     fn run(&self, stats: &mut ReaderStats) -> Result<(), GraphError> {
-        let (tg, node_store) = (self.tg, self.node_store);
-        let mut vids = Vec::new();
-        let mut new_nodes = Vec::new();
-        let mut node_owner: Arc<[u16]> = Arc::from(Vec::new());
-
+        let mut scratch = ReaderScratch::default();
         while !self.abort.load(Ordering::Relaxed) {
-            let wait = Instant::now();
-            if self.slots.1.recv().is_err() {
-                break;
-            }
-            let slot = Slot(self.slots.0.clone());
-            stats.budget_wait += wait.elapsed();
-
-            // take the next chunk and its event ids together, so ids follow input order
+            // take the next unit and its event ids together, so ids follow input order
             let source_start = Instant::now();
             let next = {
                 let mut source = self.source.lock();
                 match source.next() {
                     None => None,
-                    Some(df) => {
-                        let df = df?;
-                        let secondary_index = match self.secondary_index_index {
-                            Some(index) => {
-                                let col = df.secondary_index_col(index)?;
-                                tg.storage().set_max_event_id(col.max());
-                                col
-                            }
-                            None => {
-                                let start = tg.storage().reserve_event_ids(df.len());
-                                SecondaryIndexCol::new_from_range(start, start + df.len())
-                            }
-                        };
-                        Some((df, secondary_index))
+                    Some(unit) => {
+                        let unit = unit?;
+                        let event_ids = self
+                            .secondary_index_index
+                            .is_none()
+                            .then(|| self.tg.storage().reserve_event_ids(unit.rows));
+                        Some((unit, event_ids))
                     }
                 }
             };
             stats.source += source_start.elapsed();
-            let Some((df, secondary_index)) = next else {
+            let Some((unit, event_ids)) = next else {
                 break;
             };
 
-            let other_start = Instant::now();
-            let n = df.len();
-            let src_col = df.node_col(self.src_index)?;
-            let dst_col = df.node_col(self.dst_index)?;
-            src_col.validate(self.graph, LoadError::InvalidSrcError)?;
-            dst_col.validate(self.graph, LoadError::InvalidDstError)?;
-            let time = df.time_col(self.time_index)?;
-            let (layer, _) = lift_layer_col(self.layer, self.layer_index, &df)?
-                .resolve_layer(None, self.graph, false)?;
-            let layer = layer.into_owned();
-            let mut other = other_start.elapsed();
+            let decode_start = Instant::now();
+            let chunks = (unit.decode)()?;
+            stats.decode += decode_start.elapsed();
 
-            let resolve_start = Instant::now();
-            let alloc = |hint: usize, count: u32| {
-                let (segment, pos, got) = node_store.reserve_free_range(hint, count);
-                (pos.as_vid(segment, self.max_node_len), got)
-            };
-            tg.gid_resolver
-                .resolve_batch(
-                    &[df.chunk[self.src_index].as_ref(), df.chunk[self.dst_index].as_ref()],
-                    &alloc,
-                    &mut vids,
-                    &mut new_nodes,
-                )
-                .map_err(into_graph_err)?;
-            stats.resolve += resolve_start.elapsed();
+            let mut offset = 0;
+            for df in chunks {
+                let secondary_index = match (self.secondary_index_index, event_ids) {
+                    (Some(index), _) => {
+                        let col = df.secondary_index_col(index)?;
+                        self.tg.storage().set_max_event_id(col.max());
+                        col
+                    }
+                    (None, Some(start)) => SecondaryIndexCol::new_from_range(
+                        start + offset,
+                        start + offset + df.len(),
+                    ),
+                    (None, None) => unreachable!("event ids are reserved without an index column"),
+                };
+                offset += df.len();
 
-            let other_start = Instant::now();
-            // resolution may have created node segments that have no owner yet
-            let segments = node_store.num_segments();
-            if segments > node_owner.len() {
-                let (reply_tx, reply_rx) = bounded(1);
-                let _ = self.requests.send(Request::EnsureNodeSegments {
-                    upto: segments,
-                    reply: reply_tx,
-                });
-                node_owner = reply_rx.recv().map_err(|_| {
-                    GraphError::LoadFailure("bulk load coordinator stopped".to_string())
-                })??;
-            }
-            let owner_of = |vid: VID| {
-                let (segment, _) = resolve_pos(vid.index(), self.max_node_len);
-                node_owner[segment] as usize
-            };
-
-            let mut outbound = vec![Vec::new(); self.owners.len()];
-            for (row, &src) in vids[..n].iter().enumerate() {
-                outbound[owner_of(src)].push(row as u32);
-            }
-            let mut created = vec![Vec::new(); self.owners.len()];
-            for &(row, vid) in &new_nodes {
-                created[owner_of(vid)].push((row as u32, vid));
-            }
-
-            let work = Arc::new(ChunkWork {
-                src: vids[..n].to_vec(),
-                dst: vids[n..].to_vec(),
-                df,
-                src_index: self.src_index,
-                dst_index: self.dst_index,
-                time,
-                secondary_index,
-                layer,
-                _slot: slot,
-            });
-            for (owner, rows) in created.into_iter().enumerate() {
-                if !rows.is_empty() {
-                    let _ = self.owners[owner].send(OwnerMsg::NewNodes(work.clone(), rows));
+                let wait = Instant::now();
+                if self.slots.1.recv().is_err() {
+                    return Ok(());
                 }
+                let slot = Slot(self.slots.0.clone());
+                stats.budget_wait += wait.elapsed();
+                self.route_chunk(df, secondary_index, slot, &mut scratch, stats)?;
             }
-            for (owner, rows) in outbound.into_iter().enumerate() {
-                if !rows.is_empty() {
-                    self.rows_routed[owner].fetch_add(rows.len() as u64, Ordering::Relaxed);
-                    let _ = self.owners[owner].send(OwnerMsg::Outbound(work.clone(), rows));
-                }
+            if offset != unit.rows {
+                return Err(GraphError::LoadFailure(format!(
+                    "an input unit decoded to {offset} rows, not the {} it reserved event ids for",
+                    unit.rows
+                )));
             }
-            other += other_start.elapsed();
-            stats.other += other;
-            stats.chunks += 1;
-            stats.rows += n as u64;
         }
         Ok(())
     }
+
+    /// Resolves one chunk's nodes and sends its rows to the owners of their source nodes.
+    fn route_chunk(
+        &self,
+        df: DFChunk,
+        secondary_index: SecondaryIndexCol,
+        slot: Slot,
+        scratch: &mut ReaderScratch,
+        stats: &mut ReaderStats,
+    ) -> Result<(), GraphError> {
+        let (tg, node_store) = (self.tg, self.node_store);
+        let ReaderScratch {
+            vids,
+            new_nodes,
+            node_owner,
+        } = scratch;
+        let other_start = Instant::now();
+        let n = df.len();
+        let src_col = df.node_col(self.src_index)?;
+        let dst_col = df.node_col(self.dst_index)?;
+        src_col.validate(self.graph, LoadError::InvalidSrcError)?;
+        dst_col.validate(self.graph, LoadError::InvalidDstError)?;
+        let time = df.time_col(self.time_index)?;
+        let (layer, _) = lift_layer_col(self.layer, self.layer_index, &df)?
+            .resolve_layer(None, self.graph, false)?;
+        let layer = layer.into_owned();
+        let mut other = other_start.elapsed();
+
+        let resolve_start = Instant::now();
+        let alloc = |hint: usize, count: u32| {
+            let (segment, pos, got) = node_store.reserve_free_range(hint, count);
+            (pos.as_vid(segment, self.max_node_len), got)
+        };
+        tg.gid_resolver
+            .resolve_batch(
+                &[df.chunk[self.src_index].as_ref(), df.chunk[self.dst_index].as_ref()],
+                &alloc,
+                vids,
+                new_nodes,
+            )
+            .map_err(into_graph_err)?;
+        stats.resolve += resolve_start.elapsed();
+
+        let other_start = Instant::now();
+        // Resolution may have created node segments that have no owner yet. Take the highest
+        // segment this chunk uses, not the store's segment count: resolution allocates from
+        // several threads, so a later segment can finish being created before an earlier one,
+        // and the count only covers segments up to the first that is still being created.
+        let segments = vids
+            .iter()
+            .map(|vid| resolve_pos(vid.index(), self.max_node_len).0 + 1)
+            .max()
+            .unwrap_or(0);
+        if segments > node_owner.len() {
+            let (reply_tx, reply_rx) = bounded(1);
+            let _ = self.requests.send(Request::EnsureNodeSegments {
+                upto: segments,
+                reply: reply_tx,
+            });
+            *node_owner = reply_rx.recv().map_err(|_| {
+                GraphError::LoadFailure("bulk load coordinator stopped".to_string())
+            })??;
+        }
+        let owner_of = |vid: VID| {
+            let (segment, _) = resolve_pos(vid.index(), self.max_node_len);
+            node_owner[segment] as usize
+        };
+
+        let mut outbound = vec![Vec::new(); self.owners.len()];
+        for (row, &src) in vids[..n].iter().enumerate() {
+            outbound[owner_of(src)].push(row as u32);
+        }
+        let mut created = vec![Vec::new(); self.owners.len()];
+        for &(row, vid) in new_nodes.iter() {
+            created[owner_of(vid)].push((row as u32, vid));
+        }
+
+        let work = Arc::new(ChunkWork {
+            src: vids[..n].to_vec(),
+            dst: vids[n..].to_vec(),
+            df,
+            src_index: self.src_index,
+            dst_index: self.dst_index,
+            time,
+            secondary_index,
+            layer,
+            _slot: slot,
+        });
+        for (owner, rows) in created.into_iter().enumerate() {
+            if !rows.is_empty() {
+                let _ = self.owners[owner].send(OwnerMsg::NewNodes(work.clone(), rows));
+            }
+        }
+        for (owner, rows) in outbound.into_iter().enumerate() {
+            if !rows.is_empty() {
+                self.rows_routed[owner].fetch_add(rows.len() as u64, Ordering::Relaxed);
+                let _ = self.owners[owner].send(OwnerMsg::Outbound(work.clone(), rows));
+            }
+        }
+        other += other_start.elapsed();
+        stats.other += other;
+        stats.chunks += 1;
+        stats.rows += n as u64;
+        Ok(())
+    }
+}
+
+/// A reader's buffers, reused across chunks.
+#[derive(Default)]
+struct ReaderScratch {
+    vids: Vec<VID>,
+    new_nodes: Vec<(usize, VID)>,
+    /// the coordinator's latest owner of each node segment
+    node_owner: Arc<[u16]>,
 }
 
 struct Owner<'s, 'a> {
@@ -858,10 +953,11 @@ fn print_stats(config: &Config, wall: Duration, readers: &[ReaderStats], owners:
     );
     for (i, r) in readers.iter().enumerate() {
         eprintln!(
-            "LOAD2 reader {i}: {} chunks, budget wait {:.1}s, source {:.1}s, resolve {:.1}s, other {:.1}s",
+            "LOAD2 reader {i}: {} chunks, budget wait {:.1}s, source {:.1}s, decode {:.1}s, resolve {:.1}s, other {:.1}s",
             r.chunks,
             secs(r.budget_wait),
             secs(r.source),
+            secs(r.decode),
             secs(r.resolve),
             secs(r.other)
         );

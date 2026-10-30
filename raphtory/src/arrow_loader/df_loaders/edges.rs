@@ -113,11 +113,7 @@ pub fn load_edges_from_df_prefetch<
     delete: bool, // whether to update edge deletions or additions
 ) -> Result<(), GraphError> {
     // the pipelined loader (ADR-0002), for what it supports so far
-    if std::env::var_os("RAPHTORY_LOAD_V2").is_some()
-        && resolve_nodes
-        && !delete
-        && graph.count_edges() == 0
-    {
+    if super::edges2::use_load2(resolve_nodes, delete, graph) {
         if !properties.is_empty() || !metadata.is_empty() || shared_metadata.is_some() {
             eprintln!("load_edges_from_df2 ignores properties and metadata for now");
         }

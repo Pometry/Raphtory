@@ -443,6 +443,58 @@ mod io_tests {
         })
     }
 
+    /// Writes `edges` as `files` parquet files with row groups of `group_rows` rows.
+    fn write_edges_parquet(dir: &std::path::Path, edges: &[(u64, u64, i64, String, i64)], files: usize, group_rows: usize) {
+        use arrow::{array::{Int64Array, UInt64Array}, datatypes::{DataType, Field, Schema}, record_batch::RecordBatch};
+        use parquet::{arrow::ArrowWriter, file::properties::WriterProperties};
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("src", DataType::UInt64, false),
+            Field::new("dst", DataType::UInt64, false),
+            Field::new("time", DataType::Int64, false),
+        ]));
+        let per_file = edges.len().div_ceil(files).max(1);
+        for (i, part) in edges.chunks(per_file).enumerate() {
+            let batch = RecordBatch::try_new(
+                schema.clone(),
+                vec![
+                    Arc::new(UInt64Array::from_iter_values(part.iter().map(|e| e.0))),
+                    Arc::new(UInt64Array::from_iter_values(part.iter().map(|e| e.1))),
+                    Arc::new(Int64Array::from_iter_values(part.iter().map(|e| e.2))),
+                ],
+            )
+            .unwrap();
+            // file names sort in input order
+            let file = std::fs::File::create(dir.join(format!("{i:04}.parquet"))).unwrap();
+            let props = WriterProperties::builder().set_max_row_group_row_count(Some(group_rows)).build();
+            let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props)).unwrap();
+            writer.write(&batch).unwrap();
+            writer.close().unwrap();
+        }
+    }
+
+    #[test]
+    fn test_load_edges2_parquet_proptest() {
+        proptest!(|(edges in build_edge_list(500, 50), files in 1usize..4, group_rows in 1usize..50, chunk_rows in 1usize..80)| {
+            let dir = tempfile::TempDir::new().unwrap();
+            write_edges_parquet(dir.path(), &edges, files, group_rows);
+            let g = Graph::new();
+            raphtory::io::parquet_loaders::load_edges_from_parquet2(
+                &g,
+                dir.path(),
+                ColumnNames::new("time", None, "src", "dst", None),
+                None,
+                Some(chunk_rows),
+                None,
+            )
+            .unwrap();
+            let expected = Graph::new();
+            for (src, dst, time, _, _) in &edges {
+                expected.add_edge(*time, *src, *dst, NO_PROPS, None).unwrap();
+            }
+            assert_graph_equal(&g, &expected);
+        })
+    }
+
     #[test]
     fn test_load_edges2_str_proptest() {
         proptest!(|(edges in build_edge_list_str(100, 100), chunk_size in 1usize..=100)| {

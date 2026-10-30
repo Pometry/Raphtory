@@ -3,6 +3,7 @@ use crate::{
         dataframe::*,
         df_loaders::{
             edges::{load_edges_from_df_prefetch, ColumnNames},
+            edges2::{load_edges_from_units, use_load2, InputUnit, DEFAULT_CHUNK_ROWS},
             nodes::{load_node_props_from_df, load_nodes_from_df_prefetch},
             *,
         },
@@ -172,6 +173,13 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
                 "Parquet files have different column names".to_string(),
             ));
         }
+    }
+
+    if use_load2(resolve_nodes, false, graph) {
+        if !properties.is_empty() || !metadata.is_empty() || shared_metadata.is_some() {
+            eprintln!("load_edges_from_df2 ignores properties and metadata for now");
+        }
+        return load_edges_from_parquet2(graph, parquet_path, column_names, layer, batch_size, schema);
     }
 
     let all_df_view = get_parquet_file_paths(parquet_path)?
@@ -430,6 +438,103 @@ pub fn process_parquet_file_to_df(
         names,
         chunks,
         num_rows: Some(num_rows),
+    })
+}
+
+/// Loads edges from parquet with the pipelined loader (`load_edges_from_df2`), whose readers
+/// decode row groups in parallel. Properties and metadata aren't supported yet.
+pub fn load_edges_from_parquet2<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    graph: &G,
+    parquet_path: impl AsRef<Path>,
+    column_names: ColumnNames,
+    layer: Option<&str>,
+    chunk_rows: Option<usize>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
+) -> Result<(), GraphError> {
+    let ColumnNames {
+        time,
+        secondary_index,
+        src,
+        dst,
+        layer_col,
+        ..
+    } = column_names;
+    let cols: Vec<&str> = [src, dst, time]
+        .into_iter()
+        .chain(secondary_index)
+        .chain(layer_col)
+        .collect();
+    let files = get_parquet_file_paths(parquet_path.as_ref())?;
+    let Some(first) = files.first() else {
+        return Ok(());
+    };
+    let (names, _, _) = read_parquet_file(first, Some(&cols))?;
+    let units = parquet_units(&files, &cols, chunk_rows.unwrap_or(DEFAULT_CHUNK_ROWS), schema)?;
+    load_edges_from_units(names, units.into_iter().map(Ok), column_names, layer, graph)
+}
+
+/// Splits `files` into runs of consecutive row groups of about `chunk_rows` rows, in input
+/// order. Each run is decoded, into chunks of at most `chunk_rows` rows, by whoever takes it.
+fn parquet_units(
+    files: &[PathBuf],
+    col_names: &[&str],
+    chunk_rows: usize,
+    schema: Option<Arc<HashMap<String, PropType>>>,
+) -> Result<Vec<InputUnit>, GraphError> {
+    let col_names: Arc<[String]> = col_names.iter().map(|name| name.to_string()).collect();
+    let mut units = vec![];
+    for path in files {
+        let builder = ParquetRecordBatchReaderBuilder::try_new(File::open(path)?)?;
+        let row_groups: Vec<(usize, usize)> = builder
+            .metadata()
+            .row_groups()
+            .iter()
+            .enumerate()
+            .map(|(i, meta)| (i, meta.num_rows() as usize))
+            .collect();
+        let mut push = |groups: Vec<usize>, rows: usize| {
+            let (path, col_names, schema) = (path.clone(), col_names.clone(), schema.clone());
+            units.push(InputUnit {
+                rows,
+                decode: Box::new(move || {
+                    let col_names: Vec<&str> = col_names.iter().map(String::as_str).collect();
+                    let (_, builder, _) = read_parquet_file(&path, Some(&col_names))?;
+                    builder
+                        .with_row_groups(groups)
+                        .with_batch_size(chunk_rows)
+                        .build()?
+                        .map(|batch| record_batch_to_chunk(batch, schema.as_deref()))
+                        .collect()
+                }),
+            });
+        };
+        let (mut groups, mut rows) = (vec![], 0);
+        for (group, group_rows) in row_groups {
+            groups.push(group);
+            rows += group_rows;
+            if rows >= chunk_rows {
+                push(std::mem::take(&mut groups), std::mem::take(&mut rows));
+            }
+        }
+        if !groups.is_empty() {
+            push(groups, rows);
+        }
+    }
+    Ok(units)
+}
+
+fn record_batch_to_chunk(
+    batch: Result<RecordBatch, ArrowError>,
+    schema: Option<&HashMap<String, PropType>>,
+) -> Result<DFChunk, GraphError> {
+    let batch = batch
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to process Parquet file: {e:?}")))?;
+    let batch = match schema {
+        Some(schema) => cast_columns(batch, schema)?,
+        None => batch,
+    };
+    Ok(DFChunk {
+        chunk: batch.columns().to_vec(),
     })
 }
 
