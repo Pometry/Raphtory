@@ -333,6 +333,23 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
             })
     }
 
+    /// Calls `f` on each time cell, layer by layer, until it returns `true`; returns whether it
+    /// did. Unlike `time_cells().any(..)`, this builds no flat_map state (an `Option` of the
+    /// chained cell iterators at both ends) to move around on every call.
+    #[inline]
+    fn any_cell(&self, mut f: impl FnMut(Ref::TimeCell) -> bool) -> bool {
+        let (item_ref, range) = (self.item_ref, self.range);
+        for layer_id in self.layer_id.clone().into_iter(item_ref.num_layers()) {
+            if item_ref.t_props_tc(layer_id, range).any(&mut f)
+                || item_ref.additions_tc(layer_id, range).any(&mut f)
+                || item_ref.deletions_tc(layer_id, range).any(&mut f)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     fn into_iter(self) -> impl Iterator<Item = EventTime> + Send + Sync + 'a {
         let iters = self.time_cells();
         iters.map(|cell| cell.iter()).fast_merge()
@@ -353,9 +370,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.clone()
-            .time_cells()
-            .any(|t_cell| t_cell.active(w.clone()))
+        self.any_cell(|t_cell| t_cell.active(w.clone()))
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
@@ -387,10 +402,15 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     }
 
     fn len(&self) -> usize {
-        self.clone().time_cells().map(|t_cell| t_cell.len()).sum()
+        let mut len = 0;
+        self.any_cell(|t_cell| {
+            len += t_cell.len();
+            false
+        });
+        len
     }
 
     fn is_empty(&self) -> bool {
-        self.clone().time_cells().all(|t_cell| t_cell.is_empty())
+        !self.any_cell(|t_cell| !t_cell.is_empty())
     }
 }
