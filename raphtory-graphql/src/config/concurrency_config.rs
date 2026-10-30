@@ -44,6 +44,11 @@ pub struct ConcurrencyConfig {
     /// `None` means unlimited.
     pub max_page_size: Option<usize>,
 
+    /// Maximum number of items a `sorted` query may sort. Sorting has to materialise the
+    /// whole collection, so on a large graph an unbounded sort can exhaust memory. Queries
+    /// over a larger collection are rejected. `None` means unlimited.
+    pub max_sort_size: Option<usize>,
+
     /// Maximum graph loads decoding at once. Each in-flight load holds a whole graph in memory,
     /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
     /// at least 2.
@@ -59,6 +64,7 @@ impl Default for ConcurrencyConfig {
             max_batch_size: Some(DEFAULT_MAX_BATCH_SIZE),
             disable_lists: DEFAULT_DISABLE_LISTS,
             max_page_size: None,
+            max_sort_size: None,
             max_concurrent_loads: None,
         }
     }

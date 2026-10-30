@@ -1,7 +1,7 @@
 use crate::{
     model::{
         graph::{
-            collection::{check_list_allowed, check_page_limit},
+            collection::{check_list_allowed, check_page_limit, max_sort_size},
             edge::GqlEdge,
             filter_expr_input::GqlFilter,
             path_from_node::GqlPathFromNode,
@@ -245,11 +245,13 @@ impl GqlEdges {
     /// on the first key break to the second, etc.).
     pub async fn sorted(
         &self,
+        ctx: &Context<'_>,
         #[graphql(
             desc = "Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order."
         )]
         sort_bys: Vec<EdgeSortBy>,
     ) -> Result<Self, GraphError> {
+        let max = max_sort_size(ctx);
         let self_clone = self.clone();
         blocking_compute(move || {
             // A key that sets none or several of the mutually exclusive fields
@@ -258,7 +260,7 @@ impl GqlEdges {
                 .into_iter()
                 .map(TryInto::try_into)
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(self_clone.update(self_clone.ee.sorted(&sort_bys)))
+            Ok(self_clone.update(self_clone.ee.try_sorted(&sort_bys, max)?))
         })
         .await
     }

@@ -37,6 +37,12 @@ pub(crate) fn check_page_limit(ctx: &Context<'_>, limit: usize) -> Result<()> {
     Ok(())
 }
 
+/// The `concurrency.max_sort_size` cap passed to every `sorted` resolver.
+pub(crate) fn max_sort_size(ctx: &Context<'_>) -> Option<usize> {
+    ctx.data_opt::<ConcurrencyConfig>()
+        .and_then(|cfg| cfg.max_sort_size)
+}
+
 /// Collection of items
 #[derive(ResolvedObject, Clone)]
 #[graphql(get_type_name = true)]

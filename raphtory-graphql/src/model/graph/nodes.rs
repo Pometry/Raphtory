@@ -1,7 +1,7 @@
 use crate::{
     model::{
         graph::{
-            collection::{check_list_allowed, check_page_limit},
+            collection::{check_list_allowed, check_page_limit, max_sort_size},
             filter_expr_input::GqlFilter,
             nested_edges::GqlNestedEdges,
             node::GqlNode,
@@ -248,11 +248,13 @@ impl GqlNodes {
     /// first key break to the second, etc.).
     pub async fn sorted(
         &self,
+        ctx: &Context<'_>,
         #[graphql(
-            desc = "Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order."
+            desc = "Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property` / `degree` / `inDegree` / `outDegree`, with an optional `reverse: true` to flip order."
         )]
         sort_bys: Vec<NodeSortBy>,
     ) -> Result<Self, GraphError> {
+        let max = max_sort_size(ctx);
         let self_clone = self.clone();
         blocking_compute(move || {
             // A key that sets none or several of the mutually exclusive fields
@@ -261,7 +263,7 @@ impl GqlNodes {
                 .into_iter()
                 .map(TryInto::try_into)
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(GqlNodes::new(self_clone.nn.sorted(&sort_bys)))
+            Ok(GqlNodes::new(self_clone.nn.try_sorted(&sort_bys, max)?))
         })
         .await
     }

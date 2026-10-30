@@ -50,7 +50,9 @@ use {
 ///                                reject batched GraphQL requests), `max_batch_size` (int, cap
 ///                                on the number of queries in a batched request; null for
 ///                                unlimited), `disable_lists` (bool, disable bulk `list`
-///                                endpoints so clients must use `page`), `max_page_size` (int)
+///                                endpoints so clients must use `page`), `max_page_size` (int),
+///                                `max_sort_size` (int, maximum number of items a `sorted` query
+///                                may sort; larger collections are rejected; null for unlimited)
 ///                              * `schema`: `max_query_depth` (int), `max_query_complexity`
 ///                                (int, based on the number of fields selected),
 ///                                `max_recursive_depth` (int, safety limit against stack

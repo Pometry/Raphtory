@@ -359,6 +359,9 @@ pub enum GraphError {
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
 
+    #[error("sorting more than {max} items isn't supported; narrow the window, layers or filter")]
+    SortTooLarge { max: usize },
+
     #[error("Invalid filter: {0}")]
     InvalidFilter(String),
 

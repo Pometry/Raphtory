@@ -736,6 +736,15 @@ fn push_node_sort_by(out: &mut String, sb: &NodeSortBy) {
             format_args!("property: {}", render_gql_str(p)),
         );
     }
+    if let Some(degree) = sb.degree {
+        push_sort_field(out, &mut first, format_args!("degree: {degree}"));
+    }
+    if let Some(in_degree) = sb.in_degree {
+        push_sort_field(out, &mut first, format_args!("inDegree: {in_degree}"));
+    }
+    if let Some(out_degree) = sb.out_degree {
+        push_sort_field(out, &mut first, format_args!("outDegree: {out_degree}"));
+    }
     out.push('}');
 }
 
@@ -3193,6 +3202,9 @@ mod tests {
             type_: None,
             time: None,
             property: None,
+            degree: None,
+            in_degree: None,
+            out_degree: None,
         }
     }
 
@@ -3232,10 +3244,22 @@ mod tests {
                 property: Some("score".into()),
                 ..no_node_key()
             },
+            NodeSortBy {
+                degree: Some(true),
+                ..no_node_key()
+            },
+            NodeSortBy {
+                in_degree: Some(true),
+                ..no_node_key()
+            },
+            NodeSortBy {
+                out_degree: Some(true),
+                ..no_node_key()
+            },
         ]);
         assert_eq!(
             out,
-            r#"[{reverse: true, id: true}, {name: true}, {type: true}, {time: LATEST}, {property: "score"}]"#
+            r#"[{reverse: true, id: true}, {name: true}, {type: true}, {time: LATEST}, {property: "score"}, {degree: true}, {inDegree: true}, {outDegree: true}]"#
         );
         assert_eq!(render_node_sort_bys(&[]), "[]");
     }
