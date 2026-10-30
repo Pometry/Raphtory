@@ -610,6 +610,29 @@ mod io_tests {
     }
 
     #[test]
+    fn test_add_edge_after_load_edges_with_explicit_secondary_index_is_not_a_tie() {
+        let edges = [(1, 2, 100, 3, "loaded".to_string(), 1)];
+        let df_view = build_df_with_secondary_index(50, &edges);
+        let g = Graph::new();
+        load_edges_from_df_prefetch(
+            df_view,
+            ColumnNames::new("time", Some("secondary_index"), "src", "dst", None),
+            true,
+            &["str_prop", "int_prop"],
+            &[],
+            None,
+            None,
+            &g,
+            false,
+        )
+        .unwrap();
+
+        g.add_edge(100, 1, 2, [("int_prop", 2i64)], None).unwrap();
+
+        assert_eq!(g.edge(1, 2).unwrap().explode().into_iter().count(), 2);
+    }
+
+    #[test]
     fn test_load_edges_with_secondary_index() {
         // Create edges with the same timestamp but different secondary_index values
         // Edge format: (src, dst, time, secondary_index, str_prop, int_prop)
@@ -675,7 +698,7 @@ mod io_tests {
 
         assert_eq!(
             g.write_session().unwrap().read_event_id().unwrap(),
-            10 // max secondary index in edges
+            11 // max secondary index in edges + 1
         );
     }
 
@@ -740,7 +763,7 @@ mod io_tests {
 
             assert_eq!(
                 g.write_session().unwrap().read_event_id().unwrap(),
-                max_secondary_index
+                max_secondary_index + 1
             );
         })
     }
@@ -841,7 +864,7 @@ mod io_tests {
 
         assert_eq!(
             g.write_session().unwrap().read_event_id().unwrap(),
-            10 // max secondary index in nodes
+            11 // max secondary index in nodes + 1
         );
 
         let mut act_node_types = g
