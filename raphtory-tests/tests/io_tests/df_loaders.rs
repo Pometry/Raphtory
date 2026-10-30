@@ -406,19 +406,60 @@ mod io_tests {
         })
     }
 
-    /// `load_edges_from_df2` (no properties yet) against the same edges added one by one.
+    const LOAD2_PROPS: [&str; 2] = ["str_prop", "int_prop"];
+
+    /// The same edge properties as `add_edge` with `str_prop` and `int_prop`.
+    fn edge_props(str_prop: &str, int_prop: i64) -> [(&'static str, Prop); 2] {
+        [("str_prop", str_prop.into_prop()), ("int_prop", int_prop.into_prop())]
+    }
+
+    /// `load_edges_from_df2` against the same edges added one by one.
     fn check_load2(g: &Graph, edges: &[(u64, u64, i64, String, i64)], chunk_size: usize, layer: Option<&str>) {
         load_edges_from_df2(
             build_df(chunk_size, edges),
             ColumnNames::new("time", None, "src", "dst", None),
+            &LOAD2_PROPS,
+            &[],
+            None,
             layer,
             g,
         )
         .unwrap();
         let expected = Graph::new();
-        for (src, dst, time, _, _) in edges {
-            expected.add_edge(*time, *src, *dst, NO_PROPS, layer).unwrap();
+        for (src, dst, time, str_prop, int_prop) in edges {
+            expected.add_edge(*time, *src, *dst, edge_props(str_prop, *int_prop), layer).unwrap();
         }
+        assert_graph_equal(g, &expected);
+    }
+
+    /// `load_edges_from_df2` with properties, metadata columns and shared metadata against
+    /// `load_edges_from_df`. Metadata comes from the `src` column, so every row of an edge
+    /// agrees on it.
+    fn check_load2_metadata(g: &Graph, edges: &[(u64, u64, i64, String, i64)], chunk_size: usize, layer: Option<&str>) {
+        let shared = std::collections::HashMap::from([("shared".to_string(), Prop::I64(7))]);
+        load_edges_from_df2(
+            build_df(chunk_size, edges),
+            ColumnNames::new("time", None, "src", "dst", None),
+            &LOAD2_PROPS,
+            &["src"],
+            Some(&shared),
+            layer,
+            g,
+        )
+        .unwrap();
+        let expected = Graph::new();
+        load_edges_from_df(
+            build_df(chunk_size, edges),
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
+            &LOAD2_PROPS,
+            &["src"],
+            Some(&shared),
+            layer,
+            &expected,
+            false,
+        )
+        .unwrap();
         assert_graph_equal(g, &expected);
     }
 
@@ -437,6 +478,20 @@ mod io_tests {
     }
 
     #[test]
+    fn test_load_edges2_metadata_proptest() {
+        proptest!(|(edges in build_edge_list(300, 50), chunk_size in 1usize..=300)| {
+            check_load2_metadata(&Graph::new(), &edges, chunk_size, None);
+        })
+    }
+
+    #[test]
+    fn test_load_edges2_metadata_layer_many_segments_proptest() {
+        proptest!(|(edges in build_edge_list(300, 50), chunk_size in 1usize..=300)| {
+            check_load2_metadata(&small_pages_graph(), &edges, chunk_size, Some("layer"));
+        })
+    }
+
+    #[test]
     fn test_load_edges2_layer_proptest() {
         proptest!(|(edges in build_edge_list(300, 50), chunk_size in 1usize..=300)| {
             check_load2(&Graph::new(), &edges, chunk_size, Some("layer"));
@@ -445,12 +500,14 @@ mod io_tests {
 
     /// Writes `edges` as `files` parquet files with row groups of `group_rows` rows.
     fn write_edges_parquet(dir: &std::path::Path, edges: &[(u64, u64, i64, String, i64)], files: usize, group_rows: usize) {
-        use arrow::{array::{Int64Array, UInt64Array}, datatypes::{DataType, Field, Schema}, record_batch::RecordBatch};
+        use arrow::{array::{Int64Array, StringArray, UInt64Array}, datatypes::{DataType, Field, Schema}, record_batch::RecordBatch};
         use parquet::{arrow::ArrowWriter, file::properties::WriterProperties};
         let schema = Arc::new(Schema::new(vec![
             Field::new("src", DataType::UInt64, false),
             Field::new("dst", DataType::UInt64, false),
             Field::new("time", DataType::Int64, false),
+            Field::new("str_prop", DataType::Utf8, false),
+            Field::new("int_prop", DataType::Int64, false),
         ]));
         let per_file = edges.len().div_ceil(files).max(1);
         for (i, part) in edges.chunks(per_file).enumerate() {
@@ -460,6 +517,8 @@ mod io_tests {
                     Arc::new(UInt64Array::from_iter_values(part.iter().map(|e| e.0))),
                     Arc::new(UInt64Array::from_iter_values(part.iter().map(|e| e.1))),
                     Arc::new(Int64Array::from_iter_values(part.iter().map(|e| e.2))),
+                    Arc::new(StringArray::from_iter_values(part.iter().map(|e| e.3.as_str()))),
+                    Arc::new(Int64Array::from_iter_values(part.iter().map(|e| e.4))),
                 ],
             )
             .unwrap();
@@ -482,14 +541,17 @@ mod io_tests {
                 &g,
                 dir.path(),
                 ColumnNames::new("time", None, "src", "dst", None),
+                &LOAD2_PROPS,
+                &[],
+                None,
                 None,
                 Some(chunk_rows),
                 None,
             )
             .unwrap();
             let expected = Graph::new();
-            for (src, dst, time, _, _) in &edges {
-                expected.add_edge(*time, *src, *dst, NO_PROPS, None).unwrap();
+            for (src, dst, time, str_prop, int_prop) in &edges {
+                expected.add_edge(*time, *src, *dst, edge_props(str_prop, *int_prop), None).unwrap();
             }
             assert_graph_equal(&g, &expected);
         })
@@ -499,10 +561,10 @@ mod io_tests {
     fn test_load_edges2_str_proptest() {
         proptest!(|(edges in build_edge_list_str(100, 100), chunk_size in 1usize..=100)| {
             let g = Graph::new();
-            load_edges_from_df2(build_df_str(chunk_size, &edges), ColumnNames::new("time", None, "src", "dst", None), None, &g).unwrap();
+            load_edges_from_df2(build_df_str(chunk_size, &edges), ColumnNames::new("time", None, "src", "dst", None), &LOAD2_PROPS, &[], None, None, &g).unwrap();
             let expected = Graph::new();
-            for (src, dst, time, _, _) in &edges {
-                expected.add_edge(*time, src, dst, NO_PROPS, None).unwrap();
+            for (src, dst, time, str_prop, int_prop) in &edges {
+                expected.add_edge(*time, src, dst, edge_props(str_prop, *int_prop), None).unwrap();
             }
             assert_graph_equal(&g, &expected);
         })

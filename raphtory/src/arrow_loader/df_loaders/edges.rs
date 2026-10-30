@@ -114,10 +114,15 @@ pub fn load_edges_from_df_prefetch<
 ) -> Result<(), GraphError> {
     // the pipelined loader (ADR-0002), for what it supports so far
     if super::edges2::use_load2(resolve_nodes, delete, graph) {
-        if !properties.is_empty() || !metadata.is_empty() || shared_metadata.is_some() {
-            eprintln!("load_edges_from_df2 ignores properties and metadata for now");
-        }
-        return super::edges2::load_edges_from_df2(df_view, column_names, layer, graph);
+        return super::edges2::load_edges_from_df2(
+            df_view,
+            column_names,
+            properties,
+            metadata,
+            shared_metadata,
+            layer,
+            graph,
+        );
     }
 
     let DFView {

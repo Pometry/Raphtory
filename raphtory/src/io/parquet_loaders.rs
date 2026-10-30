@@ -176,10 +176,17 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
     }
 
     if use_load2(resolve_nodes, false, graph) {
-        if !properties.is_empty() || !metadata.is_empty() || shared_metadata.is_some() {
-            eprintln!("load_edges_from_df2 ignores properties and metadata for now");
-        }
-        return load_edges_from_parquet2(graph, parquet_path, column_names, layer, batch_size, schema);
+        return load_edges_from_parquet2(
+            graph,
+            parquet_path,
+            column_names,
+            properties,
+            metadata,
+            shared_metadata,
+            layer,
+            batch_size,
+            schema,
+        );
     }
 
     let all_df_view = get_parquet_file_paths(parquet_path)?
@@ -442,11 +449,15 @@ pub fn process_parquet_file_to_df(
 }
 
 /// Loads edges from parquet with the pipelined loader (`load_edges_from_df2`), whose readers
-/// decode row groups in parallel. Properties and metadata aren't supported yet.
+/// decode row groups in parallel.
+#[allow(clippy::too_many_arguments)]
 pub fn load_edges_from_parquet2<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     parquet_path: impl AsRef<Path>,
     column_names: ColumnNames,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     chunk_rows: Option<usize>,
     schema: Option<Arc<HashMap<String, PropType>>>,
@@ -463,6 +474,8 @@ pub fn load_edges_from_parquet2<G: StaticGraphViewOps + PropertyAdditionOps + Ad
         .into_iter()
         .chain(secondary_index)
         .chain(layer_col)
+        .chain(properties.iter().copied())
+        .chain(metadata.iter().copied())
         .collect();
     let files = get_parquet_file_paths(parquet_path.as_ref())?;
     let Some(first) = files.first() else {
@@ -470,7 +483,16 @@ pub fn load_edges_from_parquet2<G: StaticGraphViewOps + PropertyAdditionOps + Ad
     };
     let (names, _, _) = read_parquet_file(first, Some(&cols))?;
     let units = parquet_units(&files, &cols, chunk_rows.unwrap_or(DEFAULT_CHUNK_ROWS), schema)?;
-    load_edges_from_units(names, units.into_iter().map(Ok), column_names, layer, graph)
+    load_edges_from_units(
+        names,
+        units.into_iter().map(Ok),
+        column_names,
+        properties,
+        metadata,
+        shared_metadata,
+        layer,
+        graph,
+    )
 }
 
 /// Splits `files` into runs of consecutive row groups of about `chunk_rows` rows, in input

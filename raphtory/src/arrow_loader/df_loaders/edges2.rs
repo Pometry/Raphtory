@@ -7,15 +7,18 @@
 //! The load coordinator (the calling thread) holds the graph's write lock, locks new node
 //! segments as resolution creates them and decides who owns them.
 //!
-//! Not yet supported, and so left to `load_edges_from_df`: properties and metadata, deletions,
-//! pre-resolved VIDs, and graphs that already have edges (whose edge segments would need
+//! Readers resolve each chunk's property and metadata columns; the owner writing an edge adds
+//! them with it.
+//!
+//! Not yet supported, and so left to `load_edges_from_df`: deletions, pre-resolved VIDs, and graphs that already have edges (whose edge segments would need
 //! owners other than the edges' source node owners).
 
 use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView, SecondaryIndexCol, TimeCol},
-        df_loaders::{edges::store_node_ids, secondary_index_at},
+        df_loaders::{edges::store_node_ids, process_shared_properties, secondary_index_at},
         layer_col::lift_layer_col,
+        prop_handler::{combine_properties_arrow, mark_chunk_prop_presence, PropCols},
     },
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
@@ -24,11 +27,16 @@ use crate::{
 use crossbeam_channel::{bounded, select, unbounded, Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
 use raphtory_api::core::{
-    entities::{properties::prop::PropRef, LayerId, EID},
+    entities::{
+        properties::prop::{AsPropRef, PropRef},
+        LayerId, EID,
+    },
     storage::timeindex::EventTime,
 };
 use raphtory_core::entities::{GidRef, VID};
+use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use std::{
+    collections::HashMap,
     panic::AssertUnwindSafe,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -127,6 +135,8 @@ struct ChunkWork {
     time: TimeCol,
     secondary_index: SecondaryIndexCol,
     layer: Vec<usize>,
+    props: PropCols,
+    metadata: PropCols,
     _slot: Slot,
 }
 
@@ -204,6 +214,9 @@ struct OwnerStats {
 pub fn load_edges_from_df2<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     column_names: ColumnNames,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
@@ -213,14 +226,27 @@ pub fn load_edges_from_df2<G: StaticGraphViewOps + PropertyAdditionOps + Additio
     let units = df_view
         .chunks
         .map(|chunk| chunk.map(InputUnit::decoded));
-    load_edges_from_units(df_view.names, units, column_names, layer, graph)
+    load_edges_from_units(
+        df_view.names,
+        units,
+        column_names,
+        properties,
+        metadata,
+        shared_metadata,
+        layer,
+        graph,
+    )
 }
 
 /// Loads the edges of `units`, whose chunks have the columns `names`; see the module docs.
+#[allow(clippy::too_many_arguments)]
 pub fn load_edges_from_units<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     names: Vec<String>,
     units: impl Iterator<Item = Result<InputUnit, GraphError>> + Send,
     column_names: ColumnNames,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
@@ -239,6 +265,21 @@ pub fn load_edges_from_units<G: StaticGraphViewOps + PropertyAdditionOps + Addit
         .layer_col
         .map(|name| df_view.get_index(name))
         .transpose()?;
+    let properties_indices = properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+    let metadata_indices = metadata
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+    let session = graph.write_session().map_err(into_graph_err)?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        session
+            .resolve_edge_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
+    let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
     let tg = write_locked_graph.graph;
@@ -297,6 +338,7 @@ pub fn load_edges_from_units<G: StaticGraphViewOps + PropertyAdditionOps + Addit
                     max_edge_len,
                     peers: owner_txs.clone(),
                     node_owner: &node_owner_map,
+                    shared_metadata: &shared_metadata,
                     stats: OwnerStats::default(),
                 };
                 let (first_error, abort) = (&first_error, &abort);
@@ -342,6 +384,11 @@ pub fn load_edges_from_units<G: StaticGraphViewOps + PropertyAdditionOps + Addit
                     secondary_index_index,
                     layer_index,
                     layer,
+                    properties,
+                    properties_indices: &properties_indices,
+                    metadata,
+                    metadata_indices: &metadata_indices,
+                    shared_metadata_ids: &shared_metadata_ids,
                     max_node_len,
                 };
                 let done = done_tx.clone();
@@ -480,6 +527,11 @@ struct ReaderCtx<'s, 'a, G, I> {
     secondary_index_index: Option<usize>,
     layer_index: Option<usize>,
     layer: Option<&'s str>,
+    properties: &'s [&'s str],
+    properties_indices: &'s [usize],
+    metadata: &'s [&'s str],
+    metadata_indices: &'s [usize],
+    shared_metadata_ids: &'s [usize],
     max_node_len: u32,
 }
 
@@ -572,9 +624,38 @@ where
         src_col.validate(self.graph, LoadError::InvalidSrcError)?;
         dst_col.validate(self.graph, LoadError::InvalidDstError)?;
         let time = df.time_col(self.time_index)?;
-        let (layer, _) = lift_layer_col(self.layer, self.layer_index, &df)?
+        let (layer, distinct) = lift_layer_col(self.layer, self.layer_index, &df)?
             .resolve_layer(None, self.graph, false)?;
         let layer = layer.into_owned();
+        let session = self.graph.write_session().map_err(into_graph_err)?;
+        let props = combine_properties_arrow(
+            self.properties,
+            self.properties_indices,
+            &df,
+            |key, dtype| {
+                session
+                    .resolve_edge_property(key, dtype, false)
+                    .map_err(into_graph_err)
+            },
+        )?;
+        let metadata = combine_properties_arrow(
+            self.metadata,
+            self.metadata_indices,
+            &df,
+            |key, dtype| {
+                session
+                    .resolve_edge_property(key, dtype, true)
+                    .map_err(into_graph_err)
+            },
+        )?;
+        mark_chunk_prop_presence(
+            self.graph.edge_meta(),
+            Some(&layer),
+            &distinct,
+            &props,
+            &metadata,
+            self.shared_metadata_ids,
+        );
         let mut other = other_start.elapsed();
 
         let resolve_start = Instant::now();
@@ -635,6 +716,8 @@ where
             time,
             secondary_index,
             layer,
+            props,
+            metadata,
             _slot: slot,
         });
         for (owner, rows) in created.into_iter().enumerate() {
@@ -677,6 +760,8 @@ struct Owner<'s, 'a> {
     max_edge_len: u32,
     peers: Vec<Sender<OwnerMsg<'a>>>,
     node_owner: &'s RwLock<Arc<[u16]>>,
+    /// metadata the caller gave for every edge
+    shared_metadata: &'s [(usize, Prop)],
     stats: OwnerStats,
 }
 
@@ -813,6 +898,7 @@ impl<'a> Owner<'_, 'a> {
             edges,
             open_edge_segment,
             edge_store,
+            shared_metadata,
             ..
         } = self;
         for (segment_id, group) in group_by_key(rows.iter().copied(), |&row| {
@@ -868,7 +954,9 @@ impl<'a> Owner<'_, 'a> {
             }
         }
 
-        // register the edges and their times in this owner's edge segments
+        // register the edges, their times and properties in this owner's edge segments
+        let mut t_props: Vec<(usize, PropRef)> = Vec::new();
+        let mut c_props: Vec<(usize, PropRef)> = Vec::new();
         for (segment_id, group) in
             group_by_key(edge_rows, |&(_, eid, _)| resolve_pos(eid, max_edge_len).0)
         {
@@ -879,6 +967,13 @@ impl<'a> Owner<'_, 'a> {
             for (row, eid, exists) in group {
                 let r = row as usize;
                 if let Some(pos) = writer.resolve_pos(eid) {
+                    t_props.extend(work.props.iter_row(r));
+                    c_props.extend(work.metadata.iter_row(r));
+                    c_props.extend(
+                        shared_metadata
+                            .iter()
+                            .map(|(id, prop)| (*id, prop.as_prop_ref())),
+                    );
                     writer.bulk_add_edge(
                         work.event_time(r),
                         pos,
@@ -886,8 +981,8 @@ impl<'a> Owner<'_, 'a> {
                         work.dst[r],
                         exists,
                         LayerId(work.layer[r]),
-                        std::iter::empty::<(usize, PropRef)>(),
-                        std::iter::empty::<(usize, PropRef)>(),
+                        c_props.drain(..),
+                        t_props.drain(..),
                     );
                 }
             }
