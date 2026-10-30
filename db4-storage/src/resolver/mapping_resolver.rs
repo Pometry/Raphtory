@@ -27,6 +27,7 @@ enum Map {
 
 #[derive(Debug, Copy, Clone)]
 enum MaybeVID {
+    #[allow(clippy::upper_case_acronyms)] // named after the `VID` type it holds
     VID(VID),
     Init(usize),
 }

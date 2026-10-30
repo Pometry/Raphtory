@@ -1032,7 +1032,7 @@ impl PyPropHistValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                it.map(|data| generalised_reduce(data, |a, b| a.add(b), |d| d.dtype().has_add()))
+                it.map(|data| generalised_reduce(data, |a, b| a + b, |d| d.dtype().has_add()))
             })
         })
         .into()
@@ -1055,7 +1055,7 @@ impl PropIterable {
     /// Returns:
     ///     PropValue:
     pub fn sum(&self) -> PropValue {
-        generalised_reduce(self.iter(), |a, b| a.add(b), |d| d.dtype().has_add())
+        generalised_reduce(self.iter(), |a, b| a + b, |d| d.dtype().has_add())
     }
 
     /// Median property values.
@@ -1116,7 +1116,7 @@ impl PyPropHistValueList {
     pub fn sum(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|data| generalised_reduce(data, |a, b| a.add(b), |d| d.dtype().has_add()))
+            builder().map(|data| generalised_reduce(data, |a, b| a + b, |d| d.dtype().has_add()))
         })
         .into()
     }
@@ -1197,11 +1197,7 @@ impl PyPropValueList {
     /// Returns:
     ///     PropValue:
     pub fn sum(&self) -> Option<Prop> {
-        generalised_reduce(
-            self.iter().flatten(),
-            |a, b| a.add(b),
-            |d| d.dtype().has_add(),
-        )
+        generalised_reduce(self.iter().flatten(), |a, b| a + b, |d| d.dtype().has_add())
     }
 
     /// Number of properties (or rows of properties).
@@ -1304,9 +1300,8 @@ impl PyPropValueListList {
     pub fn sum(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|it| {
-                generalised_reduce(it.flatten(), |a, b| a.add(b), |d| d.dtype().has_add())
-            })
+            builder()
+                .map(|it| generalised_reduce(it.flatten(), |a, b| a + b, |d| d.dtype().has_add()))
         })
         .into()
     }

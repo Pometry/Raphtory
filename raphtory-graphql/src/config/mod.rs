@@ -31,7 +31,7 @@ mod tests {
         "#;
         let config_file = NamedTempFile::with_suffix(".toml").unwrap();
         let config_path = config_file.path();
-        fs::write(&config_path, config_toml).unwrap();
+        fs::write(config_path, config_toml).unwrap();
 
         let result = AppConfigBuilder::new()
             .load_from_path(config_path)

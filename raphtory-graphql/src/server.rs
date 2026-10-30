@@ -52,7 +52,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
@@ -480,7 +480,11 @@ impl RunningGraphServer {
 
 async fn server_termination(
     mut internal_signal: Receiver<()>,
-    tp: Option<(SdkTracerProvider, SdkLoggerProvider)>,
+    // unused with `integration-test`, where the exporters are kept alive across tests
+    #[cfg_attr(feature = "integration-test", allow(unused_variables))] tp: Option<(
+        SdkTracerProvider,
+        SdkLoggerProvider,
+    )>,
 ) {
     let ctrl_c = async {
         signal::ctrl_c()
@@ -514,11 +518,11 @@ async fn server_termination(
             tokio::task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
-                    error!("Failed to shut down tracing provider: {:?}", e);
+                    tracing::error!("Failed to shut down tracing provider: {:?}", e);
                 }
                 let res = lp.shutdown();
                 if let Err(e) = res {
-                    error!("Failed to shut down logging provider: {:?}", e);
+                    tracing::error!("Failed to shut down logging provider: {:?}", e);
                 }
             })
             .await
@@ -615,8 +619,7 @@ mod server_tests {
 
     // Builds a GraphQL batch request body containing `n` trivial queries.
     fn batch_body(n: usize) -> String {
-        let queries = std::iter::repeat(r#"{"query":"{__typename}"}"#)
-            .take(n)
+        let queries = std::iter::repeat_n(r#"{"query":"{__typename}"}"#, n)
             .collect::<Vec<_>>()
             .join(",");
         format!("[{queries}]")
