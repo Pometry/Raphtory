@@ -26,6 +26,8 @@ pub struct LockedEdgeSegment<'a, ES> {
     segment: &'a ES,
     num_edges: &'a GraphStats,
     head: RwLockWriteGuard<'a, MemEdgeSegment>,
+    /// a bulk writer was used, so property time cells may be unsorted (see `finish_bulk_load`)
+    bulk_used: bool,
 }
 
 impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
@@ -42,6 +44,7 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
             segment,
             num_edges,
             head,
+            bulk_used: false,
         }
     }
 
@@ -57,6 +60,7 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkEdgeWriter<'_, &mut MemEdgeSegment, ES> {
+        self.bulk_used = true;
         EdgeWriter::new(self.num_edges, self.segment, self.head.deref_mut()).into()
     }
 
@@ -83,6 +87,22 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
     pub fn flush(&mut self) -> Result<(), StorageError> {
         let head = self.head.deref_mut();
         self.segment.flush_with_head(head)
+    }
+}
+
+impl<ES> LockedEdgeSegment<'_, ES> {
+    /// Restores sorted property time cells after bulk writes. Flushing sorts the head before
+    /// freezing it, so only the head needs sorting. Runs on drop if not called.
+    pub fn finish_bulk_load(&mut self) {
+        if std::mem::take(&mut self.bulk_used) {
+            self.head.sort_times_from_props();
+        }
+    }
+}
+
+impl<ES> Drop for LockedEdgeSegment<'_, ES> {
+    fn drop(&mut self) {
+        self.finish_bulk_load();
     }
 }
 
@@ -167,6 +187,13 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         self.segments
             .par_iter_mut()
             .try_for_each(|locked_segment| locked_segment.flush())
+    }
+
+    /// [`LockedEdgeSegment::finish_bulk_load`] on every segment, in parallel.
+    pub fn finish_bulk_load(&mut self) {
+        self.segments
+            .par_iter_mut()
+            .for_each(|locked_segment| locked_segment.finish_bulk_load());
     }
 
     pub fn len(&self) -> usize {

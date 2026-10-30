@@ -60,6 +60,8 @@ pub struct MemEdgeSegment {
     est_size: usize,
     global_memory_tracker: Arc<AtomicUsize>,
     lsn: LSN,
+    /// set while a bulk writer is active: property times are appended unsorted
+    bulk_additions: bool,
 }
 
 impl AsRef<[SegmentContainer<EdgeEntry>]> for MemEdgeSegment {
@@ -86,6 +88,18 @@ impl MemEdgeSegment {
             est_size: 0,
             global_memory_tracker,
             lsn: 0,
+            bulk_additions: false,
+        }
+    }
+
+    pub fn set_bulk_additions(&mut self, bulk: bool) {
+        self.bulk_additions = bulk;
+    }
+
+    /// Sorts the property times a bulk writer appended unsorted.
+    pub fn sort_times_from_props(&mut self) {
+        for layer in &mut self.layers {
+            layer.properties_mut().sort_times_from_props();
         }
     }
 
@@ -145,6 +159,7 @@ impl MemEdgeSegment {
             est_size,
             global_memory_tracker: self.global_memory_tracker.clone(),
             lsn: self.lsn,
+            bulk_additions: false,
         }
     }
 
@@ -184,7 +199,11 @@ impl MemEdgeSegment {
             .get_mut_entry(local_row);
 
         let ts = EventTime::new(t.t(), t.i());
-        prop_entry.append_t_props(ts, props);
+        if self.bulk_additions {
+            prop_entry.append_t_props_unsorted(ts, props);
+        } else {
+            prop_entry.append_t_props(ts, props);
+        }
 
         let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);

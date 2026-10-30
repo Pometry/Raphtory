@@ -491,6 +491,42 @@ mod io_tests {
         })
     }
 
+    /// Bulk loads into a graph on disk, then reloads it. Bulk writers append property times
+    /// unsorted, so flushes during the load (run with a small `RAPHTORY_MAX_MEMORY_BYTES` to
+    /// flush often) and the end of the load must sort them. Few distinct edges with many
+    /// updates each grow cells past the `BTreeMap` cutoff.
+    fn check_load_on_disk(load2: bool, edges: &[(u64, u64, i64, String, i64)], chunk_size: usize) {
+        let dir = tempfile::TempDir::new().unwrap();
+        let args = Args::default().with_max_node_page_len(2).with_max_edge_page_len(2);
+        let g = match Graph::new_at_path_with_config(dir.path(), args) {
+            Ok(g) => g,
+            Err(GraphError::DiskGraphNotEnabled) => return,
+            Err(err) => panic!("{err}"),
+        };
+        let column_names = ColumnNames::new("time", None, "src", "dst", None);
+        if load2 {
+            load_edges_from_df2(build_df(chunk_size, edges), column_names, &LOAD2_PROPS, &[], None, None, &g).unwrap();
+        } else {
+            load_edges_from_df(build_df(chunk_size, edges), column_names, true, &LOAD2_PROPS, &[], None, None, &g, false).unwrap();
+        }
+        let expected = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edges {
+            expected.add_edge(*time, *src, *dst, edge_props(str_prop, *int_prop), None).unwrap();
+        }
+        assert_graph_equal(&g, &expected);
+        g.flush().unwrap();
+        drop(g);
+        let reloaded = Graph::load(dir.path()).unwrap();
+        assert_graph_equal(&reloaded, &expected);
+    }
+
+    #[test]
+    fn test_load_edges_on_disk_unsorted_times_proptest() {
+        proptest!(|(edges in build_edge_list(600, 4), chunk_size in 1usize..=600, load2: bool)| {
+            check_load_on_disk(load2, &edges, chunk_size);
+        })
+    }
+
     #[test]
     fn test_load_edges2_layer_proptest() {
         proptest!(|(edges in build_edge_list(300, 50), chunk_size in 1usize..=300)| {

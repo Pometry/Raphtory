@@ -23,7 +23,8 @@ pub struct BulkEdgeWriter<
 impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmentOps>
     From<EdgeWriter<'a, MP, ES>> for BulkEdgeWriter<'a, MP, ES>
 {
-    fn from(value: EdgeWriter<'a, MP, ES>) -> Self {
+    fn from(mut value: EdgeWriter<'a, MP, ES>) -> Self {
+        value.writer.set_bulk_additions(true);
         Self {
             ew: value,
             layers: vec![0],
@@ -126,6 +127,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
     for BulkEdgeWriter<'a, MP, ES>
 {
     fn drop(&mut self) {
+        self.ew.writer.set_bulk_additions(false);
         for (layer_id, count) in self.layers.iter().enumerate() {
             self.ew.graph_stats.increment_by(LayerId(layer_id), *count);
         }

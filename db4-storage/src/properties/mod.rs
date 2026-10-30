@@ -45,6 +45,9 @@ pub struct Properties {
     t_additions_count: usize,
     /// some `additions` cells were appended to without sorting (bulk load)
     unsorted_additions: bool,
+    /// some `times_from_props` cells were appended to without sorting (bulk load), so
+    /// `t_additions_count` counts every append until [`Self::sort_times_from_props`]
+    unsorted_times_from_props: bool,
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -144,6 +147,17 @@ impl Properties {
             for cell in &mut self.additions {
                 cell.sort_dedup();
             }
+        }
+    }
+
+    /// Sorts the `times_from_props` cells appended to by a bulk load, keeping the last property
+    /// row for a repeated time as [`TCell::set`] would, and recounts the distinct updates.
+    pub fn sort_times_from_props(&mut self) {
+        if std::mem::take(&mut self.unsorted_times_from_props) {
+            for cell in &mut self.times_from_props {
+                cell.sort_dedup();
+            }
+            self.t_additions_count = self.times_from_props.iter().map(|cell| cell.len()).sum();
         }
     }
 
@@ -339,7 +353,32 @@ impl<'a> PropMutEntry<'a> {
         t: EventTime,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
-        let t_prop_row = if let Some(t_prop_row) = self
+        let t_prop_row = self.push_t_props(props);
+        self.ensure_times_from_props();
+        self.set_time(t, t_prop_row);
+        self.properties.has_properties = true;
+        self.properties.update_earliest_latest(t);
+    }
+
+    /// As [`Self::append_t_props`], but appends the time without keeping the cell sorted; the
+    /// cell is sorted once, by [`Properties::sort_times_from_props`].
+    pub(crate) fn append_t_props_unsorted<P: AsPropRef>(
+        &mut self,
+        t: EventTime,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        let t_prop_row = self.push_t_props(props);
+        self.ensure_times_from_props();
+        self.properties.unsorted_times_from_props = true;
+        self.properties.times_from_props[self.row].push_unsorted(t, Some(t_prop_row));
+        // a repeated time is only found when sorting, which recounts
+        self.properties.t_additions_count += 1;
+        self.properties.has_properties = true;
+        self.properties.update_earliest_latest(t);
+    }
+
+    fn push_t_props<P: AsPropRef>(&mut self, props: impl IntoIterator<Item = (usize, P)>) -> usize {
+        if let Some(t_prop_row) = self
             .properties
             .t_properties
             .push(props)
@@ -348,13 +387,7 @@ impl<'a> PropMutEntry<'a> {
             t_prop_row
         } else {
             self.properties.t_properties.push_null()
-        };
-
-        self.ensure_times_from_props();
-        self.set_time(t, t_prop_row);
-
-        self.properties.has_properties = true;
-        self.properties.update_earliest_latest(t);
+        }
     }
 
     pub(crate) fn ensure_times_from_props(&mut self) {
