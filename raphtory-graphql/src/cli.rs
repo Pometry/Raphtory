@@ -1,7 +1,10 @@
 #[cfg(feature = "rdf")]
-use crate::config::concurrency_config::{
-    DEFAULT_MAX_SPARQL_QUERY_LENGTH, DEFAULT_MAX_SPARQL_RESULT_BYTES,
-    DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS,
+use crate::{
+    config::concurrency_config::{
+        DEFAULT_MAX_SPARQL_QUERY_LENGTH, DEFAULT_MAX_SPARQL_RESULT_BYTES,
+        DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS,
+    },
+    model::graph::rdf_graph::RdfSchema,
 };
 use crate::{
     config::{
@@ -18,7 +21,7 @@ use crate::{
         schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
     model::App,
-    plugin::server::extension::ArgExtensions,
+    plugin::{schema::RegisterPlugin, server::extension::ArgExtensions},
     server::DEFAULT_PORT,
     GraphServer,
 };
@@ -320,7 +323,11 @@ where
             }
         }
         Commands::Schema => {
-            let schema = App::create_schema().finish().unwrap();
+            let plugins: Vec<Box<dyn RegisterPlugin>> = vec![
+                #[cfg(feature = "rdf")]
+                Box::new(RdfSchema { shacl: true }),
+            ];
+            let schema = App::create_schema_with_plugins(plugins).finish().unwrap();
             println!("{}", schema.sdl());
         }
     }

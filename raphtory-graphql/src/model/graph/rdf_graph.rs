@@ -11,17 +11,36 @@ use crate::{
         },
         QueryRoot,
     },
+    plugin::schema::RegisterPlugin,
     sparql::{format::GqlSparqlFormat, run_limited},
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields, Result,
+    internal::Registry, ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields,
+    Result,
 };
 use raphtory::errors::GraphError;
 use raphtory_rdf::{
     shacl::{ShaclOptions, ShaclShapes},
     RdfError, RdfFormat, RdfView, SparqlFormat,
 };
+
+/// Adds `rdfGraph` to the query root and, when `shacl`, `validateShacl` to `RdfGraph`.
+#[derive(Clone, Copy)]
+pub struct RdfSchema {
+    pub shacl: bool,
+}
+
+impl RegisterPlugin for RdfSchema {
+    fn register(&self, registry: Registry) -> Registry {
+        let registry = registry.register::<RdfGraphQuery>();
+        if self.shacl {
+            registry.register::<ShaclQuery>()
+        } else {
+            registry
+        }
+    }
+}
 
 #[derive(ExpandObject)]
 pub struct RdfGraphQuery<'a>(&'a QueryRoot);
@@ -324,25 +343,87 @@ impl GqlRdfGraphWindowSet {
 mod tests {
     use crate::{
         config::concurrency_config::ConcurrencyConfig,
-        model::App,
+        model::{graph::rdf_graph::RdfSchema, App},
+        plugin::schema::RegisterPlugin,
         sparql::SparqlError,
-        test_support::{
-            rdf::{
-                ex, graph, pairs, people, rows, AS_OF_3, COUNT, KNOWN_BY, KNOWN_BY_NOW, KNOWS, NOW,
-            },
-            setup_with_graphs,
-        },
+        test_support::setup_with_graphs,
     };
     use async_graphql::{dynamic::Schema, ServerError};
     use dynamic_graphql::{Request, Variables};
     use oxigraph::{
-        io::RdfFormat as OxRdfFormat,
-        model::{Literal, NamedNodeRef},
+        io::{RdfFormat as OxRdfFormat, RdfParser},
+        model::{Graph, Literal, NamedNodeRef},
+        sparql::results::{QueryResultsFormat, QueryResultsParser, SliceQueryResultsParserOutput},
     };
-    use raphtory::db::api::view::MaterializedGraph;
-    use raphtory_rdf::{shacl::ShaclLimit, RdfError};
+    use raphtory::{db::api::view::MaterializedGraph, prelude::PersistentGraph};
+    use raphtory_rdf::{shacl::ShaclLimit, NamedNode, RdfError, RdfFormat, RdfGraph, Term, Triple};
     use serde_json::{json, Value as Json};
     use tempfile::TempDir;
+
+    const PEOPLE: &str = r#"
+        @prefix ex: <http://ex/> .
+        ex:alice ex:knows ex:bob ; ex:age 42 .
+        ex:bob ex:knows ex:carol .
+        ex:carol ex:name "Carol" .
+    "#;
+    const KNOWS: &str = "PREFIX ex: <http://ex/> SELECT ?s ?o { ?s ex:knows ?o } ORDER BY ?s ?o";
+    const COUNT: &str = "SELECT (COUNT(*) AS ?n) { ?s ?p ?o }";
+    const KNOWN_BY: &str =
+        "PREFIX ex: <http://ex/> CONSTRUCT { ?o ex:knownBy ?s } WHERE { ?s ex:knows ?o }";
+    /// The triples of `KNOWN_BY` on the current state of [`people`], in N-Triples.
+    const KNOWN_BY_NOW: &str = "\
+        <http://ex/alice> <http://ex/knownBy> <http://ex/dave> .
+        <http://ex/carol> <http://ex/knownBy> <http://ex/bob> .";
+    /// The `knows` pairs of [`people`] now.
+    const NOW: &[(&str, &str)] = &[("bob", "carol"), ("dave", "alice")];
+    /// The `knows` pairs of [`people`] as of 3.
+    const AS_OF_3: &[(&str, &str)] = &[("alice", "bob"), ("bob", "carol")];
+
+    /// The IRI `http://ex/<name>`.
+    fn ex(name: &str) -> NamedNode {
+        NamedNode::new_unchecked(format!("http://ex/{name}"))
+    }
+
+    /// Asserted at 1: `alice knows bob`, `alice age 42`, `bob knows carol`, `carol name "Carol"`.
+    /// `alice knows bob` is retracted at 5, and `dave knows alice` asserted at 7.
+    fn people() -> PersistentGraph {
+        let rg = RdfGraph::new();
+        rg.load_rdf(1, PEOPLE.as_bytes(), RdfFormat::Turtle, None)
+            .unwrap();
+        let knows = |s, o| Triple::new(ex(s), ex("knows"), ex(o));
+        rg.retract_triple(5, &knows("alice", "bob")).unwrap();
+        rg.add_triple(7, &knows("dave", "alice")).unwrap();
+        rg.graph().clone()
+    }
+
+    /// The values of the solutions of SPARQL Results JSON, `None` for an unbound variable.
+    fn rows(results: &str) -> Vec<Vec<Option<Term>>> {
+        let parser = QueryResultsParser::from_format(QueryResultsFormat::Json);
+        let SliceQueryResultsParserOutput::Solutions(solutions) =
+            parser.for_slice(results).unwrap()
+        else {
+            panic!("not the results of a SELECT query: {results}")
+        };
+        solutions
+            .map(|solution| solution.unwrap().values().to_vec())
+            .collect()
+    }
+
+    /// The rows of `knows` pairs.
+    fn pairs(pairs: &[(&str, &str)]) -> Vec<Vec<Option<Term>>> {
+        pairs
+            .iter()
+            .map(|(s, o)| vec![Some(ex(s).into()), Some(ex(o).into())])
+            .collect()
+    }
+
+    /// The triples of an RDF document.
+    fn graph(document: &str, format: OxRdfFormat) -> Graph {
+        RdfParser::from_format(format)
+            .for_slice(document.as_bytes())
+            .map(|quad| Triple::from(quad.unwrap()))
+            .collect()
+    }
 
     fn graphs() -> Vec<(&'static str, MaterializedGraph)> {
         vec![
@@ -352,12 +433,13 @@ mod tests {
     }
 
     async fn setup(work_dir: &TempDir) -> Schema {
-        setup_with_graphs(&graphs(), work_dir.path()).await.schema
+        setup_with_config(work_dir, ConcurrencyConfig::default()).await
     }
 
     async fn setup_with_config(work_dir: &TempDir, config: ConcurrencyConfig) -> Schema {
         let data = setup_with_graphs(&graphs(), work_dir.path()).await.data;
-        App::create_schema()
+        let plugins: [Box<dyn RegisterPlugin>; 1] = [Box::new(RdfSchema { shacl: true })];
+        App::create_schema_with_plugins(plugins)
             .data(data)
             .data(config)
             .finish()

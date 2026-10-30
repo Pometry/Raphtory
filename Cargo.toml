@@ -209,13 +209,12 @@ mock-collector = "0.2.14"
 dyn-clone = "1.0.20"
 inventory = "0.3.24"
 oxigraph = { version = "0.5.11", default-features = false }
-spareval = { version = "0.2.7" }
+spareval = "0.2.7"
 spargebra = { version = "0.4.7", features = ["sep-0006"] }
 # names the IRI type of spareval's `DefaultServiceHandler` (the handler that refuses SERVICE calls)
 oxiri = "0.2.11"
 percent-encoding = "2.3"
-# SHACL validation (rudof). Do not enable their `sparql` features (the native engine would then need a
-# SPARQL-capable store).
+# rudof: keep its `sparql` features off, or the native engine needs a SPARQL store
 shacl = { version = "0.3.35", default-features = false }
 rudof_rdf = { version = "0.3.35", default-features = false }
 rudof_iri = { version = "0.3.35", default-features = false }

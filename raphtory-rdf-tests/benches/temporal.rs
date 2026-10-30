@@ -80,7 +80,6 @@ fn bear_b(c: &mut Criterion) {
     let queries = read_queries(&dir).expect("BEAR-B queries");
     let last = changes.versions() as i64;
 
-    // ingestion
     println!(
         "BEAR-B {g}: {} versions, {} triples written ({} in the reconstructed version 1)",
         changes.versions(),

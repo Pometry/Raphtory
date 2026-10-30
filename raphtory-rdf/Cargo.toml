@@ -29,10 +29,10 @@ rustc-hash.workspace = true
 thiserror.workspace = true
 
 # rudof's SHACL validator; it also turns on oxigraph's HTTP client, but queries refuse SERVICE calls
-shacl = { workspace = true, optional = true }
-rudof_rdf = { workspace = true, optional = true }
-rudof_iri = { workspace = true, optional = true }
-prefixmap = { workspace = true, optional = true }
+shacl.workspace = true
+rudof_rdf.workspace = true
+rudof_iri.workspace = true
+prefixmap.workspace = true
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -44,7 +44,6 @@ proptest.workspace = true
 tempfile.workspace = true
 
 [features]
-shacl = ["dep:shacl", "dep:rudof_rdf", "dep:rudof_iri", "dep:prefixmap"]
 python = [
     "dep:pyo3",
     "dep:raphtory-core",

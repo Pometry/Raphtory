@@ -236,6 +236,22 @@ def test_disabled_read_access(query):
         assert_successful_response(response)
 
 
+def test_sparql_endpoint_forwards_authorization():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(
+        work_dir,
+        config={"auth": {"public_key": PUB_KEY, "require_auth_for_reads": True}},
+    ).start() as server:
+        port = server.port()
+        add_test_graph(port)
+        url = f"{raphtory_url(port)}/sparql/test"
+        params = {"query": "SELECT * { ?s ?p ?o }"}
+
+        assert requests.get(url, params=params).status_code == 401
+        response = requests.get(url, params=params, headers=READ_HEADERS)
+        assert response.status_code == 200
+
+
 ADD_NODE = """
 query {
   updateGraph(path: "test") {

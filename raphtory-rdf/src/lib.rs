@@ -41,7 +41,6 @@ pub mod python;
 mod query;
 mod results;
 mod scan;
-#[cfg(feature = "shacl")]
 pub mod shacl;
 mod time_graph;
 

@@ -334,8 +334,7 @@ fn internal_terms_are_canonical() {
     }
     assert_eq!(dataset.internal_named_graphs().count(), 0);
     assert!(!dataset.contains_internal_graph_name(&unknown).unwrap());
-    // a bound subject or object that is not a node, or a predicate that is not a layer,
-    // matches nothing
+    // a bound term that is not a node, or a predicate that is not a layer, matches nothing
     let a = node("http://ex/a");
     for (s, p, o) in [
         (Some(&unknown), None, None),

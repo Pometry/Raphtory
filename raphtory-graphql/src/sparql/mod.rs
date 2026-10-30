@@ -9,6 +9,7 @@ use crate::{
     config::concurrency_config::ConcurrencyConfig, data::gql_error_with_code,
     rayon::blocking_compute,
 };
+use async_graphql::Error as GqlError;
 use raphtory_rdf::{RdfError, SparqlOptions};
 use thiserror::Error;
 use tracing::error;
@@ -20,7 +21,7 @@ pub(crate) enum SparqlError {
 }
 
 impl SparqlError {
-    fn into_gql_error(self) -> async_graphql::Error {
+    fn into_gql_error(self) -> GqlError {
         match &self {
             Self::Query(RdfError::ResultsTooLarge { .. }) => {
                 gql_error_with_code(self, CODE_RESULTS_TOO_LARGE)
@@ -42,7 +43,7 @@ fn limit_setting(error: &RdfError) -> &'static str {
 pub(crate) async fn run_limited<T: Send + 'static>(
     config: Option<&ConcurrencyConfig>,
     f: impl FnOnce(&SparqlOptions) -> Result<T, RdfError> + Send + 'static,
-) -> async_graphql::Result<Option<T>> {
+) -> Result<Option<T>, GqlError> {
     let options = sparql_options(&config.cloned().unwrap_or_default());
     match blocking_compute(move || f(&options)).await {
         Ok(value) => Ok(Some(value)),

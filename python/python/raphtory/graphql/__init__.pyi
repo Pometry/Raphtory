@@ -98,9 +98,9 @@ class GraphServer(object):
                                    reject batched GraphQL requests), `max_batch_size` (int, cap
                                    on the number of queries in a batched request; null for
                                    unlimited), `disable_lists` (bool, disable bulk `list`
-                                   endpoints so clients must use `page`), `max_page_size`
-                                   (int), `max_sparql_query_length` (int, maximum length in bytes
-                                   of a SPARQL query; default 16384, null for unlimited),
+                                   endpoints so clients must use `page`), `max_page_size` (int),
+                                   `max_sparql_query_length` (int, maximum length in bytes of a
+                                   SPARQL query; default 16384, null for unlimited),
                                    `max_sparql_triple_patterns` (int, maximum number of triple
                                    patterns of a SPARQL query; default 100, null for unlimited),
                                    `max_sparql_result_bytes` (int, maximum size in bytes of the
@@ -111,9 +111,9 @@ class GraphServer(object):
                                    `max_recursive_depth` (int, safety limit against stack
                                    overflows from pathologically structured queries),
                                    `max_directives_per_field` (int),
-                                   `disable_introspection` (bool), `disable_rdf` (bool, leave
-                                   `rdfGraph` out of the schema; also turns
-                                   off the SPARQL endpoint and SHACL),
+                                   `disable_introspection` (bool),
+                                   `disable_rdf` (bool, leave `rdfGraph` out of the schema; also
+                                   turns off the SPARQL endpoint and SHACL),
                                    `disable_sparql_endpoint` (bool, do not serve `/sparql`),
                                    `disable_shacl` (bool, leave `validateShacl` out of the schema)
                                  * `parquet`: `allowed_paths` (list[str | PathLike]) - the paths

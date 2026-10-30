@@ -40,7 +40,8 @@ use std::{
     collections::{BTreeMap, HashSet},
     error::Error,
     ffi::OsStr,
-    fmt, fs,
+    fmt,
+    fs::{self, File},
     io::Read,
     path::{Path, PathBuf},
 };
@@ -159,7 +160,7 @@ impl Changes {
 pub fn read_deltas(archive: &Path) -> Result<Vec<Delta>, Box<dyn Error>> {
     let mut added = BTreeMap::new();
     let mut deleted = BTreeMap::new();
-    for entry in Archive::new(GzDecoder::new(fs::File::open(archive)?)).entries()? {
+    for entry in Archive::new(GzDecoder::new(File::open(archive)?)).entries()? {
         let mut entry = entry?;
         let Some(file) = entry
             .path()?
@@ -348,7 +349,7 @@ pub fn read_queries(dir: &Path) -> Result<Vec<BearQuery>, String> {
 
 /// The files of a zip archive: names and contents (decoded as UTF-8, lossily).
 pub fn read_zip(path: &Path) -> Result<Vec<(String, String)>, String> {
-    let file = fs::File::open(path).map_err(|e| format!("cannot open {}: {e}", path.display()))?;
+    let file = File::open(path).map_err(|e| format!("cannot open {}: {e}", path.display()))?;
     let mut archive = ZipArchive::new(file).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut files = Vec::new();
     for i in 0..archive.len() {

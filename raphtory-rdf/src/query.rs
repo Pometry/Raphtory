@@ -201,9 +201,7 @@ pub(crate) fn dedup_triples<'a>(
     })
 }
 
-// a stack overflow aborts the process, so recursion as deep as `len` input units needs room;
-// oxigraph recurses per nesting level and flat-chain term, rudof per shapes graph nesting level.
-// A one-thread pool rather than a thread, as rudof's validator uses `par_iter`.
+// overflow aborts the process; a one-thread pool, not a thread, as rudof's validator uses par_iter
 pub(crate) fn on_stack<R: Send>(
     what: &str,
     len: usize,

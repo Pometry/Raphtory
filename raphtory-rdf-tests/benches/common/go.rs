@@ -461,10 +461,6 @@ pub fn load_store_release(store: &Store, date: &str, doc: &[u8]) -> Result<(), S
     loader.commit().map_err(|e| e.to_string())
 }
 
-// ---------------------------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------------------------
-
 pub const PREFIXES: &str = "PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX oio: <http://www.geneontology.org/formats/oboInOwl#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>

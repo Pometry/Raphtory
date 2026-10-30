@@ -21,7 +21,7 @@ use bzip2::read::MultiBzDecoder;
 use csv::Reader;
 use std::{
     collections::HashSet,
-    fs,
+    fs::{self, File},
     io::{BufReader, Read},
     path::{Path, PathBuf},
 };
@@ -44,7 +44,7 @@ pub fn bsbm_dir() -> Result<PathBuf, String> {
 
 /// Decompresses a `.bz2` file.
 pub fn read_bz2(path: &Path) -> Result<Vec<u8>, String> {
-    let file = fs::File::open(path).map_err(|e| format!("cannot open {}: {e}", path.display()))?;
+    let file = File::open(path).map_err(|e| format!("cannot open {}: {e}", path.display()))?;
     let mut data = Vec::new();
     MultiBzDecoder::new(BufReader::new(file))
         .read_to_end(&mut data)

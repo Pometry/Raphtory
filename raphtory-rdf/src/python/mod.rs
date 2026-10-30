@@ -1,5 +1,4 @@
 mod rdf;
-#[cfg(feature = "shacl")]
 mod shacl;
 
 use pyo3::prelude::*;

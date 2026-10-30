@@ -1,11 +1,12 @@
 //! RDF import and export, storage semantics and formats.
 use super::{exported, parse_graph, BLANK_NODES, DATATYPES, FOAF};
-use crate::{RdfError, RdfFormat, RdfGraph, RdfView};
+use crate::{shacl::ShaclShapes, RdfError, RdfFormat, RdfGraph, RdfView};
 use raphtory::{
     db::api::view::{IntoDynamic, StaticGraphViewOps},
     prelude::*,
 };
 use std::{collections::BTreeSet, fs, path::Path};
+use tempfile::tempdir;
 
 const XSD_INTEGER: &str = "http://www.w3.org/2001/XMLSchema#integer";
 
@@ -99,7 +100,6 @@ fn blank_nodes() {
         after.iter().filter(|l| l.contains("<http://ex/p>")).count(),
         1
     );
-    // the node keeps its label
     assert!(rg.graph().node(label.as_str()).is_some());
 }
 
@@ -235,7 +235,7 @@ fn rdf_formats() {
 
 #[test]
 fn files() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let ttl = dir.path().join("foaf.ttl");
     let bare = dir.path().join("foaf");
     let rg = RdfGraph::new();
@@ -264,14 +264,11 @@ fn files() {
     assert_eq!(copy.retract_rdf_path(2, &ttl, None, None).unwrap(), n);
     assert!(exported(&copy.valid()).is_empty());
 
-    #[cfg(feature = "shacl")]
-    {
-        let shapes = dir.path().join("shapes.ttl");
-        fs::write(
-            &shapes,
-            "<http://ex/S> a <http://www.w3.org/ns/shacl#NodeShape> .",
-        )
-        .unwrap();
-        assert!(crate::shacl::ShaclShapes::parse_path(&shapes, None, None).is_ok());
-    }
+    let shapes = dir.path().join("shapes.ttl");
+    fs::write(
+        &shapes,
+        "<http://ex/S> a <http://www.w3.org/ns/shacl#NodeShape> .",
+    )
+    .unwrap();
+    assert!(ShaclShapes::parse_path(&shapes, None, None).is_ok());
 }

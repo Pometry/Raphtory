@@ -64,8 +64,7 @@ fn result(
     )
 }
 
-// alice and bob are people, alice knows bob and works for acme. At 5 alice loses her name, bob
-// gets a negative age and knows acme (not a person); at 7 acme's name becomes "A" (too short).
+// at 5 alice loses her name, bob gets a negative age and knows acme; at 7 acme's name is too short
 fn temporal_graph() -> RdfGraph {
     let rg = RdfGraph::new();
     let doc = r#"
@@ -348,8 +347,7 @@ fn paths_rudof_would_expand_without_end_are_rejected() {
 
 #[test]
 fn recursive_shapes_follow_a_data_chain() {
-    // shortcut: the validator recurses per chain node, about 10,000 abort the process;
-    // reject recursive shapes (as the server does) for untrusted shapes
+    // shortcut: ~10,000 chain nodes abort the process; reject recursive shapes for untrusted ones
     let g = RdfGraph::new();
     let chain: String = (0..1_000)
         .map(|i| {
@@ -470,8 +468,7 @@ fn shape_literals_find_stored_literals() {
             ex:S sh:targetNode "01"^^<http://www.w3.org/2001/XMLSchema#{datatype}> ;
                 sh:property [ sh:path [ sh:inversePath ex:n ] ; sh:minCount 1 ] ."#
         );
-        // shortcut: rudof keeps the lexical form of xsd:integer, decimal, double and float only,
-        // so "01"^^xsd:long becomes "1" and misses; canonicalise literals on import if that matters
+        // shortcut: rudof makes "01"^^xsd:long "1", so it misses; canonicalise on import if it matters
         let report = validate(&g, &ttl);
         assert_eq!(
             report.conforms(),

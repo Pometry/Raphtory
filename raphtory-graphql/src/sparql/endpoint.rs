@@ -6,7 +6,7 @@ use crate::{
     rayon::blocking_compute,
     sparql::{config::CODE_RESULTS_TOO_LARGE, format::GqlSparqlFormat, SparqlError},
 };
-use async_graphql::{value, BatchResponse, Executor, Value, Variables};
+use async_graphql::{value, BatchResponse, Executor, Request as GqlRequest, Value, Variables};
 use itertools::Itertools;
 use poem::{
     error::ResponseError,
@@ -15,13 +15,13 @@ use poem::{
         Method, StatusCode,
     },
     web::{headers::Mime, Accept},
-    Endpoint, FromRequest, IntoResponse, Request, Response,
+    Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use raphtory_api::core::utils::time::ParseTimeError;
 use raphtory_rdf::{QueryForm, QueryOutline, SparqlFormat, SparqlOptions, TimeGraph};
 use std::sync::Arc;
 use thiserror::Error;
-use url::form_urlencoded;
+use url::form_urlencoded::parse;
 
 const ALLOWED: &str = "GET, POST, OPTIONS";
 
@@ -120,7 +120,7 @@ impl Params {
     }
 
     fn add_form(&mut self, form: &[u8]) -> Result<(), EndpointError> {
-        for (name, value) in form_urlencoded::parse(form) {
+        for (name, value) in parse(form) {
             self.add(&name, value.into_owned())?;
         }
         Ok(())
@@ -141,7 +141,7 @@ impl<E> SparqlEndpoint<E> {
 impl<E: Executor> Endpoint for SparqlEndpoint<E> {
     type Output = Response;
 
-    async fn call(&self, req: Request) -> poem::Result<Response> {
+    async fn call(&self, req: Request) -> Result<Response> {
         let response = match *req.method() {
             Method::GET | Method::POST => self
                 .respond(req)
@@ -164,7 +164,7 @@ impl<E: Executor> Endpoint for SparqlEndpoint<E> {
 }
 
 impl<E: Executor> SparqlEndpoint<E> {
-    async fn respond(&self, mut req: Request) -> poem::Result<Response> {
+    async fn respond(&self, mut req: Request) -> Result<Response> {
         let path = req.raw_path_param("path").unwrap_or_default().to_owned();
         let mut params = Params::default();
         if let Some(query) = req.uri().query() {
@@ -206,8 +206,7 @@ impl<E: Executor> SparqlEndpoint<E> {
                 })
                 .ok_or(EndpointError::NotAcceptable(outline.form))?;
 
-        // the current state, or the whole graph for a query reading time graphs (they hold theirs),
-        // through the identity filter of a null `expr`
+        // time graphs hold their own time, so a query reading them sees the whole graph
         let expr = match asof {
             Some(time) => {
                 value!({ "view": [{ "before": time.saturating_add(1) }, { "kind": "VALID" }] })
@@ -221,18 +220,15 @@ impl<E: Executor> SparqlEndpoint<E> {
             "query": query,
             "format": Value::from(&format),
         });
-        let request =
-            async_graphql::Request::new(QUERY).variables(Variables::from_value(variables));
-        let caller = self.graphql.authenticate(req.headers()).await?;
+        let request = GqlRequest::new(QUERY).variables(Variables::from_value(variables));
         let BatchResponse::Single(response) =
-            self.graphql.execute_as(caller, request.into()).await?
+            self.graphql.execute_read_as(&req, request.into()).await?
         else {
             unreachable!("a single request has a single response")
         };
 
         if !response.errors.is_empty() {
-            // `rdfGraph` is the only root field, so no data means it failed (a missing graph or
-            // one that cannot be loaded); an error below it leaves data
+            // `rdfGraph` is the only root field, so null data means the graph did not load
             let status = if response.data == Value::Null {
                 StatusCode::NOT_FOUND
             } else if response.errors[0]
@@ -263,12 +259,10 @@ impl<E: Executor> SparqlEndpoint<E> {
             Some(Value::String(results)) => {
                 Ok(Response::builder().content_type(media_type).body(results))
             }
-            // `rdfGraph` is null: the caller cannot read the graph
             None => {
                 let error = PathValidationError::GraphNotExistsError(path);
                 Err(EndpointError::GraphNotFound(error).into())
             }
-            // the query failed unexpectedly
             Some(_) => Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response()),
         }
     }

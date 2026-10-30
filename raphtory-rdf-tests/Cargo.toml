@@ -1,5 +1,4 @@
-# Conformance tests and benchmarks for raphtory-rdf (separate crate so the W3C suites and the benchmark
-# data stay out of raphtory-rdf). The features are off by default, so workspace builds skip them.
+# W3C conformance tests and benchmarks, kept out of raphtory-rdf; off by default.
 
 [package]
 name = "raphtory-rdf-tests"
@@ -45,7 +44,6 @@ rdf = [
     "dep:zip",
     "dep:tar",
     "dep:bzip2",
-    "raphtory-rdf/shacl",
     "dep:rudof_rdf",
     "dep:shacl",
     "dep:rustc-hash",

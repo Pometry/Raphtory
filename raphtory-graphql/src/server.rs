@@ -1,5 +1,3 @@
-#[cfg(feature = "rdf")]
-use crate::sparql::{config::sparql_options, endpoint::SparqlEndpoint};
 use crate::{
     auth::{AuthenticatedGraphQL, KeyResolver, MutationAuth},
     auth_policy::AuthorizationPolicy,
@@ -15,6 +13,11 @@ use crate::{
     rayon::{configure_pools, PoolSettings},
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
+};
+#[cfg(feature = "rdf")]
+use crate::{
+    model::graph::rdf_graph::RdfSchema,
+    sparql::{config::sparql_options, endpoint::SparqlEndpoint},
 };
 use async_graphql::dynamic::Schema;
 use opentelemetry::trace::TracerProvider;
@@ -165,6 +168,13 @@ impl GraphServer {
             schema_data: Vec::new(),
             key_resolver: None,
             schema_plugins: Vec::new(),
+        };
+        #[cfg(feature = "rdf")]
+        let server = if server.config.schema.disable_rdf {
+            server
+        } else {
+            let shacl = !server.config.schema.disable_shacl;
+            server.with_schema_plugin(RdfSchema { shacl })
         };
         extensions.process(server)
     }
@@ -358,11 +368,7 @@ impl GraphServer {
     pub async fn build_schema(self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
         let schema_cfg = &self.config.schema;
 
-        #[cfg(feature = "rdf")]
-        let (rdf, shacl) = (!schema_cfg.disable_rdf, !schema_cfg.disable_shacl);
-        #[cfg(not(feature = "rdf"))]
-        let (rdf, shacl) = (false, false);
-        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins, rdf, shacl)
+        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins)
             .data(self.data)
             .data(self.config.concurrency);
 
@@ -418,8 +424,7 @@ impl GraphServer {
             .at("/health", get(health))
             .at("/version", get(version))
             .with(Cors::new());
-        // `Cors` replaces `Vary`, so the SPARQL answers, whose format depends on the `Accept`
-        // header, add `Vary: Accept` outside it
+        // `Cors` replaces `Vary`, so `Vary: Accept` is added outside it
         #[cfg(feature = "rdf")]
         let app = if config.schema.disable_rdf || config.schema.disable_sparql_endpoint {
             // registered anyway so that `/` (the UI or GraphQL) does not answer it

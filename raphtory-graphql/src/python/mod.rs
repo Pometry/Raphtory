@@ -1,5 +1,8 @@
+#[cfg(feature = "rdf")]
+use crate::model::graph::rdf_graph::RdfSchema;
 use crate::{
     model::App,
+    plugin::schema::RegisterPlugin,
     url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError},
     GQLError,
 };
@@ -92,7 +95,11 @@ pub(crate) fn translate_to_python(py: Python, value: serde_json::Value) -> PyRes
 ///     str: Graphql schema
 #[pyfunction]
 pub fn schema() -> String {
-    let schema = App::create_schema().finish().unwrap(); //will only fail if something wrong with the build
+    let plugins: Vec<Box<dyn RegisterPlugin>> = vec![
+        #[cfg(feature = "rdf")]
+        Box::new(RdfSchema { shacl: true }),
+    ];
+    let schema = App::create_schema_with_plugins(plugins).finish().unwrap(); //will only fail if something wrong with the build
     schema.sdl()
 }
 

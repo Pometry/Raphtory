@@ -11,7 +11,6 @@ use futures_util::{future::BoxFuture, StreamExt};
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use poem::{
     error::{BadRequest, TooManyRequests, Unauthorized},
-    http::HeaderMap,
     Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
@@ -184,6 +183,10 @@ impl<E> AuthenticatedGraphQL<E>
 where
     E: Executor,
 {
+    async fn execute(&self, request: BatchRequest) -> BatchResponse {
+        self.executor.execute_batch(request).await
+    }
+
     async fn execute_read_query(&self, req: BatchRequest) -> Result<BatchResponse> {
         let is_heavy = match &req {
             BatchRequest::Single(request) => is_query_heavy(&request.query),
@@ -194,32 +197,69 @@ where
         if is_heavy {
             if let Some(semaphore) = &self.semaphore {
                 match semaphore.acquire().await {
-                    Ok(_permit) => Ok(self.executor.execute_batch(req).await),
+                    Ok(_permit) => Ok(self.execute(req).await),
                     Err(error) => Err(TooManyRequests(error)),
                 }
             } else {
-                Ok(self.executor.execute_batch(req).await)
+                Ok(self.execute(req).await)
             }
         } else {
-            Ok(self.executor.execute_batch(req).await)
+            Ok(self.execute(req).await)
         }
     }
 
-    /// The access, roles and other claims of the caller the request headers authenticate.
-    pub(crate) async fn authenticate(
+    /// Runs a read query as the caller `req` authenticates, as `call` does.
+    #[cfg(feature = "rdf")]
+    pub(crate) async fn execute_read_as(
         &self,
-        headers: &HeaderMap,
-    ) -> Result<(Access, Roles, TokenClaimValues)> {
+        req: &Request,
+        query: BatchRequest,
+    ) -> Result<BatchResponse> {
+        let (access, roles, claim_values) = self.authenticate(req).await?;
+        let query = query.data(access).data(roles).data(claim_values);
+        let _guard = match &self.lock {
+            Some(lock) => Some(lock.read().await),
+            None => None,
+        };
+        self.execute_read_query(query).await
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum AuthError {
+    #[error("The requested endpoint requires at least read access")]
+    RequireRead,
+    #[error("The requested endpoint requires write access")]
+    RequireWrite,
+    #[error("Query batching is disabled on this server")]
+    BatchingDisabled,
+    #[error("Batch size {actual} exceeds the maximum allowed {max}")]
+    BatchSizeExceeded { max: usize, actual: usize },
+}
+
+impl From<AuthError> for ServerError {
+    fn from(value: AuthError) -> Self {
+        ServerError::new(value.to_string(), None)
+    }
+}
+
+// this is copied over from async_graphql_poem::GraphQL, but including the bits to extract the role from the header
+// I found no alternative way of doing this because the data field inside of poem::Request data is not mapped into async_graphql::Request.data
+// So either:
+// - I have access to headers and can include the role in the data, but then gets lost along the way
+// - or I hook into async_graphql by implementing Extension::prepare_request, where I can actually include data into the request, but don't have access to any headers there
+impl<E> AuthenticatedGraphQL<E>
+where
+    E: Executor,
+{
+    async fn authenticate(&self, req: &Request) -> Result<(Access, Roles, TokenClaimValues)> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
         let auth = &self.config.auth;
         Ok(match &self.key_resolver {
             // if auth is not setup, we give write access to all requests
             None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
             Some(resolver) => {
-                let claims = match headers
-                    .get(AUTHORIZATION)
-                    .and_then(|header| header.to_str().ok())
-                {
+                let claims = match req.header(AUTHORIZATION) {
                     Some(header) => {
                         extract_claims(
                             header,
@@ -250,75 +290,8 @@ where
             }
         })
     }
-
-    /// Runs `req` as the caller of [`Self::authenticate`], with the batch limits, the
-    /// exclusive-writes lock and the heavy-query permit.
-    pub(crate) async fn execute_as(
-        &self,
-        (access, roles, claim_values): (Access, Roles, TokenClaimValues),
-        req: BatchRequest,
-    ) -> Result<BatchResponse> {
-        if let BatchRequest::Batch(requests) = &req {
-            if self.config.concurrency.disable_batching {
-                return Err(BadRequest(AuthError::BatchingDisabled));
-            }
-            if let Some(max) = self.config.concurrency.max_batch_size {
-                let actual = requests.len();
-                if actual > max {
-                    return Err(BadRequest(AuthError::BatchSizeExceeded { max, actual }));
-                }
-            }
-        }
-
-        let req = req.data(access).data(roles).data(claim_values);
-
-        let contains_update = match &req {
-            BatchRequest::Single(request) => is_exclusive_write(&request.query),
-            BatchRequest::Batch(requests) => requests
-                .iter()
-                .any(|request| is_exclusive_write(&request.query)),
-        };
-        if contains_update {
-            if let Some(lock) = &self.lock {
-                let _guard = lock.write().await;
-                Ok(self.executor.execute_batch(req).await)
-            } else {
-                Ok(self.executor.execute_batch(req).await)
-            }
-        } else {
-            if let Some(lock) = &self.lock {
-                let _guard = lock.read().await;
-                self.execute_read_query(req).await
-            } else {
-                self.execute_read_query(req).await
-            }
-        }
-    }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum AuthError {
-    #[error("The requested endpoint requires at least read access")]
-    RequireRead,
-    #[error("The requested endpoint requires write access")]
-    RequireWrite,
-    #[error("Query batching is disabled on this server")]
-    BatchingDisabled,
-    #[error("Batch size {actual} exceeds the maximum allowed {max}")]
-    BatchSizeExceeded { max: usize, actual: usize },
-}
-
-impl From<AuthError> for ServerError {
-    fn from(value: AuthError) -> Self {
-        ServerError::new(value.to_string(), None)
-    }
-}
-
-// this is copied over from async_graphql_poem::GraphQL, but including the bits to extract the role from the header
-// I found no alternative way of doing this because the data field inside of poem::Request data is not mapped into async_graphql::Request.data
-// So either:
-// - I have access to headers and can include the role in the data, but then gets lost along the way
-// - or I hook into async_graphql by implementing Extension::prepare_request, where I can actually include data into the request, but don't have access to any headers there
 impl<E> Endpoint for AuthenticatedGraphQL<E>
 where
     E: Executor,
@@ -326,7 +299,7 @@ where
     type Output = Response;
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
-        let (access, roles, claim_values) = self.authenticate(req.headers()).await?;
+        let (access, roles, claim_values) = self.authenticate(&req).await?;
 
         let is_accept_multipart_mixed = req
             .header("accept")
@@ -347,10 +320,42 @@ where
         } else {
             let (req, mut body) = req.split();
             let batch_req = GraphQLBatchRequest::from_request(&req, &mut body).await?.0;
-            let response = self
-                .execute_as((access, roles, claim_values), batch_req)
-                .await?;
-            Ok(GraphQLBatchResponse(response).into_response())
+
+            if let BatchRequest::Batch(requests) = &batch_req {
+                if self.config.concurrency.disable_batching {
+                    return Err(BadRequest(AuthError::BatchingDisabled));
+                }
+                if let Some(max) = self.config.concurrency.max_batch_size {
+                    let actual = requests.len();
+                    if actual > max {
+                        return Err(BadRequest(AuthError::BatchSizeExceeded { max, actual }));
+                    }
+                }
+            }
+
+            let req = batch_req.data(access).data(roles).data(claim_values);
+
+            let contains_update = match &req {
+                BatchRequest::Single(request) => is_exclusive_write(&request.query),
+                BatchRequest::Batch(requests) => requests
+                    .iter()
+                    .any(|request| is_exclusive_write(&request.query)),
+            };
+            if contains_update {
+                if let Some(lock) = &self.lock {
+                    let _guard = lock.write().await;
+                    Ok(GraphQLBatchResponse(self.execute(req).await).into_response())
+                } else {
+                    Ok(GraphQLBatchResponse(self.execute(req).await).into_response())
+                }
+            } else {
+                if let Some(lock) = &self.lock {
+                    let _guard = lock.read().await;
+                    Ok(GraphQLBatchResponse(self.execute_read_query(req).await?).into_response())
+                } else {
+                    Ok(GraphQLBatchResponse(self.execute_read_query(req).await?).into_response())
+                }
+            }
         }
     }
 }

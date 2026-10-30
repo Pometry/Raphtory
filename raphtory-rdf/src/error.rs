@@ -1,4 +1,4 @@
-use crate::QueryForm;
+use crate::{shacl::ShaclLimit, QueryForm};
 use oxigraph::{
     io::RdfParseError,
     model::{IriParseError, NamedNode, TryFromTermError},
@@ -6,9 +6,7 @@ use oxigraph::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::utils::time::ParseTimeError;
-use std::{any::Any, io, path::PathBuf, string::FromUtf8Error};
-#[cfg(feature = "shacl")]
-use {crate::shacl::ShaclLimit, std::error::Error};
+use std::{any::Any, error::Error, io, path::PathBuf, string::FromUtf8Error};
 
 /// Errors raised by RDF import, export, SPARQL evaluation and SHACL validation.
 /// Messages include the wrapped error, so `source()` does not return it again.
@@ -106,13 +104,10 @@ pub enum RdfError {
     NotUtf8(FromUtf8Error),
 
     /// A shapes graph that does not compile, or a validation that failed.
-    #[cfg(feature = "shacl")]
     #[error("SHACL error: {0}")]
     Shacl(Box<dyn Error + Send + Sync>),
 
-    /// A shapes graph with a path rudof cannot expand, or recursive shapes rejected by
-    /// [`ShaclOptions`](crate::shacl::ShaclOptions).
-    #[cfg(feature = "shacl")]
+    /// A shapes graph with a path rudof cannot expand, or recursive shapes the options reject.
     #[error("SHACL error: {0}")]
     ShaclLimit(ShaclLimit),
 
@@ -122,7 +117,6 @@ pub enum RdfError {
 }
 
 impl RdfError {
-    #[cfg(feature = "shacl")]
     pub(crate) fn shacl(error: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
         Self::Shacl(error.into())
     }
