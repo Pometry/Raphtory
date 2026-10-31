@@ -1,6 +1,6 @@
 use raphtory::{db::graph::assertions::assert_graph_equal, prelude::*, serialise::StableDecode};
 use raphtory_api::core::storage::graph_folder::{
-    GraphFolder, GraphPaths, DIRTY_DATA_PATH, ROOT_RAPH_PATH,
+    GraphFolder, GraphPaths, DIRTY_PATH, ROOT_RAPH_PATH,
 };
 
 #[test]
@@ -126,34 +126,42 @@ fn test_unzip_to_folder() {
 }
 
 #[test]
-fn init_write_promotes_dirty_data_to_data0() {
+fn init_write_renames_dirty_json_to_raph_json() {
     let tmp = tempfile::tempdir().unwrap();
     let folder = GraphFolder::from(tmp.path());
 
     let writeable = folder.clone().init_write().unwrap();
-    assert_eq!(writeable.relative_data_path().unwrap(), DIRTY_DATA_PATH);
-    assert_eq!(folder.dirty_data_path().is_dir(), true);
+    assert_eq!(writeable.relative_data_path().unwrap(), "data0");
+    assert_eq!(tmp.path().join(DIRTY_PATH).exists(), true);
     assert_eq!(tmp.path().join(ROOT_RAPH_PATH).exists(), false);
 
     writeable.finish(true).unwrap();
     assert_eq!(tmp.path().join("data0").is_dir(), true);
-    assert_eq!(folder.dirty_data_path().exists(), false);
+    assert_eq!(tmp.path().join(DIRTY_PATH).exists(), false);
+    assert_eq!(tmp.path().join(ROOT_RAPH_PATH).exists(), true);
     assert_eq!(folder.active_version().unwrap(), 0);
 }
 
 #[test]
-fn init_swap_promotes_dirty_data_to_next_version() {
+fn init_swap_activates_next_data_version_via_dirty_json() {
     let tmp = tempfile::tempdir().unwrap();
     let folder = GraphFolder::from(tmp.path());
     folder.init().unwrap(); // Create version 0
 
     let writeable = folder.clone().init_swap().unwrap();
-    assert_eq!(writeable.relative_data_path().unwrap(), DIRTY_DATA_PATH);
-    assert_eq!(folder.all_versions().unwrap().contains(&1), false);
+    assert_eq!(writeable.relative_data_path().unwrap(), "data1");
+    assert_eq!(tmp.path().join(DIRTY_PATH).exists(), true);
+    assert_eq!(
+        folder.all_versions().unwrap().contains(&1),
+        false,
+        "data dir named by dirty.json is not a complete version"
+    );
+    assert_eq!(folder.all_versions().unwrap().contains(&0), true);
 
-    writeable.finish(false).unwrap(); // Promote dirty dir to version 1
+    writeable.finish(false).unwrap(); // Atomically promote dirty.json -> raph.json
     assert_eq!(tmp.path().join("data1").is_dir(), true);
-    assert_eq!(folder.dirty_data_path().exists(), false);
+    assert_eq!(tmp.path().join(DIRTY_PATH).exists(), false);
     assert_eq!(folder.active_version().unwrap(), 1);
+    assert_eq!(folder.all_versions().unwrap().contains(&0), true);
     assert_eq!(folder.all_versions().unwrap().contains(&1), true);
 }
