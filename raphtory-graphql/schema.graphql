@@ -6715,6 +6715,278 @@ type QueryRoot {
 		"""
 		path: String!
 	): VectorisedGraph
+	"""
+	A stored graph, event or persistent, viewed as RDF with persistent semantics.
+	Null if the caller cannot read the graph.
+	"""
+	rdfGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!
+	): RdfGraph
+}
+
+"""
+A graph viewed as RDF: one triple per visible edge and layer (source, layer, destination).
+The RDF fields see exactly the triples of the view.
+"""
+type RdfGraph {
+	"""
+	View restricted to the default layer.
+	"""
+	defaultLayer: RdfGraph!
+	"""
+	View restricted to the named layers.
+	"""
+	layers(
+		"""
+		Layer names to include.
+		"""
+		names: [String!]!
+	): RdfGraph!
+	"""
+	View with the named layers hidden.
+	"""
+	excludeLayers(
+		"""
+		Layer names to exclude.
+		"""
+		names: [String!]!
+	): RdfGraph!
+	"""
+	View restricted to a single layer.
+	"""
+	layer(
+		"""
+		Layer name to include.
+		"""
+		name: String!
+	): RdfGraph!
+	"""
+	View with one layer hidden.
+	"""
+	excludeLayer(
+		"""
+		Layer name to exclude.
+		"""
+		name: String!
+	): RdfGraph!
+	"""
+	View restricted to a set of nodes and the edges between them.
+	"""
+	subgraph(
+		"""
+		Node ids to keep.
+		"""
+		nodes: [NodeId!]!
+	): RdfGraph!
+	"""
+	View of the triples valid at the end of this view: on the whole graph, the current
+	state.
+	"""
+	valid: RdfGraph!
+	"""
+	View restricted to nodes with the given node types.
+	"""
+	subgraphNodeTypes(
+		"""
+		Node types to include.
+		"""
+		nodeTypes: [String!]!
+	): RdfGraph!
+	"""
+	View with a set of nodes removed, along with their edges.
+	"""
+	excludeNodes(
+		"""
+		Node ids to exclude.
+		"""
+		nodes: [NodeId!]!
+	): RdfGraph!
+	"""
+	Windows of a fixed size that move forward by a step, as `Graph.rolling`; each window is
+	an `RdfGraph`.
+	"""
+	rolling(
+		"""
+		Width of each window, as in `Graph.rolling`.
+		"""
+		window: WindowDuration!,
+		"""
+		Gap between the starts of consecutive windows; defaults to `window`.
+		"""
+		step: WindowDuration,
+		"""
+		Unit to align the window boundaries to, as in `Graph.rolling`.
+		"""
+		alignmentUnit: AlignmentUnit
+	): RdfGraphWindowSet!
+	"""
+	Windows that grow by a step, as `Graph.expanding`; each window is an `RdfGraph`.
+	"""
+	expanding(
+		"""
+		How much the window grows by on each step.
+		"""
+		step: WindowDuration!,
+		"""
+		Unit to align the window boundaries to, as in `Graph.expanding`.
+		"""
+		alignmentUnit: AlignmentUnit
+	): RdfGraphWindowSet!
+	"""
+	View of the triples that held at some point between start and end.
+	"""
+	window(
+		"""
+		Inclusive lower bound.
+		"""
+		start: TimeInput!,
+		"""
+		Exclusive upper bound.
+		"""
+		end: TimeInput!
+	): RdfGraph!
+	"""
+	View of the state at a time.
+	"""
+	at(
+		"""
+		Instant to pin the view to.
+		"""
+		time: TimeInput!
+	): RdfGraph!
+	"""
+	View of the state at the latest time.
+	"""
+	latest: RdfGraph!
+	"""
+	View of the triples valid at a time.
+	"""
+	snapshotAt(
+		"""
+		Instant at which triples must be valid.
+		"""
+		time: TimeInput!
+	): RdfGraph!
+	"""
+	View of the triples valid at the latest time.
+	"""
+	snapshotLatest: RdfGraph!
+	"""
+	View of the triples that held at some time before `time` (exclusive), including those
+	retracted before it; `at` gives the state at a time.
+	"""
+	before(
+		"""
+		Exclusive upper bound.
+		"""
+		time: TimeInput!
+	): RdfGraph!
+	"""
+	View of the triples that held at some time after `time` (exclusive).
+	"""
+	after(
+		"""
+		Exclusive lower bound.
+		"""
+		time: TimeInput!
+	): RdfGraph!
+	"""
+	Sets the start of the window to the larger of the given time and the current start.
+	"""
+	shrinkStart(
+		"""
+		Proposed new start; has no effect if it would widen the window.
+		"""
+		start: TimeInput!
+	): RdfGraph!
+	"""
+	Sets the end of the window to the smaller of the given time and the current end.
+	"""
+	shrinkEnd(
+		"""
+		Proposed new end; has no effect if it would widen the window.
+		"""
+		end: TimeInput!
+	): RdfGraph!
+	"""
+	View narrowed by a node or edge filter expression, as `Graph.filter`.
+	"""
+	filter(
+		"""
+		Filter expression; if omitted, applies the identity filter.
+		"""
+		expr: FilterExpr
+	): RdfGraph!
+	"""
+	The same view as a property graph.
+	"""
+	graph: Graph!
+	"""
+	Runs a SPARQL 1.1 query on the triples of this view and returns the serialized results.
+	The server's `max_sparql_*` settings bound it; null if the query fails unexpectedly.
+	"""
+	sparql(
+		"""
+		The SPARQL 1.1 query.
+		"""
+		query: String!,
+		"""
+		The format of the results: JSON (the default), XML, CSV or TSV for SELECT and ASK; an RDF format for CONSTRUCT and DESCRIBE (N_TRIPLES by default), where JSON is JSON-LD and XML is RDF/XML. A format that does not fit the query is an error.
+		"""
+		format: SparqlFormat
+	): String
+	"""
+	Validates the triples of this view against SHACL shapes and returns the report.
+	Recursive shapes are rejected; null if the validation fails unexpectedly.
+	"""
+	validateShacl(
+		"""
+		The shapes graph, as an RDF document.
+		"""
+		shapes: String!,
+		"""
+		The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+		"""
+		format: SparqlFormat,
+		"""
+		The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+		"""
+		reportFormat: SparqlFormat
+	): String
+}
+
+"""
+The windows of `rolling` or `expanding` on an `RdfGraph`, each an `RdfGraph`.
+"""
+type RdfGraphWindowSet {
+	"""
+	Number of windows in this set.
+	"""
+	count: Int!
+	"""
+	One page of windows, as `GraphWindowSet.page`.
+	"""
+	page(
+		"""
+		Maximum number of items to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra items to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): [RdfGraph!]!
+	"""
+	Every window, as `GraphWindowSet.list`. Rejected when the server sets `disable_lists`.
+	"""
+	list: [RdfGraph!]!
 }
 
 """
@@ -6744,6 +7016,57 @@ enum SortByTime {
 	Earliest time
 	"""
 	EARLIEST
+}
+
+"""
+A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
+CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
+"""
+enum SparqlFormat {
+	"""
+	SPARQL 1.1 Query Results JSON; JSON-LD for CONSTRUCT and DESCRIBE.
+	"""
+	JSON
+	"""
+	SPARQL Query Results XML; RDF/XML for CONSTRUCT and DESCRIBE.
+	"""
+	XML
+	"""
+	SPARQL 1.1 Query Results CSV.
+	"""
+	CSV
+	"""
+	SPARQL 1.1 Query Results TSV.
+	"""
+	TSV
+	"""
+	Turtle.
+	"""
+	TURTLE
+	"""
+	N-Triples.
+	"""
+	N_TRIPLES
+	"""
+	N-Quads.
+	"""
+	N_QUADS
+	"""
+	TriG.
+	"""
+	TRIG
+	"""
+	RDF/XML.
+	"""
+	RDF_XML
+	"""
+	JSON-LD.
+	"""
+	JSON_LD
+	"""
+	N3.
+	"""
+	N3
 }
 
 """

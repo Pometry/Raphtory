@@ -67,6 +67,8 @@ __all__ = [
     "WindowSet",
     "Prop",
     "version",
+    "RdfView",
+    "RdfGraph",
     "graphql",
     "algorithms",
     "graph_loader",
@@ -7715,3 +7717,551 @@ def version() -> str:
     Returns:
         str:
     """
+
+class RdfView(object):
+    """
+    A view of an RdfGraph: one RDF triple per edge and layer visible in a persistent graph view.
+
+    Every view method returns an RdfView; sparql, to_rdf and validate_shacl see its triples.
+    """
+
+    def after(self, start: TimeInput) -> RdfView:
+        """
+         Create a view of the RdfView including all events after `start` (exclusive).
+
+        Arguments:
+            start (TimeInput): The start time of the window.
+
+        Returns:
+             RdfView:
+        """
+
+    def at(self, time: TimeInput) -> RdfView:
+        """
+         Create a view of the RdfView including all events at `time`.
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             RdfView:
+        """
+
+    def before(self, end: TimeInput) -> RdfView:
+        """
+         Create a view of the RdfView including all events before `end` (exclusive).
+
+        Arguments:
+            end (TimeInput): The end time of the window.
+
+        Returns:
+             RdfView:
+        """
+
+    def cache_view(self) -> RdfView:
+        """
+        Return a view with the nodes and edges visible in this view precomputed.
+
+        Returns:
+            RdfView: The view.
+        """
+
+    def default_layer(self) -> RdfView:
+        """
+         Return a view of RdfView containing only the default edge layer
+        Returns:
+             RdfView: The layered view
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+         Gets the latest time that this RdfView is valid.
+
+        Returns:
+           OptionalEventTime: The latest time that this RdfView is valid or None if the RdfView is valid for all times.
+        """
+
+    def exclude_layer(self, name: str) -> RdfView:
+        """
+         Return a view of RdfView containing all layers except the excluded `name`
+        Errors if any of the layers do not exist.
+
+        Arguments:
+            name (str): layer name that is excluded for the new view
+
+        Returns:
+             RdfView: The layered view
+        """
+
+    def exclude_layers(self, names: list[str]) -> RdfView:
+        """
+         Return a view of RdfView containing all layers except the excluded `names`
+        Errors if any of the layers do not exist.
+
+        Arguments:
+            names (list[str]): list of layer names that are excluded for the new view
+
+        Returns:
+             RdfView: The layered view
+        """
+
+    def exclude_nodes(self, nodes: list[NodeInput]) -> RdfView:
+        """
+        Return a view without the triples of the given nodes.
+
+        Arguments:
+            nodes (list[NodeInput]): The nodes to exclude.
+
+        Returns:
+            RdfView: The view.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RdfView:
+        """
+         Return a view of RdfView containing all layers except the excluded `name`
+        Arguments:
+            name (str): layer name that is excluded for the new view
+
+        Returns:
+             RdfView: The layered view
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RdfView:
+        """
+         Return a view of RdfView containing all layers except the excluded `names`
+        Arguments:
+            names (list[str]): list of layer names that are excluded for the new view
+
+        Returns:
+             RdfView: The layered view
+        """
+
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
+        """
+        Creates a `WindowSet` with the given `step` size using an expanding window.
+
+        An expanding window is a window that grows by `step` size at each iteration.
+
+        Arguments:
+            step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
+
+        Returns:
+            WindowSet: A `WindowSet` object.
+        """
+
+    def filter(self, filter: filter.FilterExpr | filter.Expr) -> RdfView:
+        """
+        Return a filtered view that only includes nodes and edges that satisfy the filter
+
+        Arguments:
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
+
+        Returns:
+            RdfView: The filtered view
+        """
+
+    @property
+    def graph(self) -> GraphView:
+        """
+        The same view as a property graph.
+
+        Returns:
+            GraphView: The view.
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+         Check if RdfView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool:
+        """
+
+    def latest(self) -> RdfView:
+        """
+         Create a view of the RdfView including all events at the latest time.
+
+        Returns:
+             RdfView:
+        """
+
+    def layer(self, name: str) -> RdfView:
+        """
+         Return a view of RdfView containing the layer `"name"`
+        Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
+
+        Returns:
+             RdfView: The layered view
+        """
+
+    def layers(self, names: list[str]) -> RdfView:
+        """
+         Return a view of RdfView containing all layers `names`
+        Errors if any of the layers do not exist.
+
+        Arguments:
+            names (list[str]): list of layer names for the new view
+
+        Returns:
+             RdfView: The layered view
+        """
+
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
+        """
+        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+
+        A rolling window is a window that moves forward by `step` size at each iteration.
+
+        Arguments:
+            window (int | str): The size of the window.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
+
+        Returns:
+            WindowSet: A `WindowSet` object.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RdfView:
+        """
+        Set the end of the window to the smaller of `end` and `self.end()`
+
+        Arguments:
+            end (TimeInput): the new end time of the window
+        Returns:
+             RdfView:
+        """
+
+    def shrink_start(self, start: TimeInput) -> RdfView:
+        """
+        Set the start of the window to the larger of `start` and `self.start()`
+
+        Arguments:
+           start (TimeInput): the new start time of the window
+
+        Returns:
+             RdfView:
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RdfView:
+        """
+         Create a view of the RdfView including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             RdfView:
+        """
+
+    def snapshot_latest(self) -> RdfView:
+        """
+         Create a view of the RdfView including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
+
+        Returns:
+             RdfView:
+        """
+
+    def sparql(
+        self, query: str, format: Optional[str] = None
+    ) -> Union[list[dict[str, Optional[str]]], bool, list[tuple[str, str, str]], str]:
+        """
+        Runs a SPARQL 1.1 query on the RDF triples of this view.
+
+        Values are returned as Raphtory names. In a query, GRAPH <raphtory:asof:T> { .. } reads
+        this view as of T, and raphtory:validFrom/validTo(s, p, o) give a triple's latest run.
+
+        Arguments:
+            query (str): The SPARQL query.
+            format (str, optional): If given, the results are returned serialised in this format, such as "json", "csv", "nt" or "ttl". Defaults to None.
+
+        Returns:
+            Union[list[dict[str, Optional[str]]], bool, list[tuple[str, str, str]], str]: A dict per solution for SELECT, a bool for ASK, (subject, predicate, object) tuples for CONSTRUCT and DESCRIBE, or the document if format is given.
+
+        Raises:
+            GraphError: If the evaluation of the query fails.
+            ValueError: If the query does not parse, or format is unknown or does not fit the query.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+         Gets the start time for rolling and expanding windows for this RdfView
+
+        Returns:
+            OptionalEventTime: The earliest time that this RdfView is valid or None if the RdfView is valid for all times.
+        """
+
+    def subgraph(self, nodes: list[NodeInput]) -> RdfView:
+        """
+        Return a view of the triples between the given nodes.
+
+        Arguments:
+            nodes (list[NodeInput]): The nodes to keep.
+
+        Returns:
+            RdfView: The view.
+        """
+
+    def subgraph_node_types(self, node_types: list[str]) -> RdfView:
+        """
+        Return a view of the triples between nodes of the given node types.
+
+        Arguments:
+            node_types (list[str]): The node types to keep.
+
+        Returns:
+            RdfView: The view.
+        """
+
+    def to_rdf(
+        self, path: Optional[str | PathLike] = None, format: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Exports the RDF triples of this view, the ones sparql() sees.
+
+        Triples whose subject is a literal are skipped.
+
+        Arguments:
+            path (str | PathLike, optional): The file to write; if not given, the document is returned. Defaults to None.
+            format (str, optional): The RDF format, such as "nt", "ttl" or "rdf"; by default the one the extension of path names, else N-Triples. Defaults to None.
+
+        Returns:
+            Optional[str]: The document if path is not given, otherwise None.
+
+        Raises:
+            GraphError: If writing fails.
+            ValueError: If the format is unknown.
+        """
+
+    def valid(self) -> RdfView:
+        """
+        Return a view of only the triples still valid at the end of this view.
+
+        Returns:
+            RdfView: The view.
+        """
+
+    def valid_layers(self, names: list[str]) -> RdfView:
+        """
+         Return a view of RdfView containing all layers `names`
+        Any layers that do not exist are ignored
+
+        Arguments:
+            names (list[str]): list of layer names for the new view
+
+        Returns:
+             RdfView: The layered view
+        """
+
+    def validate_shacl(
+        self,
+        shapes: bytes | str | PathLike,
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+        report_format: Optional[str] = None,
+    ) -> Union[dict[str, Any], str]:
+        """
+        Validates the triples of this view (those to_rdf() writes) against a SHACL shapes graph.
+
+        Recursive shapes are validated by recursing once per node they reach, so over a long chain of data they abort the process.
+
+        Arguments:
+            shapes (bytes | str | PathLike): The shapes graph: the document as bytes, or the path of a file to read.
+            format (str, optional): The RDF format of the shapes; by default the one a path's extension names, or Turtle for bytes. Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs of the shapes are resolved. Defaults to None.
+            report_format (str, optional): If given, the report is returned as an sh:ValidationReport document in this RDF format. Defaults to None.
+
+        Returns:
+            Union[dict[str, Any], str]: The report as a dict of conforms and results (dicts of focus_node, path, value, source_shape, constraint_component, severity and messages, terms as Raphtory names), or as a document if report_format is given.
+
+        Raises:
+            GraphError: If the shapes are not a valid shapes graph or the validation fails.
+            ValueError: If the shapes do not parse or a format is unknown.
+            TypeError: If shapes is neither bytes nor a path.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RdfView:
+        """
+         Create a view of the RdfView including all events between `start` (inclusive) and `end` (exclusive)
+
+        Arguments:
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
+
+        Returns:
+            RdfView:
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+         Get the window size (difference between start and end) for this RdfView.
+
+        Returns:
+            Optional[int]:
+        """
+
+class RdfGraph(RdfView):
+    """
+    A graph viewed as RDF with persistent semantics: the place to load, retract and query triples.
+
+    Each triple s p o is an edge from s to o in the layer of p. Wrapping a Graph shares its storage.
+
+    Arguments:
+        graph (Graph | PersistentGraph, optional): The graph to view as RDF; a new empty graph if not given. Defaults to None.
+    """
+
+    def __new__(cls, graph: Optional[Graph | PersistentGraph] = None) -> RdfGraph:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+    def add_triple(
+        self,
+        timestamp: TimeInput,
+        subject: str,
+        predicate: str,
+        object: str,
+        event_id: Optional[int] = None,
+    ) -> None:
+        """
+        Asserts one triple at timestamp.
+
+        Terms are names, as sparql() returns them.
+
+        Arguments:
+            timestamp (TimeInput): The time at which the triple is asserted.
+            subject (str): The subject, such as http://ex/alice or _:b0.
+            predicate (str): The predicate, such as http://ex/knows.
+            object (str): The object, such as http://ex/bob or "Bob".
+            event_id (int, optional): The optional integer which will be used as an event id.
+
+        Returns:
+            None:
+
+        Raises:
+            GraphError: If a term cannot be in its position (such as a literal subject), or the triple cannot be stored.
+        """
+
+    @property
+    def graph(self) -> PersistentGraph:
+        """
+        The graph as a property graph, sharing its storage.
+
+        Returns:
+            PersistentGraph: The graph.
+        """
+
+    def load_rdf(
+        self,
+        timestamp: TimeInput,
+        source: bytes | str | PathLike,
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+        event_id: Optional[int] = None,
+    ) -> int:
+        """
+        Asserts every triple of an RDF document at timestamp.
+
+        Blank nodes get fresh labels and named graphs are rejected. Not atomic.
+
+        Arguments:
+            timestamp (TimeInput): The time at which the triples are asserted.
+            source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
+            format (str, optional): The RDF format, such as "ttl", "nt" or "rdf"; by default the one a path's extension names, or Turtle for bytes. Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
+            event_id (int, optional): The optional integer which will be used as an event id.
+
+        Returns:
+            int: The number of triples read.
+
+        Raises:
+            GraphError: If the operation fails.
+            ValueError: If the format is unknown or the document does not parse.
+            TypeError: If source is neither bytes nor a path.
+        """
+
+    def retract_rdf(
+        self,
+        timestamp: TimeInput,
+        source: bytes | str | PathLike,
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+        event_id: Optional[int] = None,
+    ) -> int:
+        """
+        Retracts every triple of an RDF document at timestamp.
+
+        Blank-node labels are used as written, so they must be the stored ones. Not atomic.
+
+        Arguments:
+            timestamp (TimeInput): The time at which the triples are retracted.
+            source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
+            format (str, optional): The RDF format, as in load_rdf(). Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
+            event_id (int, optional): The optional integer which will be used as an event id.
+
+        Returns:
+            int: The number of triples read.
+
+        Raises:
+            GraphError: If the operation fails.
+            ValueError: If the format is unknown or the document does not parse.
+            TypeError: If source is neither bytes nor a path.
+        """
+
+    def retract_triple(
+        self,
+        timestamp: TimeInput,
+        subject: str,
+        predicate: str,
+        object: str,
+        event_id: Optional[int] = None,
+    ) -> None:
+        """
+        Retracts one triple at timestamp.
+
+        Arguments:
+            timestamp (TimeInput): The time at which the triple is retracted.
+            subject (str): The subject, such as http://ex/alice or _:b0.
+            predicate (str): The predicate, such as http://ex/knows.
+            object (str): The object, such as http://ex/bob or "Bob".
+            event_id (int, optional): The optional integer which will be used as an event id.
+
+        Returns:
+            None:
+
+        Raises:
+            GraphError: If a term cannot be in its position (such as a literal subject), or the triple cannot be stored.
+        """

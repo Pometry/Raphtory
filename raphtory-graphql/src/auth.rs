@@ -4,7 +4,7 @@ use async_graphql::{
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
     http::{create_multipart_mixed_stream, is_accept_multipart_mixed},
     parser::types::{ExecutableDocument, OperationType},
-    BatchRequest, Context, Executor, ServerError, ServerResult, Variables,
+    BatchRequest, BatchResponse, Context, Executor, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::{future::BoxFuture, StreamExt};
@@ -183,11 +183,11 @@ impl<E> AuthenticatedGraphQL<E>
 where
     E: Executor,
 {
-    async fn execute(&self, request: BatchRequest) -> Response {
-        GraphQLBatchResponse(self.executor.execute_batch(request).await).into_response()
+    async fn execute(&self, request: BatchRequest) -> BatchResponse {
+        self.executor.execute_batch(request).await
     }
 
-    async fn execute_read_query(&self, req: BatchRequest) -> Result<Response> {
+    async fn execute_read_query(&self, req: BatchRequest) -> Result<BatchResponse> {
         let is_heavy = match &req {
             BatchRequest::Single(request) => is_query_heavy(&request.query),
             BatchRequest::Batch(requests) => requests
@@ -206,6 +206,22 @@ where
         } else {
             Ok(self.execute(req).await)
         }
+    }
+
+    /// Runs a read query as the caller `req` authenticates, as `call` does.
+    #[cfg(feature = "rdf")]
+    pub(crate) async fn execute_read_as(
+        &self,
+        req: &Request,
+        query: BatchRequest,
+    ) -> Result<BatchResponse> {
+        let (access, roles, claim_values) = self.authenticate(req).await?;
+        let query = query.data(access).data(roles).data(claim_values);
+        let _guard = match &self.lock {
+            Some(lock) => Some(lock.read().await),
+            None => None,
+        };
+        self.execute_read_query(query).await
     }
 }
 
@@ -232,16 +248,14 @@ impl From<AuthError> for ServerError {
 // So either:
 // - I have access to headers and can include the role in the data, but then gets lost along the way
 // - or I hook into async_graphql by implementing Extension::prepare_request, where I can actually include data into the request, but don't have access to any headers there
-impl<E> Endpoint for AuthenticatedGraphQL<E>
+impl<E> AuthenticatedGraphQL<E>
 where
     E: Executor,
 {
-    type Output = Response;
-
-    async fn call(&self, req: Request) -> Result<Self::Output> {
+    async fn authenticate(&self, req: &Request) -> Result<(Access, Roles, TokenClaimValues)> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
         let auth = &self.config.auth;
-        let (access, roles, claim_values) = match &self.key_resolver {
+        Ok(match &self.key_resolver {
             // if auth is not setup, we give write access to all requests
             None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
             Some(resolver) => {
@@ -274,7 +288,18 @@ where
                     }
                 }
             }
-        };
+        })
+    }
+}
+
+impl<E> Endpoint for AuthenticatedGraphQL<E>
+where
+    E: Executor,
+{
+    type Output = Response;
+
+    async fn call(&self, req: Request) -> Result<Self::Output> {
+        let (access, roles, claim_values) = self.authenticate(&req).await?;
 
         let is_accept_multipart_mixed = req
             .header("accept")
@@ -319,16 +344,16 @@ where
             if contains_update {
                 if let Some(lock) = &self.lock {
                     let _guard = lock.write().await;
-                    Ok(self.execute(req).await)
+                    Ok(GraphQLBatchResponse(self.execute(req).await).into_response())
                 } else {
-                    Ok(self.execute(req).await)
+                    Ok(GraphQLBatchResponse(self.execute(req).await).into_response())
                 }
             } else {
                 if let Some(lock) = &self.lock {
                     let _guard = lock.read().await;
-                    self.execute_read_query(req).await
+                    Ok(GraphQLBatchResponse(self.execute_read_query(req).await?).into_response())
                 } else {
-                    self.execute_read_query(req).await
+                    Ok(GraphQLBatchResponse(self.execute_read_query(req).await?).into_response())
                 }
             }
         }
@@ -355,6 +380,8 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("outNeighbours")
         || query.contains("inNeighbours")
         || query.contains("algorithm")
+        || query.contains("sparql")
+        || query.contains("validateShacl")
 }
 
 /// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),

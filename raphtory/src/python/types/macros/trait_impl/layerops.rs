@@ -6,6 +6,7 @@
 /// * base_type: The rust type of `field` (note that `<$base_type as LayerOps<'static>>::LayeredViewType`
 ///   should have an `IntoPyObject` implementation)
 /// * name: The name of the object that appears in the docstring
+#[macro_export]
 macro_rules! impl_layerops {
     ($obj:ty, $field:ident, $base_type:ty, $name:literal) => {
         #[pyo3::pymethods]

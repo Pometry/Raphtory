@@ -1,0 +1,57 @@
+//! The SPARQL 1.1 Protocol endpoint at `/sparql/<graph path>`, and how the RDF fields of
+//! `RdfGraph` run: with the server's limits, on the compute pool.
+pub(crate) mod config;
+pub(crate) mod endpoint;
+pub(crate) mod format;
+
+use self::config::{sparql_options, CODE_RESULTS_TOO_LARGE};
+use crate::{
+    config::concurrency_config::ConcurrencyConfig, data::gql_error_with_code,
+    rayon::blocking_compute,
+};
+use async_graphql::Error as GqlError;
+use raphtory_rdf::{RdfError, SparqlOptions};
+use thiserror::Error;
+use tracing::error;
+
+#[derive(Debug, Error)]
+pub(crate) enum SparqlError {
+    #[error("{}{}", .0, limit_setting(.0))]
+    Query(#[from] RdfError),
+}
+
+impl SparqlError {
+    fn into_gql_error(self) -> GqlError {
+        match &self {
+            Self::Query(RdfError::ResultsTooLarge { .. }) => {
+                gql_error_with_code(self, CODE_RESULTS_TOO_LARGE)
+            }
+            Self::Query(_) => self.into(),
+        }
+    }
+}
+
+fn limit_setting(error: &RdfError) -> &'static str {
+    match error {
+        RdfError::QueryTooLong { .. } => " (`max_sparql_query_length`)",
+        RdfError::TooManyPatterns { .. } => " (`max_sparql_triple_patterns`)",
+        RdfError::ResultsTooLarge { .. } => " (`max_sparql_result_bytes`)",
+        _ => "",
+    }
+}
+
+pub(crate) async fn run_limited<T: Send + 'static>(
+    config: Option<&ConcurrencyConfig>,
+    f: impl FnOnce(&SparqlOptions) -> Result<T, RdfError> + Send + 'static,
+) -> Result<Option<T>, GqlError> {
+    let options = sparql_options(&config.cloned().unwrap_or_default());
+    match blocking_compute(move || f(&options)).await {
+        Ok(value) => Ok(Some(value)),
+        // logged, not returned: the message can name data the caller may not read
+        Err(RdfError::Panicked(message)) => {
+            error!(error = %message, "SPARQL query panicked");
+            Ok(None)
+        }
+        Err(error) => Err(SparqlError::from(error).into_gql_error()),
+    }
+}

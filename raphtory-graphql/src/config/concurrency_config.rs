@@ -8,6 +8,17 @@ pub const DEFAULT_DISABLE_LISTS: bool = false;
 /// Chosen to comfortably cover legitimate batching while preventing a single request
 /// from amplifying its computational cost without bound (see `max_batch_size`).
 pub const DEFAULT_MAX_BATCH_SIZE: usize = 10;
+/// Default cap on the length of a SPARQL query, in bytes (see `max_sparql_query_length`).
+#[cfg(feature = "rdf")]
+pub const DEFAULT_MAX_SPARQL_QUERY_LENGTH: usize = 16 * 1024;
+/// Default cap on the number of triple patterns of a SPARQL query (see
+/// `max_sparql_triple_patterns`). The cost of planning grows steeply with the number of
+/// patterns.
+#[cfg(feature = "rdf")]
+pub const DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS: usize = 100;
+/// Default cap on the size of SPARQL results, in bytes (see `max_sparql_result_bytes`).
+#[cfg(feature = "rdf")]
+pub const DEFAULT_MAX_SPARQL_RESULT_BYTES: usize = 256 << 20;
 
 /// Controls how Raphtory schedules concurrent GraphQL work.
 #[derive(Debug, Deserialize, PartialEq, Clone, Serialize, FieldName)]
@@ -44,6 +55,24 @@ pub struct ConcurrencyConfig {
     /// `None` means unlimited.
     pub max_page_size: Option<usize>,
 
+    /// Maximum length in bytes of a SPARQL query, of the `sparql` field of `RdfGraph` or the
+    /// SPARQL endpoint. Longer queries are rejected before they are parsed.
+    /// Defaults to `DEFAULT_MAX_SPARQL_QUERY_LENGTH`; `None` means unlimited.
+    #[cfg(feature = "rdf")]
+    pub max_sparql_query_length: Option<usize>,
+
+    /// Maximum number of triple patterns of a SPARQL query, counted as
+    /// `SparqlOptions::with_max_triple_patterns` counts them; larger queries are rejected before
+    /// planning. Defaults to `DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS`; `None` means unlimited.
+    #[cfg(feature = "rdf")]
+    pub max_sparql_triple_patterns: Option<usize>,
+
+    /// Maximum size in bytes of the serialized results of a SPARQL query, of the `sparql` field
+    /// of `RdfGraph` or the SPARQL endpoint. Larger results fail. Defaults to
+    /// `DEFAULT_MAX_SPARQL_RESULT_BYTES`; `None` means unlimited.
+    #[cfg(feature = "rdf")]
+    pub max_sparql_result_bytes: Option<usize>,
+
     /// Maximum graph loads decoding at once. Each in-flight load holds a whole graph in memory,
     /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
     /// at least 2.
@@ -59,6 +88,12 @@ impl Default for ConcurrencyConfig {
             max_batch_size: Some(DEFAULT_MAX_BATCH_SIZE),
             disable_lists: DEFAULT_DISABLE_LISTS,
             max_page_size: None,
+            #[cfg(feature = "rdf")]
+            max_sparql_query_length: Some(DEFAULT_MAX_SPARQL_QUERY_LENGTH),
+            #[cfg(feature = "rdf")]
+            max_sparql_triple_patterns: Some(DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS),
+            #[cfg(feature = "rdf")]
+            max_sparql_result_bytes: Some(DEFAULT_MAX_SPARQL_RESULT_BYTES),
             max_concurrent_loads: None,
         }
     }

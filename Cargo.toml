@@ -16,6 +16,8 @@ members = [
     "raphtory-itertools",
     "drop-logging",
     "raphtory-graphql-tests",
+    "raphtory-rdf",
+    "raphtory-rdf-tests",
     "raphtory-vectors",
 ]
 default-members = ["raphtory"]
@@ -68,6 +70,7 @@ raphtory-api-macros = { version = "0.18.0", path = "raphtory-api-macros", defaul
 raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features = false }
 raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
 raphtory-vectors = { version = "0.18.0", path = "raphtory-vectors", default-features = false }
+raphtory-rdf = { version = "0.18.0", path = "raphtory-rdf", default-features = false }
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
 drop-logging = { version = "0.18.0", path = "drop-logging" }
@@ -125,6 +128,7 @@ glam = "0.33.0"
 quad-rand = "0.2.3"
 zip = "9.0"
 bzip2 = "0.6.1"
+tar = "0.4"
 async-trait = "0.1.89"
 async-openai = "0.28.3"
 num = "0.4.3"
@@ -204,6 +208,17 @@ opentelemetry-appender-tracing = "0.32.0"
 mock-collector = "0.2.14"
 dyn-clone = "1.0.20"
 inventory = "0.3.24"
+oxigraph = { version = "0.5.13", default-features = false }
+spareval = "0.2.9"
+spargebra = { version = "0.4.8", features = ["sep-0006"] }
+# names the IRI type of spareval's `DefaultServiceHandler` (the handler that refuses SERVICE calls)
+oxiri = "0.2.11"
+percent-encoding = "2.3"
+# rudof: keep its `sparql` features off, or the native engine needs a SPARQL store
+shacl = { version = "0.3.35", default-features = false }
+rudof_rdf = { version = "0.3.35", default-features = false }
+rudof_iri = { version = "0.3.35", default-features = false }
+prefixmap = "0.3.35"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

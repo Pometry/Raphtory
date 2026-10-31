@@ -1,0 +1,51 @@
+[package]
+name = "raphtory-rdf"
+description = "RDF import and export, SPARQL queries and SHACL validation over Raphtory graphs"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+categories.workspace = true
+
+[dependencies]
+raphtory.workspace = true
+raphtory-api.workspace = true
+oxigraph = { workspace = true, features = ["rdf-12"] }
+spareval.workspace = true
+spargebra.workspace = true
+oxiri.workspace = true
+percent-encoding.workspace = true
+chrono.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+rayon.workspace = true
+rustc-hash.workspace = true
+thiserror.workspace = true
+
+# rudof's SHACL validator; it also turns on oxigraph's HTTP client, but queries refuse SERVICE calls
+shacl.workspace = true
+rudof_rdf.workspace = true
+rudof_iri.workspace = true
+prefixmap.workspace = true
+
+# python binding optional dependencies
+pyo3 = { workspace = true, optional = true }
+# named by raphtory's Python view macros
+raphtory-core = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+[features]
+python = [
+    "dep:pyo3",
+    "dep:raphtory-core",
+    "raphtory/python",
+]

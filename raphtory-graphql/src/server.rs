@@ -14,6 +14,11 @@ use crate::{
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
+#[cfg(feature = "rdf")]
+use crate::{
+    model::graph::rdf_graph::RdfSchema,
+    sparql::{config::sparql_options, endpoint::SparqlEndpoint},
+};
 use async_graphql::dynamic::Schema;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
@@ -21,12 +26,18 @@ use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
     trace::{SdkTracerProvider, Tracer},
 };
+#[cfg(feature = "rdf")]
+use poem::{
+    endpoint::make_sync,
+    http::{header::VARY, StatusCode},
+    middleware::SetHeader,
+};
 use poem::{
     get,
     listener::{Acceptor, Listener, TcpListener},
-    middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
+    middleware::{Compression, Cors},
     web::CompressionLevel,
-    EndpointExt, Route, Server,
+    Endpoint, EndpointExt, Route, Server,
 };
 use raphtory::db::api::storage::storage::Args;
 use serde_json::json;
@@ -157,6 +168,13 @@ impl GraphServer {
             schema_data: Vec::new(),
             key_resolver: None,
             schema_plugins: Vec::new(),
+        };
+        #[cfg(feature = "rdf")]
+        let server = if server.config.schema.disable_rdf {
+            server
+        } else {
+            let shacl = !server.config.schema.disable_shacl;
+            server.with_schema_plugin(RdfSchema { shacl })
         };
         extensions.process(server)
     }
@@ -384,13 +402,15 @@ impl GraphServer {
         .map_err(|e| SchemaError(e.to_string()))
     }
 
-    async fn generate_endpoint(
-        self,
-        tracer: Option<Tracer>,
-    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+    async fn generate_endpoint(self, tracer: Option<Tracer>) -> Result<impl Endpoint, ServerError> {
         let config = self.config.clone();
         let key_resolver = self.key_resolver.clone();
         let schema = self.build_schema(tracer).await?;
+        let graphql = Arc::new(AuthenticatedGraphQL::new(
+            schema,
+            config.clone(),
+            key_resolver,
+        ));
 
         let app = Route::new()
             .nest(
@@ -398,14 +418,27 @@ impl GraphServer {
                 PublicFilesEndpoint::new(
                     config.public_dir.clone(),
                     config.schema.disable_ui,
-                    AuthenticatedGraphQL::new(schema, config, key_resolver),
+                    graphql.clone(),
                 ),
             )
             .at("/health", get(health))
             .at("/version", get(version))
-            .with(Cors::new())
-            .with(Compression::new().with_quality(CompressionLevel::Fastest));
-        Ok(app)
+            .with(Cors::new());
+        // `Cors` replaces `Vary`, so `Vary: Accept` is added outside it
+        #[cfg(feature = "rdf")]
+        let app = if config.schema.disable_rdf || config.schema.disable_sparql_endpoint {
+            // registered anyway so that `/` (the UI or GraphQL) does not answer it
+            Route::new().at("/sparql/*path", make_sync(|_| StatusCode::NOT_FOUND))
+        } else {
+            Route::new().at(
+                "/sparql/*path",
+                SparqlEndpoint::new(graphql, sparql_options(&config.concurrency))
+                    .with(Cors::new())
+                    .with(SetHeader::new().appending(VARY, "Accept")),
+            )
+        }
+        .nest_no_strip("/", app);
+        Ok(app.with(Compression::new().with_quality(CompressionLevel::Fastest)))
     }
 
     /// Run the server on the default port until completion.

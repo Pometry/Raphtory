@@ -9,3 +9,5 @@ graphql-bench/
 Dockerfile
 python.Dockerfile
 __pycache__
+# the W3C conformance test suites (git submodules), which no image needs
+raphtory-rdf-tests/test-suites/
