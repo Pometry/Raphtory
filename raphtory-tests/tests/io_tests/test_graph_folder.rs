@@ -1,6 +1,6 @@
 use raphtory::{db::graph::assertions::assert_graph_equal, prelude::*, serialise::StableDecode};
 use raphtory_api::core::storage::graph_folder::{
-    GraphFolder, GraphPaths, DIRTY_PATH, ROOT_RAPH_PATH,
+    GraphFolder, GraphFolderError, GraphPaths, DIRTY_PATH, ROOT_RAPH_PATH,
 };
 
 #[test]
@@ -157,6 +157,12 @@ fn init_swap_activates_next_data_version_via_dirty_json() {
         false,
         "data dir named by dirty.json is not a complete version"
     );
+
+    // Cannot set active version to a version that is in progress.
+    assert!(matches!(
+        folder.set_active_version(1),
+        Err(GraphFolderError::VersionInProgress(1))
+    ));
 
     writeable.finish(false).unwrap(); // Atomically promote dirty.json -> raph.json
     assert_eq!(tmp.path().join("data1").is_dir(), true);

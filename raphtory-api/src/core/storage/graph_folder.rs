@@ -160,6 +160,9 @@ pub enum GraphFolderError {
 
     #[error("version {0} does not exist")]
     VersionNotFound(u32),
+
+    #[error("version {0} is being modified and not available")]
+    VersionInProgress(u32),
 }
 
 /// Parses and validates a path pointer of the form `{prefix}{version}`.
@@ -513,6 +516,13 @@ pub trait GraphPaths {
     fn set_active_version(&self, version: u32) -> Result<(), GraphFolderError> {
         if self.is_zip() {
             return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
+        }
+
+        if let Some(dirty_path) = read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH)? {
+            let dirty_version = parse_path_pointer(&dirty_path, DATA_PATH)?;
+            if version == dirty_version {
+                return Err(GraphFolderError::VersionInProgress(version));
+            }
         }
 
         if !self.all_versions()?.contains(&version) {
