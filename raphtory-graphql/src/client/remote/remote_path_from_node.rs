@@ -13,7 +13,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::GqlFilter,
+    model::graph::filter_expr_input::GqlFilter,
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};

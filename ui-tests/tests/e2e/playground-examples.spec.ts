@@ -93,8 +93,8 @@ test('Filters examples return data', async ({ page }) => {
     ]);
 });
 
-test('Apply Views examples return data', async ({ page }) => {
-    await runExamples(page, 'Apply Views', [
+test('Views examples return data', async ({ page }) => {
+    await runExamples(page, 'Views', [
         { title: 'Windowed Node Filter', marker: '"node_1"' },
         { title: 'Subgraph', marker: '"countNodes": 3' },
         { title: 'Layer Restriction', marker: '"knows"' },

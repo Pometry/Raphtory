@@ -1,4 +1,7 @@
-use crate::db::api::{storage::storage::Storage, view::internal::InternalStorageOps};
+use crate::db::api::{
+    storage::storage::Storage,
+    view::internal::{InternalStorageOps, Static},
+};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::path::Path;
 
@@ -10,6 +13,8 @@ pub mod node_filter;
 pub mod property_schema;
 pub mod time_props;
 pub mod time_semantics;
+
+impl Static for GraphStorage {}
 
 impl InternalStorageOps for GraphStorage {
     fn get_storage(&self) -> Option<&Storage> {

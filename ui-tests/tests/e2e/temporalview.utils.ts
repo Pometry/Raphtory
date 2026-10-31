@@ -134,6 +134,18 @@ export async function turnFilterOn(page: Page): Promise<void> {
     await expect(page.getByRole('button', { name: 'Turn filter on' })).toBeVisible();
     await page.getByRole('button', { name: 'Turn filter on' }).click();
     await expect(page.getByRole('button', { name: 'Turn filter off' })).toBeVisible();
+    await waitForTimelineToLoad(page);
+}
+
+/**
+ * The timeline shows a loading state while it fetches what the current
+ * selection and filter need (e.g. the selection's neighbours). Row and
+ * event assertions must wait for it to clear.
+ */
+export async function waitForTimelineToLoad(page: Page): Promise<void> {
+    await expect(page.getByRole('status', { name: 'Loading timeline' })).toBeHidden({
+        timeout: 15_000,
+    });
 }
 
 /**
@@ -425,6 +437,7 @@ function parsePropAriaLabel(
  * with empty key/value rather than being dropped. Edge layer also reads from the aria-label.
  */
 export async function getTemporalViewData(page: Page): Promise<TemporalViewData> {
+    await waitForTimelineToLoad(page);
     const [yAxisRows, allTicks] = await Promise.all([getYAxisRows(page), getXAxisTicks(page)]);
     // Two projections of one tick read: time anchors for interpolation, and the
     // labelled subset for view-anchored tick labels.
@@ -508,6 +521,7 @@ export async function waitForTimelineToSettle(page: Page): Promise<void> {
 export async function openTimeline(page: Page) {
     await page.getByRole('button', { name: 'Open timeline' }).click();
     await waitForTimelineToSettle(page);
+    await waitForTimelineToLoad(page);
 }
 
 export async function closeTimeline(page: Page) {

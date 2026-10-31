@@ -1742,12 +1742,17 @@ test.describe('Saved positions', () => {
     });
 });
 // ---- Icon colour tests -------------------------------------------------------
-// vanilla/filler has a Person icon set with ?color=white in the iconify URL.
-// These tests verify the icon URL is plumbed all the way to the renderer
-// and to the temporal view.
+// vanilla/filler has a Person icon set to the Bootstrap icon "person-fill".
+// These tests verify it reaches the renderer and the temporal view as a
+// white, pre-coloured SVG data URL.
+
+const isWhiteSvgDataUrl = (url: unknown): boolean =>
+    typeof url === 'string' &&
+    url.startsWith('data:image/svg+xml,') &&
+    decodeURIComponent(url).includes('fill="white"');
 
 test.describe('icon colours', () => {
-    test('graph view node icons carry the ?color=white iconify URL', async ({ page }) => {
+    test('graph view node icons are white SVG data URLs', async ({ page }) => {
         await navigateInSavedGraphs(page, {
             namespace: 'vanilla',
             graphName: 'filler',
@@ -1765,7 +1770,7 @@ test.describe('icon colours', () => {
                 getNodeAttribute(id: string, key: string): unknown;
             };
         }
-        await page.waitForFunction(
+        const image = await page.waitForFunction(
             () => {
                 const w = window as Window & {
                     __SIGMA__?: SigmaInstance;
@@ -1777,13 +1782,14 @@ test.describe('icon colours', () => {
                     .find((id) => sigma.graph.getNodeAttribute(id, 'label') === 'Ben');
                 if (benId === undefined) return false;
                 const image = sigma.graph.getNodeAttribute(benId, 'image');
-                return typeof image === 'string' && image.includes('color=white');
+                return typeof image === 'string' ? image : false;
             },
             { timeout: 15000 },
         );
+        expect(isWhiteSvgDataUrl(await image.jsonValue())).toBe(true);
     });
 
-    test('temporal view Y-axis icons have ?color=white in their href', async ({ page }) => {
+    test('temporal view Y-axis icons are white SVG data URLs', async ({ page }) => {
         await navigateInSavedGraphs(page, {
             namespace: 'vanilla',
             graphName: 'filler',
@@ -1792,21 +1798,15 @@ test.describe('icon colours', () => {
         await openTimeline(page);
         await page.waitForTimeout(1000);
 
-        // Icons are rendered as SVG <image> elements with ?color=white appended
-        // to the Iconify URL so the server returns a white-coloured SVG.
+        // Icons are rendered as SVG <image> elements.
         // Use evaluate because WebKit doesn't support CSS attribute selectors
         // on SVG-namespaced elements.
-        const hasWhiteIconifyIcon = await page.evaluate(() => {
-            const images = document.querySelectorAll('#yaxis-nodes image');
-            for (const img of images) {
-                const href = img.getAttribute('href');
-                if (href?.includes('iconify.design') && href?.includes('color=white')) {
-                    return true;
-                }
-            }
-            return false;
-        });
-        expect(hasWhiteIconifyIcon).toBe(true);
+        const hrefs = await page.evaluate(() =>
+            Array.from(document.querySelectorAll('#yaxis-nodes image'), (img) =>
+                img.getAttribute('href'),
+            ),
+        );
+        expect(hrefs.some(isWhiteSvgDataUrl)).toBe(true);
     });
 
     test('graph view node icons screenshot', async ({ page }) => {
@@ -1841,8 +1841,7 @@ test.describe('icon colours', () => {
         });
         await waitForLayoutToFinish(page);
         await openTimeline(page);
-        // Wait for network idle so SVG <image> elements have finished fetching
-        // the Iconify URLs before the screenshot is taken.
+        // Wait for network idle so the page has settled before the screenshot.
         await page.waitForLoadState('networkidle');
         expect(await page.locator('#yaxis-nodes').screenshot()).toMatchSnapshot(
             'icon-temporal-view.png',

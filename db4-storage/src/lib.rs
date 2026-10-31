@@ -26,13 +26,17 @@ use crate::{
         node_type_index::MemNodeTypeEntry,
     },
 };
-use parking_lot::RwLock;
-use raphtory_api::core::entities::{EID, VID};
+use parking_lot::{RwLock, RwLockWriteGuard};
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::entities::{EID, VID},
+};
 use segments::{
     edge::segment::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::segment::MemNodeSegment,
 };
 use std::{
     path::{Path, PathBuf},
+    sync::Arc,
     thread,
     time::Duration,
 };
@@ -254,13 +258,29 @@ pub fn collect_tree_paths(path: &Path) -> Vec<PathBuf> {
     paths
 }
 
-pub fn loop_lock_write<A>(l: &RwLock<A>) -> parking_lot::RwLockWriteGuard<'_, A> {
+pub fn loop_lock_write<A>(l: &RwLock<A>) -> RwLockWriteGuard<'_, A> {
     const MAX_BACKOFF_US: u64 = 1000; // 1ms max
     let mut backoff_us = 1;
+
     loop {
         if let Some(guard) = l.try_write_for(Duration::from_micros(50)) {
             return guard;
         }
+
+        thread::park_timeout(Duration::from_micros(backoff_us));
+        backoff_us = (backoff_us * 2).min(MAX_BACKOFF_US);
+    }
+}
+
+pub fn loop_lock_write_arc<A>(l: &Arc<RwLock<A>>) -> ArcRwLockWriteGuard<A> {
+    const MAX_BACKOFF_US: u64 = 1000; // 1ms max
+    let mut backoff_us = 1;
+
+    loop {
+        if let Some(guard) = l.try_write_arc_for(Duration::from_micros(50)) {
+            return guard;
+        }
+
         thread::park_timeout(Duration::from_micros(backoff_us));
         backoff_us = (backoff_us * 2).min(MAX_BACKOFF_US);
     }

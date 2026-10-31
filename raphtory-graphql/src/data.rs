@@ -1,3 +1,6 @@
+// Path validation errors are large (~136 bytes) but deliberately not boxed.
+#![allow(clippy::result_large_err)]
+
 use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
@@ -7,7 +10,8 @@ use crate::{
     model::{
         blocking_io,
         graph::{
-            filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
+            filter_expr_input::GqlFilter,
+            filtering::{GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
         },
@@ -27,7 +31,7 @@ use raphtory::{
             storage::storage::Args,
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
-        graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
+        graph::views::property_redacted_graph::PropertyRedaction,
     },
     errors::GraphError,
     prelude::AdditionOps,
@@ -236,6 +240,7 @@ impl PartialEq for WorkDirWriteGuard {
 
 impl Eq for WorkDirWriteGuard {}
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for WorkDirWriteGuard {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.path().partial_cmp(other.path())
@@ -270,6 +275,7 @@ impl PartialEq for WorkDirGuard {
 
 impl Eq for WorkDirGuard {}
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for WorkDirGuard {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.path().partial_cmp(other.path())
@@ -285,7 +291,7 @@ impl Ord for WorkDirGuard {
 impl WorkDirGuard {
     pub fn path(&self) -> &Path {
         match self {
-            WorkDirGuard::Read { guard } => &guard,
+            WorkDirGuard::Read { guard } => guard,
             WorkDirGuard::Write(guard) => guard.path(),
         }
     }
@@ -404,6 +410,30 @@ impl Data {
             .await
     }
 
+    /// Whether `filter` can be applied to the graph at `path`. Policies use it to
+    /// tell a per-caller value that cannot be compared from a grant that is wrong:
+    /// the error says which of the two it was.
+    ///
+    /// # ⚠ Does no permission check — the caller must already have authorised `path`.
+    /// Loading and error reporting here would otherwise reveal whether a graph exists.
+    pub async fn access_filter_applies(
+        &self,
+        path: &str,
+        filter: &GqlFilter,
+    ) -> Result<(), AccessFilterError> {
+        let graph = self
+            .get_graph_unchecked(path)
+            .await
+            .map_err(AccessFilterError::Load)?
+            .graph()
+            .clone()
+            .into_dynamic();
+        let filter = filter.clone();
+        blocking_compute(move || compile_row_filter(graph, filter).map(|_| ()))
+            .await
+            .map_err(AccessFilterError::DoesNotApply)
+    }
+
     /// Test-only: direct graph load without permission checks.
     #[cfg(test)]
     pub(crate) async fn get_graph_for_test(
@@ -453,10 +483,11 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
+        let key = folder.local_path().to_owned();
         let args = self.graph_args.clone();
 
         self.cache
-            .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
+            .invalidate_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_io(move || {
                     folder.write_graph_bytes(bytes, args)?;
@@ -937,35 +968,35 @@ fn apply_row_filter_sync(
     graph: DynamicGraph,
     filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
-    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
-    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
-    if let GqlFilter::And(filters) = filter {
-        // An empty `and` folds to the graph unchanged — i.e. no restriction at all. Fail closed
-        // rather than serve every row, matching `DynFilter::try_from`'s rejection of an empty
-        // combinator (which this shortcut path otherwise never reaches).
-        if filters.is_empty() {
-            error!("empty 'and' access filter restricts nothing");
-            return Err(async_graphql::Error::new(
-                "access filter could not be applied; the grant is misconfigured",
-            ));
+    compile_row_filter(graph, filter).map_err(|e| {
+        // The stage is logged with the engine's own message; the caller only learns that
+        // the grant is at fault, never what the filter said.
+        match e {
+            GraphError::InvalidGqlFilter(_) | GraphError::InvalidFilter(_) => {
+                error!(error = %e, "access filter conversion failed")
+            }
+            _ => error!(error = %e, "access filter application failed"),
         }
-        return filters
-            .into_iter()
-            .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
-    }
-    let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
-        error!(error = %e, "access filter conversion failed");
         async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
-    })?;
-    Ok(graph
-        .filter(dyn_filter)
-        .map_err(|e| {
-            error!(error = %e, "access filter application failed");
-            async_graphql::Error::new(
-                "access filter could not be applied; the grant is misconfigured",
-            )
-        })?
-        .into_dynamic())
+    })
+}
+
+/// Why a grant's row filter cannot be applied to a graph.
+#[derive(thiserror::Error, Debug)]
+pub enum AccessFilterError {
+    /// The filter does not fit the graph: a value of the wrong type for a property, say.
+    #[error("the filter does not fit the graph: {0}")]
+    DoesNotApply(#[source] GraphError),
+    /// The graph could not be loaded.
+    #[error(transparent)]
+    Load(GQLError),
+}
+
+/// The graph under a row filter. The filter means what it means everywhere
+/// else: `and` is an intersection, and a predicate that should be evaluated
+/// inside a view carries that view on its read.
+fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GraphError> {
+    Ok(graph.filter(filter)?.into_dynamic())
 }
 
 fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
@@ -1161,7 +1192,7 @@ pub(crate) mod data_tests {
         graphs: &HashMap<String, MaterializedGraph>,
     ) -> Result<(), InsertionError> {
         let work_dir = data.work_dir_write().await;
-        for (name, graph) in graphs.into_iter() {
+        for (name, graph) in graphs.iter() {
             let folder = work_dir.clone().validate_path_for_insert(name, true)?;
             data.insert_graph(folder, graph.clone()).await?;
         }
@@ -1358,7 +1389,7 @@ pub(crate) mod data_tests {
                 .add_node(0, node, [("doc", node.to_string())], None, None)
                 .unwrap();
         }
-        graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+        graph.encode(tmp_work_dir.path().join(name)).unwrap();
 
         let configs = AppConfigBuilder::new().build();
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
@@ -1446,7 +1477,7 @@ pub(crate) mod data_tests {
         graph
             .add_node(0, name, [("doc", name.to_string())], None, None)
             .unwrap();
-        graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+        graph.encode(tmp_work_dir.path().join(name)).unwrap();
 
         let configs = AppConfigBuilder::new().build();
         let _embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
@@ -1537,7 +1568,7 @@ pub(crate) mod data_tests {
             graph
                 .add_node(0, name, [("doc", name.to_string())], None, None)
                 .unwrap();
-            graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+            graph.encode(tmp_work_dir.path().join(name)).unwrap();
         }
 
         // capacity 1: reading either graph evicts the other, so the second read of each is a
@@ -1610,8 +1641,8 @@ pub(crate) mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
 
-        graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
-        graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
+        graph.encode(tmp_work_dir.path().join("test_g")).unwrap();
+        graph.encode(tmp_work_dir.path().join("test_g2")).unwrap();
 
         let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
 

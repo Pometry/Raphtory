@@ -2,6 +2,7 @@
 //! GraphQL errors into it.
 
 use crate::data::{CODE_ACCESS_DENIED, CODE_GRAPH_NOT_FOUND};
+use itertools::Itertools;
 use raphtory_api::core::{storage::graph_folder::GraphFolderError, utils::time::ParseTimeError};
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -118,13 +119,16 @@ pub(crate) fn classify_graphql_errors(errors: &JsonValue, query: &str) -> Client
         }
     }
 
+    // Surface each error's `message` text directly; the raw JSON object is a
+    // fallback for servers that send errors without one. Printing the object
+    // itself would JSON-escape any quotes inside the message.
+    let error_text = |e: &JsonValue| match e.get("message").and_then(|m| m.as_str()) {
+        Some(m) => m.to_owned(),
+        None => e.to_string(),
+    };
     let message = match errors {
-        JsonValue::Array(errors) => errors
-            .iter()
-            .map(|e| format!("{}", e))
-            .collect::<Vec<_>>()
-            .join("\n\t"),
-        _ => format!("{}", errors),
+        JsonValue::Array(errors) => errors.iter().map(error_text).join("\n\t"),
+        _ => error_text(errors),
     };
 
     if graph_not_found && !access_denied {

@@ -1,19 +1,13 @@
 use crate::{
-    db::{
-        api::{
-            state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
-            view::internal::NodeList,
-        },
-        graph::views::filter::model::{
-            edge_filter::CompositeEdgeFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-            TryAsCompositeFilter,
-        },
+    db::api::{
+        state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
+        view::internal::NodeList,
     },
     errors::GraphError,
 };
 use arrow_array::{cast::AsArray, Array, BooleanArray};
 use arrow_schema::DataType;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{properties::prop::PropType, VID};
 use raphtory_storage::graph::graph::GraphStorage;
 
 /// A NodeOp<bool> backed by a boolean column in a TypedNodeState.
@@ -67,6 +61,10 @@ impl NodeStateBoolColOp {
 impl NodeOp for NodeStateBoolColOp {
     type Output = bool;
 
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
         let elems = self.keys.clone();
         NodeList::List { elems }
@@ -78,21 +76,5 @@ impl NodeOp for NodeStateBoolColOp {
             Some(r) => r,
         };
         self.bool_at_row(row)
-    }
-}
-
-impl TryAsCompositeFilter for NodeStateBoolColOp {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }

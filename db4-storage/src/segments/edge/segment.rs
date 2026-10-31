@@ -11,16 +11,18 @@ use crate::{
     utils::Iter4,
     wal::LSN,
 };
-use parking_lot::lock_api::ArcRwLockReadGuard;
-use raphtory_api::core::{
-    entities::{
-        LayerId, VID,
-        properties::{
-            meta::{Meta, STATIC_GRAPH_LAYER_ID},
-            prop::AsPropRef,
+use raphtory_api::{
+    ArcRwLockReadGuard,
+    core::{
+        entities::{
+            LayerId, VID,
+            properties::{
+                meta::{Meta, STATIC_GRAPH_LAYER_ID},
+                prop::AsPropRef,
+            },
         },
+        storage::dict_mapper::MaybeNew,
     },
-    storage::dict_mapper::MaybeNew,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
@@ -360,7 +362,7 @@ pub struct EdgeSegmentView<EXT> {
 
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
-    inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>,
+    inner: ArcRwLockReadGuard<MemEdgeSegment>,
     num_edges: u32,
 }
 
@@ -494,7 +496,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
                 ext.memory_tracker().clone(),
             ))
             .into(),
-            segment_id: segment_id,
+            segment_id,
             num_edges: AtomicU32::new(0),
             _ext: ext,
         }
@@ -516,7 +518,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.segment.read_recursive()
     }
 
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment> {
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemEdgeSegment> {
         self.segment.read_arc_recursive()
     }
 

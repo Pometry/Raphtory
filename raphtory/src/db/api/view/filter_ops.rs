@@ -8,11 +8,7 @@ use crate::{
 
 /// The view produced by applying the filter `F` to `V`.
 pub type FilteredView<'graph, V, F> = <V as InternalFilter<'graph>>::Filtered<
-    <F as CreateFilter>::EntityFiltered<
-        'graph,
-        <V as InternalFilter<'graph>>::Graph,
-        <F as CreateFilter>::FilteredGraph<'graph, <V as InternalFilter<'graph>>::Graph>,
-    >,
+    <F as CreateFilter>::FilteredGraph<'graph, <V as InternalFilter<'graph>>::Graph>,
 >;
 
 pub trait Filter<'graph>: InternalFilter<'graph> {
@@ -20,8 +16,7 @@ pub trait Filter<'graph>: InternalFilter<'graph> {
         &self,
         filter: F,
     ) -> Result<FilteredView<'graph, Self, F>, GraphError> {
-        let fg = filter.filter_graph_view(self.base_graph().clone())?;
-        Ok(self.apply_filter(filter.create_filter(self.base_graph().clone(), fg)?))
+        Ok(self.apply_filter(filter.create_graph_filter(self.base_graph().clone())?))
     }
 }
 
@@ -35,13 +30,10 @@ pub trait Select<'graph>: 'graph {
 
 impl<'graph, T: InternalNodeSelect<'graph> + 'graph> Select<'graph> for T {
     type IterFiltered<Filter: CreateFilter + 'graph> =
-        <T as InternalNodeSelect<'graph>>::IterFiltered<
-            Filter::NodeFilter<'graph, T::IterGraph, Filter::FilteredGraph<'graph, T::IterGraph>>,
-        >;
+        <T as InternalNodeSelect<'graph>>::IterFiltered<Filter::NodeFilter<'graph, T::IterGraph>>;
 
     fn select<F: CreateFilter>(&self, filter: F) -> Result<Self::IterFiltered<F>, GraphError> {
-        let fg = filter.filter_graph_view(self.iter_graph().clone())?;
-        Ok(self.apply_iter_filter(filter.create_node_filter(self.iter_graph().clone(), fg)?))
+        Ok(self.apply_iter_filter(filter.create_node_filter(self.iter_graph().clone())?))
     }
 }
 

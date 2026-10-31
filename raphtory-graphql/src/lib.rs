@@ -4,7 +4,7 @@ pub use crate::{
     auth::{
         Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
     },
-    model::graph::{filtering::GraphAccessFilter, property::Value},
+    model::graph::{filter_expr_input::GqlFilter, filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
 
@@ -565,7 +565,17 @@ mod graphql_test {
         {
           graph(path: "g") {
             filterNodes: filter(
-                expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+                expr: {
+                        node: {
+                          cmp: { op: GT, lhs: { read: { field: { name: DEGREE } } }
+                            rhs: {
+                              const: {
+                                u64: 0
+                              }
+                            }
+                          }
+                        }
+                      }
             ) {
               nodes {
                 list {
@@ -574,7 +584,17 @@ mod graphql_test {
               }
             }
             nodes {
-              select(expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
+              select(expr: {
+                             node: {
+                               cmp: { op: GT, lhs: { read: { field: { name: DEGREE } } }
+                                 rhs: {
+                                   const: {
+                                     u64: 0
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 list {
                   name
                 }
@@ -691,7 +711,7 @@ mod graphql_test {
             let mut out: Vec<&Value> = v["unique"].as_array().unwrap().iter().collect();
             // serde_json::Value has a deterministic total order for same-typed values
             // and groups by type for mixed inputs — fine for this test.
-            out.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            out.sort_by_key(|a| a.to_string());
             out
         }
 
@@ -2732,7 +2752,7 @@ mod graphql_test {
                 inner
                     .into_iter()
                     .sorted_by(|l, r| name_sort_key(l).cmp(&name_sort_key(r)))
-                    .map(|inner_value| json_sort_by_name(inner_value))
+                    .map(json_sort_by_name)
                     .collect(),
             ),
             Value::Object(inner) => Value::Object(
