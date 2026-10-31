@@ -4,7 +4,7 @@ use raphtory_api::core::storage::graph_folder::{
 };
 
 #[test]
-fn test_zip_from_folder() {
+fn zip_from_folder() {
     let graph = Graph::new();
     graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
     graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
@@ -33,7 +33,7 @@ fn test_zip_from_folder() {
 }
 
 #[test]
-fn test_zip_from_zip() {
+fn zip_from_zip() {
     let graph = Graph::new();
     graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
     graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
@@ -67,7 +67,7 @@ fn test_zip_from_zip() {
 }
 
 #[test]
-fn test_unzip_to_folder() {
+fn unzip_to_folder() {
     let graph = Graph::new();
 
     graph
@@ -126,7 +126,7 @@ fn test_unzip_to_folder() {
 }
 
 #[test]
-fn init_write_renames_dirty_json_to_raph_json() {
+fn init_write_renames_dirty_to_raph() {
     let tmp = tempfile::tempdir().unwrap();
     let folder = GraphFolder::from(tmp.path());
 
@@ -136,6 +136,7 @@ fn init_write_renames_dirty_json_to_raph_json() {
     assert_eq!(tmp.path().join(ROOT_RAPH_PATH).exists(), false);
 
     writeable.finish(true).unwrap();
+
     assert_eq!(tmp.path().join("data0").is_dir(), true);
     assert_eq!(tmp.path().join(DIRTY_PATH).exists(), false);
     assert_eq!(tmp.path().join(ROOT_RAPH_PATH).exists(), true);
@@ -143,7 +144,7 @@ fn init_write_renames_dirty_json_to_raph_json() {
 }
 
 #[test]
-fn init_swap_activates_next_data_version_via_dirty_json() {
+fn init_swap_creates_next_version() {
     let tmp = tempfile::tempdir().unwrap();
     let folder = GraphFolder::from(tmp.path());
     folder.init().unwrap(); // Create version 0
@@ -155,7 +156,7 @@ fn init_swap_activates_next_data_version_via_dirty_json() {
     assert_eq!(
         folder.all_versions().unwrap().contains(&1),
         false,
-        "data dir named by dirty.json is not a complete version"
+        "data dir in dirty.json is not a complete version"
     );
 
     // Cannot set active version to a version that is in progress.
@@ -164,7 +165,8 @@ fn init_swap_activates_next_data_version_via_dirty_json() {
         Err(GraphFolderError::VersionInProgress(1))
     ));
 
-    writeable.finish(false).unwrap(); // Atomically promote dirty.json -> raph.json
+    writeable.finish(false).unwrap(); // Atomically promote dirty -> raph.
+
     assert_eq!(tmp.path().join("data1").is_dir(), true);
     assert_eq!(tmp.path().join(DIRTY_PATH).exists(), false);
     assert_eq!(folder.active_version().unwrap(), 1);

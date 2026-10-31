@@ -8,7 +8,8 @@ use crate::{
 use db4_graph::TemporalGraph;
 use parking_lot::{lock_api::ArcMutexGuard, RawMutex};
 use raphtory_api::core::storage::graph_folder::{
-    GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, WriteableGraphFolder,
+    version, GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata,
+    WriteableGraphFolder,
 };
 use raphtory_core::entities::LayerIds;
 use storage::{
@@ -33,6 +34,12 @@ pub struct Stage<G> {
 
     src_folder: GraphFolder,
 
+    /// Version of the graph this stage is based on.
+    src_version: u32,
+
+    /// Event id of the graph this stage is based on.
+    src_event_id: u64,
+
     /// Allows only one thread to stage `_src_graph` at a time.
     _guard: ArcMutexGuard<RawMutex, ()>,
 }
@@ -52,30 +59,38 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
 
     /// Finalise all writes and promote the staged graph as the new active graph.
     pub fn finish(self) -> Result<G, StageError> {
-        let storage = self.graph.core_graph();
+        let Stage {
+            graph,
+            folder,
+            src_folder,
+            src_version,
+            src_event_id,
+            _src_graph,
+            _guard,
+        } = self;
+
+        let storage = graph.core_graph();
         storage.flush()?;
 
-        let src_meta = self.src_folder.read_graph_meta()?;
+        let src_meta = src_folder.read_graph_meta()?;
 
         let new_meta = Metadata {
-            path: self.folder.relative_graph_path()?,
+            path: folder.relative_graph_path()?,
             meta: GraphMetadata {
                 node_count: storage.unfiltered_num_nodes(&LayerIds::All),
                 edge_count: storage.unfiltered_num_edges(&LayerIds::All),
                 graph_type: src_meta.meta.graph_type,
                 is_diskgraph: src_meta.meta.is_diskgraph,
             },
-            src_version: panic!(), // FIXME: This should retrieve from self.src_graph.
-            src_event_id: panic!(),
+            src_version: Some(src_version),
+            src_event_id: Some(src_event_id),
         };
 
-        self.folder.write_graph_meta(new_meta)?;
+        folder.write_graph_meta(new_meta)?;
         let cleanup_old = false; // Keep the previous data folders around as archives.
-        self.folder
-            .finish(cleanup_old)
-            .map_err(StageError::Finish)?;
+        folder.finish(cleanup_old).map_err(StageError::Finish)?;
 
-        Ok(self.graph)
+        Ok(graph)
     }
 
     /// Abandon this stage and cleanup its files on disk.
@@ -135,6 +150,9 @@ impl GraphStorage {
             .ok_or(StageError::MissingGraphDir)?;
 
         let src_folder = GraphFolder::from_graph_path(src_path)?;
+        let src_version = version(src_path)?;
+        let src_event_id = src_graph.graph.read_event_id() as u64;
+
         let staged_folder = src_folder.clone().init_swap().map_err(StageError::Init)?;
         let staged_graph_path = staged_folder.graph_path().map_err(StageError::Init)?;
 
@@ -153,6 +171,8 @@ impl GraphStorage {
             folder: staged_folder,
             _src_graph: src_graph,
             src_folder,
+            src_version,
+            src_event_id,
             _guard: guard,
         })
     }

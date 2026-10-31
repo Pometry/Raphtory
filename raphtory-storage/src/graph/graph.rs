@@ -14,7 +14,10 @@ use db4_graph::TemporalGraph;
 use itertools::Either;
 use raphtory_api::core::{
     entities::{properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID},
-    storage::graph_folder::{src_version, version, GraphFolder, GraphFolderError, GraphPaths},
+    storage::graph_folder::{
+        src_version as graph_src_version, version as graph_version, GraphFolder, GraphFolderError,
+        GraphPaths,
+    },
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
@@ -465,13 +468,13 @@ impl GraphStorage {
     /// The currently loaded version of this graph.
     pub fn version(&self) -> Result<u32, StorageError> {
         let graph_path = self.graph_path()?;
-        Ok(version(&graph_path)?)
+        Ok(graph_version(&graph_path)?)
     }
 
     /// The source version this graph was created from.
     pub fn src_version(&self) -> Result<Option<u32>, StorageError> {
         let graph_path = self.graph_path()?;
-        Ok(src_version(&graph_path)?)
+        Ok(graph_src_version(&graph_path)?)
     }
 
     /// The active version selected for this graph.
