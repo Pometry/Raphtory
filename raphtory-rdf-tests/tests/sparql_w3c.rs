@@ -25,7 +25,6 @@ const RDFT: &str = "http://www.w3.org/ns/rdftest#";
 
 const KNOWN_FAILURES: &[&str] = &[
     "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/open-world/manifest#date-2", // spareval compares dates with and without a timezone
-    "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/optional-filter/manifest#dawg-optional-filter-005-not-simplified", // spareval simplifies the group before scoping the filter
     "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/expr-builtin/manifest#dawg-str-1", // spareval: STR() of a number is canonical
     "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/expr-builtin/manifest#dawg-str-2", // spareval: STR() of a number is canonical
     "http://www.w3.org/2009/sparql/docs/tests/data-sparql11/aggregates/manifest#agg-groupconcat-04", // spareval: GROUP_CONCAT keeps a shared language tag
@@ -56,7 +55,7 @@ type Outcome = Option<Result<(), Box<dyn Error>>>;
 
 #[test]
 fn sparql10_evaluation() {
-    run("sparql/sparql10/manifest-evaluation.ttl", (282, 247, 4, 31));
+    run("sparql/sparql10/manifest-evaluation.ttl", (282, 248, 3, 31));
 }
 
 #[test]

@@ -5643,9 +5643,9 @@ dependencies = [
 
 [[package]]
 name = "oxigraph"
-version = "0.5.11"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f6632dd080bd07676f06e70254ff5862c9943e9483d700fa7258df73a3f9a6a"
+checksum = "9b993c12c391a7733c93171f9d07fbd80e4b99060ce3e4c76e0875cb3e63d0a8"
 dependencies = [
  "dashmap",
  "getrandom 0.3.4",
@@ -5690,9 +5690,9 @@ dependencies = [
 
 [[package]]
 name = "oxjsonld"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86a3e89e005662e60327027f45ec7cefd0472404e01831b5d83a3ac522cfabe0"
+checksum = "f1554d73123a75723a4e0a4d400a3fb19ca09673563a2557090267729622fcb2"
 dependencies = [
  "json-event-parser",
  "oxiri 0.2.11",
@@ -5703,9 +5703,9 @@ dependencies = [
 
 [[package]]
 name = "oxrdf"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4be15186205eb60ddbdc2fb47cb25df472c7f399bbe119b68c0972b6b6dd46ea"
+checksum = "08037a3c3cf580d065caec6a864cf97f51be219862d95c691a48c7543406d675"
 dependencies = [
  "hex",
  "oxilangtag",
@@ -5718,9 +5718,9 @@ dependencies = [
 
 [[package]]
 name = "oxrdfio"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17b3fe3bb34179c376ab04f2a1b32616b0babab574b3b7eef64d587e60d5e1db"
+checksum = "e8e92599fc40510b01a1fa55548dffcc7160dde5cf1776e14b150a5cbcc607b4"
 dependencies = [
  "oxjsonld",
  "oxrdf",
@@ -5731,9 +5731,9 @@ dependencies = [
 
 [[package]]
 name = "oxrdfxml"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71853d12051879f3e424c6864e978f5f5cbecd8e86a9817adbccaefccac9d61d"
+checksum = "b69a81d41e2ee7d0d296980e6e44d3d2282f558cd82a8b3b4988c2eb06a6e07d"
 dependencies = [
  "oxilangtag",
  "oxiri 0.2.11",
@@ -5744,18 +5744,18 @@ dependencies = [
 
 [[package]]
 name = "oxsdatatypes"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c17c2ae62ac34fda465f6331105906c0e17b4e088dac3249e1f229b962062503"
+checksum = "034779b2d182d5069cd28b1f921ba334cad708ab1340db9776312464b6874b78"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "oxttl"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1d0fe19fa62a6a102f85b052bbd86e3cdc3360cd6a338d01bab1a6743bf1d8e"
+checksum = "c2f5a5c0e82734bb66c9e2a82839bafca5cc129531c51b92f428a4f43405793d"
 dependencies = [
  "memchr",
  "oxilangtag",
@@ -8370,9 +8370,9 @@ dependencies = [
 
 [[package]]
 name = "sparesults"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dfa99dba6f5155ef4fdd75b78f794ea0c729e17b07d84eb88ae3c1278d1758d"
+checksum = "dd0fd25bd7e7eb2af56a45bc65ca768a246a50163db9215fc26da002135f6ece"
 dependencies = [
  "json-event-parser",
  "memchr",
@@ -8383,9 +8383,9 @@ dependencies = [
 
 [[package]]
 name = "spareval"
-version = "0.2.7"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85b51144836ff9ca2f792b7a2422c4170ff04460d86cd8f2f764cf53e339cbec"
+checksum = "072b1b44c9003e54a7b0817b65ce156d94ab46250dcefe0f24a9b3cc4020c1c6"
 dependencies = [
  "hex",
  "json-event-parser",
@@ -8406,9 +8406,9 @@ dependencies = [
 
 [[package]]
 name = "spargebra"
-version = "0.4.7"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef3c186ffb9bf2dde7c5edd5528583f309fcb819b5773cf0e313194a990304f"
+checksum = "43d5fd4ba16eea5586aa54227ca2c0a394794a0f82e39c6c98a57cc6877f0230"
 dependencies = [
  "oxilangtag",
  "oxiri 0.2.11",
@@ -8420,9 +8420,9 @@ dependencies = [
 
 [[package]]
 name = "sparopt"
-version = "0.3.7"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "973ee503ab3d6c3de66b4b459233cd5b22b44dad0fb7b8d0931daf73d2ede935"
+checksum = "8c1d1327a49bef5f6f294a2ddcf01635c5449a0654e9a35d3f50d7a45e4ecc78"
 dependencies = [
  "oxrdf",
  "rand 0.9.5",

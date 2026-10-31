@@ -208,9 +208,9 @@ opentelemetry-appender-tracing = "0.32.0"
 mock-collector = "0.2.14"
 dyn-clone = "1.0.20"
 inventory = "0.3.24"
-oxigraph = { version = "0.5.11", default-features = false }
-spareval = "0.2.7"
-spargebra = { version = "0.4.7", features = ["sep-0006"] }
+oxigraph = { version = "0.5.13", default-features = false }
+spareval = "0.2.9"
+spargebra = { version = "0.4.8", features = ["sep-0006"] }
 # names the IRI type of spareval's `DefaultServiceHandler` (the handler that refuses SERVICE calls)
 oxiri = "0.2.11"
 percent-encoding = "2.3"
