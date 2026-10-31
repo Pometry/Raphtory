@@ -197,28 +197,37 @@ pub fn read_path_pointer(
     Ok(Some(path))
 }
 
-pub fn make_path_pointer(
-    base_path: &Path,
-    file_name: &str,
-    prefix: &str,
-) -> Result<String, GraphFolderError> {
-    let mut version = match read_path_pointer(base_path, file_name, prefix)? {
-        Some(path) => parse_path_pointer(&path, prefix)?
+/// Allocate the next `{prefix}{id}` directory name under `base_path`.
+pub fn make_path_pointer(base_path: &Path, prefix: &str) -> Result<String, GraphFolderError> {
+    let mut max_version = None::<u32>;
+
+    // Find the highest existing version and increment it to get the next version.
+    for entry in fs::read_dir(base_path)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+
+        let file_name = entry.file_name();
+        let Some(name) = file_name.to_str() else {
+            continue;
+        };
+
+        let Ok(version) = parse_path_pointer(name, prefix) else {
+            continue;
+        };
+
+        max_version = Some(max_version.unwrap_or(version).max(version));
+    }
+
+    let version = match max_version {
+        Some(max) => max
             .checked_add(1)
-            .ok_or_else(|| GraphFolderError::InvalidRelativePath(path))?,
+            .ok_or_else(|| GraphFolderError::InvalidRelativePath(format!("{prefix}{max}")))?,
         None => 0,
     };
 
-    let mut path = format!("{prefix}{version}");
-    while base_path.join(&path).exists() {
-        version = version
-            .checked_add(1)
-            .ok_or_else(|| GraphFolderError::InvalidRelativePath(path.clone()))?;
-
-        path = format!("{prefix}{version}");
-    }
-
-    Ok(path)
+    Ok(format!("{prefix}{version}"))
 }
 
 pub fn read_or_default_path_pointer(
@@ -470,7 +479,7 @@ pub trait GraphPaths {
                 Err(_) => None,
             };
 
-            // Versions in dirty are in-progress and not complete.
+            // Versions in dirty are in-progress and not available.
             if let Some(dirty_path) = dirty_path {
                 let dirty_version = parse_path_pointer(&dirty_path, DATA_PATH)?;
                 versions.remove(&dirty_version);
@@ -490,7 +499,7 @@ pub trait GraphPaths {
                 }
             }
 
-            // Versions in dirty are in-progress and not complete.
+            // Versions in dirty are in-progress and not available.
             if let Some(dirty_path) = read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH)? {
                 let dirty_version = parse_path_pointer(&dirty_path, DATA_PATH)?;
                 versions.remove(&dirty_version);
@@ -607,8 +616,7 @@ impl GraphFolder {
             }
             None => {
                 // Prepare a new data folder with an incremented id for the swap.
-                let new_relative_data_path =
-                    make_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
+                let new_relative_data_path = make_path_pointer(self.root(), DATA_PATH)?;
 
                 // Point the dirty file to the new data folder.
                 Raph::new(new_relative_data_path.clone()).write(&self.root.join(DIRTY_PATH))?;

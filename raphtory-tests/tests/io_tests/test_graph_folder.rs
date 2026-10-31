@@ -151,12 +151,12 @@ fn init_swap_activates_next_data_version_via_dirty_json() {
     let writeable = folder.clone().init_swap().unwrap();
     assert_eq!(writeable.relative_data_path().unwrap(), "data1");
     assert_eq!(tmp.path().join(DIRTY_PATH).exists(), true);
+    assert_eq!(folder.all_versions().unwrap().contains(&0), true);
     assert_eq!(
         folder.all_versions().unwrap().contains(&1),
         false,
         "data dir named by dirty.json is not a complete version"
     );
-    assert_eq!(folder.all_versions().unwrap().contains(&0), true);
 
     writeable.finish(false).unwrap(); // Atomically promote dirty.json -> raph.json
     assert_eq!(tmp.path().join("data1").is_dir(), true);

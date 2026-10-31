@@ -4,8 +4,7 @@ use crate::{
     prelude::{GraphViewOps, ParquetEncoder},
 };
 use raphtory_api::core::storage::graph_folder::{
-    make_path_pointer, DataFolder, GraphFolder, GraphMetadata, GraphPaths, Metadata,
-    GRAPH_META_PATH, GRAPH_PATH,
+    make_path_pointer, DataFolder, GraphFolder, GraphMetadata, GraphPaths, Metadata, GRAPH_PATH,
 };
 use std::fmt::Debug;
 
@@ -26,7 +25,7 @@ pub fn replace_graph_in_folder(
     graph: impl ParquetEncoder + GraphView + Debug,
 ) -> Result<(), GraphError> {
     let data_path = folder.as_ref();
-    let new_relative_graph_path = make_path_pointer(data_path, GRAPH_META_PATH, GRAPH_PATH)?;
+    let new_relative_graph_path = make_path_pointer(data_path, GRAPH_PATH)?;
 
     graph.encode_parquet(data_path.join(&new_relative_graph_path))?;
 
