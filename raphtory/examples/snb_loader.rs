@@ -12,12 +12,18 @@ fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
     parquet_dir.join(format!("{}.parquet", name))
 }
 
-#[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
 
-#[cfg(target_os = "macos")]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
+
+/// Return freed pages to the OS after 1s, not jemalloc's default 10s. Bulk loads free much of
+/// their memory on threads other than the ones that allocated it, and holding it back for 10s
+/// kept ETH's peak RSS about 20GB above what was in use; returning it at once (0) cost ETH
+/// about 15s in page faults.
+#[allow(non_upper_case_globals)]
+#[export_name = "_rjem_malloc_conf"]
+pub static malloc_conf: &[u8] = b"dirty_decay_ms:1000,muzzy_decay_ms:1000\0";
 
 struct NodeParquetInput {
     path: PathBuf,

@@ -92,6 +92,7 @@ pythonize = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
+tikv-jemallocator.workspace = true # the loader examples' allocator, on every OS
 tempfile = { workspace = true }
 tokio = { workspace = true } # for vector testing
 

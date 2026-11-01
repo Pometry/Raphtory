@@ -593,6 +593,35 @@ mod io_tests {
         })
     }
 
+    /// `load_edges_from_parquet` (v1) decodes row groups on several threads and must still
+    /// load them in input order: small row groups across several files make many units.
+    #[test]
+    fn test_load_edges_parquet_proptest() {
+        proptest!(|(edges in build_edge_list(500, 50), files in 1usize..4, group_rows in 1usize..50, chunk_rows in 1usize..80)| {
+            let dir = tempfile::TempDir::new().unwrap();
+            write_edges_parquet(dir.path(), &edges, files, group_rows);
+            let g = Graph::new();
+            raphtory::io::parquet_loaders::load_edges_from_parquet(
+                &g,
+                dir.path(),
+                ColumnNames::new("time", None, "src", "dst", None),
+                true,
+                &LOAD2_PROPS,
+                &[],
+                None,
+                None,
+                Some(chunk_rows),
+                None,
+            )
+            .unwrap();
+            let expected = Graph::new();
+            for (src, dst, time, str_prop, int_prop) in &edges {
+                expected.add_edge(*time, *src, *dst, edge_props(str_prop, *int_prop), None).unwrap();
+            }
+            assert_graph_equal(&g, &expected);
+        })
+    }
+
     #[test]
     fn test_load_edges2_str_proptest() {
         proptest!(|(edges in build_edge_list_str(100, 100), chunk_size in 1usize..=100)| {

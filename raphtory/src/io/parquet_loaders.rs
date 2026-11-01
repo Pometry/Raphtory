@@ -189,22 +189,16 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
         );
     }
 
-    let all_df_view = get_parquet_file_paths(parquet_path)?
-        .into_iter()
-        .flat_map(|file| {
-            let df_view = process_parquet_file_to_df(
-                file.as_path(),
-                Some(&cols_to_check),
-                batch_size,
-                schema.clone(),
-            )
-            .expect("Failed to process Parquet file");
-            df_view.chunks
-        });
-
+    // row groups are decoded on several threads and handed to the loader in input order
+    let units = parquet_units(
+        &get_parquet_file_paths(parquet_path)?,
+        &cols_to_check,
+        batch_size.unwrap_or(500_000),
+        schema,
+    )?;
     let df_view = DFView {
         names: all_names,
-        chunks: all_df_view,
+        chunks: decode_in_order(units, decode_threads()),
         num_rows: Some(count_rows),
     };
 
@@ -482,7 +476,12 @@ pub fn load_edges_from_parquet2<G: StaticGraphViewOps + PropertyAdditionOps + Ad
         return Ok(());
     };
     let (names, _, _) = read_parquet_file(first, Some(&cols))?;
-    let units = parquet_units(&files, &cols, chunk_rows.unwrap_or(DEFAULT_CHUNK_ROWS), schema)?;
+    let units = parquet_units(
+        &files,
+        &cols,
+        chunk_rows.unwrap_or(DEFAULT_CHUNK_ROWS),
+        schema,
+    )?;
     load_edges_from_units(
         names,
         units.into_iter().map(Ok),
@@ -543,6 +542,86 @@ fn parquet_units(
         }
     }
     Ok(units)
+}
+
+/// Threads decoding parquet ahead of a loader that takes chunks in input order:
+/// `RAPHTORY_LOAD_DECODE_THREADS`, 4 by default.
+fn decode_threads() -> usize {
+    std::env::var("RAPHTORY_LOAD_DECODE_THREADS")
+        .ok()
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(4)
+        .max(1)
+}
+
+/// Decodes `units` on `threads` threads and yields their chunks in input order, with at most
+/// two units per thread decoded ahead of the consumer. The threads stop once every unit is
+/// taken or the consumer drops the iterator.
+fn decode_in_order(
+    units: Vec<InputUnit>,
+    threads: usize,
+) -> impl Iterator<Item = Result<DFChunk, GraphError>> + Send {
+    let lookahead = 2 * threads;
+    let total = units.len();
+    let queue = Arc::new(parking_lot::Mutex::new(units.into_iter().enumerate()));
+    // a token per unit taken bounds how far decoding runs ahead
+    let (token_tx, token_rx) = crossbeam_channel::bounded::<()>(lookahead);
+    for _ in 0..lookahead {
+        let _ = token_tx.send(());
+    }
+    let (decoded_tx, decoded_rx) = crossbeam_channel::unbounded();
+    for _ in 0..threads {
+        let (queue, token_rx, decoded_tx) = (queue.clone(), token_rx.clone(), decoded_tx.clone());
+        std::thread::spawn(move || {
+            while token_rx.recv().is_ok() {
+                let Some((index, unit)) = queue.lock().next() else {
+                    break;
+                };
+                // a panic still delivers the unit, as an error, so the load can't silently end
+                // early without it
+                let decoded = std::panic::catch_unwind(std::panic::AssertUnwindSafe(unit.decode))
+                    .unwrap_or_else(|_| {
+                        Err(GraphError::LoadFailure(
+                            "decoding a parquet row group panicked".to_string(),
+                        ))
+                    });
+                if decoded_tx.send((index, decoded)).is_err() {
+                    break;
+                }
+            }
+        });
+    }
+
+    let mut next = 0;
+    let mut pending = std::collections::BTreeMap::new();
+    let mut current = Vec::new().into_iter();
+    std::iter::from_fn(move || loop {
+        if let Some(chunk) = current.next() {
+            return Some(Ok(chunk));
+        }
+        let decoded = match pending.remove(&next) {
+            Some(decoded) => decoded,
+            None => match decoded_rx.recv() {
+                Ok((index, decoded)) => {
+                    pending.insert(index, decoded);
+                    continue;
+                }
+                // every decoding thread has stopped
+                Err(_) if next == total => return None,
+                Err(_) => {
+                    return Some(Err(GraphError::LoadFailure(
+                        "parquet decoding stopped before every row group was decoded".to_string(),
+                    )))
+                }
+            },
+        };
+        next += 1;
+        let _ = token_tx.send(());
+        match decoded {
+            Ok(chunks) => current = chunks.into_iter(),
+            Err(err) => return Some(Err(err)),
+        }
+    })
 }
 
 fn record_batch_to_chunk(
