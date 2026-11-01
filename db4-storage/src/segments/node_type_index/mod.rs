@@ -5,8 +5,8 @@ use crate::{
     pages::locked::node_type_index::WriteLockedNodeTypeIndex,
     persist::strategy::PersistenceStrategy,
 };
-use lock_api::ArcRwLockReadGuard;
-use parking_lot::{RawRwLock, RwLock, RwLockWriteGuard};
+use parking_lot::{RwLock, RwLockWriteGuard};
+use raphtory_api::ArcRwLockReadGuard;
 use std::{
     ops::DerefMut,
     path::Path,
@@ -45,7 +45,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         ))
     }
 
-    fn head_shared_arc(&self) -> ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex> {
+    fn head_shared_arc(&self) -> ArcRwLockReadGuard<MemNodeTypeIndex> {
         self.head.read_arc_recursive()
     }
 

@@ -23,6 +23,7 @@ use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use itertools::izip;
+use parking_lot::Mutex;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -42,7 +43,7 @@ use storage::{
     pages::{
         locked::{
             edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
-            nodes::LockedNodeSegment,
+            nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment},
         },
         resolve_pos,
     },
@@ -177,6 +178,10 @@ pub fn load_edges_from_df_prefetch<
                 .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
             written.and(prepared)
         });
+        if result.is_ok() {
+            // the preparing thread has stopped, so every segment it created is handed over
+            write_locked_graph.assert_all_nodes_locked();
+        }
         load.finish(&mut write_locked_graph);
         result
     })
@@ -224,6 +229,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         #[cfg(feature = "progress")]
         let _ = pb.update(rows);
     }
+    write_locked_graph.assert_all_nodes_locked();
     load.finish(&mut write_locked_graph);
     Ok(())
 }
@@ -239,6 +245,8 @@ struct PreparedChunk {
     vids: Vec<VID>,
     /// nodes resolution created; rows index `vids`
     new_nodes: Vec<(usize, VID)>,
+    /// node segments resolution created, write-locked before they were published
+    new_segments: MemNodeSegmentGuards,
     time: TimeCol,
     secondary_index: SecondaryIndexCol,
 }
@@ -396,6 +404,7 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
             layer: layer_col_resolved,
             vids,
             new_nodes,
+            new_segments,
             time: time_col,
             secondary_index: secondary_index_col,
         } = prepared;
@@ -417,10 +426,9 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
         let src_col = df.node_col(src_index)?;
         let dst_col = df.node_col(dst_index)?;
 
-        // node resolution may have created new node segments
-        write_locked_graph
-            .lock_new_segments()
-            .map_err(into_graph_err)?;
+        // node resolution may have created new node segments; the next chunk may already be
+        // holding segments of its own
+        write_locked_graph.extend_new_pipelined(new_segments);
         let max_node_segment_len = write_locked_graph
             .graph()
             .storage()
@@ -541,7 +549,7 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
 
         // outbound edges may have created new edge segments
         write_locked_graph
-            .lock_new_segments()
+            .lock_new_edge_segments()
             .map_err(into_graph_err)?;
         let edge_rows_by_segment = group_rows_by_eid_segment(
             eid_col_resolved,
@@ -687,11 +695,15 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> ChunkPrepare
 
         let mut vids = Vec::new();
         let mut new_nodes = Vec::new();
+        let new_segments = Mutex::new(MemNodeSegmentGuards::new());
         if load.resolve_nodes {
             let node_store = self.tg.storage().nodes();
             let max_node_segment_len = node_store.max_segment_len();
             let alloc = |hint: usize, count: u32| {
-                let (segment, pos, got) = node_store.reserve_free_range(hint, count);
+                let (segment, pos, got, created) = node_store.reserve_free_range(hint, count);
+                if !created.is_empty() {
+                    new_segments.lock().extend(created);
+                }
                 (pos.as_vid(segment, max_node_segment_len), got)
             };
             self.tg
@@ -724,6 +736,7 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> ChunkPrepare
             layer: layer_col_resolved,
             vids,
             new_nodes,
+            new_segments: new_segments.into_inner(),
             time,
             secondary_index,
         })
@@ -821,7 +834,7 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
 }
 
 fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
-    shard: &mut LockedNodeSegment<'_, NS>,
+    shard: &mut WriteLockedNodeSegment<'_, NS>,
     zip: impl Iterator<Item = (usize, VID, VID, EID, i64, usize, usize, bool, bool)>,
     delete: bool,
 ) {
@@ -878,7 +891,7 @@ fn add_and_resolve_outbound_edges<
     zip: impl Iterator<Item = (usize, VID, VID, i64, usize, usize)>,
     next_edge_id: impl Fn(usize) -> EID,
     edges: &WriteLockedEdgeSegments<'_, ES>,
-    locked_page: &mut LockedNodeSegment<'_, NS>,
+    locked_page: &mut WriteLockedNodeSegment<'_, NS>,
     delete: bool,
 ) {
     let mut writer = locked_page.bulk_writer();
@@ -943,7 +956,7 @@ fn group_rows_by_eid_segment(
 
 pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[(GidRef<'_>, VID)],
-    locked_page: &mut LockedNodeSegment<'_, NS>,
+    locked_page: &mut WriteLockedNodeSegment<'_, NS>,
 ) {
     let mut writer = locked_page.bulk_writer();
     for (src_gid, vid) in gid_str_cache.iter() {

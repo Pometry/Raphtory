@@ -28,7 +28,7 @@ impl From<Vec<AddEdge>> for Fixture {
             for (k, v) in c_props {
                 const_props
                     .entry((*src, *dst))
-                    .or_insert_with(|| vec![])
+                    .or_insert_with(std::vec::Vec::new)
                     .push((k.clone(), v.clone()));
             }
         }
@@ -83,7 +83,7 @@ pub fn make_nodes(num_nodes: usize) -> impl Strategy<Value = NodeFixture> {
         let const_props = collection::vec(((0..num_nodes).prop_map(VID), c_props), 1..=num_nodes);
 
         let const_props = const_props.prop_map(|mut nodes_with_const| {
-            nodes_with_const.sort_by(|(vid, _), (vid2, _)| vid.cmp(vid2));
+            nodes_with_const.sort_by_key(|(vid, _)| *vid);
             nodes_with_const
                 .chunk_by(|(vid, _), (vid2, _)| *vid == *vid2)
                 .map(|stuff| {

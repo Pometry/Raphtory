@@ -1,6 +1,7 @@
 use itertools::Itertools;
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
     core::{
         Direction,
         entities::properties::{
@@ -215,7 +216,11 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn segment_id(&self) -> usize;
 
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>;
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemNodeSegment>;
+
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemNodeSegment>;
+
+    fn try_head_mut_arc(&self) -> Option<ArcRwLockWriteGuard<MemNodeSegment>>;
 
     fn head(&self) -> RwLockReadGuard<'_, MemNodeSegment>;
 

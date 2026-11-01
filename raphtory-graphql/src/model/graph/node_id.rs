@@ -4,6 +4,7 @@ use raphtory::core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use raphtory_api::core::entities::GID;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Number;
+use std::fmt;
 
 /// Identifier for a node — either a string (`"alice"`) or a non-negative
 /// integer (`42`). Use whichever form matches how the graph was indexed
@@ -93,13 +94,12 @@ impl AsNodeRef for GqlNodeId {
     }
 }
 
-impl GqlNodeId {
-    /// Returns the id as a `String`. Integer ids are formatted as decimal.
-    /// Useful for callers that need a string id.
-    pub fn to_string(&self) -> String {
+/// Formats the id as a string. Integer ids are formatted as decimal.
+impl fmt::Display for GqlNodeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            GID::Str(s) => s.clone(),
-            GID::U64(u) => u.to_string(),
+            GID::Str(s) => f.write_str(s),
+            GID::U64(u) => write!(f, "{u}"),
         }
     }
 }

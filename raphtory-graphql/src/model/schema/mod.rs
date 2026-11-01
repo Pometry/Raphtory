@@ -18,7 +18,7 @@ const MAX_DETAILED_SCHEMA_ENTITIES: usize = 1000;
 /// Maximum number of distinct values collected per node property key.
 const MAX_NODE_VARIANTS: usize = 100;
 
-const DEFAULT_NODE_TYPE: &'static str = "None";
+const DEFAULT_NODE_TYPE: &str = "None";
 
 /// Collect the distinct values seen against each property id. Once a property
 /// exceeds `max_variants` values we drop its set and report no variants for it.

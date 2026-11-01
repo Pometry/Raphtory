@@ -31,8 +31,10 @@ use storage::{
     pages::{
         layer_counter::GraphStats,
         locked::{
-            edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropSegment,
-            node_type_index::WriteLockedNodeTypeIndex, nodes::WriteLockedNodeSegments,
+            edges::WriteLockedEdgeSegments,
+            graph_props::WriteLockedGraphPropSegment,
+            node_type_index::WriteLockedNodeTypeIndex,
+            nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -498,31 +500,74 @@ where
         self.graph
     }
 
-    /// Write-lock the node and edge segments created since this graph was locked
-    /// (e.g. by node or edge resolution), keeping the locks already held.
-    ///
-    /// Fails with `SegmentLockTimeout` if a new segment stays locked for
-    /// [`NEW_SEGMENT_LOCK_TIMEOUT`].
     pub fn lock_new_segments(&mut self) -> Result<(), StorageError> {
         self.lock_new_segments_within(NEW_SEGMENT_LOCK_TIMEOUT)
     }
 
-    /// [`Self::lock_new_segments`] with a custom timeout.
     pub fn lock_new_segments_within(&mut self, timeout: Duration) -> Result<(), StorageError> {
-        self.graph
-            .storage
-            .nodes()
-            .lock_new_segments(&mut self.nodes, timeout)?;
+        self.assert_all_nodes_locked();
+        self.lock_new_edge_segments_within(timeout)
+    }
+
+    /// [`Self::lock_new_segments`] for a pipelined load, whose next chunk may already hold
+    /// the guards of node segments it created: locks the new edge segments only.
+    pub fn lock_new_edge_segments(&mut self) -> Result<(), StorageError> {
+        self.lock_new_edge_segments_within(NEW_SEGMENT_LOCK_TIMEOUT)
+    }
+
+    fn lock_new_edge_segments_within(&mut self, timeout: Duration) -> Result<(), StorageError> {
         self.graph
             .storage
             .edges()
             .lock_new_segments(&mut self.edges, timeout)
     }
 
-    pub fn resize_segments_to_vid(&mut self, vid: VID) -> Result<(), StorageError> {
-        let (segment_id, _) = self.graph.storage.nodes().resolve_pos(vid);
-        self.graph.storage().nodes().grow(segment_id + 1);
-        self.lock_new_segments()
+    pub fn extend_new(&mut self, new_segments: MemNodeSegmentGuards) {
+        self.extend_new_pipelined(new_segments);
+        self.assert_all_nodes_locked();
+    }
+
+    /// [`Self::extend_new`] for a pipelined load, whose next chunk may already hold the guards
+    /// of node segments it created: those are handed over with that chunk, so only the
+    /// segments before them must be held here. Call [`Self::assert_all_nodes_locked`] once
+    /// the load has stopped creating segments.
+    pub fn extend_new_pipelined(&mut self, mut new_segments: MemNodeSegmentGuards) {
+        let nodes = self.graph.storage.nodes();
+
+        // segments are pushed concurrently from several threads, so the ids arrive in any order
+        new_segments.sort_unstable_by_key(|segment| segment.segment_id());
+
+        for new_segment in new_segments {
+            let segment_id = new_segment.segment_id();
+            let segment = nodes
+                .get_segment(segment_id)
+                .expect("locked segment must exist");
+
+            self.nodes.push(WriteLockedNodeSegment::new(
+                segment_id,
+                nodes.stats(),
+                nodes.max_segment_len(),
+                segment,
+                new_segment,
+            ));
+        }
+    }
+
+    /// A node segment created without handing over its lock would let readers see its
+    /// uninitialised nodes.
+    pub fn assert_all_nodes_locked(&self) {
+        assert_eq!(
+            self.nodes.len(),
+            self.graph.storage.nodes().num_segments(),
+            "node segments were created during the bulk load without handing over their locks"
+        );
+    }
+
+    pub fn resize_segments_to_vid(&mut self, vid: VID) {
+        let nodes = self.graph.storage.nodes();
+        let (segment_id, _) = nodes.resolve_pos(vid);
+        let new_segments = nodes.grow_locked(segment_id + 1);
+        self.extend_new(new_segments);
     }
 
     pub fn resize_segments_to_eid(&mut self, eid: EID) -> Result<(), StorageError> {

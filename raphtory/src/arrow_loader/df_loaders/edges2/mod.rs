@@ -31,6 +31,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::*,
 };
+use crossbeam_channel::Sender;
 use db4_graph::TemporalGraph;
 use std::{collections::HashMap, thread::ScopedJoinHandle, time::Instant};
 use storage::{api::edges::EdgeSegmentOps, Extension};
@@ -39,7 +40,7 @@ use self::{
     budget::InFlightBudget,
     columns::{EdgeColumns, EdgeProperties, EdgeSchema, Header},
     config::Config,
-    coordinator::{request_channel, Coordinator, CoordinatorHandle},
+    coordinator::{request_channel, Coordinator, CoordinatorHandle, Request},
     failure::Failure,
     input::Input,
     owner::Owner,
@@ -189,12 +190,7 @@ impl<'s, 'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> Load<'s,
                 .collect();
             let reader_threads: Vec<_> = (0..self.config.readers)
                 .map(|_| {
-                    let reader = self.reader(
-                        &input,
-                        &budget,
-                        &owners,
-                        CoordinatorHandle::new(requests.clone()),
-                    );
+                    let reader = self.reader(&input, &budget, &owners, &requests);
                     let failure = &failure;
                     scope.spawn(move || reader.run(failure))
                 })
@@ -227,7 +223,7 @@ impl<'s, 'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> Load<'s,
         input: &'p Input<'a, I>,
         budget: &'p InFlightBudget,
         owners: &'p OwnerPool<'a>,
-        coordinator: CoordinatorHandle,
+        requests: &Sender<Request>,
     ) -> Reader<'p, 'a, G, I> {
         let sizes = SegmentSizes::of(self.storage);
         Reader {
@@ -240,10 +236,11 @@ impl<'s, 'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> Load<'s,
             resolver: NodeResolver {
                 graph: self.storage,
                 columns: self.schema.columns,
+                new_segments: requests.clone(),
             },
             router: Router {
                 owners,
-                coordinator,
+                coordinator: CoordinatorHandle::new(requests.clone()),
                 known_owners: SegmentOwners::default(),
                 sizes,
             },

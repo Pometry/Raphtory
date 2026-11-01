@@ -7,13 +7,13 @@ use storage::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     pages::{
         edge_store::EdgeStorageInner,
-        locked::{edges::LockedEdgeSegment, nodes::LockedNodeSegment},
+        locked::{edges::LockedEdgeSegment, nodes::WriteLockedNodeSegment},
         resolve_pos,
     },
     Extension, ES, NS,
 };
 
-pub(super) type NodeSegmentLock<'a> = LockedNodeSegment<'a, NS<Extension>>;
+pub(super) type NodeSegmentLock<'a> = WriteLockedNodeSegment<'a, NS<Extension>>;
 pub(super) type EdgeSegmentLock<'a> = LockedEdgeSegment<'a, ES<Extension>>;
 type EdgeStore = EdgeStorageInner<ES<Extension>, Extension>;
 

@@ -7,6 +7,7 @@ use crate::{
     errors::{into_graph_err, GraphError, LoadError},
     prelude::*,
 };
+use crossbeam_channel::Sender;
 use db4_graph::TemporalGraph;
 use raphtory_core::entities::VID;
 use std::{panic::AssertUnwindSafe, sync::Arc};
@@ -16,7 +17,7 @@ use super::{
     budget::{InFlightBudget, Slot},
     chunk::{Chunk, Endpoint, Endpoints, EventTimes, NewNode, RowProperties, Rows},
     columns::{EdgeColumns, EdgeSchema},
-    coordinator::CoordinatorHandle,
+    coordinator::{CoordinatorHandle, Request},
     failure::Failure,
     grouping::bucket_by,
     input::{Input, InputUnit},
@@ -47,6 +48,8 @@ pub(super) struct ChunkPreparer<'s, 'a, G> {
 pub(super) struct NodeResolver<'a> {
     pub graph: &'a TemporalGraph<Extension>,
     pub columns: EdgeColumns,
+    /// where the locks of the node segments resolution creates go: to the coordinator
+    pub new_segments: Sender<Request>,
 }
 
 /// Sends a chunk's rows to the owners of their nodes, asking the coordinator for owners of
@@ -175,7 +178,11 @@ impl NodeResolver<'_> {
     fn resolve(&self, data: &DFChunk, into: &mut ResolvedNodes) -> Result<(), GraphError> {
         let nodes = self.graph.storage().nodes();
         let allocate = |hint: usize, count: u32| {
-            let (segment, pos, allocated) = nodes.reserve_free_range(hint, count);
+            let (segment, pos, allocated, created) = nodes.reserve_free_range(hint, count);
+            if !created.is_empty() {
+                // the coordinator is gone only if the load is failing anyway
+                let _ = self.new_segments.send(Request::NewSegments(created));
+            }
             (pos.as_vid(segment, nodes.max_segment_len()), allocated)
         };
         let endpoints = [

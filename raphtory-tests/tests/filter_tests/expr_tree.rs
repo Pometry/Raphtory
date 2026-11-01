@@ -1303,6 +1303,9 @@ fn empty_expressions_are_refused() {
 /// A name, id or type has no time axis and does not depend on the node set,
 /// so a view written on a field term is kept for display and ignored when the
 /// filter runs: the term reads the field whether or not the view holds the node.
+/// A named case: the filter to build and the node names it should match.
+type NamedFilterCase<'a> = (&'a str, Box<dyn Fn() -> FilterExpr>, &'a [&'a str]);
+
 #[test]
 fn a_view_on_a_field_term_is_ignored() {
     // early@1 · late@7
@@ -1320,7 +1323,7 @@ fn a_view_on_a_field_term_is_ignored() {
         n
     };
     let win = || NodeFilter.window(0, 5);
-    let cases: Vec<(&str, Box<dyn Fn() -> FilterExpr>, &[&str])> = vec![
+    let cases: Vec<NamedFilterCase> = vec![
         (
             "window name == late",
             Box::new(move || FilterExpr::from(win().name().eq("late"))),

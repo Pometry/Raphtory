@@ -11,7 +11,7 @@ pub fn parameterized(c: &mut Criterion) {
     let mut ingestion_group = c.benchmark_group("ingestion-num_nodes");
     ingestion_group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for num_nodes in nodes {
-        let make_graph = || bootstrap_graph(num_nodes, |id| GID::U64(id));
+        let make_graph = || bootstrap_graph(num_nodes, GID::U64);
         let make_graph_str = || bootstrap_graph(num_nodes, |id| GID::Str(id.to_string()));
         ingestion_group.throughput(Throughput::Elements(num_nodes as u64));
         ingestion_group.sample_size(10);
