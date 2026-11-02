@@ -2,6 +2,7 @@ pub mod cached_view;
 pub mod deletion_graph;
 pub mod filter;
 pub mod layer_graph;
+pub mod multi_window_graph;
 pub mod node_subgraph;
 pub mod property_redacted_graph;
 pub mod valid_graph;

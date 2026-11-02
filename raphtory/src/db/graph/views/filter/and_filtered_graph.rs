@@ -11,7 +11,7 @@ use crate::{
                     DynGraphArc, EdgeList, GraphTimeSemanticsOps, Immutable, InheritMaterialize,
                     InheritStorageOps, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
                     InternalExplodedEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps,
-                    ListOps, NodeList, Static, TimeSemantics,
+                    ListOps, NodeList, Static, TimeRanges, TimeSemantics,
                 },
                 BoxedLIter,
             },
@@ -45,15 +45,16 @@ use std::{ops::Range, sync::Arc};
 /// The graph keeping what every operand keeps. A level is filtered when any
 /// operand restricts it.
 ///
-/// The `and` resolves its layers and its window once, when built: the layers
-/// every operand keeps, and the overlap of the operands' windows. The graph is
-/// seen through that window; a window with no bounds is the graph itself.
+/// The `and` resolves its layers and its times once, when built: the layers
+/// every operand keeps, and the times every operand keeps. The graph is seen
+/// through those times, one window or several ranges; no bound is the graph
+/// itself.
 #[derive(Clone)]
 pub struct AndFilteredGraph<'graph, G> {
     pub(crate) graph: G,
     pub(crate) operands: Arc<[DynGraphArc<'graph>]>,
     pub(crate) layer_ids: LayerIds,
-    /// The optional window bounds: the overlap of the operands' windows.
+    /// The times every operand keeps.
     pub(crate) bounds: WindowBounds,
 }
 
@@ -66,21 +67,16 @@ impl<'graph, G: GraphViewOps<'graph>> AndFilteredGraph<'graph, G> {
             .map(|operand| operand.layer_ids().clone())
             .reduce(|layer_ids, operand| layer_ids.intersect(&operand))
             .unwrap_or_else(|| graph.layer_ids().clone());
-        let start = operands
+        let ranges = operands
             .iter()
-            .filter_map(|operand| operand.view_start())
-            .max();
-        let end = operands
-            .iter()
-            .filter_map(|operand| operand.view_end())
-            .min();
-        // Windows that do not overlap leave an empty window, not a reversed one.
-        let end = end.map(|end| start.map_or(end, |start| end.max(start)));
+            .map(|operand| operand.view_ranges())
+            .reduce(|ranges, operand| ranges.intersect(&operand))
+            .unwrap_or_else(TimeRanges::all);
         Self {
             graph,
             operands,
             layer_ids,
-            bounds: WindowBounds::new(start, end),
+            bounds: WindowBounds::from_ranges(ranges),
         }
     }
 }
@@ -157,11 +153,11 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for AndFilteredGraph
     }
 
     fn view_start(&self) -> Option<EventTime> {
-        self.bounds.start
+        self.bounds.start()
     }
 
     fn view_end(&self) -> Option<EventTime> {
-        self.bounds.end
+        self.bounds.end()
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
@@ -173,11 +169,11 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for AndFilteredGraph
     }
 
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
-        self.graph.earliest_time_window(start, end)
+        self.bounds.earliest_time_window(&self.graph, start, end)
     }
 
     fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
-        self.graph.latest_time_window(start, end)
+        self.bounds.latest_time_window(&self.graph, start, end)
     }
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
@@ -189,7 +185,8 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for AndFilteredGraph
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
-        self.graph.has_temporal_prop_window(prop_id, w)
+        self.bounds
+            .has_temporal_prop_window(&self.graph, prop_id, w)
     }
 
     fn temporal_prop_iter_window(
@@ -198,7 +195,8 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for AndFilteredGraph
         start: EventTime,
         end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
-        self.graph.temporal_prop_iter_window(prop_id, start, end)
+        self.bounds
+            .temporal_prop_iter_window(&self.graph, prop_id, start, end)
     }
 
     fn temporal_prop_iter_window_rev(
@@ -207,8 +205,8 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for AndFilteredGraph
         start: EventTime,
         end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
-        self.graph
-            .temporal_prop_iter_window_rev(prop_id, start, end)
+        self.bounds
+            .temporal_prop_iter_window_rev(&self.graph, prop_id, start, end)
     }
 
     fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
@@ -221,7 +219,8 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for AndFilteredGraph
         t: EventTime,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        self.graph.temporal_prop_last_at_window(prop_id, t, w)
+        self.bounds
+            .temporal_prop_last_at_window(&self.graph, prop_id, t, w)
     }
 }
 
