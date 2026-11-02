@@ -10,12 +10,15 @@ mod event_semantics;
 pub mod filtered_edge;
 pub mod filtered_node;
 mod history_filter;
+mod multi_window_time_semantics;
 mod persistent_semantics;
+mod time_ranges;
 mod time_semantics;
 mod time_semantics_ops;
 mod window_time_semantics;
 
 pub use history_filter::*;
+pub use time_ranges::TimeRanges;
 pub use time_semantics::TimeSemantics;
 pub use time_semantics_ops::*;
 
@@ -33,6 +36,19 @@ pub trait GraphTimeSemanticsOps {
 
     /// Returns the end of the current view or `None` if unbounded
     fn view_end(&self) -> Option<EventTime>;
+
+    /// The times the current view is bounded to: its window, or its ranges
+    /// when it is several. Read from the view's own bounds, never from which
+    /// events they happen to cut, so a view resolved from this keeps meaning
+    /// the same as the graph grows.
+    fn view_ranges(&self) -> TimeRanges {
+        let window =
+            self.view_start().unwrap_or(EventTime::MIN)..self.view_end().unwrap_or(EventTime::MAX);
+        match self.node_time_semantics() {
+            TimeSemantics::MultiWindow(multi) => multi.windows().clipped_to(&window),
+            _ => TimeRanges::single(window),
+        }
+    }
 
     /// Returns the timestamp for the earliest activity
     fn earliest_time_global(&self) -> Option<i64>;
