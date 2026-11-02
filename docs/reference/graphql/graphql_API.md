@@ -11497,7 +11497,8 @@ The format of the results: JSON (the default), XML, CSV or TSV for SELECT and AS
 <td>
 
 Validates the triples of this view against SHACL shapes and returns the report.
-Recursive shapes are rejected; null if the validation fails unexpectedly.
+The server's `max_shacl_*` settings bound it and recursive shapes are rejected; null if
+the validation fails unexpectedly.
 
 </td>
 </tr>
@@ -11515,7 +11516,7 @@ The shapes graph, as an RDF document.
 <td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
 <td>
 
-The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+The RDF format of the shapes: TURTLE (the default) or N_TRIPLES; other formats are errors.
 
 </td>
 </tr>

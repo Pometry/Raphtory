@@ -3,7 +3,7 @@ use crate::{
     algebra::{walk, Node},
     dataset::RaphtoryDataset,
     functions::temporal_functions_of,
-    limits::{check_query_length, check_triple_patterns},
+    limits::{cancel_after, check_query_length, check_triple_patterns},
     time_graph::time_graphs_in,
     RdfError, TimeGraph, RESERVED_NS,
 };
@@ -11,23 +11,19 @@ use indexmap::IndexSet;
 use oxigraph::{
     model::{NamedNode, Term, Triple},
     sparql::{
-        DefaultServiceHandler, QueryEvaluationError, QueryResults, QuerySolutionIter,
-        SparqlEvaluator, Variable,
+        CancellationToken, DefaultServiceHandler, QueryEvaluationError, QueryResults,
+        QuerySolutionIter, SparqlEvaluator, Variable,
     },
 };
 use oxiri::Iri;
 use raphtory::db::api::view::DynamicGraph;
-use rayon::ThreadPoolBuilder;
 use rustc_hash::{FxBuildHasher, FxHashSet};
 use spargebra::{
     algebra::{Expression, Function, GraphPattern},
     term::NamedNodePattern,
     Query, SparqlParser,
 };
-use std::{
-    io,
-    panic::{self, AssertUnwindSafe},
-};
+use std::{thread, time::Duration};
 
 // refuses `SERVICE` calls so no query makes a network request, whatever oxigraph features are on
 pub(crate) fn evaluator() -> SparqlEvaluator {
@@ -135,7 +131,7 @@ impl QueryOutline {
     /// Parses `query` as [`RdfView::sparql`](crate::RdfView::sparql) does, with the same errors.
     pub fn parse(query: &str, options: &SparqlOptions) -> Result<Self, RdfError> {
         check_query_length(query, options.max_query_length)?;
-        on_stack("the query", query.len(), || {
+        on_stack(query.len(), || {
             let query = parse(query)?;
             let from_names_time_graph = query
                 .dataset()
@@ -167,6 +163,7 @@ pub struct SparqlOptions {
     pub(crate) max_query_length: Option<usize>,
     pub(crate) max_triple_patterns: Option<usize>,
     pub(crate) max_result_bytes: Option<usize>,
+    pub(crate) timeout: Option<Duration>,
 }
 
 impl SparqlOptions {
@@ -188,6 +185,12 @@ impl SparqlOptions {
         self.max_result_bytes = max.into();
         self
     }
+
+    /// How long a query may run, from planning to its last result; past it the query fails.
+    pub fn with_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.timeout = timeout.into();
+        self
+    }
 }
 
 // spareval does not dedup triples with blank nodes (stored ones repeat), and forgets after 2^20
@@ -201,20 +204,19 @@ pub(crate) fn dedup_triples<'a>(
     })
 }
 
-// overflow aborts the process; a one-thread pool, not a thread, as rudof's validator uses par_iter
+// oxigraph's parser and planner recurse along the query, and overflow aborts the process
 pub(crate) fn on_stack<R: Send>(
-    what: &str,
     len: usize,
     f: impl FnOnce() -> Result<R, RdfError> + Send,
 ) -> Result<R, RdfError> {
-    ThreadPoolBuilder::new()
-        .num_threads(1)
-        .thread_name(|_| "raphtory-rdf".to_owned())
-        .stack_size((16usize << 20).saturating_add(len.saturating_mul(32 << 10)))
-        .build()
-        .map_err(io::Error::other)?
-        .install(|| panic::catch_unwind(AssertUnwindSafe(f)))
-        .unwrap_or_else(|panic| Err(RdfError::panicked(what, panic)))
+    thread::scope(|scope| {
+        thread::Builder::new()
+            .name("raphtory-rdf".to_owned())
+            .stack_size((16usize << 20).saturating_add(len.saturating_mul(32 << 10)))
+            .spawn_scoped(scope, f)?
+            .join()
+            .unwrap_or_else(|panic| Err(RdfError::panicked("the query", panic)))
+    })
 }
 
 pub(crate) fn parse(query: &str) -> Result<Query, RdfError> {
@@ -230,14 +232,28 @@ pub(crate) fn execute<R>(
     f: impl FnOnce(QueryResults<'_>) -> Result<R, RdfError>,
 ) -> Result<R, RdfError> {
     check_triple_patterns(&query, options.max_triple_patterns)?;
+    let token = CancellationToken::new();
+    // held until the results are written
+    let _timer = options
+        .timeout
+        .map(|timeout| cancel_after(timeout, token.clone()))
+        .transpose()?;
     // time graphs cannot be enumerated, so an unbound `GRAPH ?g` visits those the query names
     let dataset = RaphtoryDataset::new(view.clone()).with_time_graphs(time_graphs_in(&query));
-    let results = temporal_functions_of(evaluator(), view.clone())
-        .for_query(query)
-        .on_queryable_dataset(dataset)
-        .execute()
-        .map_err(RdfError::from)?;
-    f(results)
+    let results = temporal_functions_of(
+        evaluator().with_cancellation_token(token.clone()),
+        view.clone(),
+    )
+    .for_query(query)
+    .on_queryable_dataset(dataset)
+    .execute()
+    .map_err(RdfError::from)
+    .and_then(f);
+    match options.timeout {
+        // spareval reads a cancelled `EXISTS` as true, so even a finished answer may be wrong
+        Some(timeout) if token.is_cancelled() => Err(RdfError::Timeout { timeout }),
+        _ => results,
+    }
 }
 
 pub(crate) fn sparql(
@@ -246,7 +262,7 @@ pub(crate) fn sparql(
     options: &SparqlOptions,
 ) -> Result<SparqlResults, RdfError> {
     check_query_length(query, options.max_query_length)?;
-    on_stack("the query", query.len(), || {
+    on_stack(query.len(), || {
         execute(
             view,
             parse(query)?,

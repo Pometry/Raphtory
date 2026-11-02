@@ -24,7 +24,6 @@ percent-encoding.workspace = true
 chrono.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
-rayon.workspace = true
 rustc-hash.workspace = true
 thiserror.workspace = true
 

@@ -68,7 +68,7 @@ impl fmt::Debug for NodeTerm {
     }
 }
 
-// the memo keeps its first answer for each term, so a dataset is meant for one query
+// the memo keeps its first answer for each node or layer, so a dataset is meant for one query
 pub(crate) struct RaphtoryDataset {
     inner: Rc<Inner>,
     named: Vec<Arc<TimeGraph>>,
@@ -167,7 +167,8 @@ impl Inner {
         }
         let internal = self.resolve(&term)?;
         let mut memo = self.memo.borrow_mut();
-        if memo.len() < CACHE_CAP {
+        // only names of graph data: a query's own values have no bound on size or count
+        if matches!(internal, RdfTerm::Node(_) | RdfTerm::Layer(_)) && memo.len() < CACHE_CAP {
             memo.insert(term, internal.clone());
         }
         Ok(internal)

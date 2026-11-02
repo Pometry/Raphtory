@@ -6,7 +6,15 @@ use oxigraph::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::utils::time::ParseTimeError;
-use std::{any::Any, error::Error, io, path::PathBuf, string::FromUtf8Error};
+use std::{
+    any::Any,
+    error::Error,
+    io,
+    panic::{self, AssertUnwindSafe},
+    path::PathBuf,
+    string::FromUtf8Error,
+    time::Duration,
+};
 
 /// Errors raised by RDF import, export, SPARQL evaluation and SHACL validation.
 /// Messages include the wrapped error, so `source()` does not return it again.
@@ -43,6 +51,10 @@ pub enum RdfError {
          and each VALUES block one plus one per variable and per 100 rows)"
     )]
     TooManyPatterns { count: usize, max: usize },
+
+    /// A query that ran past [`with_timeout`](crate::SparqlOptions::with_timeout).
+    #[error("SPARQL query timed out after {timeout:?}")]
+    Timeout { timeout: Duration },
 
     #[error("invalid IRI: {0}")]
     Iri(IriParseError),
@@ -107,7 +119,7 @@ pub enum RdfError {
     #[error("SHACL error: {0}")]
     Shacl(Box<dyn Error + Send + Sync>),
 
-    /// A shapes graph with a path rudof cannot expand, or recursive shapes the options reject.
+    /// A limit of [`ShaclOptions`](crate::shacl::ShaclOptions) the shapes or validation exceed.
     #[error("SHACL error: {0}")]
     ShaclLimit(ShaclLimit),
 
@@ -128,6 +140,14 @@ impl RdfError {
             .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
             .unwrap_or("unknown panic");
         Self::Panicked(format!("{what} panicked: {message}"))
+    }
+
+    pub(crate) fn caught<R>(
+        what: &str,
+        f: impl FnOnce() -> Result<R, RdfError>,
+    ) -> Result<R, RdfError> {
+        panic::catch_unwind(AssertUnwindSafe(f))
+            .unwrap_or_else(|panic| Err(Self::panicked(what, panic)))
     }
 }
 

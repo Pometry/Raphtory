@@ -5,6 +5,7 @@ use crate::{
 };
 use oxigraph::sparql::QueryEvaluationError;
 use raphtory::prelude::*;
+use std::time::{Duration, Instant};
 
 fn patterns(query: &str) -> usize {
     count_triple_patterns(&parse(query).unwrap_or_else(|e| panic!("{query}: {e}")))
@@ -153,4 +154,29 @@ fn service_is_refused_by_sparql() {
         ),
         "{error:?}"
     );
+}
+
+#[test]
+fn queries_past_their_timeout_fail_quickly() {
+    let g = Graph::new();
+    for i in 0..20_000 {
+        g.add_edge(i, i.to_string(), (i + 1).to_string(), NO_PROPS, Some("p"))
+            .unwrap();
+    }
+    let g: RdfGraph = g.into();
+    // 20,000^2 rows to count: about 30 s in release without the timeout
+    let query = "SELECT (COUNT(*) AS ?n) { ?a ?p ?b . ?c ?q ?d }";
+    let timeout = Duration::from_millis(50);
+    let start = Instant::now();
+    match g.sparql(query, &SparqlOptions::default().with_timeout(timeout)) {
+        Err(RdfError::Timeout { timeout: t }) => assert_eq!(t, timeout),
+        other => panic!("{other:?}"),
+    }
+    assert!(
+        start.elapsed() < Duration::from_secs(2),
+        "{:?}",
+        start.elapsed()
+    );
+    let generous = SparqlOptions::default().with_timeout(Duration::from_secs(60));
+    assert!(small_graph().sparql(&star(3), &generous).is_ok());
 }

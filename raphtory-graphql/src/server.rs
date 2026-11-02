@@ -17,7 +17,7 @@ use crate::{
 #[cfg(feature = "rdf")]
 use crate::{
     model::graph::rdf_graph::RdfSchema,
-    sparql::{config::sparql_options, endpoint::SparqlEndpoint},
+    sparql::{endpoint::SparqlEndpoint, jobs::RdfJobs},
 };
 use async_graphql::dynamic::Schema;
 use opentelemetry::trace::TracerProvider;
@@ -405,7 +405,13 @@ impl GraphServer {
     async fn generate_endpoint(self, tracer: Option<Tracer>) -> Result<impl Endpoint, ServerError> {
         let config = self.config.clone();
         let key_resolver = self.key_resolver.clone();
-        let schema = self.build_schema(tracer).await?;
+        #[cfg(feature = "rdf")]
+        let jobs = RdfJobs::new(&config.concurrency);
+        #[cfg(feature = "rdf")]
+        let server = self.with_schema_data(jobs.clone());
+        #[cfg(not(feature = "rdf"))]
+        let server = self;
+        let schema = server.build_schema(tracer).await?;
         let graphql = Arc::new(AuthenticatedGraphQL::new(
             schema,
             config.clone(),
@@ -432,7 +438,7 @@ impl GraphServer {
         } else {
             Route::new().at(
                 "/sparql/*path",
-                SparqlEndpoint::new(graphql, sparql_options(&config.concurrency))
+                SparqlEndpoint::new(graphql, &config.concurrency, jobs)
                     .with(Cors::new())
                     .with(SetHeader::new().appending(VARY, "Accept")),
             )

@@ -215,10 +215,10 @@ spargebra = { version = "0.4.8", features = ["sep-0006"] }
 oxiri = "0.2.11"
 percent-encoding = "2.3"
 # rudof: keep its `sparql` features off, or the native engine needs a SPARQL store
-shacl = { version = "0.3.35", default-features = false }
-rudof_rdf = { version = "0.3.35", default-features = false }
-rudof_iri = { version = "0.3.35", default-features = false }
-prefixmap = "0.3.35"
+shacl = { version = "0.3.36", default-features = false }
+rudof_rdf = { version = "0.3.36", default-features = false }
+rudof_iri = { version = "0.3.36", default-features = false }
+prefixmap = "0.3.36"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

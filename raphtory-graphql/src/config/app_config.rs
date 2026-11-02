@@ -167,6 +167,22 @@ impl AppConfigBuilder {
         if let Some(max_sparql_result_bytes) = server_args.max_sparql_result_bytes {
             builder.with_max_sparql_result_bytes(Some(max_sparql_result_bytes));
         }
+        #[cfg(feature = "rdf")]
+        if let Some(max_sparql_query_ms) = server_args.max_sparql_query_ms {
+            builder.with_max_sparql_query_ms(Some(max_sparql_query_ms));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_shacl_shapes_length) = server_args.max_shacl_shapes_length {
+            builder.with_max_shacl_shapes_length(Some(max_shacl_shapes_length));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_shacl_results) = server_args.max_shacl_results {
+            builder.with_max_shacl_results(Some(max_shacl_results));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_shacl_validation_ms) = server_args.max_shacl_validation_ms {
+            builder.with_max_shacl_validation_ms(Some(max_shacl_validation_ms));
+        }
         if let Some(max_query_depth) = server_args.max_query_depth {
             builder.with_max_query_depth(Some(max_query_depth));
         }
@@ -427,6 +443,34 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxSparqlQueryMs => {
+                                self.with_max_sparql_query_ms(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxShaclShapesLength => {
+                                self.with_max_shacl_shapes_length(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxShaclResults => {
+                                self.with_max_shacl_results(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxShaclValidationMs => {
+                                self.with_max_shacl_validation_ms(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -682,6 +726,36 @@ impl AppConfigBuilder {
         max_sparql_result_bytes: Option<usize>,
     ) -> &mut Self {
         self.config.concurrency.max_sparql_result_bytes = max_sparql_result_bytes;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_sparql_query_ms(&mut self, max_sparql_query_ms: Option<u64>) -> &mut Self {
+        self.config.concurrency.max_sparql_query_ms = max_sparql_query_ms;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_shacl_shapes_length(
+        &mut self,
+        max_shacl_shapes_length: Option<usize>,
+    ) -> &mut Self {
+        self.config.concurrency.max_shacl_shapes_length = max_shacl_shapes_length;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_shacl_results(&mut self, max_shacl_results: Option<usize>) -> &mut Self {
+        self.config.concurrency.max_shacl_results = max_shacl_results;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_shacl_validation_ms(
+        &mut self,
+        max_shacl_validation_ms: Option<u64>,
+    ) -> &mut Self {
+        self.config.concurrency.max_shacl_validation_ms = max_shacl_validation_ms;
         self
     }
 

@@ -1,5 +1,6 @@
 """The SPARQL 1.1 Protocol endpoint `/sparql/<graph path>` of the GraphQL server."""
 
+import gzip
 import json
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -8,7 +9,7 @@ from urllib.request import Request, urlopen
 import pytest
 import rdflib
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
-from raphtory import RdfGraph
+from raphtory import Graph, RdfGraph
 from SPARQLWrapper import (
     CSV,
     GET,
@@ -73,8 +74,8 @@ def results(endpoint, query, return_format=JSON, asof=None):
     return sparql.query().convert()
 
 
-def fetch(url, method="GET", headers={}):
-    with urlopen(Request(url, method=method, headers=headers)) as response:
+def fetch(url, method="GET", headers={}, data=None):
+    with urlopen(Request(url, data, headers, method=method)) as response:
         return response.status, response.headers, response.read()
 
 
@@ -175,3 +176,34 @@ def test_results_over_the_size_cap_are_too_large():
             fetch(url)
         assert error.value.code == 413
         assert "max_sparql_result_bytes" in error.value.read().decode()
+
+
+def test_queries_over_the_time_limit_are_unavailable():
+    g = Graph()
+    for i in range(400):
+        g.add_edge(i, str(i), str(i + 1), layer="p")
+    query = "SELECT (COUNT(*) AS ?n) { ?a ?p ?b . ?c ?q ?d . ?e ?r ?f }"
+    with graphql_server({"concurrency": {"max_sparql_query_ms": 50}}) as server:
+        server.get_client().send_graph(path="g", graph=g)
+        url = f"http://localhost:{server.port()}/sparql/g?{urlencode({'query': query})}"
+        with pytest.raises(HTTPError) as error:
+            fetch(url)
+        assert error.value.code == 503
+        assert "max_sparql_query_ms" in error.value.read().decode()
+
+
+def test_a_body_over_the_cap_once_decompressed_is_too_large(endpoint):
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Encoding": "gzip",
+    }
+    form = urlencode({"query": KNOWS}).encode()
+    assert fetch(endpoint, "POST", headers, gzip.compress(form))[0] == 200
+    # 1 KiB gzipped, 1 MiB decompressed: over 4 times `max_sparql_query_length`
+    with pytest.raises(HTTPError) as error:
+        fetch(endpoint, "POST", headers, gzip.compress(b"query=" + b" " * (1 << 20)))
+    assert error.value.code == 413
+    headers["Content-Type"] = "application/sparql-query"
+    with pytest.raises(HTTPError) as error:
+        fetch(endpoint, "POST", headers, gzip.compress(b" " * (1 << 20)))
+    assert error.value.code == 413

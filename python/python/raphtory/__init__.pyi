@@ -8096,7 +8096,7 @@ class RdfView(object):
         """
         Validates the triples of this view (those to_rdf() writes) against a SHACL shapes graph.
 
-        Recursive shapes are validated by recursing once per node they reach, so over a long chain of data they abort the process.
+        Recursive shapes are followed through the data, so validation memory grows with the longest chain they reach.
 
         Arguments:
             shapes (bytes | str | PathLike): The shapes graph: the document as bytes, or the path of a file to read.

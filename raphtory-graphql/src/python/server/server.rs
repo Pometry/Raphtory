@@ -44,7 +44,8 @@ use {
 ///                                `audience` (str), `issuer` (str), `role_claim` (str)
 ///                              * `concurrency`: `heavy_query_limit` (int, maximum number of
 ///                                expensive traversal queries allowed to run simultaneously;
-///                                extra queries are parked on a semaphore),
+///                                extra queries are parked on a semaphore; also bounds SPARQL
+///                                queries and SHACL validations),
 ///                                `exclusive_writes` (bool, run write operations one at a time
 ///                                and block reads until complete), `disable_batching` (bool,
 ///                                reject batched GraphQL requests), `max_batch_size` (int, cap
@@ -57,7 +58,16 @@ use {
 ///                                patterns of a SPARQL query; default 100, null for unlimited),
 ///                                `max_sparql_result_bytes` (int, maximum size in bytes of the
 ///                                results of a SPARQL query; default 268435456, null for
-///                                unlimited)
+///                                unlimited), `max_sparql_query_ms` (int, maximum time in
+///                                milliseconds a SPARQL query may run, interrupted only between
+///                                reads of the graph on oxigraph 0.5; default 30000, null for
+///                                unlimited), `max_shacl_shapes_length` (int, maximum length in
+///                                bytes of the shapes of `validateShacl`; default 102400, null
+///                                for unlimited), `max_shacl_results` (int, maximum number of
+///                                results of a SHACL validation, split evenly across the shapes
+///                                with targets; default 10000, null for unlimited),
+///                                `max_shacl_validation_ms` (int, maximum time in milliseconds a
+///                                SHACL validation may run; default 30000, null for unlimited)
 ///                              * `schema`: `max_query_depth` (int), `max_query_complexity`
 ///                                (int, based on the number of fields selected),
 ///                                `max_recursive_depth` (int, safety limit against stack

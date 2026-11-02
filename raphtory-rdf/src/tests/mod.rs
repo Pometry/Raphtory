@@ -15,6 +15,7 @@ use crate::{RdfFormat, RdfView, SparqlOptions, SparqlResults, Term, Triple};
 
 use oxigraph::{io::RdfParser, model::Graph};
 use raphtory::db::api::view::{IntoDynamic, StaticGraphViewOps};
+use std::thread;
 
 const FOAF: &str = include_str!("fixtures/foaf.ttl");
 const DATATYPES: &str = include_str!("fixtures/datatypes.nt");
@@ -75,4 +76,13 @@ fn parse_graph(doc: &str, format: RdfFormat) -> Graph {
         .for_reader(doc.as_bytes())
         .map(|quad| Triple::from(quad.unwrap_or_else(|e| panic!("{e}: {doc}"))))
         .collect()
+}
+
+pub(crate) fn on_small_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+    thread::Builder::new()
+        .stack_size(256 << 10)
+        .spawn(f)
+        .unwrap()
+        .join()
+        .unwrap()
 }

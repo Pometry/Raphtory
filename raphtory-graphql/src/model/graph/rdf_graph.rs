@@ -12,18 +12,20 @@ use crate::{
         QueryRoot,
     },
     plugin::schema::RegisterPlugin,
-    sparql::{format::GqlSparqlFormat, run_limited},
+    sparql::{
+        config::{shacl_options, sparql_options},
+        format::GqlSparqlFormat,
+        jobs::RdfJobs,
+        run_limited,
+    },
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    internal::Registry, ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields,
-    Result,
+    internal::Registry, Error, ExpandObject, ExpandObjectFields, ResolvedObject,
+    ResolvedObjectFields, Result,
 };
 use raphtory::errors::GraphError;
-use raphtory_rdf::{
-    shacl::{ShaclOptions, ShaclShapes},
-    RdfError, RdfFormat, RdfView, SparqlFormat,
-};
+use raphtory_rdf::{shacl::ShaclShapes, RdfError, RdfFormat, RdfView, SparqlFormat};
 
 /// Adds `rdfGraph` to the query root and, when `shacl`, `validateShacl` to `RdfGraph`.
 #[derive(Clone, Copy)]
@@ -260,9 +262,11 @@ impl GqlRdfGraph {
     ) -> Result<Option<String>> {
         let view = self.view()?;
         let format = format.map_or(Ok(SparqlFormat::default()), GqlSparqlFormat::sparql_format)?;
-        run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |options| {
-            view.sparql_to_string(&query, format, options)
-        })
+        run_limited(
+            ctx.data_opt::<ConcurrencyConfig>(),
+            ctx.data_opt::<RdfJobs>(),
+            move |config| view.sparql_to_string(&query, format, &sparql_options(config)),
+        )
         .await
     }
 }
@@ -274,13 +278,14 @@ pub struct ShaclQuery<'a>(&'a GqlRdfGraph);
 #[ExpandObjectFields]
 impl<'a> ShaclQuery<'a> {
     /// Validates the triples of this view against SHACL shapes and returns the report.
-    /// Recursive shapes are rejected; null if the validation fails unexpectedly.
+    /// The server's `max_shacl_*` settings bound it and recursive shapes are rejected; null if
+    /// the validation fails unexpectedly.
     async fn validate_shacl(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "The shapes graph, as an RDF document.")] shapes: String,
         #[graphql(
-            desc = "The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors."
+            desc = "The RDF format of the shapes: TURTLE (the default) or N_TRIPLES; other formats are errors."
         )]
         format: Option<GqlSparqlFormat>,
         #[graphql(
@@ -289,15 +294,28 @@ impl<'a> ShaclQuery<'a> {
         report_format: Option<GqlSparqlFormat>,
     ) -> Result<Option<String>> {
         let view = self.0.view()?;
-        let format = format.map(GqlSparqlFormat::rdf_format).transpose()?;
+        let format = match format {
+            None | Some(GqlSparqlFormat::Turtle) => RdfFormat::Turtle,
+            Some(GqlSparqlFormat::NTriples) => RdfFormat::NTriples,
+            // oxigraph 0.5 expands RDF/XML DOCTYPE entities and aborts on deeply nested JSON-LD
+            Some(_) => {
+                return Err(Error::new(
+                    "validateShacl reads shapes in TURTLE or N_TRIPLES only",
+                ))
+            }
+        };
         let report_format =
             report_format.map_or(Ok(RdfFormat::Turtle), GqlSparqlFormat::rdf_format)?;
-        run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |_| {
-            let shapes = ShaclShapes::parse(shapes.as_bytes(), format, None)?;
-            let options = ShaclOptions::default().with_reject_recursive_shapes(true);
-            view.validate_shacl(&shapes, &options)?
-                .to_rdf_string(report_format)
-        })
+        run_limited(
+            ctx.data_opt::<ConcurrencyConfig>(),
+            ctx.data_opt::<RdfJobs>(),
+            move |config| {
+                let options = shacl_options(config);
+                let shapes = ShaclShapes::parse(shapes.as_bytes(), format, None, &options)?;
+                view.validate_shacl(&shapes, &options)?
+                    .to_rdf_string(report_format)
+            },
+        )
         .await
     }
 }
@@ -342,23 +360,30 @@ impl GqlRdfGraphWindowSet {
 #[cfg(test)]
 mod tests {
     use crate::{
-        config::concurrency_config::ConcurrencyConfig,
+        auth::AuthenticatedGraphQL,
+        config::{
+            app_config::AppConfig,
+            concurrency_config::{ConcurrencyConfig, DEFAULT_MAX_SHACL_SHAPES_LENGTH},
+        },
         model::{graph::rdf_graph::RdfSchema, App},
         plugin::schema::RegisterPlugin,
-        sparql::SparqlError,
+        sparql::{config::CODE_TIMEOUT, jobs::RdfJobs, SparqlError},
         test_support::setup_with_graphs,
     };
-    use async_graphql::{dynamic::Schema, ServerError};
+    use async_graphql::{dynamic::Schema, ServerError, Value};
     use dynamic_graphql::{Request, Variables};
     use oxigraph::{
         io::{RdfFormat as OxRdfFormat, RdfParser},
         model::{Graph, Literal, NamedNodeRef},
         sparql::results::{QueryResultsFormat, QueryResultsParser, SliceQueryResultsParserOutput},
     };
+    use poem::{http::Method, Endpoint, Request as HttpRequest};
     use raphtory::{db::api::view::MaterializedGraph, prelude::PersistentGraph};
     use raphtory_rdf::{shacl::ShaclLimit, NamedNode, RdfError, RdfFormat, RdfGraph, Term, Triple};
     use serde_json::{json, Value as Json};
+    use std::time::Duration;
     use tempfile::TempDir;
+    use tokio::time::timeout;
 
     const PEOPLE: &str = r#"
         @prefix ex: <http://ex/> .
@@ -370,6 +395,10 @@ mod tests {
     const COUNT: &str = "SELECT (COUNT(*) AS ?n) { ?s ?p ?o }";
     const KNOWN_BY: &str =
         "PREFIX ex: <http://ex/> CONSTRUCT { ?o ex:knownBy ?s } WHERE { ?s ex:knows ?o }";
+    /// Every subject of `knows` has an age: as of 3 bob fails it, now bob and dave do.
+    const NEEDS_AGE: &str = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
+        ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:knows ;
+            sh:property [ sh:path ex:age ; sh:minCount 1 ] .";
     /// The triples of `KNOWN_BY` on the current state of [`people`], in N-Triples.
     const KNOWN_BY_NOW: &str = "\
         <http://ex/alice> <http://ex/knownBy> <http://ex/dave> .
@@ -441,6 +470,7 @@ mod tests {
         let plugins: [Box<dyn RegisterPlugin>; 1] = [Box::new(RdfSchema { shacl: true })];
         App::create_schema_with_plugins(plugins)
             .data(data)
+            .data(RdfJobs::new(&config))
             .data(config)
             .finish()
             .unwrap()
@@ -467,6 +497,22 @@ mod tests {
             .as_str()
             .unwrap()
             .to_owned())
+    }
+
+    async fn validate_shacl(
+        schema: &Schema,
+        shapes: &str,
+        format: &str,
+    ) -> Result<Json, ServerError> {
+        let document = r#"query Q($shapes: String!, $format: SparqlFormat!) {
+            rdfGraph(path: "pg") { valid { validateShacl(shapes: $shapes, format: $format) } }
+        }"#;
+        execute(
+            schema,
+            document,
+            json!({ "shapes": shapes, "format": format }),
+        )
+        .await
     }
 
     fn rdf_error(error: &ServerError) -> Option<&RdfError> {
@@ -524,13 +570,10 @@ mod tests {
     async fn views_validate_against_shacl_shapes() {
         let work_dir = TempDir::new().unwrap();
         let schema = setup(&work_dir).await;
-        let shapes = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
-            ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:knows ;
-                sh:property [ sh:path ex:age ; sh:minCount 1 ] .";
         let document = r#"query Q($shapes: String!) {
             rdfGraph(path: "pg") { at(time: 3) { validateShacl(shapes: $shapes, reportFormat: N_TRIPLES) } }
         }"#;
-        let data = execute(&schema, document, json!({ "shapes": shapes }))
+        let data = execute(&schema, document, json!({ "shapes": NEEDS_AGE }))
             .await
             .unwrap();
         let report = graph(
@@ -563,10 +606,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn shapes_must_be_short_turtle_or_n_triples() {
+        let work_dir = TempDir::new().unwrap();
+        let schema = setup(&work_dir).await;
+        let shapes = "<http://ex/S> <http://www.w3.org/ns/shacl#targetNode> <http://ex/alice> .";
+        for (format, accepted) in [
+            ("TURTLE", true),
+            ("N_TRIPLES", true),
+            ("RDF_XML", false),
+            ("JSON_LD", false),
+            ("JSON", false),
+        ] {
+            let result = validate_shacl(&schema, shapes, format).await;
+            assert_eq!(result.is_ok(), accepted, "{format}: {result:?}");
+            if let Err(error) = result {
+                assert!(
+                    error.message.contains("TURTLE or N_TRIPLES"),
+                    "{format}: {error:?}"
+                );
+            }
+        }
+        let long = format!("{shapes} #{}", " ".repeat(DEFAULT_MAX_SHACL_SHAPES_LENGTH));
+        let error = validate_shacl(&schema, &long, "TURTLE").await.unwrap_err();
+        assert!(matches!(
+            rdf_error(&error),
+            Some(RdfError::ShaclLimit(ShaclLimit::ShapesTooLong {
+                max: DEFAULT_MAX_SHACL_SHAPES_LENGTH
+            }))
+        ));
+    }
+
+    #[tokio::test]
     async fn the_limits_of_the_server_apply() {
         let work_dir = TempDir::new().unwrap();
         let config = ConcurrencyConfig {
             max_sparql_query_length: Some(COUNT.len()),
+            max_shacl_shapes_length: Some(NEEDS_AGE.len()),
+            max_shacl_results: Some(1),
             ..Default::default()
         };
         let schema = setup_with_config(&work_dir, config).await;
@@ -579,5 +655,74 @@ mod tests {
             rdf_error(&error),
             Some(RdfError::QueryTooLong { .. })
         ));
+        let error = validate_shacl(&schema, &format!("{NEEDS_AGE} "), "TURTLE")
+            .await
+            .unwrap_err();
+        assert!(
+            error.message.ends_with("(`max_shacl_shapes_length`)"),
+            "{error:?}"
+        );
+        let error = validate_shacl(&schema, NEEDS_AGE, "TURTLE")
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            rdf_error(&error),
+            Some(RdfError::ShaclLimit(ShaclLimit::TooManyResults { max: 1 }))
+        ));
+        assert!(
+            error.message.ends_with("(`max_shacl_results`)"),
+            "{error:?}"
+        );
+
+        let work_dir = TempDir::new().unwrap();
+        let config = ConcurrencyConfig {
+            max_shacl_validation_ms: Some(0),
+            ..Default::default()
+        };
+        let schema = setup_with_config(&work_dir, config).await;
+        let error = validate_shacl(&schema, NEEDS_AGE, "TURTLE")
+            .await
+            .unwrap_err();
+        assert!(
+            error.message.ends_with("(`max_shacl_validation_ms`)"),
+            "{error:?}"
+        );
+        let code = error.extensions.as_ref().and_then(|e| e.get("code"));
+        assert_eq!(code, Some(&Value::from(CODE_TIMEOUT)));
+    }
+
+    #[tokio::test]
+    async fn rdf_fields_of_a_request_share_the_job_slots_without_deadlock() {
+        let work_dir = TempDir::new().unwrap();
+        let concurrency = ConcurrencyConfig {
+            heavy_query_limit: Some(1),
+            ..Default::default()
+        };
+        let schema = setup_with_config(&work_dir, concurrency.clone()).await;
+        let config = AppConfig {
+            concurrency,
+            ..Default::default()
+        };
+        // through the heavy query gate of `call`, the two fields take the one job slot in turn
+        let graphql = AuthenticatedGraphQL::new(schema, config, None);
+        let document = r#"query Q($q: String!) {
+            rdfGraph(path: "pg") { valid { a: sparql(query: $q) b: sparql(query: $q) } }
+        }"#;
+        let body = json!({ "query": document, "variables": { "q": COUNT } });
+        let request = HttpRequest::builder()
+            .method(Method::POST)
+            .content_type("application/json")
+            .body(body.to_string());
+        let response = timeout(Duration::from_secs(60), graphql.call(request))
+            .await
+            .expect("deadlocked")
+            .unwrap();
+        let response: Json = response.into_body().into_json().await.unwrap();
+        for alias in ["a", "b"] {
+            let results = response["data"]["rdfGraph"]["valid"][alias]
+                .as_str()
+                .unwrap();
+            assert_eq!(rows(results), [[Some(Literal::from(4).into())]]);
+        }
     }
 }

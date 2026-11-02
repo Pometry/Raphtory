@@ -248,6 +248,15 @@ def test_sparql_endpoint_forwards_authorization():
         params = {"query": "SELECT * { ?s ?p ?o }"}
 
         assert requests.get(url, params=params).status_code == 401
+        # refused before anything is parsed: not 400 for a bad or too long query, nor 415
+        for response in [
+            requests.get(url, params={"query": "SELECT"}),
+            requests.get(url, params={"query": "x" * 20_000}),
+            requests.post(url, data="SELECT", headers={"Content-Type": "text/plain"}),
+        ]:
+            assert response.status_code == 401
+        response = requests.get(url, params={"query": "SELECT"}, headers=READ_HEADERS)
+        assert response.status_code == 400
         response = requests.get(url, params=params, headers=READ_HEADERS)
         assert response.status_code == 200
 

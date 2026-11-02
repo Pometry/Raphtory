@@ -19,6 +19,20 @@ pub const DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS: usize = 100;
 /// Default cap on the size of SPARQL results, in bytes (see `max_sparql_result_bytes`).
 #[cfg(feature = "rdf")]
 pub const DEFAULT_MAX_SPARQL_RESULT_BYTES: usize = 256 << 20;
+/// Default cap on the time a SPARQL query may run, in milliseconds (see `max_sparql_query_ms`).
+#[cfg(feature = "rdf")]
+pub const DEFAULT_MAX_SPARQL_QUERY_MS: u64 = 30_000;
+/// Default cap on the length of the shapes of `validateShacl`, in bytes (see
+/// `max_shacl_shapes_length`).
+#[cfg(feature = "rdf")]
+pub const DEFAULT_MAX_SHACL_SHAPES_LENGTH: usize = 100 << 10;
+/// Default cap on the results of a SHACL validation (see `max_shacl_results`).
+#[cfg(feature = "rdf")]
+pub const DEFAULT_MAX_SHACL_RESULTS: usize = 10_000;
+/// Default cap on the time a SHACL validation may run, in milliseconds (see
+/// `max_shacl_validation_ms`).
+#[cfg(feature = "rdf")]
+pub const DEFAULT_MAX_SHACL_VALIDATION_MS: u64 = 30_000;
 
 /// Controls how Raphtory schedules concurrent GraphQL work.
 #[derive(Debug, Deserialize, PartialEq, Clone, Serialize, FieldName)]
@@ -28,6 +42,8 @@ pub struct ConcurrencyConfig {
     /// (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours,
     /// inNeighbours). Once the limit is exceeded, queries are parked on a semaphore and
     /// wait until a slot becomes available before executing. `None` means unlimited.
+    /// At most this many SPARQL queries and SHACL validations run at once too, however many
+    /// fields or requests ask for them.
     pub heavy_query_limit: Option<usize>,
 
     /// Ensures only one ingestion/write operation runs at a time and blocks reads until
@@ -73,6 +89,29 @@ pub struct ConcurrencyConfig {
     #[cfg(feature = "rdf")]
     pub max_sparql_result_bytes: Option<usize>,
 
+    /// Maximum time in milliseconds a SPARQL query, of the `sparql` field of `RdfGraph` or the
+    /// SPARQL endpoint, may run; a longer one fails, and the endpoint answers 503. On oxigraph
+    /// 0.5 the timeout interrupts a query only between reads of the graph. Defaults to
+    /// `DEFAULT_MAX_SPARQL_QUERY_MS`; `None` means unlimited.
+    #[cfg(feature = "rdf")]
+    pub max_sparql_query_ms: Option<u64>,
+
+    /// Maximum length in bytes of the shapes of `validateShacl`. Longer shapes are rejected
+    /// before they are parsed. Defaults to `DEFAULT_MAX_SHACL_SHAPES_LENGTH`; `None` means
+    /// unlimited.
+    #[cfg(feature = "rdf")]
+    pub max_shacl_shapes_length: Option<usize>,
+
+    /// Maximum number of results of a `validateShacl` report, split evenly across the shapes
+    /// with targets; more fail. Defaults to `DEFAULT_MAX_SHACL_RESULTS`; `None` means unlimited.
+    #[cfg(feature = "rdf")]
+    pub max_shacl_results: Option<usize>,
+
+    /// Maximum time in milliseconds a `validateShacl` validation may run; a longer one fails.
+    /// Defaults to `DEFAULT_MAX_SHACL_VALIDATION_MS`; `None` means unlimited.
+    #[cfg(feature = "rdf")]
+    pub max_shacl_validation_ms: Option<u64>,
+
     /// Maximum graph loads decoding at once. Each in-flight load holds a whole graph in memory,
     /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
     /// at least 2.
@@ -94,6 +133,14 @@ impl Default for ConcurrencyConfig {
             max_sparql_triple_patterns: Some(DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS),
             #[cfg(feature = "rdf")]
             max_sparql_result_bytes: Some(DEFAULT_MAX_SPARQL_RESULT_BYTES),
+            #[cfg(feature = "rdf")]
+            max_sparql_query_ms: Some(DEFAULT_MAX_SPARQL_QUERY_MS),
+            #[cfg(feature = "rdf")]
+            max_shacl_shapes_length: Some(DEFAULT_MAX_SHACL_SHAPES_LENGTH),
+            #[cfg(feature = "rdf")]
+            max_shacl_results: Some(DEFAULT_MAX_SHACL_RESULTS),
+            #[cfg(feature = "rdf")]
+            max_shacl_validation_ms: Some(DEFAULT_MAX_SHACL_VALIDATION_MS),
             max_concurrent_loads: None,
         }
     }

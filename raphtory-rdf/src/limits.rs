@@ -3,11 +3,17 @@ use crate::{
     algebra::{walk, Node},
     RdfError,
 };
+use oxigraph::sparql::CancellationToken;
 use spargebra::{
     algebra::{GraphPattern, PropertyPathExpression},
     Query,
 };
-use std::io::{self, Write};
+use std::{
+    io::{self, Write},
+    sync::mpsc::{self, RecvTimeoutError, Sender},
+    thread,
+    time::Duration,
+};
 
 pub(crate) fn check_query_length(query: &str, max: Option<usize>) -> Result<(), RdfError> {
     match max.filter(|&max| query.len() > max) {
@@ -54,6 +60,20 @@ pub(crate) fn check_triple_patterns(query: &Query, max: Option<usize>) -> Result
     } else {
         Ok(())
     }
+}
+
+// the thread ends at `timeout`, or as soon as the returned sender drops
+pub(crate) fn cancel_after(
+    timeout: Duration,
+    token: CancellationToken,
+) -> Result<Sender<()>, RdfError> {
+    let (done, wait) = mpsc::channel();
+    thread::Builder::new().spawn(move || {
+        if wait.recv_timeout(timeout) == Err(RecvTimeoutError::Timeout) {
+            token.cancel();
+        }
+    })?;
+    Ok(done)
 }
 
 pub(crate) struct Capped<W> {

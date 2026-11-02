@@ -2,9 +2,15 @@
 //! field of `rdfGraph(path:)` on the GraphQL endpoint, with the same permission checks and limits.
 use crate::{
     auth::AuthenticatedGraphQL,
+    config::concurrency_config::ConcurrencyConfig,
     paths::PathValidationError,
     rayon::blocking_compute,
-    sparql::{config::CODE_RESULTS_TOO_LARGE, format::GqlSparqlFormat, SparqlError},
+    sparql::{
+        config::{sparql_options, CODE_RESULTS_TOO_LARGE, CODE_TIMEOUT},
+        format::GqlSparqlFormat,
+        jobs::RdfJobs,
+        SparqlError,
+    },
 };
 use async_graphql::{value, BatchResponse, Executor, Request as GqlRequest, Value, Variables};
 use itertools::Itertools;
@@ -130,11 +136,26 @@ impl Params {
 pub(crate) struct SparqlEndpoint<E> {
     graphql: Arc<AuthenticatedGraphQL<E>>,
     options: SparqlOptions,
+    max_body: usize,
+    jobs: RdfJobs,
 }
 
 impl<E> SparqlEndpoint<E> {
-    pub(crate) fn new(graphql: Arc<AuthenticatedGraphQL<E>>, options: SparqlOptions) -> Self {
-        Self { graphql, options }
+    pub(crate) fn new(
+        graphql: Arc<AuthenticatedGraphQL<E>>,
+        config: &ConcurrencyConfig,
+        jobs: RdfJobs,
+    ) -> Self {
+        // percent-encoding can triple a query, and the other parameters need some room
+        let max_body = config
+            .max_sparql_query_length
+            .map_or(usize::MAX, |max| max.saturating_mul(4));
+        Self {
+            graphql,
+            options: sparql_options(config),
+            max_body,
+            jobs,
+        }
     }
 }
 
@@ -165,6 +186,7 @@ impl<E: Executor> Endpoint for SparqlEndpoint<E> {
 
 impl<E: Executor> SparqlEndpoint<E> {
     async fn respond(&self, mut req: Request) -> Result<Response> {
+        let caller = self.graphql.authenticate(&req).await?;
         let path = req.raw_path_param("path").unwrap_or_default().to_owned();
         let mut params = Params::default();
         if let Some(query) = req.uri().query() {
@@ -176,11 +198,12 @@ impl<E: Executor> SparqlEndpoint<E> {
                 .and_then(|value| value.parse::<Mime>().ok());
             match content_type.as_ref().map(Mime::essence_str) {
                 Some("application/x-www-form-urlencoded") => {
-                    params.add_form(&req.take_body().into_vec().await?)?
+                    params.add_form(&req.take_body().into_bytes_limit(self.max_body).await?)?
                 }
                 Some("application/sparql-query") => {
-                    let query = String::from_utf8(req.take_body().into_vec().await?)
-                        .map_err(|_| EndpointError::QueryNotUtf8)?;
+                    let body = req.take_body().into_bytes_limit(self.max_body).await?;
+                    let query =
+                        String::from_utf8(body.into()).map_err(|_| EndpointError::QueryNotUtf8)?;
                     params.add("query", query)?;
                 }
                 _ => return Err(EndpointError::UnsupportedMediaType.into()),
@@ -193,11 +216,14 @@ impl<E: Executor> SparqlEndpoint<E> {
             .map(TimeGraph::parse_time)
             .transpose()
             .map_err(EndpointError::InvalidAsof)?;
-        // runs before authentication, safe given the length cap and `on_stack`
         let (parsed, options) = (query.clone(), self.options.clone());
-        let outline = blocking_compute(move || QueryOutline::parse(&parsed, &options))
-            .await
-            .map_err(|error| EndpointError::Query(error.into()))?;
+        let permit = RdfJobs::permit(Some(&self.jobs)).await;
+        let outline = blocking_compute(move || {
+            let _permit = permit;
+            QueryOutline::parse(&parsed, &options)
+        })
+        .await
+        .map_err(|error| EndpointError::Query(error.into()))?;
         let Accept(accept) = Accept::from_request_without_body(&req).await?;
         let (format, media_type) =
             SparqlFormat::from_media_types(outline.form, media_ranges(&accept))
@@ -222,22 +248,23 @@ impl<E: Executor> SparqlEndpoint<E> {
         });
         let request = GqlRequest::new(QUERY).variables(Variables::from_value(variables));
         let BatchResponse::Single(response) =
-            self.graphql.execute_read_as(&req, request.into()).await?
+            self.graphql.execute_read_as(caller, request.into()).await?
         else {
             unreachable!("a single request has a single response")
         };
 
         if !response.errors.is_empty() {
+            let code = response.errors[0]
+                .extensions
+                .as_ref()
+                .and_then(|extensions| extensions.get("code"));
             // `rdfGraph` is the only root field, so null data means the graph did not load
             let status = if response.data == Value::Null {
                 StatusCode::NOT_FOUND
-            } else if response.errors[0]
-                .extensions
-                .as_ref()
-                .and_then(|extensions| extensions.get("code"))
-                == Some(&Value::from(CODE_RESULTS_TOO_LARGE))
-            {
+            } else if code == Some(&Value::from(CODE_RESULTS_TOO_LARGE)) {
                 StatusCode::PAYLOAD_TOO_LARGE
+            } else if code == Some(&Value::from(CODE_TIMEOUT)) {
+                StatusCode::SERVICE_UNAVAILABLE
             } else {
                 StatusCode::BAD_REQUEST
             };

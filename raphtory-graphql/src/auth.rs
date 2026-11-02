@@ -208,14 +208,13 @@ where
         }
     }
 
-    /// Runs a read query as the caller `req` authenticates, as `call` does.
+    /// Runs a read query as the caller [`authenticate`](Self::authenticate) let in, as `call` does.
     #[cfg(feature = "rdf")]
     pub(crate) async fn execute_read_as(
         &self,
-        req: &Request,
+        (access, roles, claim_values): (Access, Roles, TokenClaimValues),
         query: BatchRequest,
     ) -> Result<BatchResponse> {
-        let (access, roles, claim_values) = self.authenticate(req).await?;
         let query = query.data(access).data(roles).data(claim_values);
         let _guard = match &self.lock {
             Some(lock) => Some(lock.read().await),
@@ -252,7 +251,10 @@ impl<E> AuthenticatedGraphQL<E>
 where
     E: Executor,
 {
-    async fn authenticate(&self, req: &Request) -> Result<(Access, Roles, TokenClaimValues)> {
+    pub(crate) async fn authenticate(
+        &self,
+        req: &Request,
+    ) -> Result<(Access, Roles, TokenClaimValues)> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
         let auth = &self.config.auth;
         Ok(match &self.key_resolver {
@@ -380,8 +382,6 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("outNeighbours")
         || query.contains("inNeighbours")
         || query.contains("algorithm")
-        || query.contains("sparql")
-        || query.contains("validateShacl")
 }
 
 /// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),

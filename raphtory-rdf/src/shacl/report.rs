@@ -1,4 +1,4 @@
-use crate::{mapping::term_name, query::on_stack, RdfError, RdfFormat};
+use crate::{mapping::term_name, RdfError, RdfFormat};
 use oxigraph::{
     io::RdfSerializer,
     model::{BlankNode, NamedNode, NamedOrBlankNode, Term, TripleRef},
@@ -10,7 +10,7 @@ use rudof_rdf::{
 };
 use rustc_hash::FxHashMap;
 use shacl::validator::report::{ValidationReport, ValidationResult};
-use std::{io::Write, mem};
+use std::io::Write;
 
 /// One `sh:ValidationResult`, with its terms as Raphtory names ([`term_name`]).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -28,19 +28,8 @@ pub struct ShaclResult {
 }
 
 /// The `sh:ValidationReport` of [`RdfView::validate_shacl`](crate::RdfView::validate_shacl).
-/// Its paths nest as deep as the shapes, so it is read and dropped on a stack sized like theirs.
 #[derive(Debug)]
-pub struct ShaclReport(pub(crate) ValidationReport, pub(super) usize);
-
-impl Drop for ShaclReport {
-    fn drop(&mut self) {
-        let report = mem::take(&mut self.0);
-        let _ = on_stack("dropping a SHACL report", self.1, || {
-            drop(report);
-            Ok(())
-        });
-    }
-}
+pub struct ShaclReport(pub(crate) ValidationReport);
 
 impl ShaclReport {
     /// `sh:conforms`: whether there are no results, of any severity.
@@ -50,39 +39,36 @@ impl ShaclReport {
 
     /// The results (`sh:result`), sorted.
     pub fn results(&self) -> Vec<ShaclResult> {
-        on_stack("the SHACL report", self.1, || {
-            let name = |object: &Object| term_name(Term::from(object.clone()).as_ref());
-            let mut results: Vec<_> = self
-                .0
-                .results()
-                .iter()
-                .map(|result| {
-                    let mut messages: Vec<String> = result
-                        .message()
-                        .iter()
-                        .map(|(_, message)| message.clone())
-                        .collect();
-                    messages.sort();
-                    ShaclResult {
-                        focus_node: name(result.focus_node()),
-                        constraint_component: name(result.constraint_component()),
-                        path: result.path().map(|path| match path {
-                            SHACLPath::Predicate { pred } => {
-                                term_name(NamedNode::from(pred.clone()).as_ref().into())
-                            }
-                            path => path.to_string(),
-                        }),
-                        value: result.value().map(name),
-                        source_shape: result.source().map(name),
-                        severity: IriS::from(result.severity()).to_string(),
-                        messages,
-                    }
-                })
-                .collect();
-            results.sort();
-            Ok(results)
-        })
-        .unwrap_or_else(|error| panic!("{error}"))
+        let name = |object: &Object| term_name(Term::from(object.clone()).as_ref());
+        let mut results: Vec<_> = self
+            .0
+            .results()
+            .iter()
+            .map(|result| {
+                let mut messages: Vec<String> = result
+                    .message()
+                    .iter()
+                    .map(|(_, message)| message.clone())
+                    .collect();
+                messages.sort();
+                ShaclResult {
+                    focus_node: name(result.focus_node()),
+                    constraint_component: name(result.constraint_component()),
+                    path: result.path().map(|path| match path {
+                        SHACLPath::Predicate { pred } => {
+                            term_name(NamedNode::from(pred.clone()).as_ref().into())
+                        }
+                        path => path.to_string(),
+                    }),
+                    value: result.value().map(name),
+                    source_shape: result.source().map(name),
+                    severity: IriS::from(result.severity()).to_string(),
+                    messages,
+                }
+            })
+            .collect();
+        results.sort();
+        results
     }
 
     /// Writes the report as an `sh:ValidationReport` graph and returns the number of triples.
@@ -92,26 +78,23 @@ impl ShaclReport {
             Object::BlankNode(id) => Object::BlankNode(format!("r{id}")),
             object => object.clone(),
         };
-        let graph = on_stack("the SHACL report", self.1, || {
-            let results = self.0.results().iter().map(|result| {
-                ValidationResult::new(
-                    mark(result.focus_node()),
-                    mark(result.constraint_component()),
-                    result.severity().clone(),
-                )
-                .with_path(result.path().cloned())
-                .with_value(result.value().map(mark))
-                .with_source(result.source().map(mark))
-                .with_message(result.message().clone())
-            });
-            let mut graph = OxigraphInMemory::new();
-            ValidationReport::new()
-                .with_conforms(self.conforms())
-                .with_results(results.collect())
-                .to_rdf(&mut graph)
-                .map_err(RdfError::shacl)?;
-            Ok(graph)
-        })?;
+        let results = self.0.results().iter().map(|result| {
+            ValidationResult::new(
+                mark(result.focus_node()),
+                mark(result.constraint_component()),
+                result.severity().clone(),
+            )
+            .with_path(result.path().cloned())
+            .with_value(result.value().map(mark))
+            .with_source(result.source().map(mark))
+            .with_message(result.message().clone())
+        });
+        let mut graph = OxigraphInMemory::new();
+        ValidationReport::new()
+            .with_conforms(self.conforms())
+            .with_results(results.collect())
+            .to_rdf(&mut graph)
+            .map_err(RdfError::shacl)?;
         let mut own = FxHashMap::default();
         let mut unmark = |node: BlankNode| match node.as_str().strip_prefix('r') {
             Some(id) => BlankNode::new_unchecked(id),

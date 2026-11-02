@@ -1,6 +1,9 @@
 //! RDF import and export, storage semantics and formats.
 use super::{exported, parse_graph, BLANK_NODES, DATATYPES, FOAF};
-use crate::{shacl::ShaclShapes, RdfError, RdfFormat, RdfGraph, RdfView};
+use crate::{
+    shacl::{ShaclOptions, ShaclShapes},
+    RdfError, RdfFormat, RdfGraph, RdfView,
+};
 use raphtory::{
     db::api::view::{IntoDynamic, StaticGraphViewOps},
     prelude::*,
@@ -270,5 +273,5 @@ fn files() {
         "<http://ex/S> a <http://www.w3.org/ns/shacl#NodeShape> .",
     )
     .unwrap();
-    assert!(ShaclShapes::parse_path(&shapes, None, None).is_ok());
+    assert!(ShaclShapes::parse_path(&shapes, None, None, &ShaclOptions::default()).is_ok());
 }

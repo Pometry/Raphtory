@@ -1,4 +1,5 @@
 //! SHACL validation of graph views.
+use super::on_small_stack;
 use crate::{
     shacl::{ShaclLimit, ShaclOptions, ShaclReport, ShaclShapes},
     RdfError, RdfFormat, RdfGraph, Triple,
@@ -10,7 +11,10 @@ use oxigraph::{
 use raphtory::prelude::*;
 use rudof_rdf::{rdf_core::vocabs::ShaclVocab, rdf_impl::OxigraphInMemory};
 use shacl::validator::report::ValidationReport;
-use std::thread;
+use std::{
+    io, thread,
+    time::{Duration, Instant},
+};
 
 const SHAPES: &str = r#"
 @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -25,8 +29,13 @@ ex:PersonShape a sh:NodeShape ;
 "#;
 
 fn shapes(ttl: &str) -> ShaclShapes {
-    ShaclShapes::parse(ttl.as_bytes(), RdfFormat::Turtle, None)
-        .unwrap_or_else(|error| panic!("{error}\n{ttl}"))
+    ShaclShapes::parse(
+        ttl.as_bytes(),
+        RdfFormat::Turtle,
+        None,
+        &ShaclOptions::default(),
+    )
+    .unwrap_or_else(|error| panic!("{error}\n{ttl}"))
 }
 
 fn validate(rg: &RdfGraph, ttl: &str) -> ShaclReport {
@@ -213,7 +222,7 @@ fn recursive_shapes_can_be_rejected() {
 }
 
 #[test]
-fn deep_and_long_shapes_run_on_a_shacl_stack() {
+fn deep_and_long_shapes_run_on_a_small_stack() {
     let prefix = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .";
     let g = RdfGraph::new();
@@ -254,23 +263,18 @@ fn deep_and_long_shapes_run_on_a_shacl_stack() {
         ),
     ];
     // parsed, validated and reported on a stack far too small for the validator's recursion
-    let conforms = thread::Builder::new()
-        .stack_size(256 << 10)
-        .spawn(move || {
-            shapes.map(|ttl| {
-                let report = validate(&g, &ttl);
-                report.to_rdf_string(RdfFormat::Turtle).unwrap();
-                report.conforms()
-            })
+    let conforms = on_small_stack(move || {
+        shapes.map(|ttl| {
+            let report = validate(&g, &ttl);
+            report.to_rdf_string(RdfFormat::Turtle).unwrap();
+            report.conforms()
         })
-        .unwrap()
-        .join()
-        .unwrap();
+    });
     assert_eq!(conforms, [true, false, true, false, true, true]);
 }
 
 #[test]
-fn nested_paths_run_on_a_shacl_stack() {
+fn nested_paths_run_on_a_small_stack() {
     let g = RdfGraph::new();
     g.load_rdf(
         1,
@@ -279,40 +283,52 @@ fn nested_paths_run_on_a_shacl_stack() {
         None,
     )
     .unwrap();
-    let n = 10_000;
-    let ttl = format!(
-        "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
-        ex:S sh:targetNode ex:a ; sh:property [ sh:path {}ex:p{} ; sh:maxCount 0 ] .",
-        "[ sh:zeroOrOnePath ".repeat(n),
-        " ]".repeat(n)
-    );
-    thread::Builder::new()
-        .stack_size(256 << 10)
-        .spawn(move || {
-            let report = validate(&g, &ttl);
-            let results = report.results();
-            assert_eq!(results.len(), 1);
-            let path = results[0].path.as_ref().unwrap();
-            assert_eq!(path.matches('?').count(), n, "{path}");
-            report.to_rdf_string(RdfFormat::Turtle).unwrap();
-        })
-        .unwrap()
-        .join()
-        .unwrap();
+    let ttl = |n| {
+        format!(
+            "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
+            ex:S sh:targetNode ex:a ; sh:property [ sh:path {}ex:p{} ; sh:maxCount 0 ] .",
+            "[ sh:zeroOrOnePath ".repeat(n),
+            " ]".repeat(n)
+        )
+    };
+    // rudof nests paths up to 64 deep
+    let (n, deepest, deeper) = (64, ttl(64), ttl(65));
+    on_small_stack(move || {
+        let report = validate(&g, &deepest);
+        let results = report.results();
+        assert_eq!(results.len(), 1);
+        let path = results[0].path.as_ref().unwrap();
+        assert_eq!(path.matches('?').count(), n, "{path}");
+        report.to_rdf_string(RdfFormat::Turtle).unwrap();
+        let options = ShaclOptions::default();
+        let result = ShaclShapes::parse(deeper.as_bytes(), RdfFormat::Turtle, None, &options);
+        assert!(matches!(result, Err(RdfError::Shacl(_))), "{result:?}");
+    });
 }
 
 #[test]
-fn paths_rudof_would_expand_without_end_are_rejected() {
+fn paths_rudof_would_expand_without_end_are_errors() {
     let parse = |shapes: &str| {
         let ttl = format!(
             "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
             ex:S sh:targetNode ex:a ; sh:property [ sh:path _:p ; sh:minCount 0 ] . {shapes}"
         );
-        ShaclShapes::parse(ttl.as_bytes(), RdfFormat::Turtle, None).map(|shapes| shapes.depth)
+        ShaclShapes::parse(
+            ttl.as_bytes(),
+            RdfFormat::Turtle,
+            None,
+            &ShaclOptions::default(),
+        )
+        .map(drop)
     };
+    // each level is the sequence of the one below twice, 2^30 steps in all
+    let shared: String = (1..=30)
+        .map(|i| format!("_:l{i} rdf:first _:l{0} ; rdf:rest ( _:l{0} ) . ", i - 1))
+        .collect();
+    let exploding = format!("_:l0 sh:inversePath ex:q . {shared} _:p sh:inversePath _:l30 .");
     // each aborted the process
-    for cyclic in [
+    let failing = [
         "_:p sh:zeroOrMorePath _:p .",
         "_:p sh:inversePath [ sh:zeroOrOnePath _:p ] .",
         "_:p rdf:first ex:q ; rdf:rest ( _:p ) .",
@@ -320,36 +336,24 @@ fn paths_rudof_would_expand_without_end_are_rejected() {
         "ex:T sh:property [ sh:path ex:a ; sh:subsetOf _:c ] . _:c sh:zeroOrMorePath _:c .",
         "ex:T sh:deactivated [ <http://www.w3.org/ns/shacl-node-expr#pathValues> _:c ] .
         _:c sh:zeroOrMorePath _:c .",
-    ] {
-        let result = parse(cyclic);
-        assert!(
-            matches!(result, Err(RdfError::ShaclLimit(ShaclLimit::CyclicPath))),
-            "{result:?}"
-        );
-    }
-    // each level is the sequence of the one below twice, 2^30 steps in all
-    let shared: String = (1..=30)
-        .map(|i| format!("_:l{i} rdf:first _:l{0} ; rdf:rest ( _:l{0} ) . ", i - 1))
-        .collect();
-    let result = parse(&format!(
-        "_:l0 sh:inversePath ex:q . {shared} _:p sh:inversePath _:l30 ."
-    ));
-    assert!(
-        matches!(result, Err(RdfError::ShaclLimit(ShaclLimit::PathTooLarge))),
-        "{result:?}"
-    );
-    // an IRI in a path is a predicate, and shapes may refer to themselves
-    let ok = "_:p sh:zeroOrMorePath ex:p . ex:p sh:zeroOrMorePath ex:p . ex:S sh:node ex:S .";
-    assert!(parse(ok).is_ok());
-    // the stack of an ordinary shapes graph is sized by its nesting, not its size
-    assert_eq!(shapes(SHAPES).depth, 4);
+        &exploding,
+    ]
+    .map(str::to_owned);
+    on_small_stack(move || {
+        for shapes in failing {
+            let result = parse(&shapes);
+            assert!(matches!(result, Err(RdfError::Shacl(_))), "{result:?}");
+        }
+        // an IRI in a path is a predicate, and shapes may refer to themselves
+        let ok = "_:p sh:zeroOrMorePath ex:p . ex:p sh:zeroOrMorePath ex:p . ex:S sh:node ex:S .";
+        assert!(parse(ok).is_ok());
+    });
 }
 
 #[test]
 fn recursive_shapes_follow_a_data_chain() {
-    // shortcut: ~10,000 chain nodes abort the process; reject recursive shapes for untrusted ones
     let g = RdfGraph::new();
-    let chain: String = (0..1_000)
+    let chain: String = (0..100_000)
         .map(|i| {
             format!(
                 "<http://ex/n{i}> <http://ex/next> <http://ex/n{}> .\n",
@@ -361,7 +365,7 @@ fn recursive_shapes_follow_a_data_chain() {
         .unwrap();
     let ttl = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
         ex:S sh:targetNode ex:n0 ; sh:property [ sh:path ex:next ; sh:node ex:S ] .";
-    assert!(validate(&g, ttl).conforms());
+    assert!(on_small_stack(move || validate(&g, ttl).conforms()));
 }
 
 #[test]
@@ -453,7 +457,7 @@ fn validation_never_scans_the_whole_graph() {
     );
 }
 
-// rudof reads shape literals as values and may hand them back canonicalised ("1" for "01")
+// rudof reads shape literals as values, which must not lose their lexical form ("01")
 #[test]
 fn shape_literals_find_stored_literals() {
     for datatype in ["integer", "long"] {
@@ -468,14 +472,8 @@ fn shape_literals_find_stored_literals() {
             ex:S sh:targetNode "01"^^<http://www.w3.org/2001/XMLSchema#{datatype}> ;
                 sh:property [ sh:path [ sh:inversePath ex:n ] ; sh:minCount 1 ] ."#
         );
-        // shortcut: rudof makes "01"^^xsd:long "1", so it misses; canonicalise on import if it matters
         let report = validate(&g, &ttl);
-        assert_eq!(
-            report.conforms(),
-            datatype == "integer",
-            "{:?}",
-            report.results()
-        );
+        assert!(report.conforms(), "{:?}", report.results());
     }
 }
 
@@ -490,4 +488,132 @@ fn node_expressions_that_read_every_triple_are_errors() {
         let result = g.validate_shacl(&shapes, &options);
         assert!(matches!(result, Err(RdfError::Shacl(_))), "{result:?}");
     }
+}
+
+#[test]
+fn cyclic_node_expressions_are_errors() {
+    // aborted the process
+    let ttl = r#"@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+        ex:S sh:targetNode ex:alice ; sh:deactivated _:e . _:e shnex:exists _:e ."#;
+    let g = temporal_graph();
+    let result = on_small_stack(move || {
+        ShaclShapes::parse(
+            ttl.as_bytes(),
+            RdfFormat::Turtle,
+            None,
+            &ShaclOptions::default(),
+        )
+        .and_then(|shapes| g.validate_shacl(&shapes, &ShaclOptions::default()))
+        .map(|report| report.conforms())
+    });
+    assert!(matches!(result, Err(RdfError::Shacl(_))), "{result:?}");
+}
+
+#[test]
+fn explicit_limits_bound_shapes_and_results() {
+    let options = ShaclOptions::default().with_max_shapes_length(SHAPES.len());
+    let parse = |data: &[u8]| ShaclShapes::parse(data, RdfFormat::Turtle, None, &options);
+    assert!(parse(SHAPES.as_bytes()).is_ok());
+    let too_long = |result: Result<ShaclShapes, RdfError>| {
+        matches!(
+            result,
+            Err(RdfError::ShaclLimit(ShaclLimit::ShapesTooLong { max })) if max == SHAPES.len()
+        )
+    };
+    assert!(too_long(parse(format!("{SHAPES} ").as_bytes())));
+    // the read stops past the limit
+    let endless = ShaclShapes::parse(io::repeat(b'x'), RdfFormat::Turtle, None, &options);
+    assert!(too_long(endless));
+
+    let g = RdfGraph::new();
+    let triples: String = (0..10)
+        .map(|i| format!("<http://ex/n{i}> <http://ex/p> \"x\" .\n"))
+        .collect();
+    g.load_rdf(1, triples.as_bytes(), RdfFormat::NTriples, None)
+        .unwrap();
+    // two shapes with 10 results each: together over 15, though each is under it
+    let integers = shapes(
+        "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
+        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+        ex:S sh:targetSubjectsOf ex:p ; sh:property [ sh:path ex:p ; sh:datatype xsd:integer ] .
+        ex:T sh:targetSubjectsOf ex:p ; sh:property [ sh:path ex:p ; sh:datatype xsd:integer ] .",
+    );
+    let max_results = |max: usize| ShaclOptions::default().with_max_results(max);
+    let result = g.validate_shacl(&integers, &max_results(15));
+    assert!(
+        matches!(
+            result,
+            Err(RdfError::ShaclLimit(ShaclLimit::TooManyResults { max: 15 }))
+        ),
+        "{result:?}"
+    );
+    let all = g.validate_shacl(&integers, &max_results(20)).unwrap();
+    assert_eq!(all.results().len(), 20);
+}
+
+#[test]
+fn validations_past_their_timeout_fail_quickly() {
+    let g = RdfGraph::new();
+    let chain: String = (0..5_000)
+        .map(|i| {
+            format!(
+                "<http://ex/n{i}> <http://ex/next> <http://ex/n{}> .\n",
+                i + 1
+            )
+        })
+        .collect();
+    g.load_rdf(1, chain.as_bytes(), RdfFormat::NTriples, None)
+        .unwrap();
+    // the closure from each of 5,000 focus nodes: about 10 s in release without the timeout
+    let closure = shapes(
+        "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
+        ex:S sh:targetSubjectsOf ex:next ;
+            sh:property [ sh:path [ sh:zeroOrMorePath ex:next ] ; sh:minCount 1 ] .",
+    );
+    let timeout = Duration::from_millis(50);
+    let start = Instant::now();
+    match g.validate_shacl(&closure, &ShaclOptions::default().with_timeout(timeout)) {
+        Err(RdfError::ShaclLimit(ShaclLimit::TimedOut { timeout: t })) => assert_eq!(t, timeout),
+        other => panic!("{other:?}"),
+    }
+    assert!(
+        start.elapsed() < Duration::from_secs(2),
+        "{:?}",
+        start.elapsed()
+    );
+}
+
+// rudof drops the errors of target lookups, so with no focus nodes left the run would conform
+#[test]
+fn validations_past_their_timeout_never_conform() {
+    let options = ShaclOptions::default().with_timeout(Duration::ZERO);
+    let result = temporal_graph().validate_shacl(&shapes(SHAPES), &options);
+    assert!(
+        matches!(
+            result,
+            Err(RdfError::ShaclLimit(ShaclLimit::TimedOut { .. }))
+        ),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn triple_terms_in_shapes_are_errors() {
+    // as deep as the server's default shapes limit allows, on the stack of its compute pool
+    let max = 100 << 10;
+    let nested = |n| format!("<x:s> <x:p> {}[]{} .", "<<([]a".repeat(n), ")>>".repeat(n));
+    let deep = nested((max - nested(0).len()) / 9);
+    thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(move || {
+            let options = ShaclOptions::default().with_max_shapes_length(max);
+            for ttl in ["<x:s> <x:p> <<( <x:a> <x:b> <x:c> )>> .", deep.as_str()] {
+                let result = ShaclShapes::parse(ttl.as_bytes(), RdfFormat::Turtle, None, &options);
+                assert!(matches!(result, Err(RdfError::Rdf12Term(_))), "{result:?}");
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
 }

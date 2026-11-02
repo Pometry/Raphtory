@@ -16,7 +16,7 @@ struct PyShaclReport {
 impl PyRdfView {
     /// Validates the triples of this view (those to_rdf() writes) against a SHACL shapes graph.
     ///
-    /// Recursive shapes are validated by recursing once per node they reach, so over a long chain of data they abort the process.
+    /// Recursive shapes are followed through the data, so validation memory grows with the longest chain they reach.
     ///
     /// Arguments:
     ///     shapes (bytes | str | PathLike): The shapes graph: the document as bytes, or the path of a file to read.
@@ -43,11 +43,14 @@ impl PyRdfView {
         let format = format.map(RdfFormat::parse).transpose()?;
         let report_format = report_format.map(RdfFormat::parse).transpose()?;
         let report = py.detach(|| {
+            let options = ShaclOptions::default();
             let shapes = match shapes {
-                RdfSource::Bytes(bytes) => ShaclShapes::parse(bytes.as_ref(), format, base_iri),
-                RdfSource::Path(path) => ShaclShapes::parse_path(path, format, base_iri),
+                RdfSource::Bytes(bytes) => {
+                    ShaclShapes::parse(bytes.as_ref(), format, base_iri, &options)
+                }
+                RdfSource::Path(path) => ShaclShapes::parse_path(path, format, base_iri, &options),
             }?;
-            self.view.validate_shacl(&shapes, &ShaclOptions::default())
+            self.view.validate_shacl(&shapes, &options)
         })?;
         let Some(report_format) = report_format else {
             return PyShaclReport {

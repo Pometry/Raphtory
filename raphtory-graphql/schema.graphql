@@ -6940,7 +6940,8 @@ type RdfGraph {
 	): String
 	"""
 	Validates the triples of this view against SHACL shapes and returns the report.
-	Recursive shapes are rejected; null if the validation fails unexpectedly.
+	The server's `max_shacl_*` settings bound it and recursive shapes are rejected; null if
+	the validation fails unexpectedly.
 	"""
 	validateShacl(
 		"""
@@ -6948,7 +6949,7 @@ type RdfGraph {
 		"""
 		shapes: String!,
 		"""
-		The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+		The RDF format of the shapes: TURTLE (the default) or N_TRIPLES; other formats are errors.
 		"""
 		format: SparqlFormat,
 		"""

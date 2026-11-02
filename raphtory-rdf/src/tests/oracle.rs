@@ -362,13 +362,21 @@ fn internal_terms_are_canonical() {
         assert_eq!(dataset.externalize_term(internal).unwrap(), t);
     }
 
-    // a node created after the dataset was built: the memo keeps the first answer
+    // a node created after the dataset was built: an `Other` answer was not memoised
     rg.graph()
         .add_edge(2, "http://ex/zzz", "http://ex/a", NO_PROPS, None)
         .unwrap();
     assert_eq!(
         dataset.internalize_term(term("http://ex/zzz")).unwrap(),
-        RdfTerm::Other(term("http://ex/zzz"))
+        node("http://ex/zzz")
+    );
+    // but a layer keeps its first answer
+    rg.graph()
+        .add_edge(2, "http://ex/label", "http://ex/a", NO_PROPS, None)
+        .unwrap();
+    assert_eq!(
+        dataset.internalize_term(term("http://ex/label")).unwrap(),
+        label
     );
 
     // a node the view hides is not a node of the query

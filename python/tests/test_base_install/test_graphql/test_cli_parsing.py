@@ -149,9 +149,12 @@ def test_raphtory_server_with_command_line_argument():
 def test_sparql_limits_from_every_config_source():
     env = {k: v for k, v in os.environ.items() if not k.startswith("RAPHTORY_")}
     env["RAPHTORY_MAX_SPARQL_TRIPLE_PATTERNS"] = "5"
+    env["RAPHTORY_MAX_SHACL_VALIDATION_MS"] = "3000"
     with tempfile.TemporaryDirectory() as tmp:
         config_file = Path(tmp) / "config.toml"
-        config_file.write_text("[concurrency]\nmax_sparql_query_length = 100\n")
+        config_file.write_text(
+            "[concurrency]\nmax_sparql_query_length = 100\nmax_shacl_results = 7\n"
+        )
         printed = subprocess.run(
             [
                 Path(sys.executable).with_name("raphtory"),
@@ -162,6 +165,10 @@ def test_sparql_limits_from_every_config_source():
                 config_file,
                 "--max-sparql-result-bytes",
                 "1000",
+                "--max-sparql-query-ms",
+                "2000",
+                "--max-shacl-shapes-length",
+                "2000",
                 "--print-config",
             ],
             capture_output=True,
@@ -173,3 +180,7 @@ def test_sparql_limits_from_every_config_source():
     assert concurrency["max_sparql_query_length"] == 100
     assert concurrency["max_sparql_triple_patterns"] == 5
     assert concurrency["max_sparql_result_bytes"] == 1000
+    assert concurrency["max_sparql_query_ms"] == 2000
+    assert concurrency["max_shacl_shapes_length"] == 2000
+    assert concurrency["max_shacl_results"] == 7
+    assert concurrency["max_shacl_validation_ms"] == 3000

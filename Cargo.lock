@@ -6272,9 +6272,9 @@ dependencies = [
 
 [[package]]
 name = "prefixmap"
-version = "0.3.35"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5810cef5fef18478837e228bfb77ed397c0350c7cbdded20b25ddcc20372024"
+checksum = "596b0d8d941330a484bc5275a74fa0b1e4a199acfbb771f2ba23e31f748c49ba"
 dependencies = [
  "colored",
  "indexmap 2.14.2",
@@ -7115,7 +7115,6 @@ dependencies = [
  "raphtory",
  "raphtory-api",
  "raphtory-core",
- "rayon",
  "rudof_iri",
  "rudof_rdf",
  "rustc-hash",
@@ -7558,9 +7557,9 @@ dependencies = [
 
 [[package]]
 name = "rudof_config"
-version = "0.3.35"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1d187d93fe162db5cc638e1be7e1f85761705e57b66abd8e15b64cc30636bd2"
+checksum = "f2c718ec2cf0e2c0d83a86e3678325da3177d858fd9d1a8b5c8d28829e968256"
 dependencies = [
  "dirs",
  "serde",
@@ -7570,9 +7569,9 @@ dependencies = [
 
 [[package]]
 name = "rudof_iri"
-version = "0.3.35"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66765fa64c9d51b738f71f3ffed3e07c2abc8cacb0c64fd9a6630ac15cda334c"
+checksum = "0e268c90513da6d45d7f8775882ee509f485ebf231ee4541e99626b6a2a0db43"
 dependencies = [
  "getrandom 0.3.4",
  "getrandom 0.4.3",
@@ -7588,9 +7587,9 @@ dependencies = [
 
 [[package]]
 name = "rudof_rdf"
-version = "0.3.35"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bb1967dc1a7daf2090c090831e4af6a04b5f51d2b60fcaf3c8f15a6593737f6"
+checksum = "e818ea48ac14c90de86c01361dd5512da21cd7da45c07f22cb7b295653148590"
 dependencies = [
  "colored",
  "const_format",
@@ -7628,18 +7627,18 @@ dependencies = [
 
 [[package]]
 name = "rudof_typing"
-version = "0.3.35"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e58738f986c53768faafab63971a17f53100eaa93cad51ced63526a1231a5350"
+checksum = "40b795cdc3ecb5da858613fc8666f3fba06db193ffa0010b239a94252e986580"
 dependencies = [
  "either",
 ]
 
 [[package]]
 name = "rudof_viz"
-version = "0.3.35"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b0f6589a304ad1817def1a3b79d7c72a44f614461f7f566783d9d148a51f2b"
+checksum = "32af2f2475c22d094e3e714cc6b74bb6b52412246c27e61d87b4790f6cf8833f"
 dependencies = [
  "serde",
  "tempfile",
@@ -8191,9 +8190,9 @@ dependencies = [
 
 [[package]]
 name = "shacl"
-version = "0.3.35"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a9c6f84847021a9fee7045e704bb8324fdd5ce475bc87f3edf6b41584bd8414"
+checksum = "18b49b97901184f76c256a2cca57246edeb196061d5d0b9290189677c7794ced"
 dependencies = [
  "anyhow",
  "dashmap",
@@ -8210,6 +8209,7 @@ dependencies = [
  "rust_decimal",
  "schemars 1.2.3",
  "serde",
+ "stacker",
  "thiserror 2.0.21",
  "toml 0.9.12+spec-1.1.0",
  "tracing",

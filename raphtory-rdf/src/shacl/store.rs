@@ -1,3 +1,4 @@
+use super::ShaclLimit;
 use crate::{
     graph::{layer, name, named},
     mapping::{iri_of, term_of},
@@ -21,20 +22,34 @@ use shacl::validator::{
     processor::ShaclProcessor,
     ShaclConfig, ShaclValidationMode,
 };
-use std::fmt;
+use std::{
+    fmt,
+    time::{Duration, Instant},
+};
 
 /// The triples of a view as rudof reads them: each lookup is one [`matching`] scan.
 pub(super) struct Store {
     view: DynamicGraph,
     // the predicate of each layer, by `LayerId`
     predicates: Vec<NamedNode>,
+    deadline: Option<(Instant, Duration)>,
 }
 
 impl Store {
-    pub(super) fn new(view: DynamicGraph) -> Self {
+    pub(super) fn new(view: DynamicGraph, deadline: Option<(Instant, Duration)>) -> Self {
         let layers = view.edge_meta().layer_meta().all_keys();
         let predicates = layers.iter().map(|layer| iri_of(layer)).collect();
-        Self { view, predicates }
+        Self {
+            view,
+            predicates,
+            deadline,
+        }
+    }
+
+    /// The timeout, once it has run out.
+    pub(super) fn timed_out(&self) -> Option<Duration> {
+        let (start, timeout) = self.deadline?;
+        (start.elapsed() >= timeout).then_some(timeout)
     }
 
     fn node(&self, term: TermRef<'_>) -> Option<VID> {
@@ -107,6 +122,9 @@ impl NeighsRDF for Store {
         P: Matcher<NamedNode>,
         O: Matcher<Term>,
     {
+        if let Some(timeout) = self.timed_out() {
+            return Err(RdfError::ShaclLimit(ShaclLimit::TimedOut { timeout }));
+        }
         let (subject, predicate, object) = (subject.value(), predicate.value(), object.value());
         // with the class index off only shnex:nodesMatching gets here; it can recurse without end
         if subject.is_none() && predicate.is_none() && object.is_none() {

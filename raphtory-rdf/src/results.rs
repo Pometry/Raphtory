@@ -184,7 +184,7 @@ pub(crate) fn sparql_to_writer<W: Write + Send>(
     options: &SparqlOptions,
 ) -> Result<WriteStats, RdfError> {
     check_query_length(query, options.max_query_length)?;
-    on_stack("the query", query.len(), || {
+    on_stack(query.len(), || {
         let query = parse(query)?;
         format.check(QueryForm::of(&query))?;
         execute(view, query, options, |results| {
