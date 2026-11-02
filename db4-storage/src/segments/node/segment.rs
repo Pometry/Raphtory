@@ -182,10 +182,11 @@ impl MemNodeSegment {
         self.bulk_additions = bulk;
     }
 
-    /// Sorts the addition cells appended to while in bulk mode.
+    /// Sorts the addition cells and inbound adjacency sets appended to while in bulk mode.
     pub fn sort_additions(&mut self) {
         for layer in &mut self.layers {
             layer.properties_mut().sort_additions();
+            layer.sort_unsorted_rows(|entry| entry.adj.sort_dedup_into());
         }
     }
 
@@ -298,6 +299,7 @@ impl MemNodeSegment {
         let e_id = e_id.into();
         let layer_id = e_id.layer();
         let dst_pos = dst_pos.into();
+        let bulk = self.bulk_additions;
 
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
@@ -306,8 +308,16 @@ impl MemNodeSegment {
             let add_in = layer.reserve_local_row(dst_pos);
             let new_entry = add_in.is_new();
             let add_in = add_in.inner();
-            let is_new_edge = add_in.adj.add_edge_into(src, e_id.eid());
             let row = add_in.row;
+            // a bulk load adds each inbound edge once; sorting waits for `sort_additions`
+            let (is_new_edge, unsorted) = if bulk {
+                (true, add_in.adj.add_edge_into_unsorted(src, e_id.eid()))
+            } else {
+                (add_in.adj.add_edge_into(src, e_id.eid()), false)
+            };
+            if unsorted {
+                layer.mark_unsorted_row(row);
+            }
             (is_new_edge, row, new_entry)
         };
 

@@ -119,6 +119,11 @@ impl<T> SparseVec<T> {
         self.max_local_pos
     }
 
+    /// The item stored at `row`, the index [`HasRow::row`] reports for it.
+    fn get_row_mut(&mut self, row: usize) -> &mut T {
+        &mut self.data[row].1
+    }
+
     fn num_filled(&self) -> usize {
         self.data.len()
     }
@@ -163,6 +168,8 @@ pub struct SegmentContainer<T> {
     meta: Arc<Meta>,
     out_count: usize, // used to count num edges
     inb_count: usize, // used to count num edges
+    /// rows whose item a bulk load may have left unsorted, with repeats
+    unsorted_rows: Vec<usize>,
 }
 
 pub trait HasRow: Default + Send + Sync + Sized {
@@ -183,6 +190,7 @@ impl<T: HasRow> SegmentContainer<T> {
             meta,
             out_count: 0,
             inb_count: 0,
+            unsorted_rows: Vec::new(),
         }
     }
 
@@ -201,6 +209,27 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn inc_inb_count(&mut self, i: usize) {
         self.inb_count += i;
+    }
+
+    /// Records that the item at `row` may be out of order until [`Self::sort_unsorted_rows`].
+    pub(crate) fn mark_unsorted_row(&mut self, row: usize) {
+        self.unsorted_rows.push(row);
+    }
+
+    /// Whether some items still need [`Self::sort_unsorted_rows`].
+    pub fn has_unsorted_rows(&self) -> bool {
+        !self.unsorted_rows.is_empty()
+    }
+
+    /// Sorts each item marked by [`Self::mark_unsorted_row`] once with `sort`, which returns the
+    /// number of inbound edges it removed as duplicates.
+    pub(crate) fn sort_unsorted_rows(&mut self, mut sort: impl FnMut(&mut T) -> usize) {
+        let mut rows = std::mem::take(&mut self.unsorted_rows);
+        rows.sort_unstable();
+        rows.dedup();
+        for row in rows {
+            self.inb_count -= sort(self.data.get_row_mut(row));
+        }
     }
 
     pub fn out_count(&self) -> usize {

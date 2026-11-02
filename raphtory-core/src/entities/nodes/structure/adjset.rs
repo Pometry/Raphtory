@@ -1,5 +1,5 @@
 //! A data structure for efficiently storing and querying the temporal adjacency set of a node in a temporal graph.
-use raphtory_api::iter::BoxedLIter;
+use raphtory_api::{core::storage::sorted_vec_map::SVM, iter::BoxedLIter};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, hash::Hash};
 
@@ -16,10 +16,7 @@ pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send
     #[default]
     Empty,
     One(K, V),
-    Small {
-        vs: Vec<K>,    // the neighbours
-        edges: Vec<V>, // edge metadata
-    },
+    Small(SVM<K, V>), // the neighbours and their edge metadata
     Large {
         vs: BTreeMap<K, V>, // this is equiv to vs and edges
     },
@@ -31,7 +28,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         match self {
             AdjSet::Empty => 0,
             AdjSet::One(_, _) => 1,
-            AdjSet::Small { vs, .. } => vs.len(),
+            AdjSet::Small(vs) => vs.len(),
             AdjSet::Large { vs } => vs.len(),
         }
     }
@@ -40,7 +37,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         match self {
             AdjSet::Empty => true,
             AdjSet::One(_, _) => false,
-            AdjSet::Small { vs, .. } => vs.is_empty(),
+            AdjSet::Small(vs) => vs.is_empty(),
             AdjSet::Large { vs } => vs.is_empty(),
         }
     }
@@ -59,39 +56,74 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
                 true
             }
             AdjSet::One(vv, ee) => {
-                if *vv < v {
-                    *self = Self::Small {
-                        vs: vec![*vv, v],
-                        edges: vec![*ee, e],
-                    };
-                    true
-                } else if *vv > v {
-                    *self = Self::Small {
-                        vs: vec![v, *vv],
-                        edges: vec![e, *ee],
-                    };
-                    true
-                } else {
+                if *vv == v {
                     // already exists
+                    return false;
+                }
+                let mut vs = SVM::new();
+                vs.insert(*vv, *ee);
+                vs.insert(v, e);
+                *self = Self::Small(vs);
+                true
+            }
+            AdjSet::Small(vs) => {
+                if vs.len() < SMALL_SET {
+                    vs.insert_if_absent(v, e)
+                } else if vs.get(&v).is_some() {
                     false
+                } else {
+                    let mut map: BTreeMap<K, V> = std::mem::take(vs).into_iter().collect();
+                    map.insert(v, e);
+                    *self = Self::Large { vs: map };
+                    true
                 }
             }
-            AdjSet::Small { vs, edges } => match vs.binary_search(&v) {
-                Ok(_) => false,
-                Err(i) => {
-                    if vs.len() < SMALL_SET {
-                        vs.insert(i, v);
-                        edges.insert(i, e);
-                    } else {
-                        let mut map =
-                            BTreeMap::from_iter(vs.iter().copied().zip(edges.iter().copied()));
-                        map.insert(v, e);
-                        *self = Self::Large { vs: map }
-                    }
-                    true
-                }
-            },
             AdjSet::Large { vs } => vs.insert(v, e).is_none(),
+        }
+    }
+
+    /// Bulk-load insert: appends a node and edge without keeping a small set sorted or checking
+    /// for duplicates. The set must be restored with [`Self::sort_dedup`] before it is read.
+    /// Returns `true` if the set may now be out of order.
+    #[inline]
+    pub fn push_unsorted(&mut self, v: K, e: V) -> bool {
+        match self {
+            AdjSet::Empty => {
+                *self = Self::new(v, e);
+                false
+            }
+            AdjSet::One(vv, ee) => {
+                let out_of_order = v <= *vv;
+                let mut vs = SVM::new();
+                vs.push_unsorted(*vv, *ee);
+                vs.push_unsorted(v, e);
+                *self = Self::Small(vs);
+                out_of_order
+            }
+            AdjSet::Small(vs) => {
+                let out_of_order = vs.last_key_value().is_some_and(|(last, _)| v <= *last);
+                vs.push_unsorted(v, e);
+                out_of_order
+            }
+            AdjSet::Large { vs } => {
+                vs.insert(v, e);
+                false
+            }
+        }
+    }
+
+    /// Sorts a set filled with [`Self::push_unsorted`] in place, keeping the last edge for a
+    /// repeated node, and returns the number of duplicates removed. Small sets that grew past
+    /// the cutoff stay vectors; [`Self::push`] turns them into a `BTreeMap` if they are written
+    /// to again.
+    pub fn sort_dedup(&mut self) -> usize {
+        match self {
+            AdjSet::Small(vs) => {
+                let len = vs.len();
+                vs.sort_dedup();
+                len - vs.len()
+            }
+            _ => 0,
         }
     }
 
@@ -99,7 +131,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         match self {
             AdjSet::Empty => Box::new(std::iter::empty()),
             AdjSet::One(v, e) => Box::new(std::iter::once((*v, *e))),
-            AdjSet::Small { vs, edges } => Box::new(vs.iter().copied().zip(edges.iter().copied())),
+            AdjSet::Small(vs) => Box::new(vs.iter().map(|(k, v)| (*k, *v))),
             AdjSet::Large { vs } => Box::new(vs.iter().map(|(k, v)| (*k, *v))),
         }
     }
@@ -108,7 +140,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         match self {
             AdjSet::Empty => Box::new(std::iter::empty()),
             AdjSet::One(v, ..) => Box::new(std::iter::once(*v)),
-            AdjSet::Small { vs, .. } => Box::new(vs.iter().copied()),
+            AdjSet::Small(vs) => Box::new(vs.iter().map(|(k, _)| *k)),
             AdjSet::Large { vs } => Box::new(vs.keys().copied()),
         }
     }
@@ -117,8 +149,17 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         match self {
             AdjSet::Empty => None,
             AdjSet::One(vv, e) => (*vv == v).then_some(*e),
-            AdjSet::Small { vs, edges } => vs.binary_search(&v).ok().map(|i| edges[i]),
+            AdjSet::Small(vs) => vs.get(&v).copied(),
             AdjSet::Large { vs } => vs.get(&v).copied(),
+        }
+    }
+
+    /// The entries of a small set after `last`, or all of them if `last` is `None`.
+    fn small_after(vs: &SVM<K, V>, last: Option<K>) -> &[(K, V)] {
+        let entries = vs.as_slice();
+        match last {
+            Some(l) => &entries[entries.partition_point(|(k, _)| *k <= l)..],
+            None => entries,
         }
     }
 
@@ -139,35 +180,11 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
                     1
                 }
             }
-            AdjSet::Small { vs, edges } => {
-                if let Some(l) = last {
-                    let i = match vs.binary_search(&l) {
-                        Ok(i) => i + 1,
-                        Err(i) => i,
-                    };
-
-                    if i >= vs.len() {
-                        return 0;
-                    }
-
-                    let mut index = 0;
-                    vs[i..]
-                        .iter()
-                        .zip(edges[i..].iter())
-                        .take(P)
-                        .for_each(|(a, b)| {
-                            page[index] = (*a, *b);
-                            index += 1;
-                        });
-                    index
-                } else {
-                    let mut index = 0;
-                    vs.iter().zip(edges.iter()).take(P).for_each(|(a, b)| {
-                        page[index] = (*a, *b);
-                        index += 1;
-                    });
-                    index
-                }
+            AdjSet::Small(vs) => {
+                let entries = Self::small_after(vs, last);
+                let n = entries.len().min(P);
+                page[..n].copy_from_slice(&entries[..n]);
+                n
             }
             AdjSet::Large { vs } => {
                 if let Some(l) = last {
@@ -202,30 +219,9 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
                     vec![(*v, *i)]
                 }
             }
-            AdjSet::Small { vs, edges } => {
-                if let Some(l) = last {
-                    let i = match vs.binary_search(&l) {
-                        Ok(i) => i + 1,
-                        Err(i) => i,
-                    };
-
-                    if i >= vs.len() {
-                        return vec![];
-                    }
-
-                    vs[i..]
-                        .iter()
-                        .zip(edges[i..].iter())
-                        .take(page_size)
-                        .map(|(a, b)| (*a, *b))
-                        .collect()
-                } else {
-                    vs.iter()
-                        .zip(edges.iter())
-                        .take(page_size)
-                        .map(|(a, b)| (*a, *b))
-                        .collect()
-                }
+            AdjSet::Small(vs) => {
+                let entries = Self::small_after(vs, last);
+                entries[..entries.len().min(page_size)].to_vec()
             }
             AdjSet::Large { vs } => {
                 if let Some(l) = last {
@@ -303,5 +299,36 @@ mod tadjset_tests {
         let actual = ts.iter().collect::<Vec<_>>();
         let expected: Vec<(usize, usize)> = vec![(1, 0), (7, 1)];
         assert_eq!(actual, expected);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sort_dedup_after_push_unsorted_matches_push() {
+        let input: Vec<(u64, usize)> = (0..3000u64).rev().map(|v| (v % 2000, v as usize)).collect();
+        let mut sorted = AdjSet::default();
+        let mut appended = AdjSet::default();
+        for &(v, e) in &input {
+            sorted.push(v, e);
+            appended.push_unsorted(v, e);
+        }
+        assert_eq!(appended.sort_dedup(), 1000);
+        assert_eq!(appended.nodes().collect::<Vec<_>>(), sorted.nodes().collect::<Vec<_>>());
+        assert!(matches!(appended, AdjSet::Small(_)));
+        assert!(appended.push(5000, 0));
+        assert!(matches!(appended, AdjSet::Large { .. }));
+    }
+
+    #[test]
+    fn push_unsorted_reports_out_of_order() {
+        let mut set = AdjSet::default();
+        assert!(!set.push_unsorted(1u64, 0usize));
+        assert!(!set.push_unsorted(2, 1));
+        assert!(set.push_unsorted(0, 2));
+        assert_eq!(set.sort_dedup(), 0);
+        assert_eq!(set.iter().collect::<Vec<_>>(), vec![(0, 2), (1, 0), (2, 1)]);
     }
 }
