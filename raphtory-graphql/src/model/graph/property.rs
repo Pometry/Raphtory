@@ -306,7 +306,7 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
         }
         Value::DTime(s) => {
             let t = s.try_into_time().map_err(GraphError::from)?;
-            t.dt().map(|dt| Prop::DTime(dt)).map_err(GraphError::from)
+            t.dt().map(Prop::DTime).map_err(GraphError::from)
         }
         Value::NDTime(s) => {
             let t = s.try_into_time().map_err(GraphError::from)?;
@@ -459,7 +459,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         Prop::List(l) => GqlValue::List(l.iter().map(|pp| prop_to_gql(&pp)).collect()),
         Prop::Map(m) => GqlValue::Object(
             m.iter()
-                .map(|(k, v)| (Name::new(k.to_string()), prop_to_gql(v)))
+                .map(|(k, v)| (Name::new(k), prop_to_gql(v)))
                 .collect(),
         ),
         Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),

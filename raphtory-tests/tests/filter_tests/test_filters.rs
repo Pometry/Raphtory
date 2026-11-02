@@ -4993,7 +4993,7 @@ mod test_node_property_filter_agg {
             init_nodes_graph,
             IdentityGraphTransformer,
             filter,
-            &expected,
+            expected,
             All,
         );
     }
@@ -5004,7 +5004,7 @@ mod test_node_property_filter_agg {
             init_nodes_graph,
             IdentityGraphTransformer,
             filter,
-            &expected,
+            expected,
             All,
         );
     }
@@ -8555,7 +8555,7 @@ mod test_edge_filter {
     #[test]
     fn test_filter_edges_for_dst_id_eq() {
         let _filter = EdgeFilter::dst().id().eq("3");
-        let _expected_results = vec!["2->3"];
+        let _expected_results = ["2->3"];
         // assert_filter_edges_results(
         //     init_edges_graph,
         //     IdentityGraphTransformer,

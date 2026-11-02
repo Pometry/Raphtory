@@ -420,7 +420,6 @@ fn expect_event_time(map: JsonValue, context: &str) -> Result<EventTime, ClientE
     Ok(EventTime::new(timestamp, event_id))
 }
 
-///
 pub(crate) fn expect_typed_prop_list(
     v: JsonValue,
     context: &str,

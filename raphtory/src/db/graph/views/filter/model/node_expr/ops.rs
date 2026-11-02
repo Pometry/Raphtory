@@ -454,11 +454,11 @@ pub(crate) fn fold_values(agg: Agg, vals: impl Iterator<Item = Prop>) -> Option<
         },
         Agg::Min => {
             let first = vals.next()?;
-            vals.fold(Some(first), |acc, v| acc.and_then(|a| a.min(v)))
+            vals.try_fold(first, |a, v| a.min(v))
         }
         Agg::Max => {
             let first = vals.next()?;
-            vals.fold(Some(first), |acc, v| acc.and_then(|a| a.max(v)))
+            vals.try_fold(first, |a, v| a.max(v))
         }
         Agg::First | Agg::Earliest => vals.next(),
         Agg::Last | Agg::Latest => vals.last(),

@@ -209,6 +209,9 @@ pub enum GraphError {
     #[error("Nodes already exist with IDs: {0:?}")]
     NodesExistError(Vec<GID>),
 
+    #[error("Cannot import node {0:?}: it has no updates and does not exist in the target graph")]
+    ImportNodeWithoutUpdates(GID),
+
     #[error("Edge already exists for nodes {0:?} {1:?}")]
     EdgeExistsError(GID, GID),
 

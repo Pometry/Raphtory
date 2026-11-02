@@ -189,7 +189,7 @@ impl GqlMutableGraph {
         &self,
         #[graphql(desc = "Node id.")] name: GqlNodeId,
     ) -> Option<GqlMutableNode> {
-        self.graph.node(name).map(|n| GqlMutableNode::new(n))
+        self.graph.node(name).map(GqlMutableNode::new)
     }
 
     /// Add a new node or append an update to an existing one. Upsert semantics:
@@ -346,7 +346,7 @@ impl GqlMutableGraph {
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
         #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
     ) -> Option<GqlMutableEdge> {
-        self.graph.edge(src, dst).map(|e| GqlMutableEdge::new(e))
+        self.graph.edge(src, dst).map(GqlMutableEdge::new)
     }
 
     /// Add a new edge or append an update to an existing one. Upsert semantics:

@@ -3021,7 +3021,7 @@ mod tests {
     };
     use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
     use reqwest::Url;
-    use std::{collections::HashMap as Map, error::Error, hash::Hash, str::FromStr, sync::Arc};
+    use std::{error::Error, hash::Hash, str::FromStr, sync::Arc};
     use tempfile::tempdir;
     // ============ Unit tests for the read pipeline ============
 
@@ -3390,7 +3390,7 @@ mod tests {
         // A filter with a quote-bearing string value: it must be shipped as a
         // `$fN` JSON variable (escaping inherent, no query-string splicing to
         // break out of), not rendered into the query text.
-        let filter = node_prop("score".into(), CmpOp::Eq, GqlValue::Str("O\"Brien".into()));
+        let filter = node_prop("score", CmpOp::Eq, GqlValue::Str("O\"Brien".into()));
         let mut vars = VarCollector::default();
         let reference = vars.add_filter(&filter).unwrap();
         assert_eq!(reference, "$f0");
@@ -3455,7 +3455,7 @@ mod tests {
         // Two filters in one composed read must render as two declarations
         // with each field arg referencing its own variable — the payloads must
         // not collide or swap.
-        let prop_filter = |name: &str| node_prop(name.into(), CmpOp::Eq, GqlValue::Str("x".into()));
+        let prop_filter = |name: &str| node_prop(name, CmpOp::Eq, GqlValue::Str("x".into()));
         let expr = ReadExpr::Ids {
             input: Arc::new(ReadExpr::Filtered {
                 input: Arc::new(ReadExpr::Filtered {
@@ -3777,11 +3777,7 @@ mod tests {
         // is b-c, and its src (b) still evaluates under f.
         let nested = rg
             .nodes()
-            .filter(tree(node_prop(
-                "score".into(),
-                CmpOp::Gt,
-                GqlValue::I64(15),
-            ))?)
+            .filter(tree(node_prop("score", CmpOp::Gt, GqlValue::I64(15)))?)
             .unwrap();
         let rows = nested.edges().collect().await.unwrap();
         let ids_in_order = nested.id().await.unwrap();

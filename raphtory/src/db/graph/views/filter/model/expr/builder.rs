@@ -317,6 +317,7 @@ pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> {
     }
 
     /// Whether the node has an event inside the views.
+    #[allow(clippy::wrong_self_convention)]
     fn is_active(self) -> Expr<NodeLeaf> {
         Expr::Term(NodeLeaf::is_active(self.into().views))
     }
@@ -383,6 +384,7 @@ impl EdgeKind for ExplodedEdgeLeaf {
 /// The unit tests of an edge or exploded edge, inside the chain's views.
 /// Implemented for the two edge roots and their chains.
 pub trait EdgeViewFilterOps<L: EdgeKind>: Into<Chain<L>> {
+    #[allow(clippy::wrong_self_convention)]
     fn is_active(self) -> Expr<L> {
         Expr::Term(L::is_active(self.into().views))
     }
@@ -392,14 +394,17 @@ pub trait EdgeViewFilterOps<L: EdgeKind>: Into<Chain<L>> {
         Expr::Term(L::exists(self.into().views))
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn is_valid(self) -> Expr<L> {
         Expr::Term(L::is_valid(self.into().views))
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn is_deleted(self) -> Expr<L> {
         Expr::Term(L::is_deleted(self.into().views))
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn is_self_loop(self) -> Expr<L> {
         Expr::Term(L::is_self_loop(self.into().views))
     }
@@ -576,10 +581,12 @@ pub trait EntityExprFilterOps<L: Leaf>: Into<Expr<L>> + Sized {
         )
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn is_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> Expr<L> {
         self.members(values, false)
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn is_not_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> Expr<L> {
         self.members(values, true)
     }
@@ -592,10 +599,12 @@ pub trait EntityExprFilterOps<L: Leaf>: Into<Expr<L>> + Sized {
         }
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn is_some(self) -> Expr<L> {
         Expr::IsSome(Box::new(self.into()))
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn is_none(self) -> Expr<L> {
         Expr::IsNone(Box::new(self.into()))
     }
@@ -616,6 +625,7 @@ impl<L: Leaf> EntityExprFilterOps<L> for PropertyTerm<L> {}
 
 /// Aggregates over a list-valued expression or a property history.
 /// Implemented for an expression and for a property term.
+#[allow(clippy::len_without_is_empty)] // `len` builds an expression, there is no meaningful `is_empty`
 pub trait EntityAggOps<L: Leaf>: Into<Expr<L>> + Sized {
     fn agg(self, agg: Agg) -> Expr<L> {
         Expr::Agg(agg, Box::new(self.into()))
