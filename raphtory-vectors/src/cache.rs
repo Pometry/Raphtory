@@ -54,14 +54,18 @@ impl VectorStore {
             .open_databases_and_commit(rtxn, |dbo, rtxn| {
                 let local_database = dbo.open_database(rtxn, None)?;
                 Ok::<_, heed::Error>(CommitOrAbort::<_, ()>::Commit(local_database))
-            })?.unwrap_commit() {
+            })?
+            .unwrap_commit()
+        {
             Some(db) => db,
             None => {
                 let wtxn = env.write_txn()?;
-                let db = env.create_databases_and_commit(wtxn, |wdo, wtxn| {
-                    let db = wdo.create_database(wtxn, None)?;
-                    Ok::<_, heed::Error>(CommitOrAbort::<_, ()>::Commit(db))
-                })?.unwrap_commit();
+                let db = env
+                    .create_databases_and_commit(wtxn, |wdo, wtxn| {
+                        let db = wdo.create_database(wtxn, None)?;
+                        Ok::<_, heed::Error>(CommitOrAbort::<_, ()>::Commit(db))
+                    })?
+                    .unwrap_commit();
                 db
             }
         };
