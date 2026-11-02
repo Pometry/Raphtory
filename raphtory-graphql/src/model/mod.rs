@@ -88,22 +88,6 @@ where
     tokio::task::spawn_blocking(f).await.unwrap()
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum GqlGraphError {
-    #[error("Disk Graph is immutable")]
-    ImmutableDiskGraph,
-    #[error("Graph does exists at path {0}")]
-    GraphDoesNotExists(String),
-    #[error("Failed to load graph")]
-    FailedToLoadGraph,
-    #[error("Invalid namespace: {0}")]
-    InvalidNamespace(String),
-    #[error("Failed to create dir {0}")]
-    FailedToCreateDir(String),
-    #[error("{0}")]
-    LoadError(String),
-}
-
 /// Auto-grants Write on `path` for the creator's role after a graph is created.
 /// Returns an error if the grant fails so the caller can roll back the graph.
 /// No-op when there is no active auth policy; identity checks are delegated to the policy.
