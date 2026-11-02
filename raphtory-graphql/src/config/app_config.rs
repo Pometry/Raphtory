@@ -376,6 +376,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            ConcurrencyConfigFieldName::CachingThreads => {
+                                self.with_caching_threads(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                             ConcurrencyConfigFieldName::MaxPageSize => {
                                 self.with_max_page_size(
                                     Deserialize::deserialize(value)
@@ -594,6 +600,11 @@ impl AppConfigBuilder {
 
     pub fn with_max_concurrent_loads(&mut self, max_concurrent_loads: Option<usize>) -> &mut Self {
         self.config.concurrency.max_concurrent_loads = max_concurrent_loads;
+        self
+    }
+
+    pub fn with_caching_threads(&mut self, caching_threads: Option<usize>) -> &mut Self {
+        self.config.concurrency.caching_threads = caching_threads;
         self
     }
 

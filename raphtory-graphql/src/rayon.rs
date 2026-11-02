@@ -10,6 +10,8 @@ use tracing::warn;
 pub struct PoolSettings {
     /// Max graph loads decoding at once; bounds peak memory. `None` = cores / 4, at least 2.
     pub max_concurrent_loads: Option<usize>,
+    /// Threads caching filtered graph views. `None` = 4 with more than 6 cores, else cores / 2.
+    pub caching_threads: Option<usize>,
 }
 
 static SETTINGS: OnceLock<PoolSettings> = OnceLock::new();
@@ -89,7 +91,10 @@ pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>
 /// Background graph view caching operations.
 static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     // using 4 cores was found to be optimal
-    let num_threads = (cores() > 6).then_some(4).unwrap_or((cores() / 2).max(1));
+    let num_threads = settings()
+        .caching_threads
+        .unwrap_or_else(|| if cores() > 6 { 4 } else { cores() / 2 })
+        .max(1);
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
         .num_threads(num_threads)

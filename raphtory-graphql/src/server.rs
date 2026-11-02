@@ -147,6 +147,7 @@ impl GraphServer {
         let config = app_config.unwrap_or_default();
         configure_pools(PoolSettings {
             max_concurrent_loads: config.concurrency.max_concurrent_loads,
+            caching_threads: config.concurrency.caching_threads,
         });
         let extensions = config.extensions.clone();
         let data = Data::new(work_dir.as_path(), &config, graph_args);

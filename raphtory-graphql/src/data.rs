@@ -383,9 +383,7 @@ impl Data {
 
     /// Report a successful mutation on a whole graph (such as create, delete, replace, move, ...)
     fn notify_graph_mutated(&self) {
-        if let Some(policy) = &self.auth_policy {
-            policy.on_graph_mutated();
-        }
+        self.mutation_listener().notify();
     }
 
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
@@ -1091,8 +1089,8 @@ async fn apply_access_filter(
 // ---------------------------------------------------------------------------
 
 impl Data {
-    /// Loads and filters the graph using an already-verified permission. Private shared core.
-    pub async fn load_filtered(
+    /// Loads and filters the graph using an already-verified permission.
+    async fn load_filtered(
         &self,
         path: &str,
         graph_type: Option<GqlGraphType>,
@@ -1103,6 +1101,8 @@ impl Data {
     }
 
     /// [`Self::load_filtered`], with the graph pinned in the cache until the [`GraphPin`] drops.
+    ///
+    /// ⚠ Skips permission checks: `filter` must come from an already-verified permission.
     pub async fn load_filtered_pinned(
         &self,
         path: &str,
