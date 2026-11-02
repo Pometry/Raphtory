@@ -26,13 +26,17 @@ use crate::{
         node_type_index::MemNodeTypeEntry,
     },
 };
-use parking_lot::RwLock;
-use raphtory_api::core::entities::{EID, VID};
+use parking_lot::{RwLock, RwLockWriteGuard};
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::entities::{EID, VID},
+};
 use segments::{
     edge::segment::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::segment::MemNodeSegment,
 };
 use std::{
     path::{Path, PathBuf},
+    sync::Arc,
     thread,
     time::Duration,
 };
@@ -145,6 +149,30 @@ pub mod error {
 
         #[error("Graph requires WAL recovery; load with WAL enabled")]
         RecoveryRequired,
+
+        #[error(
+            "Bulk load timed out locking new {kind} segment {segment_id}: a reader or an \
+             unguarded writer is holding it. The batch in progress may be partially applied."
+        )]
+        SegmentLockTimeout {
+            kind: SegmentKind,
+            segment_id: usize,
+        },
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SegmentKind {
+        Node,
+        Edge,
+    }
+
+    impl std::fmt::Display for SegmentKind {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                SegmentKind::Node => f.write_str("node"),
+                SegmentKind::Edge => f.write_str("edge"),
+            }
+        }
     }
 
     impl StorageError {
@@ -181,12 +209,12 @@ impl From<LocalPOS> for usize {
 }
 
 impl LocalPOS {
-    pub fn as_vid(self, page_id: usize, max_page_len: u32) -> VID {
-        VID(page_id * (max_page_len as usize) + (self.0 as usize))
+    pub fn as_vid(self, segment_id: usize, max_page_len: u32) -> VID {
+        VID(segment_id * (max_page_len as usize) + (self.0 as usize))
     }
 
-    pub fn as_eid(self, page_id: usize, max_page_len: u32) -> EID {
-        EID(page_id * (max_page_len as usize) + (self.0 as usize))
+    pub fn as_eid(self, segment_id: usize, max_page_len: u32) -> EID {
+        EID(segment_id * (max_page_len as usize) + (self.0 as usize))
     }
 
     pub fn as_index(self) -> usize {
@@ -230,13 +258,29 @@ pub fn collect_tree_paths(path: &Path) -> Vec<PathBuf> {
     paths
 }
 
-pub fn loop_lock_write<A>(l: &RwLock<A>) -> parking_lot::RwLockWriteGuard<'_, A> {
+pub fn loop_lock_write<A>(l: &RwLock<A>) -> RwLockWriteGuard<'_, A> {
     const MAX_BACKOFF_US: u64 = 1000; // 1ms max
     let mut backoff_us = 1;
+
     loop {
         if let Some(guard) = l.try_write_for(Duration::from_micros(50)) {
             return guard;
         }
+
+        thread::park_timeout(Duration::from_micros(backoff_us));
+        backoff_us = (backoff_us * 2).min(MAX_BACKOFF_US);
+    }
+}
+
+pub fn loop_lock_write_arc<A>(l: &Arc<RwLock<A>>) -> ArcRwLockWriteGuard<A> {
+    const MAX_BACKOFF_US: u64 = 1000; // 1ms max
+    let mut backoff_us = 1;
+
+    loop {
+        if let Some(guard) = l.try_write_arc_for(Duration::from_micros(50)) {
+            return guard;
+        }
+
         thread::park_timeout(Duration::from_micros(backoff_us));
         backoff_us = (backoff_us * 2).min(MAX_BACKOFF_US);
     }

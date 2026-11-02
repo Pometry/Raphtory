@@ -1,4 +1,4 @@
-use parking_lot::{lock_api::ArcMutexGuard, Mutex, RawMutex};
+use parking_lot::{lock_api::ArcMutexGuard, Mutex, RawMutex, RwLockWriteGuard};
 use raphtory_api::core::{
     entities::{
         self,
@@ -17,6 +17,7 @@ use std::{
     ops::Deref,
     path::Path,
     sync::{atomic::AtomicUsize, Arc},
+    time::Duration,
 };
 use storage::{
     api::{
@@ -30,8 +31,10 @@ use storage::{
     pages::{
         layer_counter::GraphStats,
         locked::{
-            edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropSegment,
-            node_type_index::WriteLockedNodeTypeIndex, nodes::WriteLockedNodeSegments,
+            edges::WriteLockedEdgeSegments,
+            graph_props::WriteLockedGraphPropSegment,
+            node_type_index::WriteLockedNodeTypeIndex,
+            nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -218,8 +221,8 @@ where
 
         // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
         let nodes = self.storage().nodes();
-        let (page_id, pos) = nodes.resolve_pos(vid);
-        let node_page = nodes.get_segment(page_id)?;
+        let (segment_id, pos) = nodes.resolve_pos(vid);
+        let node_page = nodes.get_segment(segment_id)?;
 
         if pos.0 < node_page.num_nodes() {
             Some(vid)
@@ -451,6 +454,11 @@ where
     }
 }
 
+/// How long a bulk load waits to lock a segment created during the load. Nothing should hold
+/// such a segment while the bulk load lock is held exclusively, so timing out means a reader
+/// or an unguarded writer has it.
+pub const NEW_SEGMENT_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
 where
@@ -464,6 +472,8 @@ where
     pub edges: WriteLockedEdgeSegments<'a, ES<EXT>>,
     pub graph_props: WriteLockedGraphPropSegment<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
+    // Declared last so it is released after the segment locks.
+    _bulk_load: RwLockWriteGuard<'a, ()>,
 }
 
 impl<'a, EXT> WriteLockedGraph<'a, EXT>
@@ -473,13 +483,16 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
+    /// Takes the bulk load write guard first, waiting for regular updates in flight to finish.
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
+        let bulk_load = graph.storage.bulk_load_exclusive();
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),
             node_type_index: graph.storage.node_type_index().write_locked(),
             edges: graph.storage.edges().write_locked(),
             graph_props: graph.storage.graph_props().write_locked(),
             graph,
+            _bulk_load: bulk_load,
         }
     }
 
@@ -487,18 +500,63 @@ where
         self.graph
     }
 
-    pub fn resize_segments_to_vid(&mut self, vid: VID) {
-        let (segment_id, _) = self.graph.storage.nodes().resolve_pos(vid);
-        self.graph.storage().nodes().grow(segment_id + 1);
-        std::mem::take(&mut self.nodes);
-        self.nodes = self.graph.storage.nodes().write_locked();
+    pub fn lock_new_segments(&mut self) -> Result<(), StorageError> {
+        self.lock_new_segments_within(NEW_SEGMENT_LOCK_TIMEOUT)
     }
 
-    pub fn resize_segments_to_eid(&mut self, eid: EID) {
+    pub fn lock_new_segments_within(&mut self, timeout: Duration) -> Result<(), StorageError> {
+        self.assert_all_nodes_locked();
+        self.graph
+            .storage
+            .edges()
+            .lock_new_segments(&mut self.edges, timeout)
+    }
+
+    pub fn extend_new(&mut self, mut new_segments: MemNodeSegmentGuards) {
+        let nodes = self.graph.storage.nodes();
+
+        // segments are pushed concurrently from several threads, so the ids arrive in any order
+        new_segments.sort_unstable_by_key(|segment| segment.segment_id());
+
+        for new_segment in new_segments {
+            let segment_id = new_segment.segment_id();
+            let segment = nodes
+                .get_segment(segment_id)
+                .expect("locked segment must exist");
+
+            self.nodes.push(WriteLockedNodeSegment::new(
+                segment_id,
+                nodes.stats(),
+                nodes.max_segment_len(),
+                segment,
+                new_segment,
+            ));
+        }
+
+        self.assert_all_nodes_locked();
+    }
+
+    /// A node segment created without handing over its lock would let readers see its
+    /// uninitialised nodes.
+    fn assert_all_nodes_locked(&self) {
+        assert_eq!(
+            self.nodes.len(),
+            self.graph.storage.nodes().num_segments(),
+            "node segments were created during the bulk load without handing over their locks"
+        );
+    }
+
+    pub fn resize_segments_to_vid(&mut self, vid: VID) {
+        let nodes = self.graph.storage.nodes();
+        let (segment_id, _) = nodes.resolve_pos(vid);
+        let new_segments = nodes.grow_locked(segment_id + 1);
+        self.extend_new(new_segments);
+    }
+
+    pub fn resize_segments_to_eid(&mut self, eid: EID) -> Result<(), StorageError> {
         let (segment_id, _) = self.graph.storage.edges().resolve_pos(eid);
         self.graph.storage().edges().grow(segment_id + 1);
-        std::mem::take(&mut self.edges);
-        self.edges = self.graph.storage.edges().write_locked();
+        self.lock_new_segments()
     }
 
     pub fn edge_stats(&self) -> &Arc<GraphStats> {

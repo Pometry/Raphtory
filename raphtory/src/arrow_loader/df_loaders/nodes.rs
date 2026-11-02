@@ -31,10 +31,12 @@ use std::{
     sync::{atomic::Ordering, mpsc},
 };
 use storage::{
-    api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
-    pages::locked::nodes::LockedNodeSegment,
-    segments::node_type_index::MemNodeTypeIndex,
-    Extension,
+    api::nodes::NodeSegmentOps,
+    pages::locked::{
+        node_type_index::WriteLockedNodeTypeIndex,
+        nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
+    },
+    Extension, NS, NTI,
 };
 
 #[cfg(feature = "progress")]
@@ -178,6 +180,15 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let mut node_col_resolved = vec![];
         let mut node_resolve_cache: Option<NodeResolveCache<(VID, usize)>> = None;
 
+        // held for the whole load
+        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        let node_stats = write_locked_graph.node_stats().clone();
+        let max_node_segment_len = write_locked_graph
+            .graph()
+            .storage()
+            .nodes()
+            .max_segment_len();
+
         for chunk in df_view.chunks {
             let df = chunk?;
 
@@ -230,8 +241,9 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
             node_col_resolved.resize_with(df.len(), Default::default);
 
-            let (src_vids, gid_str_cache) = get_or_resolve_node_vids(
+            let (src_vids, gid_str_cache, new_segment_guards) = get_or_resolve_node_vids(
                 graph,
+                &write_locked_graph.nodes,
                 node_id_index,
                 &mut node_resolve_cache,
                 &mut node_col_resolved,
@@ -242,23 +254,22 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             )?;
 
             if resolve_nodes && !gid_str_cache.is_empty() {
-                let index = graph.core_graph().node_type_index();
-                populate_node_type_index(&gid_str_cache, &index.head_shared_arc());
+                let index = &mut write_locked_graph.node_type_index;
+                populate_node_type_index(
+                    gid_str_cache
+                        .iter()
+                        .map(|(_, (vid, node_type))| (*vid, *node_type)),
+                    index,
+                );
                 index.notify_write();
             }
 
-            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-            let node_stats = write_locked_graph.node_stats().clone();
-
-            let max_node_segment_len = write_locked_graph
-                .graph()
-                .storage()
-                .nodes()
-                .max_segment_len() as usize;
+            // node resolution may have created new node segments
+            write_locked_graph.extend_new(new_segment_guards);
 
             let rows_by_segment = group_rows_by_vid_segment(
                 src_vids,
-                max_node_segment_len as u32,
+                max_node_segment_len,
                 write_locked_graph.nodes.len(),
             );
 
@@ -377,13 +388,16 @@ pub fn load_node_props_from_df<
             .map_err(into_graph_err)
     })?;
 
-    let resolve_nodes = node_type_ids_col.is_some() && node_id_index.is_some();
+    let pre_resolved = node_type_ids_col.is_some() && node_id_index.is_some();
 
     #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
 
     let mut node_col_resolved = vec![];
     let mut node_type_resolved = vec![];
+
+    // held for the whole load
+    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -398,7 +412,7 @@ pub fn load_node_props_from_df<
             })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_gid_index)?;
-        if resolve_nodes {
+        if pre_resolved {
             node_col.validate(graph, LoadError::InvalidNodeError)?;
         }
         // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
@@ -409,29 +423,45 @@ pub fn load_node_props_from_df<
             None
         };
 
-        let (node_col_resolved, node_type_col_resolved) = get_or_resolve_node_vids_no_events::<G>(
-            graph,
-            &session,
-            &mut node_col_resolved,
-            &mut node_type_resolved,
-            node_type_ids_col,
-            node_id_index,
-            &df,
-            &node_col,
-            node_type_col,
-            is_materializing,
-        )?;
+        let (node_col_resolved, node_type_col_resolved, new_segment_guards) =
+            get_or_resolve_node_vids_no_events::<G>(
+                graph,
+                &session,
+                &mut node_col_resolved,
+                &mut node_type_resolved,
+                node_type_ids_col,
+                node_id_index,
+                &df,
+                &node_col,
+                node_type_col,
+                is_materializing,
+            )?;
 
-        // We assume this is fast enough
-        let max_vid = node_col_resolved
-            .iter()
-            .filter(|vid| vid.is_initialised())
-            .map(|vid| vid.index())
-            .max()
-            .map(VID)
-            .unwrap_or(VID(0));
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-        write_locked_graph.resize_segments_to_vid(max_vid);
+        if pre_resolved && !node_col_resolved.is_empty() {
+            let index = &mut write_locked_graph.node_type_index;
+            populate_node_type_index(
+                node_col_resolved
+                    .iter()
+                    .zip(node_type_col_resolved)
+                    .map(|(vid, node_type)| (*vid, *node_type)),
+                index,
+            );
+            index.notify_write();
+        }
+
+        // node resolution may have created new node segments
+        write_locked_graph.extend_new(new_segment_guards);
+
+        if pre_resolved {
+            let max_vid = node_col_resolved
+                .iter()
+                .filter(|vid| vid.is_initialised())
+                .map(|vid| vid.index())
+                .max()
+                .map(VID)
+                .unwrap_or(VID(0));
+            write_locked_graph.resize_segments_to_vid(max_vid);
+        }
 
         write_locked_graph
             .nodes
@@ -455,7 +485,7 @@ pub fn load_node_props_from_df<
 
                         writer.store_node_id_and_node_type(pos, Some(gid), *node_type);
 
-                        if resolve_nodes {
+                        if pre_resolved {
                             // because we don't call resolve_node above
                             writer.increment_seg_num_nodes()
                         }
@@ -489,6 +519,7 @@ fn get_or_resolve_node_vids<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
+    locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     src_index: usize,
     node_resolve_cache: &mut Option<NodeResolveCache<(VID, usize)>>,
     src_col_resolved: &'a mut Vec<VID>,
@@ -496,19 +527,20 @@ fn get_or_resolve_node_vids<
     resolve_nodes: bool,
     df: &'b DFChunk,
     src_col: &'a NodeCol,
-) -> Result<(&'c [VID], Vec<Resolved<'a>>), GraphError> {
-    let (src_vids, gid_str_cache) = if resolve_nodes {
+) -> Result<(&'c [VID], Vec<Resolved<'a>>, MemNodeSegmentGuards), GraphError> {
+    if resolve_nodes {
         let cache = node_resolve_cache
             .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
 
         resolve_node_vids_and_types_with_cache(
             graph,
+            locked_nodes,
             cache,
             src_col_resolved,
             src_col,
             node_type_resolved,
             df.len(),
-        )?
+        )
     } else {
         let srcs = df.chunk[src_index]
             .as_primitive_opt::<UInt64Type>()
@@ -516,10 +548,8 @@ fn get_or_resolve_node_vids<
             .values()
             .as_ref();
 
-        (bytemuck::cast_slice(srcs), vec![])
-    };
-
-    Ok((src_vids, gid_str_cache))
+        Ok((bytemuck::cast_slice(srcs), vec![], vec![]))
+    }
 }
 
 /// Resolves node GIDs and types using `NodeResolveCache`.
@@ -534,12 +564,13 @@ fn resolve_node_vids_and_types_with_cache<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
+    locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     cache: &mut NodeResolveCache<(VID, usize)>,
     node_col_resolved: &'a mut Vec<VID>,
     node_col: &'a NodeCol,
     node_types: &[usize],
     len: usize,
-) -> Result<(&'a [VID], Vec<Resolved<'a>>), GraphError> {
+) -> Result<(&'a [VID], Vec<Resolved<'a>>, MemNodeSegmentGuards), GraphError> {
     node_col_resolved.resize_with(len, Default::default);
     let atomic_node_col = atomic_vid_from_mut_slice(node_col_resolved);
 
@@ -547,6 +578,7 @@ fn resolve_node_vids_and_types_with_cache<
         .par_iter_mut()
         .map(|mut shard| {
             let mut new_gids = vec![];
+            let mut new_segment_guards = vec![];
 
             for (row, (gid, vid_slot)) in node_col.iter().zip(atomic_node_col.iter()).enumerate() {
                 if !shard.is_in_shard(gid) {
@@ -557,27 +589,32 @@ fn resolve_node_vids_and_types_with_cache<
                 let mut should_store = false;
 
                 let resolved = shard.resolve_with(gid, || {
-                    let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+                    let (vid, new_seg_guard) =
+                        unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+
+                    new_segment_guards.extend(new_seg_guard);
 
                     match vid {
                         MaybeNew::New(vid) => {
                             should_store = true;
                             Ok((vid, node_type))
                         }
-                        MaybeNew::Existing(vid) => match existing_stored_node_type(graph, vid) {
-                            None => {
-                                should_store = true;
-                                Ok((vid, node_type))
+                        MaybeNew::Existing(vid) => {
+                            match existing_stored_node_type(locked_nodes, vid) {
+                                None => {
+                                    should_store = true;
+                                    Ok((vid, node_type))
+                                }
+                                Some(existing) if existing == node_type => Ok((vid, existing)),
+                                Some(existing) => Err(GraphError::LoadError {
+                                    source: LoadError::ConflictingNodeType {
+                                        gid: gid.into(),
+                                        existing: node_type_name(graph, existing),
+                                        new: node_type_name(graph, node_type),
+                                    },
+                                }),
                             }
-                            Some(existing) if existing == node_type => Ok((vid, existing)),
-                            Some(existing) => Err(GraphError::LoadError {
-                                source: LoadError::ConflictingNodeType {
-                                    gid: gid.into(),
-                                    existing: node_type_name(graph, existing),
-                                    new: node_type_name(graph, node_type),
-                                },
-                            }),
-                        },
+                        }
                     }
                 })?;
 
@@ -600,20 +637,37 @@ fn resolve_node_vids_and_types_with_cache<
                 vid_slot.store(vid.0, Ordering::Relaxed);
             }
 
-            Ok(new_gids)
+            Ok((new_gids, new_segment_guards))
         })
         .collect::<Result<Vec<_>, GraphError>>()?;
 
+    let (new_gids_by_shard, new_segment_guards): (Vec<_>, Vec<_>) =
+        new_gids_by_shard.into_iter().unzip();
+
+    let new_segment_guards = new_segment_guards
+        .into_iter()
+        .reduce(|mut a, b| {
+            a.extend(b);
+            a
+        })
+        .unwrap_or_default();
+
     // Shards own disjoint gids, so concatenating is already deduplicated.
-    Ok((node_col_resolved.as_slice(), new_gids_by_shard.concat()))
+    Ok((
+        node_col_resolved.as_slice(),
+        new_gids_by_shard.concat(),
+        new_segment_guards,
+    ))
 }
 
-fn existing_stored_node_type<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    graph: &G,
+/// Reads through the held write locks: the graph's read path would deadlock on them.
+/// An existing node always lives in a segment that is already held.
+fn existing_stored_node_type(
+    locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     vid: VID,
 ) -> Option<usize> {
-    graph
-        .node_metadata(vid, NODE_TYPE_PROP_ID)
+    locked_nodes
+        .node_metadata(vid, STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
         .and_then(|prop| prop.into_u64())
         .map(|id| id as usize)
 }
@@ -646,7 +700,7 @@ fn get_or_resolve_node_vids_no_events<
     src_col: &'a NodeCol,
     node_type_col: LayerCol<'a>,
     is_materializing: bool,
-) -> Result<(&'c [VID], &'c [usize]), GraphError> {
+) -> Result<(&'c [VID], &'c [usize], MemNodeSegmentGuards), GraphError> {
     assert!(!(node_type_ids_col.is_none() ^ node_id_col.is_none())); // both some or both none
     if let Some((node_type_index, node_id_col)) = node_type_ids_col.zip(node_id_col) {
         set_meta_for_pre_resolved_nodes_and_node_ids(
@@ -682,7 +736,7 @@ fn resolve_node_and_meta_for_node_col<
     src_col: &NodeCol,
     node_type_col: LayerCol<'a>,
     is_materializing: bool,
-) -> Result<(&'a [VID], &'a [usize]), GraphError> {
+) -> Result<(&'a [VID], &'a [usize], MemNodeSegmentGuards), GraphError> {
     node_col_resolved.resize_with(df.len(), Default::default);
     node_type_resolved.resize_with(df.len(), Default::default);
 
@@ -697,6 +751,7 @@ fn resolve_node_and_meta_for_node_col<
 
     let mut last_node_type: Option<&str> = None;
     let mut last_node_type_id: Option<usize> = None;
+    let mut new_segment_guards = vec![];
     for (gid, node_type, vid, node_type_id) in zip {
         if last_node_type != node_type {
             if let Some(name) = node_type {
@@ -720,10 +775,10 @@ fn resolve_node_and_meta_for_node_col<
             // both here and in load_node_props_from_df, so no other thread resolves the same id concurrently.
             // Other future callers should make sure to utilize this pathway in single-threaded contexts only.
             unsafe {
-                graph
-                    .bulk_load_resolve_node(gid)
-                    .map_err(into_graph_err)?
-                    .inner()
+                let (vid, new_seg_guards) =
+                    graph.bulk_load_resolve_node(gid).map_err(into_graph_err)?;
+                new_segment_guards.extend(new_seg_guards);
+                vid.inner()
             }
         } else {
             // Metadata can only be attached to a node that exists: an unknown id is an error,
@@ -736,7 +791,11 @@ fn resolve_node_and_meta_for_node_col<
         last_node_type = node_type;
     }
 
-    Ok((node_col_resolved.as_slice(), node_type_resolved.as_slice()))
+    Ok((
+        node_col_resolved.as_slice(),
+        node_type_resolved.as_slice(),
+        new_segment_guards,
+    ))
 }
 
 fn set_meta_for_pre_resolved_nodes_and_node_ids<
@@ -750,7 +809,7 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
     node_type_col: LayerCol<'_>,
     node_type_index: usize,
     node_id_col: usize,
-) -> Result<(&'b [VID], &'b [usize]), GraphError> {
+) -> Result<(&'b [VID], &'b [usize], MemNodeSegmentGuards), GraphError> {
     let srcs = df.chunk[node_id_col]
         .as_primitive_opt::<UInt64Type>()
         .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[node_id_col].data_type().clone()))?
@@ -785,13 +844,17 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
             .map_err(into_graph_err)?;
     }
 
-    Ok((bytemuck::cast_slice(srcs), bytemuck::cast_slice(node_types)))
+    Ok((
+        bytemuck::cast_slice(srcs),
+        bytemuck::cast_slice(node_types),
+        vec![],
+    ))
 }
 
 #[inline(never)]
 fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[Resolved<'_>],
-    locked_page: &mut LockedNodeSegment<'_, NS>,
+    locked_page: &mut WriteLockedNodeSegment<'_, NS>,
 ) {
     let mut writer = locked_page.writer();
 
@@ -802,16 +865,19 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     }
 }
 
-fn populate_node_type_index(gid_str_cache: &[Resolved<'_>], index: &MemNodeTypeIndex) {
+fn populate_node_type_index(
+    gid_str_cache: impl IntoIterator<Item = (VID, usize)>,
+    index: &WriteLockedNodeTypeIndex<NTI>,
+) {
     let mut by_type: HashMap<usize, Vec<VID>> = HashMap::new();
 
-    for (_, (vid, node_type)) in gid_str_cache {
+    for (vid, node_type) in gid_str_cache {
         // Nodes with default type don't need to be indexed.
-        if *node_type == DEFAULT_NODE_TYPE_ID {
+        if node_type == DEFAULT_NODE_TYPE_ID {
             continue;
         }
 
-        by_type.entry(*node_type).or_default().push(*vid);
+        by_type.entry(node_type).or_default().push(vid);
     }
 
     by_type.par_iter().for_each(|(node_type, vids)| {

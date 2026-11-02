@@ -6,7 +6,7 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
-            edges::{Edges, NestedEdges},
+            edges::{DynEdgeItem, EdgeItem, Edges, NestedEdges},
         },
     },
     errors::GraphError,
@@ -39,47 +39,52 @@ use std::collections::HashMap;
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges", module = "raphtory", frozen)]
 pub struct PyEdges {
-    edges: Edges<'static, DynamicGraph>,
+    edges: Edges<'static, DynamicGraph, DynEdgeItem>,
 }
 
-impl_edgeviewops!(PyEdges, edges, Edges<'static, DynamicGraph>, "Edges");
+impl_edgeviewops!(
+    PyEdges,
+    edges,
+    Edges<'static, DynamicGraph, DynEdgeItem>,
+    "Edges",
+    "Edges"
+);
 impl_iterable_mixin!(
     PyEdges,
     edges,
     Vec<EdgeView<DynamicGraph>>,
     "list[Edge]",
     "edge",
-    |edges: &Edges<'static, DynamicGraph>| edges.clone().into_iter()
+    |edges: &Edges<'static, DynamicGraph, DynEdgeItem>| edges.clone().into_iter()
 );
 
-impl<'graph, G: GraphViewOps<'graph>> Repr for Edges<'graph, G> {
+impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> Repr for Edges<'graph, G, K> {
     fn repr(&self) -> String {
         format!("Edges({})", iterator_repr(self.iter()))
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'static, G> {
+impl<'py, G: StaticGraphViewOps + IntoDynamic, K: EdgeItem> IntoPyObject<'py>
+    for Edges<'static, G, K>
+where
+    Edges<'static, DynamicGraph, DynEdgeItem>: From<Edges<'static, DynamicGraph, K>>,
+{
     type Target = PyEdges;
     type Output = Bound<'py, PyEdges>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let edges = self.into_dyn();
-        PyEdges { edges }.into_pyobject(py)
+        PyEdges::from(self).into_pyobject(py)
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G>> for PyEdges {
-    fn from(value: Edges<'static, G>) -> Self {
-        let base_graph = value.base_graph.into_dynamic();
-        let edges = value.edges;
-        let select = value.select;
+impl<G: StaticGraphViewOps + IntoDynamic, K: EdgeItem> From<Edges<'static, G, K>> for PyEdges
+where
+    Edges<'static, DynamicGraph, DynEdgeItem>: From<Edges<'static, DynamicGraph, K>>,
+{
+    fn from(value: Edges<'static, G, K>) -> Self {
         Self {
-            edges: Edges {
-                base_graph,
-                edges,
-                select,
-            },
+            edges: value.into_dyn().into(),
         }
     }
 }
@@ -348,19 +353,21 @@ impl PyEdges {
 
 impl Repr for PyEdges {
     fn repr(&self) -> String {
-        format!("Edges({})", iterator_repr(self.edges.iter()))
+        self.edges.repr()
     }
 }
 
+/// A list of edges per node.
 #[pyclass(name = "NestedEdges", module = "raphtory")]
 pub struct PyNestedEdges {
-    edges: NestedEdges<'static, DynamicGraph>,
+    edges: NestedEdges<'static, DynamicGraph, DynEdgeItem>,
 }
 
 impl_edgeviewops!(
     PyNestedEdges,
     edges,
-    NestedEdges<'static, DynamicGraph>,
+    NestedEdges<'static, DynamicGraph, DynEdgeItem>,
+    "NestedEdges",
     "NestedEdges"
 );
 impl_iterable_mixin!(
@@ -371,36 +378,35 @@ impl_iterable_mixin!(
     "edge"
 );
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NestedEdges<'static, G> {
+impl<'py, G: StaticGraphViewOps + IntoDynamic, K: EdgeItem> IntoPyObject<'py>
+    for NestedEdges<'static, G, K>
+where
+    NestedEdges<'static, DynamicGraph, DynEdgeItem>: From<NestedEdges<'static, DynamicGraph, K>>,
+{
     type Target = PyNestedEdges;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let edges = self.into_dyn_hop();
+        let edges = self.into_dyn_hop().into();
         PyNestedEdges { edges }.into_pyobject(py)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G> {
+impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> Repr for NestedEdges<'graph, G, K> {
     fn repr(&self) -> String {
         format!("NestedEdges({})", iterator_repr(self.iter()))
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNestedEdges {
-    fn from(value: NestedEdges<'static, G>) -> Self {
-        let graph = value.graph.into_dynamic();
-        let nodes = value.nodes;
-        let edges = value.edges;
-        let select = value.select;
+impl<G: StaticGraphViewOps + IntoDynamic, K: EdgeItem> From<NestedEdges<'static, G, K>>
+    for PyNestedEdges
+where
+    NestedEdges<'static, DynamicGraph, DynEdgeItem>: From<NestedEdges<'static, DynamicGraph, K>>,
+{
+    fn from(value: NestedEdges<'static, G, K>) -> Self {
         Self {
-            edges: NestedEdges {
-                graph,
-                nodes,
-                edges,
-                select,
-            },
+            edges: value.into_dyn().into(),
         }
     }
 }

@@ -165,7 +165,7 @@ impl VectorCollection for LanceDbCollection {
         let limited = vector_query.limit(k);
         let filtered = if let Some(candidates) = candidates {
             let mut iter = candidates.into_iter().peekable();
-            if let Some(_) = iter.peek() {
+            if iter.peek().is_some() {
                 let id_list = iter.map(|id| id.to_string()).join(",");
                 limited.only_if(format!("id IN ({id_list})"))
             } else {

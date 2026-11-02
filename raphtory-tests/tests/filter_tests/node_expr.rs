@@ -1,0 +1,908 @@
+use crate::filter_tests::filter_domain;
+use raphtory::{
+    db::{
+        api::view::{
+            filter_ops::Select,
+            internal::{ListOps, NodeList},
+            Filter,
+        },
+        graph::views::filter::{
+            model::{
+                expr::{Expr, Field, NodeExpr, NodeLeaf},
+                filter_operator::BinaryOp,
+                graph_filter::GraphFilter,
+                node_filter::{NodeFilter, NodeFilterFactory},
+                ComposableFilter, EntityAggOps, PropertyExprFactory, ViewWrapOps,
+            },
+            CreateFilter,
+        },
+    },
+    prelude::{
+        AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS,
+    },
+};
+use raphtory_api::core::entities::{
+    properties::prop::{IntoProp, Prop},
+    VID,
+};
+
+// Test graph: a→b, a→c, b→c
+// All nodes have total degree 2; in-degrees: a=0, b=1, c=2
+fn build_test_graph() -> Graph {
+    let g = Graph::new();
+    g.add_edge(0, "a", "b", NO_PROPS, None).unwrap();
+    g.add_edge(0, "a", "c", NO_PROPS, None).unwrap();
+    g.add_edge(0, "b", "c", NO_PROPS, None).unwrap();
+    g
+}
+
+fn filtered_names<F>(filter: F, g: Graph) -> Vec<String>
+where
+    F: CreateFilter,
+    for<'graph> F::FilteredGraph<'graph, Graph>: GraphViewOps<'graph>,
+{
+    let mut names: Vec<String> = g
+        .filter(filter)
+        .unwrap()
+        .nodes()
+        .iter()
+        .map(|n| n.name())
+        .collect();
+    names.sort();
+    names
+}
+
+// ── expression-vs-expression: RHS can be another NodeExpr ────────────────
+
+#[test]
+fn total_gt_in_degree_selects_nodes_with_outgoing_edges() {
+    // total=2, in-degrees: a=0, b=1, c=2 → total > in for a and b only
+    let g = build_test_graph();
+    assert_eq!(
+        filtered_names(NodeFilter.degree().gt(NodeFilter.in_degree()), g),
+        vec!["a", "b"]
+    );
+}
+
+#[test]
+fn test_id_filter_expr() {
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    let filter = NodeFilter.id().ge(5u64);
+
+    assert_eq!(g.nodes().select(filter).unwrap().id(), [6u64])
+}
+
+// ── Temporal property helpers ─────────────────────────────────────────────
+
+/// Graph with three nodes; "alice" has scores [1, 5, 10] at times 1, 2, 3
+///                           "bob"   has scores [2, 3]    at times 1, 2
+///                           "carol" has no score property
+fn build_temporal_graph() -> Graph {
+    let g = Graph::new();
+    g.add_node(1, "alice", [("score", 1i64.into_prop())], None, None)
+        .unwrap();
+    g.add_node(2, "alice", [("score", 5i64.into_prop())], None, None)
+        .unwrap();
+    g.add_node(3, "alice", [("score", 10i64.into_prop())], None, None)
+        .unwrap();
+    g.add_node(1, "bob", [("score", 2i64.into_prop())], None, None)
+        .unwrap();
+    g.add_node(2, "bob", [("score", 3i64.into_prop())], None, None)
+        .unwrap();
+    g.add_node(1, "carol", NO_PROPS, None, None).unwrap();
+    let _ = NodeFilter; // suppress unused warning
+    g
+}
+
+fn temporal_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
+where
+    F: CreateFilter,
+    for<'graph> F::FilteredGraph<'graph, Graph>: GraphViewOps<'graph>,
+{
+    let mut names: Vec<String> = g
+        .filter(filter)
+        .unwrap()
+        .nodes()
+        .iter()
+        .map(|n| n.name())
+        .collect();
+    names.sort();
+    names
+}
+
+// ── any() qualifier ─────────────────────────────────────────────────────
+
+#[test]
+fn temporal_any_eq_selects_nodes_with_matching_value() {
+    // alice has 1, 5, 10; bob has 2, 3; carol has none
+    // any == 5 → alice only
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().eq(5i64).any();
+    assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+}
+
+#[test]
+fn temporal_any_gt_selects_nodes_with_at_least_one_value_above_threshold() {
+    // any > 4 → alice (has 5, 10), not bob (max 3), not carol (none)
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().gt(4i64).any();
+    assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+}
+
+#[test]
+fn temporal_any_gt_both_nodes_qualify() {
+    // any > 1 → alice (5, 10), bob (2, 3) — both qualify
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().gt(1i64).any();
+    assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
+}
+
+// ── all() qualifier ─────────────────────────────────────────────────────
+
+#[test]
+fn temporal_all_gt_requires_every_value() {
+    // all > 0 → alice (1,5,10 all > 0 ✓), bob (2,3 all > 0 ✓), carol excluded (empty)
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().gt(0i64).all();
+    assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
+}
+
+#[test]
+fn temporal_all_gt_rejects_if_any_value_fails() {
+    // all > 4 → alice (1 fails) not included, bob (2, 3 fail) not included
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().gt(4i64).all();
+    assert!(temporal_filtered_names(filter, g).is_empty());
+}
+
+#[test]
+fn temporal_all_requires_non_empty_sequence() {
+    // carol has no score → "all" over empty sequence returns false
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().ge(0i64).all();
+    let names = temporal_filtered_names(filter, g);
+    assert!(!names.contains(&"carol".to_string()));
+}
+
+// ── first() / last() aggregators ─────────────────────────────────────────
+
+#[test]
+fn temporal_first_value() {
+    // alice first = 1, bob first = 2 → first == 1 → alice only
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().first().eq(1i64);
+    assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+}
+
+#[test]
+fn temporal_last_value() {
+    // alice last = 10 → last > 9 → alice only
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().last().gt(9i64);
+    assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+}
+
+// ── NodeFilter entry point ────────────────────────────────────────────────
+
+#[test]
+fn node_filter_temporal_property_entry_point() {
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().eq(5i64).any();
+    assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+}
+
+// ── TemporalExprOps blanket ───────────────────────────────────────────────
+
+#[test]
+fn temporal_expr_ops_blanket_any() {
+    // Using EntityAggOps / EntityExprFilterOps on a temporal term directly
+    let g = build_temporal_graph();
+    let filter = NodeFilter.property("score").temporal().eq(10i64).any();
+    assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+}
+
+// ── Windowed temporal filter ──────────────────────────────────────────────
+
+/// Apply a windowed temporal filter directly (view is embedded in the expression).
+fn windowed_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
+where
+    F: CreateFilter,
+    for<'graph> F::FilteredGraph<'graph, Graph>: GraphViewOps<'graph>,
+{
+    let mut names: Vec<String> = g
+        .filter(filter)
+        .unwrap()
+        .nodes()
+        .iter()
+        .map(|n| n.name())
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn windowed_temporal_any_restricts_to_window() {
+    // alice scores: t1=1, t2=5, t3=10
+    // window [1, 2) → only t=1 visible → score=1 only
+    // any == 5 in window [1,2) → false for all nodes
+    let g = build_temporal_graph();
+    let filter = NodeFilter
+        .window(1, 2)
+        .property("score")
+        .temporal()
+        .eq(5i64)
+        .any();
+    // window [1,2) shows t=1 only → alice has score=1, not 5
+    assert!(windowed_filtered_names(filter, g).is_empty());
+}
+
+#[test]
+fn windowed_temporal_any_matches_in_window() {
+    // window [2, 3) → alice has score=5 (t=2), bob has score=3 (t=2)
+    let g = build_temporal_graph();
+    let filter = NodeFilter
+        .window(2, 3)
+        .property("score")
+        .temporal()
+        .eq(5i64)
+        .any();
+    assert_eq!(windowed_filtered_names(filter, g), vec!["alice"]);
+}
+
+// ── Layered temporal filter ───────────────────────────────────────────────
+
+/// Graph where temporal "score" updates are split across two named layers.
+///
+/// alice: score [1, 5, 10] at t=1,2,3 — all added in "layer_a"
+/// bob:   score [2, 3]     at t=1,2   — all added in "layer_b"
+/// carol: no score property            — added in "layer_a" (makes her visible there)
+///
+/// Because updates added without an explicit layer go into the static layer
+/// (and are always visible regardless of the active LayeredGraph), we must use
+/// an explicit layer on every `add_node` call that carries a property we want
+/// to isolate.
+fn build_layered_temporal_graph() -> Graph {
+    let g = Graph::new();
+    g.add_node(
+        1,
+        "alice",
+        [("score", 1i64.into_prop())],
+        None,
+        Some("layer_a"),
+    )
+    .unwrap();
+    g.add_node(
+        2,
+        "alice",
+        [("score", 5i64.into_prop())],
+        None,
+        Some("layer_a"),
+    )
+    .unwrap();
+    g.add_node(
+        3,
+        "alice",
+        [("score", 10i64.into_prop())],
+        None,
+        Some("layer_a"),
+    )
+    .unwrap();
+    g.add_node(
+        1,
+        "bob",
+        [("score", 2i64.into_prop())],
+        None,
+        Some("layer_b"),
+    )
+    .unwrap();
+    g.add_node(
+        2,
+        "bob",
+        [("score", 3i64.into_prop())],
+        None,
+        Some("layer_b"),
+    )
+    .unwrap();
+    g.add_node(1, "carol", NO_PROPS, None, Some("layer_a"))
+        .unwrap();
+    g
+}
+
+/// Apply a layered temporal filter directly (view is embedded in the expression).
+fn layered_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
+where
+    F: CreateFilter,
+    for<'graph> F::FilteredGraph<'graph, Graph>: GraphViewOps<'graph>,
+{
+    let mut names: Vec<String> = g
+        .filter(filter)
+        .unwrap()
+        .nodes()
+        .iter()
+        .map(|n| n.name())
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn layered_temporal_any_restricts_to_layer_a_updates() {
+    // layer_a view: alice has scores [1, 5, 10], carol has none, bob has none
+    // any == 5 → only alice qualifies
+    let g = build_layered_temporal_graph();
+    let filter = NodeFilter
+        .layers("layer_a")
+        .property("score")
+        .temporal()
+        .eq(5i64)
+        .any();
+    assert_eq!(layered_filtered_names(filter, g), vec!["alice"]);
+}
+
+#[test]
+fn layered_temporal_any_restricts_to_layer_b_updates() {
+    // layer_b view: bob has scores [2, 3], alice has none, carol has none
+    // any > 2 → bob qualifies (score=3 > 2), alice and carol do not
+    let g = build_layered_temporal_graph();
+    let filter = NodeFilter
+        .layers("layer_b")
+        .property("score")
+        .temporal()
+        .gt(2i64)
+        .any();
+    assert_eq!(layered_filtered_names(filter, g), vec!["bob"]);
+}
+
+#[test]
+fn layered_temporal_sum_is_layer_scoped() {
+    // layer_a: alice sum = 1+5+10 = 16; layer_b: bob sum = 2+3 = 5
+    // layer_a sum > 10 → alice (16 > 10); carol (no score) excluded
+    let g = build_layered_temporal_graph();
+    let filter = NodeFilter
+        .layers("layer_a")
+        .property("score")
+        .temporal()
+        .sum()
+        .gt(10i64);
+    assert_eq!(layered_filtered_names(filter, g), vec!["alice"]);
+}
+
+// ── is_true() / is_false() ───────────────────────────────────────────────
+
+/// Graph with bool "active" property:
+///   "on"  — active = true
+///   "off" — active = false
+///   "na"  — no active property
+fn build_bool_graph() -> Graph {
+    let g = Graph::new();
+    g.add_node(0, "on", [("active", true.into_prop())], None, None)
+        .unwrap();
+    g.add_node(0, "off", [("active", false.into_prop())], None, None)
+        .unwrap();
+    g.add_node(0, "na", NO_PROPS, None, None).unwrap();
+    g
+}
+
+#[test]
+fn is_true_keeps_only_true_nodes() {
+    let g = build_bool_graph();
+    let filter = NodeFilter.property("active").eq(Prop::Bool(true));
+    assert_eq!(filtered_names(filter, g), vec!["on"]);
+}
+
+#[test]
+fn is_false_keeps_only_false_nodes() {
+    let g = build_bool_graph();
+    let filter = NodeFilter.property("active").eq(Prop::Bool(false));
+    assert_eq!(filtered_names(filter, g), vec!["off"]);
+}
+
+#[test]
+fn is_true_excludes_absent_property() {
+    // "na" has no "active" property — must not appear
+    let g = build_bool_graph();
+    let filter = NodeFilter.property("active").eq(Prop::Bool(true));
+    let names = filtered_names(filter, g);
+    assert!(!names.contains(&"na".to_string()));
+}
+
+// ── Runtime validation via prop_type() ───────────────────────────────────
+
+#[test]
+fn ordering_op_on_bool_prop_orders_false_before_true() {
+    let g = Graph::new();
+    g.add_node(0, "t", [("flag", true.into_prop())], None, None)
+        .unwrap();
+    g.add_node(0, "f", [("flag", false.into_prop())], None, None)
+        .unwrap();
+    // Use Prop::Bool as rhs so both sides share Output = Option<Prop>
+    assert_eq!(
+        filtered_names(NodeFilter.property("flag").gt(Prop::Bool(false)), g.clone()),
+        vec!["t"]
+    );
+    assert_eq!(
+        filtered_names(NodeFilter.property("flag").lt(Prop::Bool(true)), g),
+        vec!["f"]
+    );
+}
+
+// ── Sum widens past its element type ─────────────────────────────────────
+
+/// A graph whose node `n` carries `prop` as a list, so a sum over it exceeds
+/// the range of the element type.
+fn graph_with_list(prop: &str, values: Vec<Prop>) -> Graph {
+    let g = Graph::new();
+    g.add_node(0, "n", [(prop, Prop::list(values).unwrap())], None, None)
+        .unwrap();
+    g
+}
+
+#[test]
+fn sum_of_signed_elements_matches_a_wider_constant() {
+    let g = graph_with_list("xs", vec![Prop::I32(i32::MAX), Prop::I32(i32::MAX)]);
+    let filter = NodeFilter.property("xs").sum().eq(i64::from(i32::MAX) * 2);
+    assert_eq!(filtered_names(filter, g), vec!["n"]);
+}
+
+#[test]
+fn sum_of_float_elements_compares_in_f64() {
+    let g = graph_with_list("xs", vec![Prop::F32(1.5), Prop::F32(2.25)]);
+    let filter = NodeFilter.property("xs").sum().eq(3.75f64);
+    assert_eq!(filtered_names(filter, g), vec!["n"]);
+}
+
+#[test]
+fn sum_over_a_nested_list_widens_only_the_innermost_level() {
+    // The outer level survives for a pending qualifier, so the comparison is
+    // element-wise against the widened inner sums.
+    let g = graph_with_list(
+        "xs",
+        vec![
+            Prop::list([u8::MAX, u8::MAX]).unwrap(),
+            Prop::list([1u8, 1]).unwrap(),
+        ],
+    );
+    let filter = NodeFilter.property("xs").sum().eq(510u64).any();
+    assert_eq!(filtered_names(filter, g), vec!["n"]);
+}
+
+// ── Numbers compare by value across widths and signedness ──────────────────
+
+/// A constant that does not fit the property's own type still compares by
+/// value: `u64::MAX` is above every `i64`, and a negative `i64` is below every
+/// `u64`. Declaring them incomparable made `risk <= 2^63+5` match nothing.
+#[test]
+fn numeric_constants_beyond_the_property_width_compare_by_value() {
+    let g = Graph::new();
+    g.add_node(0, "low", [("risk", 3i64.into_prop())], None, None)
+        .unwrap();
+    g.add_node(0, "neg", [("risk", (-4i64).into_prop())], None, None)
+        .unwrap();
+    let all = vec!["low".to_string(), "neg".to_string()];
+    assert_eq!(
+        filtered_names(
+            NodeFilter.property("risk").le(Prop::U64(u64::MAX)),
+            g.clone()
+        ),
+        all
+    );
+    assert_eq!(
+        filtered_names(
+            NodeFilter.property("risk").le(Prop::U64(1u64 << 63 | 5)),
+            g.clone()
+        ),
+        all
+    );
+    assert_eq!(
+        filtered_names(
+            NodeFilter.property("risk").gt(Prop::U64(1u64 << 63)),
+            g.clone()
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        filtered_names(NodeFilter.property("risk").lt(Prop::U64(0)), g.clone()),
+        vec!["neg"]
+    );
+    assert_eq!(
+        filtered_names(NodeFilter.property("risk").le(Prop::U64(3)), g),
+        all
+    );
+}
+
+// ── Terms through a view on a node the view does not show ─────────────────
+
+/// early: p=1 @1, m=1 · late: p=1 @6, m=1 · no_meta: p=1 @1
+///
+/// ```text
+/// time      0    1    2    3    4    5    6
+/// early     ├────●───────────────────┤
+/// late      ├────────────────────────┤    ●
+/// no_meta   ├────●───────────────────┤
+///           └─ window [0, 5) ────────┘
+/// ```
+fn build_view_membership_graph() -> Graph {
+    let g = Graph::new();
+    g.add_node(1, "early", [("p", 1i64)], None, None).unwrap();
+    g.add_node(6, "late", [("p", 1i64)], None, None).unwrap();
+    for name in ["early", "late"] {
+        g.node(name).unwrap().add_metadata([("m", 1i64)]).unwrap();
+    }
+    g.add_node(1, "no_meta", [("p", 1i64)], None, None).unwrap();
+    g
+}
+
+#[test]
+fn windowed_property_term_skips_node_absent_from_window() {
+    let g = build_view_membership_graph();
+    let filter = NodeFilter.window(0, 5).property("p").eq(1i64);
+    assert_eq!(filtered_names(filter, g), vec!["early", "no_meta"]);
+}
+
+#[test]
+fn windowed_metadata_term_skips_node_absent_from_window() {
+    let g = build_view_membership_graph();
+    let filter = NodeFilter.window(0, 5).metadata("m").eq(1i64);
+    assert_eq!(filtered_names(filter, g), vec!["early"]);
+}
+
+#[test]
+fn windowed_temporal_term_skips_node_absent_from_window() {
+    let g = build_view_membership_graph();
+    let filter = NodeFilter
+        .window(0, 5)
+        .property("p")
+        .temporal()
+        .len()
+        .eq(Prop::U64(0));
+    assert_eq!(filtered_names(filter, g), vec!["late"]);
+}
+
+// ── Domain narrowing for id comparisons ──────────────────────────────────
+//
+// These pin that an id test starts from the nodes it names instead of
+// visiting every node.
+
+#[test]
+fn id_eq_visits_only_the_named_node() {
+    let g = build_test_graph();
+    let vid = g.node("b").unwrap().node;
+    match filter_domain(NodeFilter.id().eq("b"), &g) {
+        NodeList::List { elems } => {
+            assert_eq!(elems.into_iter().collect::<Vec<_>>(), vec![vid])
+        }
+        other => panic!("id equality should narrow the domain, got {other:?}"),
+    }
+}
+
+#[test]
+fn id_is_in_visits_only_the_named_nodes() {
+    let g = build_test_graph();
+    let mut expected: Vec<VID> = ["a", "c"].iter().map(|n| g.node(n).unwrap().node).collect();
+    expected.sort();
+    match filter_domain(
+        NodeFilter
+            .id()
+            .is_in(vec!["a".into_prop(), "c".into_prop()]),
+        &g,
+    ) {
+        NodeList::List { elems } => {
+            let mut got: Vec<VID> = elems.into_iter().collect();
+            got.sort();
+            assert_eq!(got, expected);
+        }
+        other => panic!("id set membership should narrow the domain, got {other:?}"),
+    }
+}
+
+#[test]
+fn named_nodes_come_back_in_id_order() {
+    let g = build_test_graph();
+    let filter = || {
+        NodeFilter
+            .id()
+            .is_in(vec!["c".into_prop(), "a".into_prop()])
+    };
+    let filtered: Vec<String> = g.filter(filter()).unwrap().nodes().name().collect();
+    assert_eq!(filtered, vec!["a", "c"]);
+    let selected: Vec<String> = g.nodes().select(filter()).unwrap().name().collect();
+    assert_eq!(selected, vec!["a", "c"]);
+}
+
+/// The ids a test names are resolved when the filter is built, like
+/// `subgraph`, so the view does not grow with later additions; a test that
+/// names no ids reads the graph live.
+#[test]
+fn a_resolved_id_test_does_not_see_nodes_added_later() {
+    let g = Graph::new();
+    g.add_node(0, "a", NO_PROPS, None, None).unwrap();
+    let named = g.filter(NodeFilter.id().eq("b")).unwrap();
+    let unnamed = g.filter(NodeFilter.id().ne("a")).unwrap();
+    g.add_node(1, "b", NO_PROPS, None, None).unwrap();
+    assert_eq!(named.nodes().iter().count(), 0);
+    let names: Vec<String> = unnamed.nodes().name().collect();
+    assert_eq!(names, vec!["b"]);
+}
+
+#[test]
+fn id_eq_for_an_absent_node_visits_nothing() {
+    let g = build_test_graph();
+    match filter_domain(NodeFilter.id().eq("nope"), &g) {
+        NodeList::List { elems } => {
+            assert!(elems.into_iter().next().is_none())
+        }
+        other => panic!("an absent id should narrow to nothing, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_constant_on_the_left_names_its_node() {
+    let g = build_test_graph();
+    let filter: NodeExpr = Expr::Cmp(
+        BinaryOp::Eq,
+        Box::new(Expr::Const("b".into())),
+        Box::new(Expr::Term(NodeLeaf::Field {
+            views: vec![],
+            field: Field::Id,
+        })),
+    );
+    assert_eq!(listed(filter_domain(filter, &g)), vids(&g, &["b"]));
+}
+
+#[test]
+fn a_number_no_id_can_equal_keeps_every_node() {
+    // A negative or a fractional number names no numeric id: the test runs on
+    // every node and holds on none. A constant of the wrong type (a string
+    // against numeric ids, or the reverse) is refused earlier, when the
+    // filter is built.
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    for value in [Prop::I64(-1), Prop::F64(5.5)] {
+        let domain = filter_domain(NodeFilter.id().eq(value.clone()), &g);
+        assert!(
+            matches!(domain, NodeList::All),
+            "id == {value:?} must keep the full domain, got {domain:?}"
+        );
+        assert!(selected_names(NodeFilter.id().eq(value), &g).is_empty());
+    }
+}
+
+#[test]
+fn an_id_test_narrows_the_filtered_graphs_node_list() {
+    let g = build_test_graph();
+    let filtered = g.filter(NodeFilter.id().eq("b")).unwrap();
+    assert_eq!(listed(filtered.node_list()), vids(&g, &["b"]));
+}
+
+/// The id names its node whatever the window; the window still hides a node
+/// with no event in it.
+#[test]
+fn an_id_test_inside_a_window_keeps_only_the_named_node_in_the_window() {
+    let g = build_domain_graph();
+    let names = |start: i64, end: i64| -> Vec<String> {
+        g.window(start, end)
+            .filter(NodeFilter.id().eq("b"))
+            .unwrap()
+            .nodes()
+            .name()
+            .collect()
+    };
+    assert_eq!(names(0, 2), vec!["b"]);
+    assert!(names(6, 9).is_empty());
+}
+
+#[test]
+fn name_eq_visits_only_the_named_node() {
+    // On a graph with string ids a node's name is its id.
+    let g = build_test_graph();
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("b"), &g)),
+        vids(&g, &["b"])
+    );
+    assert_eq!(selected_names(NodeFilter.name().eq("b"), &g), vec!["b"]);
+}
+
+#[test]
+fn name_is_in_visits_only_the_named_nodes() {
+    let g = build_test_graph();
+    let filter = || {
+        NodeFilter
+            .name()
+            .is_in(vec!["a".into_prop(), "c".into_prop()])
+    };
+    assert_eq!(listed(filter_domain(filter(), &g)), vids(&g, &["a", "c"]));
+    assert_eq!(selected_names(filter(), &g), vec!["a", "c"]);
+}
+
+#[test]
+fn a_name_test_on_numeric_ids_parses_its_node() {
+    // On a numeric-id graph a node's name is its id written out, so a name
+    // that reads as a number names that node and one that does not names
+    // no node; the test still runs on every node named.
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("1"), &g)),
+        vids(&g, &["1"])
+    );
+    assert_eq!(selected_names(NodeFilter.name().eq("1"), &g), vec!["1"]);
+    let both = || {
+        NodeFilter
+            .name()
+            .is_in(vec!["6".into_prop(), "1".into_prop()])
+    };
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["1", "6"]));
+    assert_eq!(selected_names(both(), &g), vec!["1", "6"]);
+    // "06" parses to 6 but is not node 6's name: visited, not kept
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("06"), &g)),
+        vids(&g, &["6"])
+    );
+    assert!(selected_names(NodeFilter.name().eq("06"), &g).is_empty());
+    // a name that is no number names nothing
+    assert!(listed(filter_domain(NodeFilter.name().eq("six"), &g)).is_empty());
+    assert!(selected_names(NodeFilter.name().eq("six"), &g).is_empty());
+}
+
+#[test]
+fn a_numeric_id_test_visits_only_the_named_node() {
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    for value in [Prop::U64(6), Prop::I64(6), Prop::U8(6)] {
+        assert_eq!(
+            listed(filter_domain(NodeFilter.id().eq(value.clone()), &g)),
+            vids(&g, &["6"]),
+            "id == {value:?}"
+        );
+        assert_eq!(selected_names(NodeFilter.id().eq(value), &g), vec!["6"]);
+    }
+    let both = || NodeFilter.id().is_in(vec![Prop::U64(6), Prop::U64(1)]);
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["1", "6"]));
+    assert_eq!(selected_names(both(), &g), vec!["1", "6"]);
+}
+
+#[test]
+fn non_id_and_inequality_filters_keep_the_full_domain() {
+    let g = build_test_graph();
+    // Only an equality or a set-membership test on the id or the name starts
+    // from the nodes it names; every other test runs on every node.
+    for (label, domain) in [
+        ("id != b", filter_domain(NodeFilter.id().ne("b"), &g)),
+        ("name != b", filter_domain(NodeFilter.name().ne("b"), &g)),
+        (
+            "degree == 2",
+            filter_domain(NodeFilter.degree().eq(2usize), &g),
+        ),
+    ] {
+        assert!(
+            matches!(domain, NodeList::All),
+            "{label} must keep the full domain, got {domain:?}"
+        );
+    }
+}
+
+// ── Domain narrowing for combined views ──────────────────────────────────
+//
+// An `and` of views visits the nodes every operand visits, an `or` the nodes
+// some operand visits. A window reports its base's list, and a `not` visits
+// every node.
+
+/// a: @1, @7 · b: @1 · c: @7 · d: @4 · e: @4
+///
+/// ```text
+/// time   0    1    2    3    4    5    6    7    8    9
+/// a           ●                             ●
+/// b           ●
+/// c                                         ●
+/// d                          ●
+/// e                          ●
+///        └─ window [0, 2) ┘            └─ window [6, 9) ┘
+/// ```
+fn build_domain_graph() -> Graph {
+    let g = Graph::new();
+    for (t, name) in [(1, "a"), (7, "a"), (1, "b"), (7, "c"), (4, "d"), (4, "e")] {
+        g.add_node(t, name, NO_PROPS, None, None).unwrap();
+    }
+    g
+}
+
+/// The sorted vertex ids of the named nodes.
+fn vids(g: &Graph, names: &[&str]) -> Vec<VID> {
+    let mut vids: Vec<VID> = names.iter().map(|n| g.node(n).unwrap().node).collect();
+    vids.sort();
+    vids
+}
+
+/// The sorted vertex ids of a domain that names its nodes.
+fn listed(domain: NodeList) -> Vec<VID> {
+    match domain {
+        NodeList::List { elems } => {
+            let mut got: Vec<VID> = elems.into_iter().collect();
+            got.sort();
+            got
+        }
+        other => panic!("the domain should name its nodes, got {other:?}"),
+    }
+}
+
+/// The sorted names `g.nodes().select(filter)` keeps.
+fn selected_names<F: CreateFilter + 'static>(filter: F, g: &Graph) -> Vec<String> {
+    let mut names: Vec<String> = g.nodes().select(filter).unwrap().name().collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn and_of_two_subgraphs_visits_their_intersection() {
+    let g = build_domain_graph();
+    let both = || {
+        GraphFilter
+            .subgraph(["a", "b"])
+            .and(GraphFilter.subgraph(["b", "c"]))
+    };
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["b"]));
+    assert_eq!(selected_names(both(), &g), vec!["b"]);
+}
+
+#[test]
+fn or_of_two_subgraphs_visits_their_union() {
+    let g = build_domain_graph();
+    let either = || {
+        GraphFilter
+            .subgraph(["a", "b"])
+            .or(GraphFilter.subgraph(["b", "c"]))
+    };
+    assert_eq!(
+        listed(filter_domain(either(), &g)),
+        vids(&g, &["a", "b", "c"])
+    );
+    assert_eq!(selected_names(either(), &g), vec!["a", "b", "c"]);
+}
+
+#[test]
+fn and_of_a_subgraph_and_a_name_test_visits_their_intersection() {
+    let g = build_domain_graph();
+    // On string ids a name test names its node, so the `and` visits the
+    // intersection of the subgraph and the named node.
+    let both = || {
+        GraphFilter
+            .subgraph(["a", "b"])
+            .and(NodeFilter.name().eq("a"))
+    };
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["a"]));
+    assert_eq!(selected_names(both(), &g), vec!["a"]);
+}
+
+#[test]
+fn and_of_two_windows_visits_every_node() {
+    let g = build_domain_graph();
+    let both = || GraphFilter.window(0, 2).and(GraphFilter.window(6, 9));
+    let domain = filter_domain(both(), &g);
+    assert!(
+        matches!(domain, NodeList::All),
+        "a window reports its base's list, got {domain:?}"
+    );
+    assert_eq!(selected_names(both(), &g), vec!["a"]);
+}
+
+#[test]
+fn not_of_a_subgraph_visits_every_node() {
+    let g = build_domain_graph();
+    // A negated view is refused on a collection; the negated `exists()` is the test.
+    assert!(g
+        .nodes()
+        .select(GraphFilter.subgraph(["a", "b"]).not())
+        .is_err());
+    let outside = || NodeFilter.subgraph(["a", "b"]).exists().not();
+    let domain = filter_domain(outside(), &g);
+    assert!(
+        matches!(domain, NodeList::All),
+        "a not visits every node, got {domain:?}"
+    );
+    assert_eq!(selected_names(outside(), &g), vec!["c", "d", "e"]);
+}

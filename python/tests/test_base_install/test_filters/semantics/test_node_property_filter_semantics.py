@@ -32,7 +32,7 @@ def test_metadata_semantics():
 @with_variants(init_nodes_graph)
 def test_temporal_any_semantics():
     def check(graph):
-        filter_expr = filter.Node.property("p1").temporal().any() == 1
+        filter_expr = (filter.Node.property("p1").temporal() == 1).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"])
         assert result_ids == expected_ids
@@ -45,7 +45,7 @@ def test_temporal_any_semantics():
 )
 def test_temporal_any_semantics_for_event_ids():
     def check(graph):
-        filter_expr = filter.Node.property("p1").temporal().any() == 1
+        filter_expr = (filter.Node.property("p1").temporal() == 1).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(
             ["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]

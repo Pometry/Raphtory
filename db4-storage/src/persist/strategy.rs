@@ -16,7 +16,7 @@ use crate::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
-        node_type_index::NodeTypeIndexView,
+        node_type_index::{MemNodeTypeIndex, NodeTypeIndexView},
     },
     wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
@@ -78,6 +78,13 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn persist_node_type_index(&self, index: &Self::NTI)
     where
+        Self: Sized;
+
+    fn persist_node_type_index_with_head(
+        &self,
+        index: &Self::NTI,
+        head: impl DerefMut<Target = MemNodeTypeIndex>,
+    ) where
         Self: Sized;
 
     /// Indicates whether the strategy persists to disk or not.
@@ -231,6 +238,14 @@ impl PersistenceStrategy for NoOpStrategy {
     }
 
     fn persist_node_type_index(&self, _index: &Self::NTI) {
+        // No operation
+    }
+
+    fn persist_node_type_index_with_head(
+        &self,
+        _index: &Self::NTI,
+        _head: impl DerefMut<Target = MemNodeTypeIndex>,
+    ) {
         // No operation
     }
 

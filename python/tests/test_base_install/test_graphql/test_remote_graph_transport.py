@@ -2083,16 +2083,14 @@ def test_filter_by_node_id_keeps_membership_but_getitem_narrows():
 
 
 def test_temporal_multi_op_filter_preserves_op_order_e2e():
-    """End-to-end guard that a multi-op temporal filter keeps its op-order
-    through the wire — the client serializes it via `apply_ops_to_condition`
-    (filtering.rs), so an inversion there would corrupt the query.
+    """End-to-end guard that a multi-op temporal filter keeps its op order
+    through the wire.
 
-    On a list-valued temporal property, `.first().sum()` is shape-valid: First
-    picks the first snapshot's list, Sum reduces it to a scalar. The inversion
-    `.sum().first()` reduces a sequence-of-lists (→ None) and can never match,
-    so any op-order flip in the wire turns `["n"]` into `[]`. Uses the narrowing
-    `graph.filter()` path (not sticky `nodes.filter`) with a distractor node,
-    and pins the remote result against a local twin.
+    On a list-valued temporal property, `.earliest().sum()` picks the first
+    update's list and reduces it to a scalar. The inversion `.sum().earliest()`
+    is refused (`earliest` needs a history), so any op-order flip in the wire
+    cannot pass. Uses the narrowing `graph.filter()` path with a distractor
+    node, and pins the remote result against a local twin.
     """
     from raphtory import Graph
     from raphtory.filter import Node
@@ -2104,8 +2102,8 @@ def test_temporal_multi_op_filter_preserves_op_order_e2e():
         g.add_node(0, "d", properties={"x": [8, 9]})
         g.add_node(1, "d", properties={"x": [10, 11]})
 
-    first_sum_3 = Node.property("x").temporal().first().sum() == 3
-    first_sum_17 = Node.property("x").temporal().first().sum() == 17
+    first_sum_3 = Node.property("x").temporal().earliest().sum() == 3
+    first_sum_17 = Node.property("x").temporal().earliest().sum() == 17
 
     local = Graph()
     build(local)
@@ -4131,3 +4129,32 @@ def test_mixed_kind_filter_expression_remote():
         local_ids = sorted(lg.filter(expr).nodes.id)
         remote_ids = sorted(rg.filter(expr).nodes.id)
         assert remote_ids == local_ids, f"{remote_ids} != {local_ids}"
+
+
+def test_exploded_edges_select_per_item():
+    """`[]` asks its question of the items of the collection it is called on,
+    remotely as locally: once per edge on `edges`, once per exploded edge on
+    `edges.explode()`. Exploding returns the same collection classes."""
+    from raphtory import Graph, filter
+    from raphtory.graphql import RemoteEdges, RemoteNestedEdges
+
+    def build(g):
+        g.add_edge(1, "a", "b", properties={"w": 1}, layer="x")
+        g.add_edge(7, "a", "b", properties={"w": 7}, layer="y")
+        g.add_edge(2, "b", "c", properties={"w": 2}, layer="x")
+        return g
+
+    local = build(Graph())
+    with _remote_graph("g") as rg:
+        build(rg)
+        assert isinstance(rg.edges.explode(), RemoteEdges)
+        assert isinstance(rg.nodes.edges.explode(), RemoteNestedEdges)
+        for expr in (
+            filter.Graph.window(0, 5),
+            filter.ExplodedEdge.property("w") == 7,
+            filter.Edge.property("w") == 7,
+        ):
+            assert len(rg.edges[expr].explode()) == len(local.edges[expr].explode())
+            assert len(rg.edges.explode()[expr]) == len(local.edges.explode()[expr])
+        assert len(rg.edges[filter.Graph.window(0, 5)].explode()) == 3
+        assert len(rg.edges.explode()[filter.Graph.window(0, 5)]) == 2

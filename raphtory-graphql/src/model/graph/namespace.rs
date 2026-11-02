@@ -1,3 +1,6 @@
+// Path validation errors are large (~136 bytes) but deliberately not boxed.
+#![allow(clippy::result_large_err)]
+
 use crate::{
     auth_policy::{AuthPolicyError, AuthorizationPolicy},
     data::{get_relative_path, Data, WorkDirGuard},
@@ -43,6 +46,7 @@ impl PartialEq for Namespace {
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for Namespace {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.current_dir.partial_cmp(&other.current_dir)
@@ -215,7 +219,7 @@ fn is_graph_visible(
     let Some(policy) = policy.as_ref() else {
         return Ok(true);
     };
-    Ok(policy.graph_permissions(ctx, &g.local_path())?.is_some())
+    Ok(policy.graph_permissions(ctx, g.local_path())?.is_some())
 }
 
 /// Whether the caller may see this namespace in a listing. `Err` propagates for the same
@@ -346,7 +350,7 @@ impl Namespace {
                     NamespacedItem::Namespace(n) => Some(n),
                     _ => None,
                 })
-                .filter(|n| filter.as_ref().map_or(true, |f| f.matches(n)))
+                .filter(|n| filter.as_ref().is_none_or(|f| f.matches(n)))
                 .sorted()
                 .collect::<Vec<_>>();
             if sort.as_ref().and_then(|s| s.reverse) == Some(true) {

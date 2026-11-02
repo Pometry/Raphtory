@@ -1,4 +1,8 @@
-use std::sync::atomic::{self, AtomicU64};
+use parking_lot::RwLockReadGuard;
+use std::{
+    ops::Deref,
+    sync::atomic::{self, AtomicU64},
+};
 
 use crate::wal::TransactionID;
 
@@ -36,5 +40,29 @@ impl TransactionManager {
 impl Default for TransactionManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// The transaction manager together with a bulk load read guard, so a regular update
+/// cannot run while a bulk load holds the graph. Keep it until the update ends.
+pub struct TransactionGuard<'a> {
+    manager: &'a TransactionManager,
+    _bulk_load: RwLockReadGuard<'a, ()>,
+}
+
+impl<'a> TransactionGuard<'a> {
+    pub fn new(manager: &'a TransactionManager, bulk_load: RwLockReadGuard<'a, ()>) -> Self {
+        Self {
+            manager,
+            _bulk_load: bulk_load,
+        }
+    }
+}
+
+impl Deref for TransactionGuard<'_> {
+    type Target = TransactionManager;
+
+    fn deref(&self) -> &Self::Target {
+        self.manager
     }
 }

@@ -1,12 +1,15 @@
 use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
-use raphtory_api::core::entities::{
-    LayerId,
-    edges::edge_ref::Dir,
-    properties::{
-        meta::Meta,
-        prop::{AsPropRef, Prop},
-        tprop::TPropOps,
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use raphtory_api::{
+    ArcRwLockReadGuard,
+    core::entities::{
+        LayerId,
+        edges::edge_ref::Dir,
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop},
+            tprop::TPropOps,
+        },
     },
 };
 use raphtory_core::{
@@ -19,6 +22,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
+    time::Duration,
 };
 
 pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
@@ -40,7 +44,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     fn layer_count(&self, layer_id: LayerId) -> u32;
 
     fn load(
-        page_id: usize,
+        segment_id: usize,
         max_page_len: u32,
         meta: Arc<Meta>,
         path: impl AsRef<Path>,
@@ -49,7 +53,8 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     where
         Self: Sized;
 
-    fn new(page_id: usize, meta: Arc<Meta>, path: Option<PathBuf>, ext: Self::Extension) -> Self;
+    fn new(segment_id: usize, meta: Arc<Meta>, path: Option<PathBuf>, ext: Self::Extension)
+    -> Self;
 
     fn segment_id(&self) -> usize;
 
@@ -65,11 +70,13 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
 
     fn head(&self) -> RwLockReadGuard<'_, MemEdgeSegment>;
 
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>;
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemEdgeSegment>;
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemEdgeSegment>;
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
+
+    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
     fn set_dirty(&self, dirty: bool);
 

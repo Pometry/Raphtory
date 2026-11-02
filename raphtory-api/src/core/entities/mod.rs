@@ -14,7 +14,7 @@ pub mod edges;
 pub mod layers;
 pub mod properties;
 
-use crate::core::entities::properties::prop::PropType;
+use crate::core::entities::properties::prop::{Prop, PropType};
 pub use layers::*;
 
 // The only reason this is public is because the physical IDs of the nodes don’t move.
@@ -255,6 +255,15 @@ impl ELID {
 pub enum GID {
     U64(u64),
     Str(String),
+}
+
+impl From<GID> for Prop {
+    fn from(gid: GID) -> Self {
+        match gid {
+            GID::U64(id) => Prop::U64(id),
+            GID::Str(str) => Prop::Str(str.into()),
+        }
+    }
 }
 
 impl PartialEq<str> for GID {

@@ -2,15 +2,45 @@ use async_graphql::{Error, Value as GqlValue};
 use dynamic_graphql::{Scalar, ScalarValue};
 use raphtory::core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use raphtory_api::core::entities::GID;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Number;
+use std::fmt;
 
 /// Identifier for a node — either a string (`"alice"`) or a non-negative
 /// integer (`42`). Use whichever form matches how the graph was indexed
 /// when nodes were added.
-#[derive(Scalar, Clone, Debug, Serialize, Deserialize)]
+// Its serde form is the scalar's: a string or an integer, as a client sends it
+// in variables and a stored filter keeps it.
+#[derive(Scalar, Clone, Debug)]
 #[graphql(name = "NodeId")]
 pub struct GqlNodeId(pub GID);
+
+/// The scalar spelling of a node id.
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+enum NodeIdWire {
+    U64(u64),
+    Str(String),
+}
+
+impl Serialize for GqlNodeId {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match &self.0 {
+            GID::U64(u) => NodeIdWire::U64(*u),
+            GID::Str(s) => NodeIdWire::Str(s.clone()),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for GqlNodeId {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(GqlNodeId(match NodeIdWire::deserialize(deserializer)? {
+            NodeIdWire::U64(u) => GID::U64(u),
+            NodeIdWire::Str(s) => GID::Str(s),
+        }))
+    }
+}
 
 impl ScalarValue for GqlNodeId {
     fn from_value(value: GqlValue) -> Result<Self, Error> {
@@ -64,13 +94,12 @@ impl AsNodeRef for GqlNodeId {
     }
 }
 
-impl GqlNodeId {
-    /// Returns the id as a `String`. Integer ids are formatted as decimal.
-    /// Useful for callers that need a string id.
-    pub fn to_string(&self) -> String {
+/// Formats the id as a string. Integer ids are formatted as decimal.
+impl fmt::Display for GqlNodeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            GID::Str(s) => s.clone(),
-            GID::U64(u) => u.to_string(),
+            GID::Str(s) => f.write_str(s),
+            GID::U64(u) => write!(f, "{u}"),
         }
     }
 }

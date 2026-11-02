@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod serialise_test {
     use arrow::{array::types::Int32Type, datatypes::UInt8Type};
     use chrono::{DateTime, NaiveDateTime};

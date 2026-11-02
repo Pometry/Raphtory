@@ -10,28 +10,34 @@ use crate::{
     persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
-use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::entities::{LayerId, properties::prop::Prop},
+};
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::{ops::DerefMut, path::Path};
 
+/// Write guards on the node segments, each taken before its segment was published so
+/// no reader can see its uninitialised nodes.
+pub type MemNodeSegmentGuards = Vec<ArcRwLockWriteGuard<MemNodeSegment>>;
+
 #[derive(Debug)]
-pub struct LockedNodeSegment<'a, NS> {
+pub struct WriteLockedNodeSegment<'a, NS> {
     id: usize,
     max_page_len: u32,
     layer_counter: &'a GraphStats,
     segment: &'a NS,
-    head: RwLockWriteGuard<'a, MemNodeSegment>,
+    head: ArcRwLockWriteGuard<MemNodeSegment>,
 }
 
-impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
+impl<'a, NS: NodeSegmentOps> WriteLockedNodeSegment<'a, NS> {
     pub fn new(
         id: usize,
         layer_counter: &'a GraphStats,
         max_page_len: u32,
         segment: &'a NS,
-        head: RwLockWriteGuard<'a, MemNodeSegment>,
+        head: ArcRwLockWriteGuard<MemNodeSegment>,
     ) -> Self {
         Self {
             id,
@@ -85,10 +91,16 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
         self.head.get_or_create_layer(layer_id);
         self.layer_counter.get(layer_id);
     }
+
+    pub fn get_metadata(&self, pos: LocalPOS, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
+        self.head
+            .get_metadata(pos, layer_id, prop_id)
+            .or_else(|| self.segment.get_metadata_immut(pos, layer_id, prop_id))
+    }
 }
 
 pub struct WriteLockedNodeSegments<'a, NS> {
-    segments: Vec<LockedNodeSegment<'a, NS>>,
+    segments: Vec<WriteLockedNodeSegment<'a, NS>>,
 }
 
 impl<NS> Default for WriteLockedNodeSegments<'_, NS> {
@@ -102,7 +114,7 @@ impl<NS> Default for WriteLockedNodeSegments<'_, NS> {
 impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     WriteLockedNodeSegments<'a, NS>
 {
-    pub fn new(segments: Vec<LockedNodeSegment<'a, NS>>) -> Self {
+    pub fn new(segments: Vec<WriteLockedNodeSegment<'a, NS>>) -> Self {
         Self { segments }
     }
 
@@ -111,20 +123,40 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.segments.len()
     }
 
+    /// Read node metadata through the held write locks. Use this instead of the graph's
+    /// read path while the pages are held, which would deadlock on the segment lock.
+    ///
+    /// Returns `None` if the node's segment is not held.
+    pub fn node_metadata(&self, vid: VID, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
+        let max_page_len = self.segments.first()?.max_page_len;
+        let (segment_id, pos) = resolve_pos(vid, max_page_len);
+        self.segments
+            .get(segment_id)?
+            .get_metadata(pos, layer_id, prop_id)
+    }
+
+    /// Append the page for the next segment; pages are indexed by segment id.
+    pub fn push(&mut self, page: WriteLockedNodeSegment<'a, NS>) {
+        assert_eq!(page.segment_id(), self.segments.len());
+        self.segments.push(page);
+    }
+
     #[inline]
-    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedNodeSegment<'a, NS>> {
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut WriteLockedNodeSegment<'a, NS>> {
         self.segments.get_mut(segment_id)
     }
 
-    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedNodeSegment<'a, NS>> {
+    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, WriteLockedNodeSegment<'a, NS>> {
         self.segments.par_iter_mut()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedNodeSegment<'a, NS>> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, WriteLockedNodeSegment<'a, NS>> {
         self.segments.iter_mut()
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedNodeSegment<'a, NS>> + 'a {
+    pub fn into_par_iter(
+        self,
+    ) -> impl ParallelIterator<Item = WriteLockedNodeSegment<'a, NS>> + 'a {
         self.segments.into_par_iter()
     }
 
@@ -138,7 +170,7 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.segments
             .par_iter_mut()
             .try_for_each(|locked_segment| {
-                let LockedNodeSegment { segment, head, .. } = locked_segment;
+                let WriteLockedNodeSegment { segment, head, .. } = locked_segment;
                 segment.vacuum(head.deref_mut())
             })?;
 

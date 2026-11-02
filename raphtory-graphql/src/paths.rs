@@ -1,3 +1,6 @@
+// Path validation errors are large (~136 bytes) but deliberately not boxed.
+#![allow(clippy::result_large_err)]
+
 use crate::{
     data::{WorkDirGuard, WorkDirWriteGuard},
     model::blocking_io,
@@ -57,7 +60,7 @@ pub trait ValidGraphPaths {
         let name = self.with_internal_errors(|| {
             let last_component: Component = path
                 .components()
-                .last()
+                .next_back()
                 .ok_or(InvalidPathReason::PathNotParsable)?;
             match last_component {
                 Component::Normal(value) => Ok::<_, InvalidPathReason>(
@@ -319,7 +322,7 @@ fn extend_and_validate(
     if full_path.is_symlink() {
         return Err(InvalidPathReason::SymlinkNotAllowed.into());
     }
-    ensure_clean_folder(&full_path)?;
+    ensure_clean_folder(full_path)?;
     Ok(())
 }
 
@@ -368,14 +371,12 @@ pub(crate) fn create_valid_path(
     for component in user_facing_path.components() {
         match extend_and_validate(&mut full_path, component) {
             Ok(_) => {
-                if !full_path.exists() {
-                    if cleanup_marker.is_none() {
-                        cleanup_marker = Some(CleanupPath {
-                            path: full_path.clone(),
-                            dirty_marker: mark_dirty(&full_path)?,
-                        });
-                        fs::create_dir(&full_path)?;
-                    }
+                if !full_path.exists() && cleanup_marker.is_none() {
+                    cleanup_marker = Some(CleanupPath {
+                        path: full_path.clone(),
+                        dirty_marker: mark_dirty(&full_path)?,
+                    });
+                    fs::create_dir(&full_path)?;
                 }
             }
             Err(error) => {
@@ -497,7 +498,7 @@ impl ValidWriteableGraphFolder {
 
                 if graph
                     .disk_storage_path()
-                    .is_some_and(|path| path == &graph_path)
+                    .is_some_and(|path| path == graph_path)
                 {
                     let meta = Metadata {
                         path: self.global_path.relative_graph_path()?,

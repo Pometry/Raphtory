@@ -37,7 +37,7 @@
     "metadata": {
         "_ui_node_type_styles": {
             "Person": {
-                "icon": "https://api.iconify.design/bi/person-fill.svg?color=white"
+                "icon": "person-fill"
             }
         }
     }

@@ -2,22 +2,26 @@ use crate::{
     api::node_type_index::NodeTypeIndexOps, error::StorageError,
     segments::node_type_index::MemNodeTypeIndex,
 };
-use parking_lot::{ArcRwLockWriteGuard, RawRwLock};
+use raphtory_api::ArcRwLockWriteGuard;
 use raphtory_core::entities::VID;
 use std::{ops::DerefMut, path::Path, sync::Arc};
 
 pub struct WriteLockedNodeTypeIndex<NTI> {
-    head: ArcRwLockWriteGuard<RawRwLock, MemNodeTypeIndex>,
+    head: ArcRwLockWriteGuard<MemNodeTypeIndex>,
     index: Arc<NTI>,
 }
 
 impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
-    pub fn new(head: ArcRwLockWriteGuard<RawRwLock, MemNodeTypeIndex>, index: Arc<NTI>) -> Self {
+    pub fn new(head: ArcRwLockWriteGuard<MemNodeTypeIndex>, index: Arc<NTI>) -> Self {
         Self { head, index }
     }
 
     pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
         self.head.insert_batch(type_id, vids);
+    }
+
+    pub fn notify_write(&mut self) {
+        self.index.notify_write_with_head(self.head.deref_mut())
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {

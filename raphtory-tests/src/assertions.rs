@@ -6,10 +6,7 @@ use raphtory::{
             StaticGraphViewOps,
         },
         graph::views::{
-            filter::{
-                model::{DynCreateFilter, TryAsCompositeFilter},
-                CreateFilter,
-            },
+            filter::{model::expr::FilterExpr, CreateFilter},
             window_graph::WindowedGraph,
         },
     },
@@ -64,10 +61,8 @@ impl GraphTransformer for WindowGraphTransformer {
 }
 
 // The helpers below are called from hundreds of tests, each with its own graph and
-// filter types. Erasing both (graph -> `DynGraphArc`, filter -> `DynFilter`) means the
+// filter types. Erasing both (graph -> `DynGraphArc`, filter -> `FilterExpr`) means the
 // filtered-graph view stack is compiled once here, not once per call site.
-type DynFilter = Arc<dyn DynCreateFilter>;
-
 fn erase_graph<G: StaticGraphViewOps>(graph: G) -> DynGraphArc<'static> {
     Arc::new(graph)
 }
@@ -76,7 +71,7 @@ pub trait ApplyFilter {
     fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String>;
 }
 
-pub struct FilterNodes(DynFilter);
+pub struct FilterNodes(FilterExpr);
 
 impl ApplyFilter for FilterNodes {
     fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
@@ -92,7 +87,7 @@ impl ApplyFilter for FilterNodes {
     }
 }
 
-pub struct SelectNodes(DynFilter);
+pub struct SelectNodes(FilterExpr);
 
 impl ApplyFilter for SelectNodes {
     fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
@@ -108,7 +103,7 @@ impl ApplyFilter for SelectNodes {
     }
 }
 
-pub struct FilterNeighbours(DynFilter, String, Direction);
+pub struct FilterNeighbours(FilterExpr, String, Direction);
 
 impl ApplyFilter for FilterNeighbours {
     fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
@@ -131,7 +126,7 @@ impl ApplyFilter for FilterNeighbours {
     }
 }
 
-pub struct FilterEdges(DynFilter);
+pub struct FilterEdges(FilterExpr);
 
 impl ApplyFilter for FilterEdges {
     fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
@@ -147,7 +142,7 @@ impl ApplyFilter for FilterEdges {
     }
 }
 
-pub struct SelectEdges(DynFilter);
+pub struct SelectEdges(FilterExpr);
 
 impl ApplyFilter for SelectEdges {
     fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
@@ -167,7 +162,7 @@ impl ApplyFilter for SelectEdges {
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl TryAsCompositeFilter + CreateFilter + Clone + 'static,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -177,14 +172,14 @@ pub fn assert_filter_nodes_results(
         transform,
         expected,
         variants.into(),
-        FilterNodes(Arc::new(filter)),
+        FilterNodes(filter.into()),
     )
 }
 
 pub fn assert_select_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl TryAsCompositeFilter + CreateFilter + Clone + 'static,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -194,7 +189,7 @@ pub fn assert_select_nodes_results(
         transform,
         expected,
         variants.into(),
-        SelectNodes(Arc::new(filter)),
+        SelectNodes(filter.into()),
     )
 }
 #[track_caller]
@@ -219,13 +214,13 @@ where
 pub fn assert_filter_nodes_err(
     init_graph: fn(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl TryAsCompositeFilter + CreateFilter + Clone + 'static,
+    filter: impl Into<FilterExpr>,
     expected: &str,
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
     let graph = init_graph(Graph::new());
     let variants = variants.into();
-    let filter: DynFilter = Arc::new(filter);
+    let filter: FilterExpr = filter.into();
 
     for v in variants {
         match v {
@@ -252,7 +247,7 @@ pub fn assert_filter_neighbours_results(
     transform: impl GraphTransformer,
     node_name: impl AsRef<str>,
     direction: Direction,
-    filter: impl TryAsCompositeFilter + CreateFilter + Clone + 'static,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -262,7 +257,7 @@ pub fn assert_filter_neighbours_results(
         transform,
         expected,
         variants.into(),
-        FilterNeighbours(Arc::new(filter), node_name.as_ref().to_string(), direction),
+        FilterNeighbours(filter.into(), node_name.as_ref().to_string(), direction),
     )
 }
 
@@ -270,7 +265,7 @@ pub fn assert_filter_neighbours_results(
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl TryAsCompositeFilter + CreateFilter + Clone + 'static,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -280,7 +275,7 @@ pub fn assert_filter_edges_results(
         transform,
         expected,
         variants.into(),
-        FilterEdges(Arc::new(filter)),
+        FilterEdges(filter.into()),
     )
 }
 
@@ -288,7 +283,7 @@ pub fn assert_filter_edges_results(
 pub fn assert_select_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl TryAsCompositeFilter + CreateFilter + Clone + 'static,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -298,7 +293,7 @@ pub fn assert_select_edges_results(
         transform,
         expected,
         variants.into(),
-        SelectEdges(Arc::new(filter)),
+        SelectEdges(filter.into()),
     )
 }
 

@@ -8,8 +8,9 @@ use crate::{
     wal::LSN,
 };
 use itertools::Itertools;
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
     core::{
         Direction,
         entities::{
@@ -41,6 +42,7 @@ use std::{
         Arc,
         atomic::{AtomicU32, Ordering},
     },
+    time::Duration,
 };
 
 /// A property predicate a storage backend may resolve to candidate rows via a
@@ -193,7 +195,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn t_len(&self) -> usize;
 
     fn load(
-        page_id: usize,
+        segment_id: usize,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: impl AsRef<Path>,
@@ -203,7 +205,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         Self: Sized;
 
     fn new(
-        page_id: usize,
+        segment_id: usize,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: Option<PathBuf>,
@@ -212,13 +214,19 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn segment_id(&self) -> usize;
 
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>;
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemNodeSegment>;
+
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemNodeSegment>;
+
+    fn try_head_mut_arc(&self) -> Option<ArcRwLockWriteGuard<MemNodeSegment>>;
 
     fn head(&self) -> RwLockReadGuard<'_, MemNodeSegment>;
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
+
+    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
 
     fn notify_write(
         &self,

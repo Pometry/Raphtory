@@ -5,6 +5,8 @@ while a property filter kept them."""
 
 from itertools import combinations
 
+import pytest
+
 from raphtory import filter
 from utils import with_variants
 
@@ -86,40 +88,98 @@ def test_node_collection_combinations_follow_set_algebra():
         assert set(single) == set(atoms), "every atom needs an independent reference"
         every = frozenset(graph.nodes.name)
         cases = []
+        views = {"window", "before", "layer"}
+        # On `nodes[]` a view expression is an existence test, so it follows set algebra under `&`
+        # and `|`. On `filter()` each expression is read on the base graph (pinned below), and
+        # `|` or `~` on a view is refused.
+        select_only = set()
         for a, b in combinations(atoms, 2):
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
             cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
+            if a in views or b in views:
+                select_only.update({f"{a} & {b}", f"{a} | {b}"})
+        # `~` of a view is "exists in the graph `~` keeps", which has no graph yet;
+        # "does not exist in the view" is `~` of its `.exists()` test
+        exists = {
+            "window": Node.window(3, 12).exists(),
+            "before": Node.before(12).exists(),
+            "layer": Node.layer("work").exists(),
+        }
         for a in atoms:
-            cases.append((f"~{a}", ~atoms[a], every - single[a]))
-        views = {"window", "before", "layer"}
-
-        def filter_path_reliable(label):
-            # `graph.filter()` goes through the entity-filter path, which fails open on the same
-            # composite classes as edge collections: `|` with a view, view & view, and `~view`.
-            # `nodes[...]` is immune, so it is asserted for everything.
-            if label.startswith("~"):
-                return label[1:] not in views
-            a, op, b = label.split(" ")
-            if op == "|":
-                return a not in views and b not in views
-            return not (a in views and b in views)
+            if a in views:
+                with pytest.raises(Exception, match="exists"):
+                    graph.nodes[~atoms[a]]
+                cases.append((f"~{a}.exists()", ~exists[a], every - single[a]))
+            else:
+                cases.append((f"~{a}", ~atoms[a], every - single[a]))
 
         mismatches = []
         for label, expr, want in cases:
             if frozenset(graph.nodes[expr].name) != want:
                 mismatches.append(f"[nodes[]] {label}")
-            if filter_path_reliable(label):
-                if frozenset(graph.filter(expr).nodes.name) != want:
-                    mismatches.append(f"[filter()] {label}")
+            if (
+                label not in select_only
+                and frozenset(graph.filter(expr).nodes.name) != want
+            ):
+                mismatches.append(f"[filter()] {label}")
         assert not mismatches, mismatches
-        # Pin the skip: when the entity path is fixed these fire — delete `filter_path_reliable`.
+        # Each expression is read on the base graph; to filter inside a window use
+        # graph.window(..).filter(..). On `nodes[]` the view is one test among the others:
+        # c exists in the window through the edge at 10, and its score of 30 is read on the
+        # graph, so `window & prop` keeps b and c.
+        view_ref = {
+            "window": graph.window(3, 12),
+            "before": graph.before(12),
+            "layer": graph.layer("work"),
+        }
+        for v, viewed in view_ref.items():
+            for name in ("name", "prop"):
+                both = frozenset(viewed.nodes.name) & frozenset(
+                    graph.filter(atoms[name]).nodes.name
+                )
+                assert (
+                    frozenset(graph.filter(atoms[v] & atoms[name]).nodes.name) == both
+                ), f"{v} & {name}"
+                exists_and = frozenset(viewed.nodes.name) & frozenset(
+                    graph.nodes[atoms[name]].name
+                )
+                assert (
+                    frozenset(graph.nodes[atoms[v] & atoms[name]].name) == exists_and
+                ), f"{v} & {name}"
+        assert sorted(graph.nodes[atoms["window"] & atoms["prop"]].name) == ["b", "c"]
+        assert frozenset(
+            graph.filter(atoms["window"] & atoms["layer"]).nodes.name
+        ) == frozenset(graph.window(3, 12).layer("work").nodes.name)
+        # `|` on a view: a plain test on `nodes[]`, refused on `filter()`; `~` on a view is
+        # refused on both, and "not in the window" is `~` of the `.exists()` test
         assert (
-            frozenset(graph.filter(~atoms["window"]).nodes.name)
-            != every - single["window"]
+            frozenset(graph.nodes[~exists["window"]].name) == every - single["window"]
         )
-        assert (
-            frozenset(graph.filter(atoms["name"] | atoms["window"]).nodes.name)
-            != single["name"] | single["window"]
-        )
+        with pytest.raises(Exception, match="exists"):
+            graph.nodes[~atoms["window"]]
+        for expr in (~atoms["window"], atoms["name"] | atoms["window"]):
+            with pytest.raises(Exception, match="view"):
+                graph.filter(expr)
+
+    return check
+
+
+def _five(graph):
+    for name in ["a", "b", "c", "d", "e"]:
+        graph.add_node(1, name)
+    return graph
+
+
+@with_variants(_five)
+def test_combined_subgraphs_select_their_set_algebra():
+    """`&` of subgraphs keeps their intersection, `|` their union, and `&` of a
+    subgraph and a predicate keeps what passes both."""
+
+    def check(graph):
+        ab = Graph.subgraph(["a", "b"])
+        bc = Graph.subgraph(["b", "c"])
+        assert sorted(graph.nodes[ab & bc].id) == ["b"]
+        assert sorted(graph.nodes[ab | bc].id) == ["a", "b", "c"]
+        assert sorted(graph.nodes[ab & (Node.name() == "a")].id) == ["a"]
 
     return check
