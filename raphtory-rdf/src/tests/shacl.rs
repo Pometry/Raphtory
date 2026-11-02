@@ -12,7 +12,7 @@ use raphtory::prelude::*;
 use rudof_rdf::{rdf_core::vocabs::ShaclVocab, rdf_impl::OxigraphInMemory};
 use shacl::validator::report::ValidationReport;
 use std::{
-    io, thread,
+    io,
     time::{Duration, Instant},
 };
 
@@ -600,20 +600,23 @@ fn validations_past_their_timeout_never_conform() {
 
 #[test]
 fn triple_terms_in_shapes_are_errors() {
-    // as deep as the server's default shapes limit allows, on the stack of its compute pool
+    // as deep as the server's default shapes limit allows; oxigraph's parser stops at 128
     let max = 100 << 10;
     let nested = |n| format!("<x:s> <x:p> {}[]{} .", "<<([]a".repeat(n), ")>>".repeat(n));
     let deep = nested((max - nested(0).len()) / 9);
-    thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(move || {
-            let options = ShaclOptions::default().with_max_shapes_length(max);
-            for ttl in ["<x:s> <x:p> <<( <x:a> <x:b> <x:c> )>> .", deep.as_str()] {
-                let result = ShaclShapes::parse(ttl.as_bytes(), RdfFormat::Turtle, None, &options);
-                assert!(matches!(result, Err(RdfError::Rdf12Term(_))), "{result:?}");
-            }
-        })
-        .unwrap()
-        .join()
-        .unwrap();
+    on_small_stack(move || {
+        let options = ShaclOptions::default().with_max_shapes_length(max);
+        let parse =
+            |ttl: &str| ShaclShapes::parse(ttl.as_bytes(), RdfFormat::Turtle, None, &options);
+        let shallow = parse("<x:s> <x:p> <<( <x:a> <x:b> <x:c> )>> .");
+        assert!(
+            matches!(shallow, Err(RdfError::Rdf12Term(_))),
+            "{shallow:?}"
+        );
+        let deep = parse(&deep);
+        assert!(
+            matches!(&deep, Err(RdfError::Parse(e)) if e.to_string().contains("nested triple terms")),
+            "{deep:?}"
+        );
+    });
 }

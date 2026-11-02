@@ -23,7 +23,7 @@ use spargebra::{
     term::NamedNodePattern,
     Query, SparqlParser,
 };
-use std::{thread, time::Duration};
+use std::time::Duration;
 
 // refuses `SERVICE` calls so no query makes a network request, whatever oxigraph features are on
 pub(crate) fn evaluator() -> SparqlEvaluator {
@@ -131,7 +131,7 @@ impl QueryOutline {
     /// Parses `query` as [`RdfView::sparql`](crate::RdfView::sparql) does, with the same errors.
     pub fn parse(query: &str, options: &SparqlOptions) -> Result<Self, RdfError> {
         check_query_length(query, options.max_query_length)?;
-        on_stack(query.len(), || {
+        RdfError::caught("the query", || {
             let query = parse(query)?;
             let from_names_time_graph = query
                 .dataset()
@@ -204,21 +204,6 @@ pub(crate) fn dedup_triples<'a>(
     })
 }
 
-// oxigraph's parser and planner recurse along the query, and overflow aborts the process
-pub(crate) fn on_stack<R: Send>(
-    len: usize,
-    f: impl FnOnce() -> Result<R, RdfError> + Send,
-) -> Result<R, RdfError> {
-    thread::scope(|scope| {
-        thread::Builder::new()
-            .name("raphtory-rdf".to_owned())
-            .stack_size((16usize << 20).saturating_add(len.saturating_mul(32 << 10)))
-            .spawn_scoped(scope, f)?
-            .join()
-            .unwrap_or_else(|panic| Err(RdfError::panicked("the query", panic)))
-    })
-}
-
 pub(crate) fn parse(query: &str) -> Result<Query, RdfError> {
     Ok(SparqlParser::new()
         .with_prefix("raphtory", RESERVED_NS)?
@@ -262,7 +247,7 @@ pub(crate) fn sparql(
     options: &SparqlOptions,
 ) -> Result<SparqlResults, RdfError> {
     check_query_length(query, options.max_query_length)?;
-    on_stack(query.len(), || {
+    RdfError::caught("the query", || {
         execute(
             view,
             parse(query)?,

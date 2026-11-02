@@ -80,9 +80,18 @@ fn parse_graph(doc: &str, format: RdfFormat) -> Graph {
 
 pub(crate) fn on_small_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
     thread::Builder::new()
-        .stack_size(256 << 10)
+        .stack_size(release_or_debug_stack(256 << 10))
         .spawn(f)
         .unwrap()
         .join()
         .unwrap()
+}
+
+/// A debug build recurses on frames about ten times bigger, so its tests get 64 MiB of stack.
+pub(crate) fn release_or_debug_stack(release: usize) -> usize {
+    if cfg!(debug_assertions) {
+        64 << 20
+    } else {
+        release
+    }
 }

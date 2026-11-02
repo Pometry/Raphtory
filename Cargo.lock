@@ -5644,8 +5644,7 @@ dependencies = [
 [[package]]
 name = "oxigraph"
 version = "0.5.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b993c12c391a7733c93171f9d07fbd80e4b99060ce3e4c76e0875cb3e63d0a8"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "dashmap",
  "getrandom 0.3.4",
@@ -5691,8 +5690,7 @@ dependencies = [
 [[package]]
 name = "oxjsonld"
 version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1554d73123a75723a4e0a4d400a3fb19ca09673563a2557090267729622fcb2"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "json-event-parser",
  "oxiri 0.2.11",
@@ -5704,8 +5702,7 @@ dependencies = [
 [[package]]
 name = "oxrdf"
 version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08037a3c3cf580d065caec6a864cf97f51be219862d95c691a48c7543406d675"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "hex",
  "oxilangtag",
@@ -5719,8 +5716,7 @@ dependencies = [
 [[package]]
 name = "oxrdfio"
 version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8e92599fc40510b01a1fa55548dffcc7160dde5cf1776e14b150a5cbcc607b4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "oxjsonld",
  "oxrdf",
@@ -5732,8 +5728,7 @@ dependencies = [
 [[package]]
 name = "oxrdfxml"
 version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b69a81d41e2ee7d0d296980e6e44d3d2282f558cd82a8b3b4988c2eb06a6e07d"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "oxilangtag",
  "oxiri 0.2.11",
@@ -5745,8 +5740,7 @@ dependencies = [
 [[package]]
 name = "oxsdatatypes"
 version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "034779b2d182d5069cd28b1f921ba334cad708ab1340db9776312464b6874b78"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "thiserror 2.0.21",
 ]
@@ -5754,8 +5748,7 @@ dependencies = [
 [[package]]
 name = "oxttl"
 version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2f5a5c0e82734bb66c9e2a82839bafca5cc129531c51b92f428a4f43405793d"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "memchr",
  "oxilangtag",
@@ -8371,8 +8364,7 @@ dependencies = [
 [[package]]
 name = "sparesults"
 version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd0fd25bd7e7eb2af56a45bc65ca768a246a50163db9215fc26da002135f6ece"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "json-event-parser",
  "memchr",
@@ -8384,8 +8376,7 @@ dependencies = [
 [[package]]
 name = "spareval"
 version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "072b1b44c9003e54a7b0817b65ce156d94ab46250dcefe0f24a9b3cc4020c1c6"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "hex",
  "json-event-parser",
@@ -8407,8 +8398,7 @@ dependencies = [
 [[package]]
 name = "spargebra"
 version = "0.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43d5fd4ba16eea5586aa54227ca2c0a394794a0f82e39c6c98a57cc6877f0230"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "oxilangtag",
  "oxiri 0.2.11",
@@ -8421,8 +8411,7 @@ dependencies = [
 [[package]]
 name = "sparopt"
 version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c1d1327a49bef5f6f294a2ddcf01635c5449a0654e9a35d3f50d7a45e4ecc78"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=878d94f471ea6dc314431dad4e587239d9a343d8#878d94f471ea6dc314431dad4e587239d9a343d8"
 dependencies = [
  "oxrdf",
  "rand 0.9.5",

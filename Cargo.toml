@@ -223,3 +223,19 @@ prefixmap = "0.3.36"
 [workspace.dependencies.storage]
 package = "db4-storage"
 path = "db4-storage"
+
+# oxigraph 0.5.13 with bounds on query nesting and depth, triple term nesting, string sizes,
+# planning and parsing time, and cancellation; until a 0.5 release carries them. Every crate of
+# its workspace comes from the fork, so there is one copy of each.
+[patch.crates-io]
+oxigraph = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+oxjsonld = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+oxrdf = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+oxrdfio = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+oxrdfxml = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+oxsdatatypes = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+oxttl = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+sparesults = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+spareval = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+spargebra = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+sparopt = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
