@@ -848,6 +848,8 @@ pub(crate) fn parent_namespace(path: &str) -> &str {
 /// Returns the effective `GraphPermission` (including any stored filter) on success.
 /// When denied and the caller has no INTROSPECT on the parent namespace, returns a
 /// "Graph does not exist" error to avoid leaking that the graph is present.
+/// A misconfigured authorisation policy logs the error and returns a generic error message to the
+/// caller instead of silently hiding everything.
 fn require_at_least_read(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,

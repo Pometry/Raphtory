@@ -66,7 +66,7 @@ mod graphql_test {
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
         test_support::{
-            assert_is_namespace_dir, run_mutation, run_mutation_as_user, setup_with_graphs,
+            assert_is_namespace_dir, run_query, run_query_as_user, setup_with_graphs,
             setup_with_policy,
         },
         url_encode::{url_decode_graph_at, url_encode_graph},
@@ -2131,7 +2131,7 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res = run_mutation(
+            let res = run_query(
                 &setup.schema,
                 r#"mutation { createNamespace(path: "foo") }"#,
             )
@@ -2172,7 +2172,7 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res = run_mutation(
+            let res = run_query(
                 &setup.schema,
                 r#"mutation { createNamespace(path: "a/b/c") }"#,
             )
@@ -2211,8 +2211,7 @@ mod graphql_test {
             let g: MaterializedGraph = g.into();
             let setup = setup_with_graphs(&[("g", g)], work_dir.path()).await;
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "g") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "g") }"#).await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
 
             assert!(setup.data.get_graph_for_test("g").await.is_ok());
@@ -2225,12 +2224,10 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
             assert_eq!(res.errors, vec![]);
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             assert!(
                 res.errors[0].message.contains("Namespace"),
@@ -2258,7 +2255,7 @@ mod graphql_test {
                     r#"mutation {{ createNamespace(path: "{}") }}"#,
                     path.replace('"', r#"\""#),
                 );
-                let res = run_mutation(&setup.schema, &query).await;
+                let res = run_query(&setup.schema, &query).await;
                 assert!(
                     !res.errors.is_empty(),
                     "expected error for path {:?}, got {:?}",
@@ -2286,7 +2283,7 @@ mod graphql_test {
                 Arc::new(FakePolicy::default().with_namespace("", NamespacePermission::Read));
             let setup = setup_with_policy(&[], work_dir.path(), policy).await;
 
-            let res = run_mutation_as_user(
+            let res = run_query_as_user(
                 &setup.schema,
                 r#"mutation { createNamespace(path: "foo") }"#,
             )
@@ -2329,7 +2326,7 @@ mod graphql_test {
                 policy,
             )
             .await;
-            let res = run_mutation_as_user(
+            let res = run_query_as_user(
                 &setup.schema,
                 r#"query { root { graphs { list { path } } } }"#,
             )
@@ -2349,7 +2346,7 @@ mod graphql_test {
                     .with_fault("g_bad"),
             );
             let setup = setup_with_policy(&[], work_dir.path(), policy).await;
-            let res = run_mutation_as_user(
+            let res = run_query_as_user(
                 &setup.schema,
                 r#"query { root { graphs { list { path } } } }"#,
             )
@@ -2380,13 +2377,45 @@ mod graphql_test {
             let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"query { graph(path: "g") { path } }"#).await;
+                run_query_as_user(&setup.schema, r#"query { graph(path: "g") { path } }"#).await;
             assert_eq!(
                 res.errors,
                 vec![],
                 "must not disclose the fault to the caller"
             );
             assert_eq!(res.data.into_json().unwrap(), json!({ "graph": null }));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_policy_fault_on_namespace_lookup_stays_hidden() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_fault("namespace")
+                    .with_fault("not_namespace"),
+            );
+            let setup = setup_with_policy(&[("namespace/g", g)], work_dir.path(), policy).await;
+
+            let res = run_query_as_user(
+                &setup.schema,
+                r#"query { namespace(path: "namespace") { path } }"#,
+            )
+            .await;
+            assert_eq!(res.errors.len(), 1);
+            assert!(!res.errors[0].message.contains("test fault resolving"));
+
+            // missing namespace with faulty policy shows the same error
+            let res = run_query_as_user(
+                &setup.schema,
+                r#"query { namespace(path: "not_namespace") { path } }"#,
+            )
+            .await;
+            assert_eq!(res.errors.len(), 1);
+            assert!(!res.errors[0].message.contains("test fault resolving"));
         }
     }
 
@@ -2402,7 +2431,7 @@ mod graphql_test {
             let policy = Arc::new(FakePolicy::default().with_fault("g"));
             let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
 
-            let res = run_mutation_as_user(
+            let res = run_query_as_user(
                 &setup.schema,
                 r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
             )
@@ -2422,13 +2451,11 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
             assert_eq!(res.errors, vec![]);
             assert!(work_dir.path().join("ns").is_dir());
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
             assert_eq!(res.errors, vec![]);
             assert_eq!(
                 res.data.into_json().unwrap(),
@@ -2452,7 +2479,7 @@ mod graphql_test {
             let setup =
                 setup_with_graphs(&[("ns/g1", g1), ("ns/sub/g2", g2)], work_dir.path()).await;
 
-            let res = run_mutation(
+            let res = run_query(
                 &setup.schema,
                 r#"mutation { createNamespace(path: "ns/empty") }"#,
             )
@@ -2460,8 +2487,7 @@ mod graphql_test {
             assert_eq!(res.errors, vec![]);
             assert!(work_dir.path().join("ns/empty").is_dir());
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
             assert_eq!(res.errors, vec![]);
             assert_eq!(
                 res.data.into_json().unwrap(),
@@ -2485,8 +2511,7 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "") }"#).await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
         }
     }
@@ -2497,7 +2522,7 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res = run_mutation(
+            let res = run_query(
                 &setup.schema,
                 r#"mutation { deleteNamespace(path: "noexist") }"#,
             )
@@ -2528,7 +2553,7 @@ mod graphql_test {
                 setup_with_policy(&[("ns/g1", g1), ("ns/g2", g2)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             // Substring is from `require_graph_write` in raphtory-graphql/src/model/mod.rs.
@@ -2563,7 +2588,7 @@ mod graphql_test {
             let setup = setup_with_policy(&[("ns/g", g)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             assert!(
@@ -2596,7 +2621,7 @@ mod graphql_test {
             let setup = setup_with_policy(&[("ns/g", g)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             assert!(
@@ -2630,7 +2655,7 @@ mod graphql_test {
             let setup = setup_with_policy(&[("ns/sub/g", g)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             assert!(
@@ -2659,8 +2684,7 @@ mod graphql_test {
             setup.data.get_graph_for_test("ns/g").await.unwrap();
             assert!(setup.data.get_cached_graph("ns/g").await.is_some());
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
             assert_eq!(res.errors, vec![]);
             assert_eq!(
                 res.data.into_json().unwrap(),
@@ -2775,7 +2799,7 @@ mod graphql_test {
             }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(res.errors, vec![], "loadNodes mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"loadNodes": true}));
 
@@ -2867,7 +2891,7 @@ mod graphql_test {
             }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(res.errors, vec![], "loadEdges mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"loadEdges": true}));
 
@@ -2962,7 +2986,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(
             res.errors,
             vec![],
@@ -2997,7 +3021,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert!(
             !res.errors.is_empty(),
             "path within the work dir should be rejected"
@@ -3038,7 +3062,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert!(
             !res.errors.is_empty(),
             "path outside allowlist should be rejected"
@@ -3080,7 +3104,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert!(
             !res.errors.is_empty(),
             "empty allowlist should deny any path"
@@ -3158,7 +3182,7 @@ mod graphql_test {
             }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(
             res.errors,
             vec![],
@@ -3215,7 +3239,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(
             res.errors,
             vec![],
@@ -3237,7 +3261,7 @@ mod graphql_test {
             .unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
-        let res = run_mutation(&schema, r#"mutation { flush(graphPath: "g") }"#).await;
+        let res = run_query(&schema, r#"mutation { flush(graphPath: "g") }"#).await;
         assert_eq!(res.errors, vec![], "flush mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"flush": true}));
     }
@@ -3250,14 +3274,14 @@ mod graphql_test {
     /// this reported 0/0.
     #[tokio::test]
     async fn test_namespace_listing_counts_after_flush() {
-        use crate::test_support::{run_mutation, setup_with_graphs};
+        use crate::test_support::{run_query, setup_with_graphs};
 
         let work_dir = tempdir().unwrap();
 
         let session = setup_with_graphs(&[], work_dir.path()).await;
 
         // Graph lives inside the `people` namespace so we can list it below.
-        let created = run_mutation(
+        let created = run_query(
             &session.schema,
             r#"mutation { newGraph(path: "people/g", graphType: EVENT) }"#,
         )
@@ -3266,7 +3290,7 @@ mod graphql_test {
 
         // `updateGraph` is a side-effecting field on the query root.
         // `addEdge` implicitly creates both endpoints: 2 nodes, 1 edge.
-        let written = run_mutation(
+        let written = run_query(
             &session.schema,
             r#"query { updateGraph(path: "people/g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
         )
@@ -3274,7 +3298,7 @@ mod graphql_test {
         assert_eq!(written.errors, vec![], "addEdge errored");
 
         // Separate request so `flush` is ordered after the writes.
-        let flushed = run_mutation(
+        let flushed = run_query(
             &session.schema,
             r#"query { updateGraph(path: "people/g") { flush } }"#,
         )
@@ -3711,7 +3735,7 @@ mod graphql_test {
             mutation {
                 createSubgraph(newPath: "sg", parentPath: "g", nodes: [1], overwrite: false)
             }"#;
-        let res = run_mutation(&setup.schema, query).await;
+        let res = run_query(&setup.schema, query).await;
         assert_eq!(res.errors, vec![], "{:?}", res.errors);
     }
 }
