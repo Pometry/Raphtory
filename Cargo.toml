@@ -228,14 +228,14 @@ path = "db4-storage"
 # planning and parsing time, and cancellation; until a 0.5 release carries them. Every crate of
 # its workspace comes from the fork, so there is one copy of each.
 [patch.crates-io]
-oxigraph = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-oxjsonld = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-oxrdf = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-oxrdfio = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-oxrdfxml = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-oxsdatatypes = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-oxttl = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-sparesults = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-spareval = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-spargebra = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
-sparopt = { git = "https://github.com/miratepuffin/oxigraph", rev = "878d94f471ea6dc314431dad4e587239d9a343d8" }
+oxigraph = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+oxjsonld = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+oxrdf = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+oxrdfio = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+oxrdfxml = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+oxsdatatypes = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+oxttl = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+sparesults = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+spareval = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+spargebra = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
+sparopt = { git = "https://github.com/miratepuffin/oxigraph", rev = "13b5e5190b0cacec16935ee72bcaf5269af5ded4" }
