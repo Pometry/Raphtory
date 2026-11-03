@@ -5644,7 +5644,7 @@ dependencies = [
 [[package]]
 name = "oxigraph"
 version = "0.5.13"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "dashmap",
  "getrandom 0.3.4",
@@ -5690,7 +5690,7 @@ dependencies = [
 [[package]]
 name = "oxjsonld"
 version = "0.2.7"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "json-event-parser",
  "oxiri 0.2.11",
@@ -5702,7 +5702,7 @@ dependencies = [
 [[package]]
 name = "oxrdf"
 version = "0.3.5"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "hex",
  "oxilangtag",
@@ -5716,7 +5716,7 @@ dependencies = [
 [[package]]
 name = "oxrdfio"
 version = "0.2.7"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "oxjsonld",
  "oxrdf",
@@ -5728,7 +5728,7 @@ dependencies = [
 [[package]]
 name = "oxrdfxml"
 version = "0.2.5"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "oxilangtag",
  "oxiri 0.2.11",
@@ -5740,7 +5740,7 @@ dependencies = [
 [[package]]
 name = "oxsdatatypes"
 version = "0.2.4"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "thiserror 2.0.21",
 ]
@@ -5748,7 +5748,7 @@ dependencies = [
 [[package]]
 name = "oxttl"
 version = "0.2.5"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "memchr",
  "oxilangtag",
@@ -6554,9 +6554,9 @@ checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quick-xml"
-version = "0.37.5"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
+checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
 dependencies = [
  "memchr",
 ]
@@ -8364,7 +8364,7 @@ dependencies = [
 [[package]]
 name = "sparesults"
 version = "0.3.5"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "json-event-parser",
  "memchr",
@@ -8376,7 +8376,7 @@ dependencies = [
 [[package]]
 name = "spareval"
 version = "0.2.9"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "hex",
  "json-event-parser",
@@ -8398,7 +8398,7 @@ dependencies = [
 [[package]]
 name = "spargebra"
 version = "0.4.8"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "oxilangtag",
  "oxiri 0.2.11",
@@ -8411,7 +8411,7 @@ dependencies = [
 [[package]]
 name = "sparopt"
 version = "0.3.9"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=13b5e5190b0cacec16935ee72bcaf5269af5ded4#13b5e5190b0cacec16935ee72bcaf5269af5ded4"
+source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
 dependencies = [
  "oxrdf",
  "rand 0.9.5",
