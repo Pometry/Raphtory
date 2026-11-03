@@ -140,9 +140,7 @@ fn require_namespace_write(
         ));
     }
     match policy {
-        None => ctx
-            .require_jwt_write_access()
-            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
+        None => Ok(ctx.require_jwt_write_access()?),
         Some(p) => {
             let ns_perm = p.namespace_permissions(ctx, ns_path).map_err(|e| {
                 error!(
@@ -248,8 +246,7 @@ impl QueryRoot {
         }
 
         let work_dir = data.work_dir_read().await;
-        let folder = ExistingGraphFolder::try_from(work_dir, &path)
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        let folder = ExistingGraphFolder::try_from(work_dir, &path)?;
         Ok(Some(MetaGraph::new(folder)))
     }
 
@@ -331,7 +328,7 @@ impl QueryRoot {
         let (_, graph) = data.get_graph_requiring_read(ctx, &path, None).await?;
         let materialized = blocking_compute(move || graph.materialize())
             .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+            .map_err(GQLError::from)?;
         Ok(url_encode_graph(materialized).map_err(GQLError::from)?)
     }
 

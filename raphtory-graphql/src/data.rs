@@ -975,9 +975,7 @@ pub(crate) fn require_graph_write(
         ));
     }
     match policy {
-        None => ctx
-            .require_jwt_write_access()
-            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
+        None => Ok(ctx.require_jwt_write_access()?),
         Some(p) => {
             graph_grant(ctx, p.as_ref(), path)?
                 .at_least_write()
