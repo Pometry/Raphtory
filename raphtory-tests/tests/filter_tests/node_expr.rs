@@ -891,7 +891,7 @@ fn and_of_two_windows_visits_every_node() {
 }
 
 #[test]
-fn not_of_a_subgraph_visits_every_node() {
+fn a_negated_subgraph_membership_visits_every_node() {
     let g = build_domain_graph();
     // `subgraph` is not a time or layer view, so its negation is refused on a
     // collection; the negated `exists()` is the test.
