@@ -433,11 +433,8 @@ impl EdgeTimeSemanticsOps for MultiWindowTimeSemantics {
         })
     }
 
-    /// The first deletion of this event that the view can see. Each range is
-    /// asked in order for the next deletion after `t` up to its end, and a hit
-    /// counts only if it falls inside that range: a deletion in a gap between
-    /// ranges is outside the view, so within the view the event is never
-    /// deleted -- exactly what each window reports on its own.
+    /// The first deletion of this event that the view can see: the first range
+    /// that sees one, as each window reports it on its own.
     fn edge_exploded_deletion<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -445,10 +442,9 @@ impl EdgeTimeSemanticsOps for MultiWindowTimeSemantics {
         t: EventTime,
         layer: LayerId,
     ) -> Option<EventTime> {
-        self.windows.iter().filter(|w| w.end > t).find_map(|w| {
+        self.windows.iter().find_map(|w| {
             self.semantics
                 .edge_exploded_deletion_window(e, view.clone(), t, layer, w.clone())
-                .filter(|d| *d >= w.start)
         })
     }
 

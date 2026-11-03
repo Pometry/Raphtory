@@ -296,3 +296,37 @@ fn an_exploded_edge_read_through_a_multi_window_answers_as_its_windows_do() {
         assert_eq!(from_multi, expected, "{kind}: multi-window");
     }
 }
+
+/// ```text
+/// time:  0    1    2    3    4    5    6    7
+/// a→b         ●+        ●-                         added @1, deleted @3 (in the gap)
+/// c→d         ●+                  ●-               added @1, deleted @5 (in a range)
+/// ranges [0,2) [4,6)  [====)        [====)
+/// ```
+/// A deletion is in a multi-window view exactly when some range sees it on its own:
+/// one in the gap is not, one inside a range is.
+#[test]
+fn an_exploded_deletion_is_in_a_multi_window_as_its_windows_see_it() {
+    let g = PersistentGraph::new();
+    g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+    g.delete_edge(3, "a", "b", None).unwrap();
+    g.add_edge(1, "c", "d", NO_PROPS, None).unwrap();
+    g.delete_edge(5, "c", "d", None).unwrap();
+    let g = g.into_dynamic();
+    let (w1, w2) = (g.window(0, 2), g.window(4, 6));
+    let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..2, 4..6])).into_dynamic();
+    let deleted = |view: DynamicGraph, e: EdgeRef| EdgeView::new(view, e).is_deleted();
+    let exploded = g.edges().explode();
+    let from_windows: Vec<_> = exploded
+        .iter()
+        .map(|e| {
+            deleted(w1.clone().into_dynamic(), e.edge) || deleted(w2.clone().into_dynamic(), e.edge)
+        })
+        .collect();
+    let from_multi: Vec<_> = exploded
+        .iter()
+        .map(|e| deleted(multi.clone(), e.edge))
+        .collect();
+    assert_eq!(from_windows, vec![false, true], "single windows");
+    assert_eq!(from_multi, from_windows, "multi-window");
+}
