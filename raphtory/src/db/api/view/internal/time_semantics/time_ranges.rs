@@ -17,6 +17,7 @@
 //! `[0,10)` — so each set has exactly one representation, and the number of
 //! ranges says which `TimeSemantics` variant it is: none is the empty window,
 //! one is `Window`, more is `MultiWindow`.
+use itertools::Itertools;
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{
     borrow::Borrow,
@@ -180,20 +181,11 @@ impl TimeRanges {
     /// new one, so the output needs no sorting and no re-normalising.
     pub fn union(&self, other: &Self) -> Self {
         let mut out = Vec::with_capacity(self.len() + other.len());
-        let (mut a, mut b) = (self.iter().peekable(), other.iter().peekable());
-        loop {
-            // Whichever of the two heads starts first; both lists are sorted, so
-            // nothing still to come can start before it.
-            let next = match (a.peek(), b.peek()) {
-                (Some(x), Some(y)) if x.start <= y.start => a.next(),
-                (Some(_), Some(_)) => b.next(),
-                (Some(_), None) => a.next(),
-                (None, _) => b.next(),
-            };
-            match next {
-                Some(range) => push_merged(&mut out, range),
-                None => break,
-            }
+        for range in self
+            .iter()
+            .merge_by(other.iter(), |x, y| x.start <= y.start)
+        {
+            push_merged(&mut out, range);
         }
         Self::normalised(out.into())
     }
