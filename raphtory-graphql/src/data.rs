@@ -721,8 +721,9 @@ pub enum PermissionError {
     /// Graph exists but caller has no namespace visibility — hide graph existence.
     #[error("Graph does not exist")]
     GraphNotFound,
-    /// Caller has no grant on the graph at all, and can already see its namespace, so
-    /// saying so discloses nothing they could not learn from a listing.
+    /// Caller has no grant on the graph at all but can see its namespace. The denial names
+    /// the path the caller asked for, and a path with no graph behind it gets the same
+    /// denial, so the answer does not tell them whether the graph exists.
     #[error("Access denied: no permission for graph '{graph}'")]
     GraphAccessDenied { graph: String },
     /// Caller has introspect-only access; cannot read graph data.
@@ -867,9 +868,10 @@ fn graph_grant(
         }
         Ok(None) => {
             warn!(graph = path, "Access denied by auth policy");
-            // Admitting the denial admits the graph exists, so it is only safe for a
-            // caller who can already see the namespace. A policy fault resolving the namespace
-            // is reported as a generic policy error, same as if the graph permission fails to resolve.
+            // A caller who cannot see the namespace is told the graph does not exist. One
+            // who can is denied by name, which is safe only because a path with no graph
+            // behind it is denied the same way. A policy fault resolving the namespace is
+            // reported as a generic policy error, same as if the graph permission fails to resolve.
             let namespace = parent_namespace(path);
             let disclosable = match policy.namespace_permissions(ctx, namespace) {
                 Ok(perm) => perm.is_some(),
