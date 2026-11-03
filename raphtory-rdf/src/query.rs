@@ -3,7 +3,7 @@ use crate::{
     algebra::{walk, Node},
     dataset::RaphtoryDataset,
     functions::temporal_functions_of,
-    limits::{cancel_after, check_query_length, check_triple_patterns},
+    limits::{cancel_after, check_query_length, check_result_count, check_triple_patterns},
     time_graph::time_graphs_in,
     RdfError, TimeGraph, RESERVED_NS,
 };
@@ -62,24 +62,30 @@ pub enum SparqlResults {
 }
 
 impl SparqlResults {
-    pub(crate) fn from_query_results(results: QueryResults<'_>) -> Result<Self, RdfError> {
+    pub(crate) fn from_query_results(
+        results: QueryResults<'_>,
+        max_results: Option<usize>,
+    ) -> Result<Self, RdfError> {
         Ok(match results {
             QueryResults::Solutions(solutions) => {
                 let variables = solutions.variables().to_vec();
-                let rows = solutions
-                    .map(|solution| solution.map(|solution| solution.values().to_vec()))
-                    .collect::<Result<_, _>>()
-                    .map_err(RdfError::from)?;
+                let mut rows = Vec::new();
+                for solution in solutions {
+                    rows.push(solution.map_err(RdfError::from)?.values().to_vec());
+                    check_result_count(rows.len(), max_results)?;
+                }
                 Self::Solutions { variables, rows }
             }
             QueryResults::Boolean(value) => Self::Boolean(value),
-            QueryResults::Graph(triples) => Self::Graph(
-                triples
-                    .collect::<Result<IndexSet<_, FxBuildHasher>, _>>()
-                    .map_err(RdfError::from)?
-                    .into_iter()
-                    .collect(),
-            ),
+            QueryResults::Graph(triples) => {
+                let mut graph = IndexSet::<_, FxBuildHasher>::default();
+                for triple in triples {
+                    if graph.insert(triple.map_err(RdfError::from)?) {
+                        check_result_count(graph.len(), max_results)?;
+                    }
+                }
+                Self::Graph(graph.into_iter().collect())
+            }
         })
     }
 }
@@ -163,6 +169,7 @@ pub struct SparqlOptions {
     pub(crate) max_query_length: Option<usize>,
     pub(crate) max_triple_patterns: Option<usize>,
     pub(crate) max_result_bytes: Option<usize>,
+    pub(crate) max_results: Option<usize>,
     pub(crate) timeout: Option<Duration>,
 }
 
@@ -183,6 +190,12 @@ impl SparqlOptions {
     /// The most bytes of results [`sparql_to_writer`](crate::RdfView::sparql_to_writer) writes.
     pub fn with_max_result_bytes(mut self, max: impl Into<Option<usize>>) -> Self {
         self.max_result_bytes = max.into();
+        self
+    }
+
+    /// The most solutions, or distinct triples, a query may return; one more fails the query.
+    pub fn with_max_results(mut self, max: impl Into<Option<usize>>) -> Self {
+        self.max_results = max.into();
         self
     }
 
@@ -248,11 +261,8 @@ pub(crate) fn sparql(
 ) -> Result<SparqlResults, RdfError> {
     check_query_length(query, options.max_query_length)?;
     RdfError::caught("the query", || {
-        execute(
-            view,
-            parse(query)?,
-            options,
-            SparqlResults::from_query_results,
-        )
+        execute(view, parse(query)?, options, |results| {
+            SparqlResults::from_query_results(results, options.max_results)
+        })
     })
 }

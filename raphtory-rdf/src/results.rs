@@ -1,6 +1,6 @@
 //! Serialising SPARQL results.
 use crate::{
-    limits::{check_query_length, Capped},
+    limits::{check_query_length, check_result_count, Capped},
     query::{dedup_triples, execute, parse, QueryForm, SparqlOptions},
     QueryResultsFormat, RdfError, RdfFormat, WriteStats,
 };
@@ -195,7 +195,7 @@ pub(crate) fn sparql_to_writer<W: Write + Send>(
                 results => results,
             };
             let mut out = Capped::new(writer, options.max_result_bytes);
-            let written = write_query_results(results, &mut out, &format);
+            let written = write_query_results(results, &mut out, &format, options.max_results);
             out.check(written)
         })
     })
@@ -205,6 +205,7 @@ fn write_query_results<W: Write>(
     results: QueryResults<'_>,
     writer: W,
     format: &SparqlFormat,
+    max_results: Option<usize>,
 ) -> Result<WriteStats, RdfError> {
     let mut stats = WriteStats::default();
     match results {
@@ -214,8 +215,10 @@ fn write_query_results<W: Write>(
             let mut serializer = QueryResultsSerializer::from_format(results_format.to_oxigraph())
                 .serialize_solutions_to_writer(&mut out, solutions.variables().to_vec())?;
             for solution in solutions {
-                serializer.serialize(&solution.map_err(RdfError::from)?)?;
+                let solution = solution.map_err(RdfError::from)?;
                 stats.written += 1;
+                check_result_count(stats.written, max_results)?;
+                serializer.serialize(&solution)?;
             }
             serializer.finish()?;
             out.flush()?;
@@ -232,8 +235,10 @@ fn write_query_results<W: Write>(
             let mut out = RdfSerializer::from_format(graph_format.to_oxigraph())
                 .for_writer(BufWriter::new(writer));
             for triple in triples {
-                out.serialize_triple(&triple.map_err(RdfError::from)?)?;
+                let triple = triple.map_err(RdfError::from)?;
                 stats.written += 1;
+                check_result_count(stats.written, max_results)?;
+                out.serialize_triple(&triple)?;
             }
             out.finish()?.flush()?;
         }

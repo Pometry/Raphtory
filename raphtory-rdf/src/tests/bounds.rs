@@ -1,7 +1,7 @@
 //! Bounding a query and its results: the limits of `SparqlOptions`.
 use crate::{
     limits::count_triple_patterns, query::parse, QueryResultsFormat, RdfError, RdfFormat, RdfGraph,
-    SparqlFormat, SparqlOptions,
+    SparqlFormat, SparqlOptions, SparqlResults,
 };
 use oxigraph::sparql::QueryEvaluationError;
 use raphtory::prelude::*;
@@ -139,6 +139,39 @@ fn long_queries_and_large_results_are_rejected() {
             "{written:?}"
         );
         assert!(out.len() < all.len());
+    }
+}
+
+#[test]
+fn results_past_max_results_are_rejected() {
+    let g = small_graph();
+    let select = "SELECT * { ?s ?p ?o }";
+    let all = match g.sparql(select, &SparqlOptions::default()) {
+        Ok(SparqlResults::Solutions { rows, .. }) => rows.len(),
+        other => panic!("{other:?}"),
+    };
+    // the same triple for every solution counts once
+    let construct = "CONSTRUCT { <x:a> <x:b> <x:c> } WHERE { ?s ?p ?o }";
+    for (query, count, format) in [
+        (select, all, SparqlFormat::from(QueryResultsFormat::Json)),
+        (construct, 1, RdfFormat::NTriples.into()),
+    ] {
+        let write = |options: &SparqlOptions| {
+            g.sparql_to_writer(query, Vec::<u8>::new(), format, options)
+                .map(drop)
+        };
+        let exact = SparqlOptions::default().with_max_results(count);
+        assert!(
+            g.sparql(query, &exact).is_ok() && write(&exact).is_ok(),
+            "{query}"
+        );
+        let fewer = SparqlOptions::default().with_max_results(count - 1);
+        for result in [g.sparql(query, &fewer).map(drop), write(&fewer)] {
+            assert!(
+                matches!(result, Err(RdfError::TooManyResults { max }) if max == count - 1),
+                "{query}: {result:?}"
+            );
+        }
     }
 }
 

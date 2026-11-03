@@ -143,7 +143,7 @@ fn oracle(dataset: &Dataset, query: &str) -> SparqlResults {
         .on_queryable_dataset(dataset)
         .execute()
         .unwrap_or_else(|e| panic!("{query}: {e}"));
-    SparqlResults::from_query_results(results).unwrap_or_else(|e| panic!("{query}: {e}"))
+    SparqlResults::from_query_results(results, None).unwrap_or_else(|e| panic!("{query}: {e}"))
 }
 
 #[derive(Debug, PartialEq, Eq)]

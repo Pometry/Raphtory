@@ -43,6 +43,11 @@ pub enum RdfError {
     #[error("SPARQL results larger than {max} bytes")]
     ResultsTooLarge { max: usize },
 
+    /// More solutions or distinct triples than
+    /// [`with_max_results`](crate::SparqlOptions::with_max_results) allows.
+    #[error("SPARQL query returned more than {max} results")]
+    TooManyResults { max: usize },
+
     /// More triple patterns than
     /// [`with_max_triple_patterns`](crate::SparqlOptions::with_max_triple_patterns) allows.
     #[error(

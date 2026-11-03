@@ -25,6 +25,13 @@ pub(crate) fn check_query_length(query: &str, max: Option<usize>) -> Result<(), 
     }
 }
 
+pub(crate) fn check_result_count(count: usize, max: Option<usize>) -> Result<(), RdfError> {
+    match max.filter(|&max| count > max) {
+        Some(max) => Err(RdfError::TooManyResults { max }),
+        None => Ok(()),
+    }
+}
+
 pub(crate) const VALUES_ROWS_PER_PATTERN: usize = 100;
 
 pub(crate) fn count_triple_patterns(query: &Query) -> usize {
