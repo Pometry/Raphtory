@@ -41,14 +41,7 @@ pub trait GraphTimeSemanticsOps {
     /// when it is several. Read from the view's own bounds, never from which
     /// events they happen to cut, so a view resolved from this keeps meaning
     /// the same as the graph grows.
-    fn view_ranges(&self) -> TimeRanges {
-        let window =
-            self.view_start().unwrap_or(EventTime::MIN)..self.view_end().unwrap_or(EventTime::MAX);
-        match self.node_time_semantics() {
-            TimeSemantics::MultiWindow(multi) => multi.windows().clipped_to(&window),
-            _ => TimeRanges::single(window),
-        }
-    }
+    fn view_ranges(&self) -> TimeRanges;
 
     /// Returns the timestamp for the earliest activity
     fn earliest_time_global(&self) -> Option<i64>;
@@ -182,6 +175,11 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     #[inline]
     fn view_end(&self) -> Option<EventTime> {
         self.graph().view_end()
+    }
+
+    #[inline]
+    fn view_ranges(&self) -> TimeRanges {
+        self.graph().view_ranges()
     }
     #[inline]
     fn earliest_time_global(&self) -> Option<i64> {

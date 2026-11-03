@@ -209,6 +209,27 @@ fn a_window_over_a_multi_window_view_keeps_out_of_the_gap() {
 /// An edge's layers over the ranges are the union of its layers in each
 /// window, each once: a layer the edge only touches in the gap is not one of
 /// them.
+/// The ranges a view reports are the ones it keeps, read from its bounds: a
+/// multi-window view its own ranges, a window over it those ranges cut to the
+/// window, gap and all. A filter resolved from a view reads these.
+#[test]
+fn a_view_reports_the_ranges_it_keeps() {
+    for (kind, g) in bases() {
+        let set = ranges(&[0..5, 6..10]);
+        let multi = MultiWindowedGraph::new(g.clone(), set.clone());
+        assert_eq!(multi.view_ranges(), set, "{kind}");
+        for (start, end) in [(4, 7), (5, 7), (0, 10)] {
+            assert_eq!(
+                multi.window(start, end).view_ranges(),
+                set.clipped_to(&EventTime::range(start..end)),
+                "{kind}: window({start},{end})"
+            );
+        }
+        assert_eq!(g.view_ranges(), TimeRanges::all(), "{kind}");
+        assert_eq!(g.window(2, 3).view_ranges(), ranges(&[2..3]), "{kind}");
+    }
+}
+
 #[test]
 fn edge_layers_are_the_union_over_the_ranges() {
     let g = Graph::new();

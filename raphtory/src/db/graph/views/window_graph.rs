@@ -181,6 +181,16 @@ impl WindowBounds {
         }
     }
 
+    /// The times these bounds keep of `graph`: a range set as it was resolved
+    /// against `graph` when the view was built, a window as `graph`'s own
+    /// ranges cut to it.
+    pub(crate) fn view_ranges<G: GraphView>(&self, graph: &G) -> TimeRanges {
+        match self {
+            Self::Window { .. } => graph.view_ranges().clipped_to(&self.window_bound()),
+            Self::Ranges(ranges) => ranges.clone(),
+        }
+    }
+
     #[inline(always)]
     fn window_bound(&self) -> Range<EventTime> {
         self.start_bound()..self.end_bound()
@@ -621,6 +631,10 @@ impl<G: GraphView> GraphTimeSemanticsOps for WindowedGraph<G> {
 
     fn view_end(&self) -> Option<EventTime> {
         self.end
+    }
+
+    fn view_ranges(&self) -> TimeRanges {
+        self.bounds().view_ranges(&self.graph)
     }
 
     #[inline]

@@ -240,6 +240,10 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for MultiWindowedGra
         self.bounds.end()
     }
 
+    fn view_ranges(&self) -> TimeRanges {
+        self.bounds.view_ranges(&self.graph)
+    }
+
     fn earliest_time_global(&self) -> Option<i64> {
         self.bounds.earliest_time_global(&self.graph)
     }
