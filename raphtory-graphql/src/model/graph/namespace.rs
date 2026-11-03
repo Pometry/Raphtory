@@ -1,10 +1,9 @@
 // Path validation errors are large (~136 bytes) but deliberately not boxed.
 #![allow(clippy::result_large_err)]
 
-use crate::data::PermissionError;
 use crate::{
     auth_policy::{AuthPolicyError, AuthorizationPolicy},
-    data::{get_relative_path, Data, WorkDirGuard},
+    data::{get_relative_path, Data, PermissionError, WorkDirGuard},
     model::graph::{
         collection::GqlCollection,
         meta_graph::MetaGraph,
