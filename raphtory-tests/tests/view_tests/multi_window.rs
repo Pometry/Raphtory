@@ -351,3 +351,22 @@ fn an_exploded_deletion_is_in_a_multi_window_as_its_windows_see_it() {
     assert_eq!(from_windows, vec![false, true], "single windows");
     assert_eq!(from_multi, from_windows, "multi-window");
 }
+
+/// ```text
+/// time     0    1    2    3    4    5    6    7    8    9
+/// 0→0                                ●-                    deleted @6, never added
+/// ranges   [=============================)    [====)
+/// ```
+/// A node is in a multi-window view when any range has it: node 0 is in the
+/// first window only, through its edge's deletion there.
+#[test]
+fn a_node_in_any_range_is_in_the_multi_window_view() {
+    let g = PersistentGraph::new();
+    g.delete_edge(6, 0, 0, None).unwrap();
+    let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..7, 8..9]));
+    assert_eq!(
+        node_names(&g.window(0, 7)),
+        BTreeSet::from(["0".to_string()])
+    );
+    assert_eq!(node_names(&multi), node_names(&g.window(0, 7)));
+}

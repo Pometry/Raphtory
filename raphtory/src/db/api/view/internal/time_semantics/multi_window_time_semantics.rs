@@ -166,7 +166,13 @@ impl NodeTimeSemanticsOps for MultiWindowTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> bool {
-        self.holds(|w| self.semantics.node_valid_window(node, view.clone(), w))
+        // Not `holds`: a node is in the view when any range has it. A persistent
+        // window counts edge activity only inside it, so a node in an earlier
+        // range need not be in the last.
+        self.windows.iter().any(|w| {
+            self.semantics
+                .node_valid_window(node, view.clone(), w.clone())
+        })
     }
 
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
