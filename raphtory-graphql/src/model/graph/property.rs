@@ -4,6 +4,7 @@ use crate::{
         timeindex::{GqlEventTime, GqlTimeInput},
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::{Error, Name, Value as GqlValue};
 use bigdecimal::BigDecimal;
@@ -427,11 +428,14 @@ pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
             .collect::<Result<Vec<(String, Prop)>, Error>>()?
             .into_prop_map()),
         GqlValue::String(s) => Ok(Prop::Str(s.into())),
-        GqlValue::List(arr) => Ok(Prop::List(PropArray::try_from(
-            arr.into_iter()
-                .map(gql_to_prop)
-                .collect::<Result<Vec<Prop>, Error>>()?,
-        )?)),
+        GqlValue::List(arr) => Ok(Prop::List(
+            PropArray::try_from(
+                arr.into_iter()
+                    .map(gql_to_prop)
+                    .collect::<Result<Vec<Prop>, Error>>()?,
+            )
+            .map_err(GQLError::from)?,
+        )),
         _ => Err(Error::new("Unable to convert")),
     }
 }

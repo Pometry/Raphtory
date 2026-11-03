@@ -19,6 +19,7 @@ use crate::{
     },
     paths::{PathValidationError, UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
@@ -35,7 +36,6 @@ use raphtory::{
         },
         graph::node::NodeView,
     },
-    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
@@ -207,7 +207,7 @@ impl GqlGraph {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlGraphWindowSet, GraphError> {
+    ) -> Result<GqlGraphWindowSet, GQLError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if let Some(unit) = alignment_unit {
@@ -235,7 +235,7 @@ impl GqlGraph {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlGraphWindowSet, GraphError> {
+    ) -> Result<GqlGraphWindowSet, GQLError> {
         let step = step.try_into_interval()?;
         let ws = if let Some(unit) = alignment_unit {
             self.graph.expanding_aligned(step, unit.into())?
@@ -523,7 +523,9 @@ impl GqlGraph {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
-            let narrowed = blocking_compute(move || nn.select(sel)).await?;
+            let narrowed = blocking_compute(move || nn.select(sel))
+                .await
+                .map_err(GQLError::from)?;
             return Ok(GqlNodes::new(narrowed));
         }
 
@@ -551,7 +553,9 @@ impl GqlGraph {
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
-            let narrowed = blocking_compute(move || base.select(sel)).await?;
+            let narrowed = blocking_compute(move || base.select(sel))
+                .await
+                .map_err(GQLError::from)?;
             return Ok(GqlEdges::new(narrowed));
         }
 
@@ -679,8 +683,12 @@ impl GqlGraph {
             .clone();
         let g = self.graph.clone();
         blocking_compute(move || {
-            other_g.import_nodes(g.nodes(), true)?;
-            other_g.import_edges(g.edges(), true)?;
+            other_g
+                .import_nodes(g.nodes(), true)
+                .map_err(GQLError::from)?;
+            other_g
+                .import_edges(g.edges(), true)
+                .map_err(GQLError::from)?;
             Ok(true)
         })
         .await
@@ -694,7 +702,7 @@ impl GqlGraph {
             desc = "Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. A `view` cannot appear under `or` or `not`. If omitted, applies the identity filter."
         )]
         expr: Option<GqlFilter>,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let Some(expr) = expr else {

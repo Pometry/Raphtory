@@ -2,6 +2,7 @@ use crate::{
     data::{Data, PermissionError},
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
@@ -117,8 +118,11 @@ impl MetaGraph {
                 .folder
                 .graph_folder()
                 .graph_path()
-                .map_err(GraphError::from)?;
-            let pairs = read_constant_graph_properties(&graph_path).map_err(GraphError::from)?;
+                .map_err(GraphError::from)
+                .map_err(GQLError::from)?;
+            let pairs = read_constant_graph_properties(&graph_path)
+                .map_err(GraphError::from)
+                .map_err(GQLError::from)?;
             return Ok(Some(
                 pairs
                     .into_iter()
@@ -128,7 +132,8 @@ impl MetaGraph {
         }
 
         Ok(Some(
-            decode_graph_metadata(self.folder.graph_folder())?
+            decode_graph_metadata(self.folder.graph_folder())
+                .map_err(GQLError::from)?
                 .into_iter()
                 .filter_map(|(key, value)| value.map(|prop| (key, prop)))
                 .collect(),

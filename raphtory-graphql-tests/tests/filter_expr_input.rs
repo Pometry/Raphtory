@@ -20,7 +20,10 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
     Direction,
 };
-use raphtory_graphql::model::graph::filter_expr_input::{GqlFilter, GqlViewOp, ViewKind};
+use raphtory_graphql::{
+    model::graph::filter_expr_input::{GqlFilter, GqlViewOp, ViewKind},
+    GQLError,
+};
 use serde_json::json;
 /// A schema with one field that parses a filter the way every resolver
 /// does, refuses what the server refuses, and answers the filter it
@@ -32,7 +35,7 @@ struct Echo;
 #[ResolvedObjectFields]
 impl Echo {
     /// The filter `expr` received, as JSON, once it parses to a tree.
-    async fn tree(expr: GqlFilter) -> dynamic_graphql::Result<String> {
+    async fn tree(expr: GqlFilter) -> Result<String, GQLError> {
         F::try_from(expr.clone())?;
         Ok(serde_json::to_string(&expr)?)
     }

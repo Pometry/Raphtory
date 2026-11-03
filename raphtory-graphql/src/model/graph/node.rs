@@ -12,6 +12,7 @@ use crate::{
         GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -26,7 +27,6 @@ use raphtory::{
         },
         graph::node::NodeView,
     },
-    errors::GraphError,
     prelude::NodeStateOps,
 };
 use raphtory_api::core::utils::time::IntoTime;
@@ -125,7 +125,7 @@ impl GqlNode {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlNodeWindowSet, GraphError> {
+    ) -> Result<GqlNodeWindowSet, GQLError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if let Some(unit) = alignment_unit {
@@ -153,7 +153,7 @@ impl GqlNode {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlNodeWindowSet, GraphError> {
+    ) -> Result<GqlNodeWindowSet, GQLError> {
         let step = step.try_into_interval()?;
         let ws = if let Some(unit) = alignment_unit {
             self.vv.expanding_aligned(step, unit.into())?
@@ -349,16 +349,15 @@ impl GqlNode {
     /// predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
     /// steps through. The returned nodes are on the full graph so their other-layer neighbours stay
     /// queryable.
-    pub async fn in_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
+    pub async fn in_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GQLError> {
         let self_clone = self.clone();
         match select {
-            Some(select) => {
-                blocking_compute(move || {
-                    in_component_filtered(self_clone.vv.clone(), select)
-                        .map(|state| GqlNodes::new(state.nodes()))
-                })
-                .await
-            }
+            Some(select) => blocking_compute(move || {
+                in_component_filtered(self_clone.vv.clone(), select)
+                    .map(|state| GqlNodes::new(state.nodes()))
+            })
+            .await
+            .map_err(GQLError::from),
             None => Ok(blocking_compute(move || {
                 GqlNodes::new(in_component(self_clone.vv.clone()).nodes())
             })
@@ -370,16 +369,15 @@ impl GqlNode {
     /// predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
     /// steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
     /// neighbours remain queryable.
-    pub async fn out_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
+    pub async fn out_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GQLError> {
         let self_clone = self.clone();
         match select {
-            Some(select) => {
-                blocking_compute(move || {
-                    out_component_filtered(self_clone.vv.clone(), select)
-                        .map(|state| GqlNodes::new(state.nodes()))
-                })
-                .await
-            }
+            Some(select) => blocking_compute(move || {
+                out_component_filtered(self_clone.vv.clone(), select)
+                    .map(|state| GqlNodes::new(state.nodes()))
+            })
+            .await
+            .map_err(GQLError::from),
             None => Ok(blocking_compute(move || {
                 GqlNodes::new(out_component(self_clone.vv.clone()).nodes())
             })
@@ -388,7 +386,7 @@ impl GqlNode {
     }
 
     /// Returns all connected edges.
-    pub async fn edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GQLError> {
         let base = self.vv.edges();
         if let Some(sel) = select {
             let narrowed = blocking_compute(move || base.select(sel)).await?;
@@ -398,7 +396,7 @@ impl GqlNode {
     }
 
     /// Returns outgoing edges.
-    pub async fn out_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn out_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GQLError> {
         let base = self.vv.out_edges();
         if let Some(sel) = select {
             let narrowed = blocking_compute(move || base.select(sel)).await?;
@@ -408,7 +406,7 @@ impl GqlNode {
     }
 
     /// Returns incoming edges.
-    pub async fn in_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn in_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GQLError> {
         let base = self.vv.in_edges();
         if let Some(sel) = select {
             let narrowed = blocking_compute(move || base.select(sel)).await?;
@@ -418,10 +416,7 @@ impl GqlNode {
     }
 
     /// Returns neighbouring nodes.
-    pub async fn neighbours(
-        &self,
-        select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    pub async fn neighbours(&self, select: Option<GqlFilter>) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -434,7 +429,7 @@ impl GqlNode {
     pub async fn in_neighbours(
         &self,
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.in_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -447,7 +442,7 @@ impl GqlNode {
     pub async fn out_neighbours(
         &self,
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.out_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -462,7 +457,7 @@ impl GqlNode {
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.vv.filter(expr)?;

@@ -12,6 +12,7 @@ use crate::{data::InsertionError, paths::PathValidationError};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
+use tracing::error;
 
 pub mod auth;
 pub mod auth_policy;
@@ -43,18 +44,56 @@ pub(crate) mod test_support;
 #[derive(thiserror::Error, Debug)]
 pub enum GQLError {
     #[error(transparent)]
-    GraphError(#[from] GraphError),
+    GraphError(GraphError),
     #[error(transparent)]
     Validation(#[from] PathValidationError),
     #[error(transparent)]
     Insertion(#[from] InsertionError),
+    /// A server-side I/O failure; never shown to the client.
     #[error(transparent)]
-    Arc(#[from] Arc<Self>),
+    Io(std::io::Error),
+    #[error(transparent)]
+    Arc(Arc<Self>),
 }
 
-#[cfg(feature = "vectors")]
-impl From<raphtory_vectors::errors::VectorError> for GQLError {
-    fn from(error: raphtory_vectors::errors::VectorError) -> Self {
+impl GQLError {
+    /// An error about the server rather than the request: its text may name server internals.
+    fn is_internal(&self) -> bool {
+        match self {
+            GQLError::Io(_) => true,
+            GQLError::Arc(inner) => inner.is_internal(),
+            GQLError::GraphError(_) | GQLError::Validation(_) | GQLError::Insertion(_) => false,
+        }
+    }
+}
+
+/// What a client is told about an error from the graph layer: its own message, unless the
+/// error is about the server, which is logged and answered generically.
+impl From<GQLError> for async_graphql::Error {
+    fn from(error: GQLError) -> Self {
+        if error.is_internal() {
+            error!(error = %error, "internal error while serving a request");
+            async_graphql::Error::new("Internal server error")
+        } else {
+            async_graphql::Error::new_with_source(error)
+        }
+    }
+}
+
+impl From<PathValidationError> for async_graphql::Error {
+    fn from(error: PathValidationError) -> Self {
+        GQLError::from(error).into()
+    }
+}
+
+impl From<InsertionError> for async_graphql::Error {
+    fn from(error: InsertionError) -> Self {
+        GQLError::from(error).into()
+    }
+}
+
+impl<E: Into<GraphError>> From<E> for GQLError {
+    fn from(error: E) -> Self {
         GQLError::GraphError(error.into())
     }
 }
@@ -2443,6 +2482,34 @@ mod graphql_test {
                     .map(|e| e.message.as_str())
                     .collect::<Vec<_>>(),
                 vec![PermissionError::AuthPolicyError.to_string().as_str()],
+            );
+        }
+    }
+
+    /// A permission error that reaches the client through `?` keeps its machine-readable
+    /// code, so a client can tell a policy fault from a denial without reading the message.
+    #[tokio::test]
+    async fn test_policy_fault_through_question_mark_keeps_its_code() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g: MaterializedGraph = Graph::new().into();
+            let policy = Arc::new(FakePolicy::default().with_fault("team"));
+            let setup = setup_with_policy(&[("team/g", g)], work_dir.path(), policy).await;
+            let res =
+                run_query_as_user(&setup.schema, r#"query { namespaces { list { path } } }"#).await;
+            let errors = serde_json::to_value(&res.errors).unwrap();
+            let seen: Vec<_> = errors
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| (e["message"].clone(), e["extensions"]["code"].clone()))
+                .collect();
+            assert_eq!(
+                seen,
+                vec![(
+                    json!(PermissionError::AuthPolicyError.to_string()),
+                    json!(crate::data::CODE_AUTH_ERROR),
+                )],
             );
         }
     }

@@ -17,6 +17,7 @@ use crate::{
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
     rayon::{blocking_compute, blocking_write},
     url_encode::{url_decode_graph_at, url_encode_graph},
+    GQLError,
 };
 use async_graphql::{dynamic::SchemaBuilder, Context};
 use dynamic_graphql::{
@@ -87,6 +88,12 @@ where
     R: Send + 'static,
 {
     tokio::task::spawn_blocking(f).await.unwrap()
+}
+
+impl From<GqlGraphError> for async_graphql::Error {
+    fn from(error: GqlGraphError) -> Self {
+        async_graphql::Error::new_with_source(error)
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -325,7 +332,7 @@ impl QueryRoot {
         let materialized = blocking_compute(move || graph.materialize())
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
-        Ok(url_encode_graph(materialized)?)
+        Ok(url_encode_graph(materialized).map_err(GQLError::from)?)
     }
 
     /// Version string of the running `raphtory-graphql` server build.
@@ -402,7 +409,7 @@ impl Mut {
         let metadata_owned = metadata.unwrap_or_default();
         let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
 
-        let schema = parse_json_schema(schema.as_deref())?;
+        let schema = parse_json_schema(schema.as_deref()).map_err(GQLError::from)?;
 
         // extracting PathBuf handles Strings too
         let data_path = PathBuf::from(data_path);
@@ -431,7 +438,8 @@ impl Mut {
             None,
             true,
             arced_schema.clone(),
-        )?;
+        )
+        .map_err(GQLError::from)?;
         Ok(true)
     }
 
@@ -478,7 +486,7 @@ impl Mut {
         let metadata_owned = metadata.unwrap_or_default();
         let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
 
-        let schema = parse_json_schema(schema.as_deref())?;
+        let schema = parse_json_schema(schema.as_deref()).map_err(GQLError::from)?;
 
         // extracting PathBuf handles Strings too
         let data_path = PathBuf::from(data_path);
@@ -507,7 +515,8 @@ impl Mut {
             layer.as_deref(),
             None,
             arced_schema.clone(),
-        )?;
+        )
+        .map_err(GQLError::from)?;
         Ok(true)
     }
 
@@ -528,8 +537,12 @@ impl Mut {
         let graph_path = folder.graph_folder();
         let graph: MaterializedGraph = if Extension::disk_storage_enabled() {
             match graph_type {
-                GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path)?.into(),
-                GqlGraphType::Event => Graph::new_at_path(graph_path)?.into(),
+                GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path)
+                    .map_err(GQLError::from)?
+                    .into(),
+                GqlGraphType::Event => Graph::new_at_path(graph_path)
+                    .map_err(GQLError::from)?
+                    .into(),
             }
         } else {
             match graph_type {
@@ -618,7 +631,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(&path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &path, "upload")?;
-        let in_file = graph.value(ctx)?.content;
+        let in_file = graph.value(ctx).map_err(GQLError::Io)?.content;
         let folder = data
             .work_dir_write()
             .await
@@ -655,7 +668,8 @@ impl Mut {
         let folder_clone = folder.clone();
         let g: MaterializedGraph =
             blocking_compute(move || url_decode_graph_at(graph, folder_clone.graph_folder(), args))
-                .await?;
+                .await
+                .map_err(GQLError::from)?;
         data.insert_graph(folder, g).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, path) {
             let _ = data.delete_graph(path).await;
@@ -754,8 +768,9 @@ impl Mut {
                 subgraph.materialize()
             }
         })
-        .await?;
-        new_subgraph.flush()?;
+        .await
+        .map_err(GQLError::from)?;
+        new_subgraph.flush().map_err(GQLError::from)?;
 
         data.insert_graph(folder, new_subgraph).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
@@ -781,7 +796,8 @@ impl Mut {
             }
             res
         })
-        .await?;
+        .await
+        .map_err(GQLError::from)?;
         Ok(true)
     }
 }

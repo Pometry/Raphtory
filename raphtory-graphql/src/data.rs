@@ -752,6 +752,24 @@ pub enum PermissionError {
     AuthPolicyError,
 }
 
+impl From<PermissionError> for async_graphql::Error {
+    fn from(error: PermissionError) -> Self {
+        error.into_gql_error()
+    }
+}
+
+impl From<AuthPolicyError> for async_graphql::Error {
+    fn from(error: AuthPolicyError) -> Self {
+        PermissionError::from(error).into_gql_error()
+    }
+}
+
+impl From<DeletionError> for async_graphql::Error {
+    fn from(error: DeletionError) -> Self {
+        async_graphql::Error::new_with_source(error)
+    }
+}
+
 impl From<AuthPolicyError> for PermissionError {
     fn from(value: AuthPolicyError) -> Self {
         error!("Auth policy failure: {value}");

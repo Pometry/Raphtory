@@ -11,6 +11,7 @@ use crate::{
         GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -125,7 +126,7 @@ impl GqlEdge {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlEdgeWindowSet, GraphError> {
+    ) -> Result<GqlEdgeWindowSet, GQLError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if let Some(unit) = alignment_unit {
@@ -153,7 +154,7 @@ impl GqlEdge {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlEdgeWindowSet, GraphError> {
+    ) -> Result<GqlEdgeWindowSet, GQLError> {
         let step = step.try_into_interval()?;
         let ws = if let Some(unit) = alignment_unit {
             self.ee.expanding_aligned(step, unit.into())?
@@ -270,8 +271,8 @@ impl GqlEdge {
     }
 
     /// Returns the time of an exploded edge. Errors on an unexploded edge.
-    pub async fn time(&self) -> Result<GqlEventTime, GraphError> {
-        self.ee.time().map(|t| t.into())
+    pub async fn time(&self) -> Result<GqlEventTime, GQLError> {
+        self.ee.time().map(|t| t.into()).map_err(GQLError::from)
     }
 
     /// Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
@@ -348,8 +349,11 @@ impl GqlEdge {
     }
 
     /// Returns the layer name of an exploded edge, errors on an edge.
-    pub async fn layer_name(&self) -> Result<String, GraphError> {
-        self.ee.layer_name().map(|x| x.into())
+    pub async fn layer_name(&self) -> Result<String, GQLError> {
+        self.ee
+            .layer_name()
+            .map(|x| x.into())
+            .map_err(GQLError::from)
     }
 
     /// Returns an edge object for each update within the original edge.
@@ -418,7 +422,7 @@ impl GqlEdge {
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.ee.filter(expr)?;
@@ -442,7 +446,7 @@ impl GqlEdge {
         )]
         time: GqlTimeInput,
         #[graphql(desc = "Optional layer name the event must belong to.")] layer: Option<String>,
-    ) -> Result<GqlEdge, GraphError> {
+    ) -> Result<GqlEdge, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             // Narrow with indexed views instead of scanning the full exploded
@@ -479,6 +483,7 @@ impl GqlEdge {
             }
         })
         .await
+        .map_err(GQLError::from)
     }
 
     /// Pin this edge to a single layer-exploded instance by layer name — the
@@ -488,7 +493,7 @@ impl GqlEdge {
     pub async fn event_layer(
         &self,
         #[graphql(desc = "Layer name to pin to.")] name: String,
-    ) -> Result<GqlEdge, GraphError> {
+    ) -> Result<GqlEdge, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             // Restrict to the layer up front — exploding then yields at most
@@ -508,6 +513,7 @@ impl GqlEdge {
             }
         })
         .await
+        .map_err(GQLError::from)
     }
 }
 

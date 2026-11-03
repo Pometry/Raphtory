@@ -27,6 +27,7 @@ use crate::{
         property::{ObjectEntry, Value},
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{Enum, InputObject, OneOfInput, Result};
@@ -300,7 +301,8 @@ fn condition_matches(key: &str, cond: &PropCondition, value: Option<&Prop>) -> R
                 PropertyRef::Metadata(key.to_string()),
                 leaf,
                 NodeFilter,
-            )?;
+            )
+            .map_err(GQLError::from)?;
             Ok(filter.matches(value))
         }
     }
@@ -351,13 +353,13 @@ impl MetaGraphCondition {
     /// "exactly one target" has to be checked rather than made unrepresentable.
     fn validate(&self) -> Result<()> {
         match (self.field.is_some(), self.metadata_key.is_some()) {
-            (true, true) => Err(GraphError::InvalidGqlFilter(
+            (true, true) => Err(GQLError::from(GraphError::InvalidGqlFilter(
                 "a condition must set either `field` or `metadataKey`, not both".into(),
-            )
+            ))
             .into()),
-            (false, false) => Err(GraphError::InvalidGqlFilter(
+            (false, false) => Err(GQLError::from(GraphError::InvalidGqlFilter(
                 "a condition must set one of `field` or `metadataKey`".into(),
-            )
+            ))
             .into()),
             _ => Ok(()),
         }
@@ -513,7 +515,10 @@ impl MetaGraphFilter {
 
 fn require_non_empty(op: &str, list: &[MetaGraphFilter]) -> Result<()> {
     if list.is_empty() {
-        Err(GraphError::InvalidGqlFilter(format!("{op} expects a non-empty list")).into())
+        Err(GQLError::from(GraphError::InvalidGqlFilter(format!(
+            "{op} expects a non-empty list"
+        )))
+        .into())
     } else {
         Ok(())
     }
@@ -604,7 +609,7 @@ impl SortValue {
 /// position; anything else lands in one bucket after them, ordered naturally.
 fn rank_by_value_order(prop: &Prop, order: &[Value]) -> Result<SortValue> {
     for (rank, candidate) in order.iter().enumerate() {
-        if Prop::try_from(candidate.clone())? == *prop {
+        if Prop::try_from(candidate.clone()).map_err(GQLError::from)? == *prop {
             return Ok(SortValue::Ranked(rank, Box::new(SortValue::Absent)));
         }
     }
@@ -632,13 +637,13 @@ fn prop_to_sort_value(prop: &Prop) -> SortValue {
 impl MetaGraphSort {
     fn validate(&self) -> Result<()> {
         match (self.field.is_some(), self.metadata_key.is_some()) {
-            (true, true) => Err(GraphError::InvalidGqlFilter(
+            (true, true) => Err(GQLError::from(GraphError::InvalidGqlFilter(
                 "a sort key sets either `field` or `metadataKey`, not both".into(),
-            )
+            ))
             .into()),
-            (false, false) => Err(GraphError::InvalidGqlFilter(
+            (false, false) => Err(GQLError::from(GraphError::InvalidGqlFilter(
                 "a sort key must set one of `field` or `metadataKey`".into(),
-            )
+            ))
             .into()),
             _ => Ok(()),
         }
