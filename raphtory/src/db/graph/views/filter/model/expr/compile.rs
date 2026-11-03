@@ -70,7 +70,7 @@ use crate::{
                 CreateFilter, DynEdgeFilter,
             },
             layer_graph::LayeredGraph,
-            multi_window_graph::MultiWindowedGraph,
+            window_graph::WindowedGraph,
         },
     },
     errors::GraphError,
@@ -1694,7 +1694,7 @@ impl ResolvedView {
         if self.time.is_all() {
             return graph;
         }
-        MultiWindowedGraph::new(graph, self.time).into_dyn_graph_arc()
+        WindowedGraph::from_ranges(graph, self.time).into_dyn_graph_arc()
     }
 }
 

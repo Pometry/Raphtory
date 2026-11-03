@@ -20,10 +20,7 @@ use raphtory::{
         },
         graph::{
             edge::EdgeView,
-            views::{
-                deletion_graph::PersistentGraph, multi_window_graph::MultiWindowedGraph,
-                window_graph::WindowedGraph,
-            },
+            views::{deletion_graph::PersistentGraph, window_graph::WindowedGraph},
         },
     },
     prelude::*,
@@ -86,7 +83,7 @@ fn exploded<'a, G: GraphViewOps<'a>>(e: Option<EdgeView<G>>) -> usize {
 /// times, to the millisecond.
 fn check_union<'a, G: GraphViewOps<'a>>(g: G, set: &TimeRanges) -> Result<(), TestCaseError> {
     let windows: Vec<_> = set.iter().map(|r| g.window(r.start, r.end)).collect();
-    let multi = MultiWindowedGraph::new(g.clone(), set.clone());
+    let multi = WindowedGraph::from_ranges(g.clone(), set.clone());
 
     let edges: BTreeSet<_> = windows.iter().flat_map(edge_ids).collect();
     prop_assert_eq!(edge_ids(&multi), edges.clone());
@@ -179,7 +176,7 @@ fn persistent_edge_alive_across_the_gap_is_present_in_both_ranges() {
     g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
     let w1 = g.window(3, 5);
     let w2 = g.window(6, 10);
-    let multi = MultiWindowedGraph::new(g.clone(), ranges(&[3..5, 6..10]));
+    let multi = WindowedGraph::from_ranges(g.clone(), ranges(&[3..5, 6..10]));
     let single = |w: &WindowedGraph<PersistentGraph>| exploded(w.edge("a", "b"));
     assert_eq!(single(&w1), 1);
     assert_eq!(single(&w2), 1);
@@ -191,13 +188,14 @@ fn the_parent_window_is_folded_in_once_at_construction() {
     // window(0,8) then {[0,5), [6,10)} is {[0,5), [6,8)}.
     let g = Graph::new();
     build(&g);
-    let view = MultiWindowedGraph::new(g.window(0, 8), ranges(&[0..5, 6..10]));
+    let view = WindowedGraph::from_ranges(g.window(0, 8), ranges(&[0..5, 6..10]));
     match view.edge_time_semantics() {
         TimeSemantics::MultiWindow(m) => assert_eq!(m.windows(), &ranges(&[0..5, 6..8])),
         other => panic!("expected MultiWindow, got {other:?}"),
     }
     // Ranges that leave a single interval are a plain window.
-    let view = MultiWindowedGraph::new(g.window(0, 8), TimeRanges::single(EventTime::range(3..20)));
+    let view =
+        WindowedGraph::from_ranges(g.window(0, 8), TimeRanges::single(EventTime::range(3..20)));
     assert!(matches!(
         view.edge_time_semantics(),
         TimeSemantics::Window(_)
@@ -209,8 +207,8 @@ fn the_parent_window_is_folded_in_once_at_construction() {
 #[test]
 fn a_window_over_a_multi_window_view_keeps_out_of_the_gap() {
     for (kind, g) in bases() {
-        let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..5, 6..10]));
-        let clipped = MultiWindowedGraph::new(
+        let multi = WindowedGraph::from_ranges(g.clone(), ranges(&[0..5, 6..10]));
+        let clipped = WindowedGraph::from_ranges(
             g.clone(),
             ranges(&[0..5, 6..10]).clipped_to(&EventTime::range(5..7)),
         );
@@ -258,7 +256,7 @@ fn a_window_over_a_multi_window_view_keeps_out_of_the_gap() {
 fn a_view_reports_the_ranges_it_keeps() {
     for (kind, g) in bases() {
         let set = ranges(&[0..5, 6..10]);
-        let multi = MultiWindowedGraph::new(g.clone(), set.clone());
+        let multi = WindowedGraph::from_ranges(g.clone(), set.clone());
         assert_eq!(multi.view_ranges(), set, "{kind}");
         for (start, end) in [(4, 7), (5, 7), (0, 10)] {
             assert_eq!(
@@ -283,7 +281,7 @@ fn edge_layers_are_the_union_over_the_ranges() {
         ("event", g.clone().into_dynamic()),
         ("persistent", g.persistent_graph().into_dynamic()),
     ] {
-        let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..5, 6..10]));
+        let multi = WindowedGraph::from_ranges(g.clone(), ranges(&[0..5, 6..10]));
         let layers = |g: &DynamicGraph| -> BTreeSet<String> {
             g.edge("a", "b")
                 .map(|e| e.layer_names().into_iter().map(|l| l.to_string()).collect())
@@ -342,7 +340,7 @@ fn an_exploded_edge_read_through_a_multi_window_answers_as_its_windows_do() {
     ];
     for (kind, g, expected) in bases {
         let (w1, w2) = (g.window(0, 2), g.window(4, 6));
-        let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..2, 4..6]));
+        let multi = WindowedGraph::from_ranges(g.clone(), ranges(&[0..2, 4..6]));
         let read = |view: DynamicGraph, e: EdgeRef| EdgeView::new(view, e).properties().get("w");
         let exploded = g.edges().explode();
         let from_windows: Vec<_> = exploded
@@ -377,7 +375,7 @@ fn an_exploded_deletion_is_in_a_multi_window_as_its_windows_see_it() {
     g.delete_edge(5, "c", "d", None).unwrap();
     let g = g.into_dynamic();
     let (w1, w2) = (g.window(0, 2), g.window(4, 6));
-    let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..2, 4..6])).into_dynamic();
+    let multi = WindowedGraph::from_ranges(g.clone(), ranges(&[0..2, 4..6])).into_dynamic();
     let deleted = |view: DynamicGraph, e: EdgeRef| EdgeView::new(view, e).is_deleted();
     let exploded = g.edges().explode();
     let from_windows: Vec<_> = exploded
@@ -405,7 +403,7 @@ fn an_exploded_deletion_is_in_a_multi_window_as_its_windows_see_it() {
 fn a_node_in_any_range_is_in_the_multi_window_view() {
     let g = PersistentGraph::new();
     g.delete_edge(6, 0, 0, None).unwrap();
-    let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..7, 8..9]));
+    let multi = WindowedGraph::from_ranges(g.clone(), ranges(&[0..7, 8..9]));
     assert_eq!(
         node_names(&g.window(0, 7)),
         BTreeSet::from(["0".to_string()])
