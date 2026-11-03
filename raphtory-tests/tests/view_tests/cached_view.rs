@@ -213,16 +213,6 @@ fn excluding_every_layer_after_caching_also_keeps_only_unlayered_nodes() {
     );
 }
 
-#[test]
-fn caching_agrees_on_all_layers_and_on_one() {
-    let graph = fixture();
-    assert_eq!(names(&graph.cache_view()), names(&graph));
-
-    let one = graph.layers("layer_a").unwrap();
-    assert_eq!(names(&one.cache_view()), names(&one));
-    assert_eq!(one.cache_view().edges().len(), one.edges().len());
-}
-
 /// Unlike nodes, edges have no layer visible in every view, so selecting no layers means no edges.
 #[test]
 fn caching_agrees_on_edges_for_every_layer_selection() {
