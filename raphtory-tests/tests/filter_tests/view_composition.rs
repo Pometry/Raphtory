@@ -15,9 +15,12 @@
 use raphtory::{
     db::{
         api::view::{DynamicGraph, Filter, IntoDynamic, Select},
-        graph::views::filter::model::{
-            expr::{EdgeLeaf, Expr, FilterExpr, ViewOp},
-            filter_operator::BinaryOp,
+        graph::views::filter::{
+            model::{
+                edge_filter::EdgeFilter, graph_filter::GraphFilter, ComposableFilter,
+                PropertyExprFactory, ViewWrapOps,
+            },
+            CreateFilter,
         },
     },
     errors::GraphError,
@@ -46,34 +49,6 @@ fn bases() -> [(&'static str, DynamicGraph); 2] {
     ]
 }
 
-fn window(start: i64, end: i64) -> FilterExpr {
-    FilterExpr::View(vec![ViewOp::Window {
-        start: EventTime::start(start),
-        end: EventTime::start(end),
-    }])
-}
-
-fn layer(name: &str) -> FilterExpr {
-    FilterExpr::View(vec![ViewOp::Layers(vec![name].into())])
-}
-
-fn not(expr: FilterExpr) -> FilterExpr {
-    FilterExpr::Not(Box::new(expr))
-}
-
-/// `w > v`, read on the graph the filter is given.
-fn w_gt(v: i64) -> FilterExpr {
-    FilterExpr::Edge(Expr::Cmp(
-        BinaryOp::Gt,
-        Box::new(Expr::Term(EdgeLeaf::Property {
-            views: vec![],
-            name: "w".into(),
-            temporal: false,
-        })),
-        Box::new(Expr::Const(v.into())),
-    ))
-}
-
 /// Each edge `src→dst` with the times of its updates.
 fn histories<'a, G: GraphViewOps<'a>>(g: &G) -> BTreeMap<String, Vec<i64>> {
     g.edges()
@@ -87,11 +62,11 @@ fn histories<'a, G: GraphViewOps<'a>>(g: &G) -> BTreeMap<String, Vec<i64>> {
         .collect()
 }
 
-fn filtered(g: &DynamicGraph, filter: FilterExpr) -> BTreeMap<String, Vec<i64>> {
+fn filtered(g: &DynamicGraph, filter: impl CreateFilter) -> BTreeMap<String, Vec<i64>> {
     histories(&g.filter(filter).unwrap())
 }
 
-fn refused(g: &DynamicGraph, filter: FilterExpr) -> String {
+fn refused(g: &DynamicGraph, filter: impl CreateFilter) -> String {
     match g.filter(filter) {
         Err(GraphError::InvalidFilter(message)) => message,
         Err(other) => panic!("expected an invalid filter, got {other}"),
@@ -110,10 +85,10 @@ fn expected(entries: &[(&str, &[i64])]) -> BTreeMap<String, Vec<i64>> {
 fn not_of_a_window_keeps_the_events_outside_it() {
     let g = graph().into_dynamic();
     assert_eq!(
-        filtered(&g, not(window(3, 6))),
+        filtered(&g, GraphFilter.window(3, 6).not()),
         expected(&[("a→b", &[1, 8]), ("c→d", &[6])])
     );
-    let outside = g.filter(not(window(3, 6))).unwrap();
+    let outside = g.filter(GraphFilter.window(3, 6).not()).unwrap();
     assert_eq!(outside.earliest_time().map(|t| t.t()), Some(1));
     assert_eq!(outside.latest_time().map(|t| t.t()), Some(8));
 }
@@ -127,7 +102,7 @@ fn not_of_a_window_is_the_union_of_the_two_sides_on_both_graph_kinds() {
         for (edge, times) in histories(&g.window(6, 100)) {
             want.entry(edge).or_default().extend(times);
         }
-        assert_eq!(filtered(&g, not(window(3, 6))), want, "{kind}");
+        assert_eq!(filtered(&g, GraphFilter.window(3, 6).not()), want, "{kind}");
     }
 }
 
@@ -135,7 +110,7 @@ fn not_of_a_window_is_the_union_of_the_two_sides_on_both_graph_kinds() {
 fn or_of_windows_keeps_the_events_in_either_and_none_in_the_gap() {
     let g = graph().into_dynamic();
     assert_eq!(
-        filtered(&g, FilterExpr::Or(vec![window(0, 2), window(7, 9)])),
+        filtered(&g, GraphFilter.window(0, 2).or(GraphFilter.window(7, 9))),
         expected(&[("a→b", &[1, 8])])
     );
 }
@@ -145,7 +120,10 @@ fn not_of_an_and_of_windows_is_the_complement_of_their_overlap() {
     let g = graph().into_dynamic();
     // window(0,5) & window(3,9) is [3,5); everything else is kept.
     assert_eq!(
-        filtered(&g, not(FilterExpr::And(vec![window(0, 5), window(3, 9)]))),
+        filtered(
+            &g,
+            GraphFilter.window(0, 5).and(GraphFilter.window(3, 9)).not()
+        ),
         expected(&[("a→b", &[1, 8]), ("c→d", &[6]), ("e→f", &[5])])
     );
 }
@@ -153,9 +131,12 @@ fn not_of_an_and_of_windows_is_the_complement_of_their_overlap() {
 #[test]
 fn not_of_a_layer_keeps_the_other_layers() {
     let g = graph().into_dynamic();
-    assert_eq!(filtered(&g, not(layer("x"))), expected(&[("c→d", &[3, 6])]));
     assert_eq!(
-        filtered(&g, FilterExpr::Or(vec![layer("x"), layer("y")])),
+        filtered(&g, GraphFilter.layers("x").not()),
+        expected(&[("c→d", &[3, 6])])
+    );
+    assert_eq!(
+        filtered(&g, GraphFilter.layers("x").or(GraphFilter.layers("y"))),
         histories(&g)
     );
 }
@@ -166,12 +147,18 @@ fn not_of_a_layer_keeps_the_other_layers() {
 fn a_negated_view_stays_inside_the_view_the_filter_is_given() {
     let g = graph().into_dynamic();
     assert_eq!(
-        filtered(&g.window(0, 7).into_dynamic(), not(window(3, 6))),
+        filtered(
+            &g.window(0, 7).into_dynamic(),
+            GraphFilter.window(3, 6).not()
+        ),
         expected(&[("a→b", &[1]), ("c→d", &[6])])
     );
     // A layer view on a windowed base is still a layer view alone.
     assert_eq!(
-        filtered(&g.window(0, 7).into_dynamic(), not(layer("x"))),
+        filtered(
+            &g.window(0, 7).into_dynamic(),
+            GraphFilter.layers("x").not()
+        ),
         expected(&[("c→d", &[3, 6])])
     );
 }
@@ -185,10 +172,10 @@ fn and_with_an_or_of_windows_sees_only_their_ranges() {
     assert_eq!(
         filtered(
             &g,
-            FilterExpr::And(vec![
-                w_gt(5),
-                FilterExpr::Or(vec![window(0, 2), window(7, 9)]),
-            ])
+            EdgeFilter
+                .property("w")
+                .gt(5i64)
+                .and(GraphFilter.window(0, 2).or(GraphFilter.window(7, 9)),)
         ),
         expected(&[("a→b", &[1, 8])])
     );
@@ -201,7 +188,7 @@ fn a_negated_view_on_a_collection_is_existence_outside_it() {
     let g = graph();
     let mut edges: Vec<String> = g
         .edges()
-        .select(not(window(3, 6)))
+        .select(GraphFilter.window(3, 6).not())
         .unwrap()
         .iter()
         .map(|e| format!("{}→{}", e.src().name(), e.dst().name()))
@@ -210,7 +197,7 @@ fn a_negated_view_on_a_collection_is_existence_outside_it() {
     assert_eq!(edges, ["a→b", "c→d"]);
     let mut nodes: Vec<String> = g
         .nodes()
-        .select(not(window(3, 6)))
+        .select(GraphFilter.window(3, 6).not())
         .unwrap()
         .name()
         .collect();
@@ -222,23 +209,35 @@ fn a_negated_view_on_a_collection_is_existence_outside_it() {
 fn shapes_that_are_not_one_view_are_still_refused() {
     let g = graph().into_dynamic();
     // A view beside a predicate keeps different times for different edges.
-    assert!(
-        refused(&g, FilterExpr::Or(vec![w_gt(5), window(3, 6)])).contains("only with other views")
-    );
-    assert!(
-        refused(&g, not(FilterExpr::And(vec![w_gt(5), window(3, 6)])))
-            .contains("only with other views")
-    );
+    assert!(refused(
+        &g,
+        EdgeFilter
+            .property("w")
+            .gt(5i64)
+            .or(GraphFilter.window(3, 6))
+    )
+    .contains("only with other views"));
+    assert!(refused(
+        &g,
+        EdgeFilter
+            .property("w")
+            .gt(5i64)
+            .and(GraphFilter.window(3, 6))
+            .not()
+    )
+    .contains("only with other views"));
     // Time and layers restricted differently are not one (time, layers) pair.
-    assert!(refused(&g, FilterExpr::Or(vec![window(0, 2), layer("y")]))
-        .contains("both time and layers"));
     assert!(
-        refused(&g, not(FilterExpr::And(vec![window(0, 2), layer("y")])))
+        refused(&g, GraphFilter.window(0, 2).or(GraphFilter.layers("y")))
             .contains("both time and layers")
     );
+    assert!(refused(
+        &g,
+        GraphFilter.window(0, 2).and(GraphFilter.layers("y")).not()
+    )
+    .contains("both time and layers"));
     // A view that restricts edges, not time or layers, has no place in the value.
-    assert!(refused(&g, not(FilterExpr::View(vec![ViewOp::Valid])))
-        .contains("only time and layer views"));
+    assert!(refused(&g, GraphFilter.valid().not()).contains("only time and layer views"));
 }
 
 /// A view's times are resolved when it is built, from the bounds the views
@@ -248,9 +247,12 @@ fn shapes_that_are_not_one_view_are_still_refused() {
 fn a_resolved_view_keeps_its_meaning_as_events_arrive() {
     let g = graph();
     // window(0,100) cuts nothing yet: every event lies inside it.
-    let outside = g.filter(not(window(0, 100))).unwrap();
+    let outside = g.filter(GraphFilter.window(0, 100).not()).unwrap();
     assert!(histories(&outside).is_empty());
-    let within = g.window(0, 8).filter(not(window(3, 6))).unwrap();
+    let within = g
+        .window(0, 8)
+        .filter(GraphFilter.window(3, 6).not())
+        .unwrap();
     g.add_edge(200, "x", "y", [("w", 1i64)], Some("x")).unwrap();
     g.add_edge(7, "x", "y", [("w", 1i64)], Some("x")).unwrap();
     // The event at 200 is outside window(0,100) ...
@@ -276,7 +278,7 @@ fn validity_and_deletion_over_ranges_follow_the_graph_kind() {
         ("persistent", g.persistent_graph().into_dynamic()),
     ] {
         let either = g
-            .filter(FilterExpr::Or(vec![window(0, 2), window(5, 7)]))
+            .filter(GraphFilter.window(0, 2).or(GraphFilter.window(5, 7)))
             .unwrap();
         let edge = either.edge("a", "b").unwrap();
         let first = g.window(0, 2).edge("a", "b").unwrap();
@@ -299,13 +301,9 @@ fn validity_and_deletion_over_ranges_follow_the_graph_kind() {
 #[test]
 fn a_complement_reaching_the_ends_of_time_has_no_bound_there() {
     let g = graph().into_dynamic();
-    let outside = g.filter(not(window(3, 6))).unwrap();
+    let outside = g.filter(GraphFilter.window(3, 6).not()).unwrap();
     assert_eq!((outside.start(), outside.end()), (None, None));
-    let before = g
-        .filter(not(FilterExpr::View(vec![ViewOp::After(
-            EventTime::start(5),
-        )])))
-        .unwrap();
+    let before = g.filter(GraphFilter.after(5).not()).unwrap();
     assert_eq!(before.start(), None);
     assert_eq!(before.end().map(|t| t.t()), Some(6));
     // Unbounded like the graph, with the same earliest and latest events, so
@@ -323,7 +321,7 @@ fn a_complement_reaching_the_ends_of_time_has_no_bound_there() {
 fn and_of_views_alone_is_the_overlap_view() {
     for (kind, g) in bases() {
         let both = g
-            .filter(FilterExpr::And(vec![window(0, 5), window(3, 9)]))
+            .filter(GraphFilter.window(0, 5).and(GraphFilter.window(3, 9)))
             .unwrap();
         assert_eq!(histories(&both), histories(&g.window(3, 5)), "{kind}");
         assert_eq!(
@@ -332,7 +330,7 @@ fn and_of_views_alone_is_the_overlap_view() {
             "{kind}"
         );
         let layered = g
-            .filter(FilterExpr::And(vec![window(0, 5), layer("x")]))
+            .filter(GraphFilter.window(0, 5).and(GraphFilter.layers("x")))
             .unwrap();
         assert_eq!(
             histories(&layered),
@@ -345,7 +343,7 @@ fn and_of_views_alone_is_the_overlap_view() {
     let g = graph();
     g.add_properties(4, [("p", 1i64)]).unwrap();
     let none = g
-        .filter(FilterExpr::And(vec![window(0, 2), window(7, 9)]))
+        .filter(GraphFilter.window(0, 2).and(GraphFilter.window(7, 9)))
         .unwrap();
     assert!(histories(&none).is_empty());
     assert!(none.properties().temporal().keys().next().is_none());
@@ -364,7 +362,7 @@ fn a_negated_layer_stays_inside_the_layers_the_filter_is_given() {
     g.add_edge(9, "g", "h", [("w", 1i64)], Some("z")).unwrap();
     let base = g.valid_layers(vec!["x", "y"]).into_dynamic();
     assert_eq!(
-        filtered(&base, not(layer("x"))),
+        filtered(&base, GraphFilter.layers("x").not()),
         expected(&[("c→d", &[3, 6])])
     );
 }
