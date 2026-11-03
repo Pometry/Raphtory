@@ -1259,6 +1259,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     ) -> Option<EventTime> {
         let deletions = merged_deletions(e, &view, layer);
         let next_deletion = deletions.range(t.next()..w.end).first()?;
+        // Deleted before the window opens: the window never sees the edge end.
+        if next_deletion < w.start {
+            return None;
+        }
         if let Some(next_addition) = e
             .filtered_additions(layer, &view)
             .range(t.next()..w.end)

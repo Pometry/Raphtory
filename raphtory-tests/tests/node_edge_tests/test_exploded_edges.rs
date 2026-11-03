@@ -653,3 +653,23 @@ fn an_exploded_edge_starting_after_a_persistent_window_is_not_valid_in_it() {
     assert_eq!(valid(3, 6), vec![false, false, true, false]);
     assert_eq!(valid(2, 3), vec![true, false, false, false]);
 }
+
+/// a→b added @1 and deleted @2: a window that opens after the deletion never sees the
+/// edge end, so the deletion is not in it; a window that holds the deletion still reports it.
+#[test]
+fn a_deletion_before_a_persistent_window_is_not_in_it() {
+    let graph = PersistentGraph::new();
+    graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+    graph.delete_edge(2, "a", "b", None).unwrap();
+    let exploded = graph.edges().explode();
+    let added = exploded.iter().next().unwrap();
+    let deleted_in = |start: i64, end: i64| {
+        let w = added.window(start, end);
+        (
+            w.is_deleted(),
+            w.deletions().iter().map(|t| t.t()).collect_vec(),
+        )
+    };
+    assert_eq!(deleted_in(3, 6), (false, vec![]));
+    assert_eq!(deleted_in(2, 9), (true, vec![2]));
+}
