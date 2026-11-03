@@ -11,6 +11,7 @@
 //!
 //! ranges [0,5) [6,10)  [==================)    [===================)
 //! ```
+use proptest::prelude::*;
 use raphtory::{
     db::{
         api::view::{
@@ -79,53 +80,94 @@ fn exploded<'a, G: GraphViewOps<'a>>(e: Option<EdgeView<G>>) -> usize {
     e.map(|e| e.explode().iter().count()).unwrap_or(0)
 }
 
-fn check_union<G: StaticGraphViewOps + AdditionOps>(g: G) {
-    build(&g);
-    let w1 = g.window(0, 5);
-    let w2 = g.window(6, 10);
-    let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..5, 6..10]));
+/// What each single window keeps, combined as the multi-window view over them
+/// should be: edges and nodes as a union, each edge's history and the exploded
+/// counts range by range in order, and the extremes of the earliest and latest
+/// times, to the millisecond.
+fn check_union<'a, G: GraphViewOps<'a>>(g: G, set: &TimeRanges) -> Result<(), TestCaseError> {
+    let windows: Vec<_> = set.iter().map(|r| g.window(r.start, r.end)).collect();
+    let multi = MultiWindowedGraph::new(g.clone(), set.clone());
 
-    // Membership is the union. Whether the gap edge g->h (event at t=5) is in it
-    // follows from the windows alone: on an event graph it is in neither; on a
-    // persistent graph it is alive at t=6 and so in the second.
-    let want_edges: BTreeSet<_> = edge_ids(&w1).union(&edge_ids(&w2)).cloned().collect();
-    assert_eq!(edge_ids(&multi), want_edges);
-    let want_nodes: BTreeSet<_> = node_names(&w1).union(&node_names(&w2)).cloned().collect();
-    assert_eq!(node_names(&multi), want_nodes);
-
-    // History concatenates per range, in order.
-    let mut want_history = history(&w1, "a", "b");
-    want_history.extend(history(&w2, "a", "b"));
-    assert_eq!(history(&multi, "a", "b"), want_history);
-
-    // Bounds are the extremes over the ranges.
-    assert_eq!(
-        multi.earliest_time(),
-        w1.earliest_time()
-            .into_iter()
-            .chain(w2.earliest_time())
+    let edges: BTreeSet<_> = windows.iter().flat_map(edge_ids).collect();
+    prop_assert_eq!(edge_ids(&multi), edges.clone());
+    let nodes: BTreeSet<_> = windows.iter().flat_map(node_names).collect();
+    prop_assert_eq!(node_names(&multi), nodes);
+    for (src, dst) in &edges {
+        let want: Vec<i64> = windows.iter().flat_map(|w| history(w, src, dst)).collect();
+        prop_assert_eq!(
+            history(&multi, src, dst),
+            want,
+            "history of {}->{}",
+            src,
+            dst
+        );
+        let want: usize = windows.iter().map(|w| exploded(w.edge(src, dst))).sum();
+        prop_assert_eq!(
+            exploded(multi.edge(src, dst)),
+            want,
+            "explode {}->{}",
+            src,
+            dst
+        );
+    }
+    let millis = |t: Option<EventTime>| t.map(|t| t.t());
+    prop_assert_eq!(
+        millis(multi.earliest_time()),
+        windows
+            .iter()
+            .filter_map(|w| millis(w.earliest_time()))
             .min()
     );
-    assert_eq!(
-        multi.latest_time(),
-        w1.latest_time().into_iter().chain(w2.latest_time()).max()
+    prop_assert_eq!(
+        millis(multi.latest_time()),
+        windows.iter().filter_map(|w| millis(w.latest_time())).max()
     );
-
-    // The exploded count is the sum over the ranges.
-    assert_eq!(
-        exploded(multi.edge("a", "b")),
-        exploded(w1.edge("a", "b")) + exploded(w2.edge("a", "b"))
-    );
+    Ok(())
 }
 
-#[test]
-fn multi_window_is_the_union_of_its_windows_on_an_event_graph() {
-    check_union(Graph::new());
+const DOMAIN: i64 = 20;
+
+/// Updates on a few edges among four nodes: `(time, src, dst, deletes)`.
+fn arb_updates() -> impl Strategy<Value = Vec<(i64, u64, u64, bool)>> {
+    prop::collection::vec((0..DOMAIN, 0..4u64, 0..4u64, any::<bool>()), 0..24)
 }
 
-#[test]
-fn multi_window_is_the_union_of_its_windows_on_a_persistent_graph() {
-    check_union(PersistentGraph::new());
+/// Any ranges, overlapping or touching ones included: the set normalises them.
+fn arb_ranges() -> impl Strategy<Value = TimeRanges> {
+    prop::collection::vec((0..DOMAIN, 0..DOMAIN), 0..4)
+        .prop_map(|v| TimeRanges::new(v.into_iter().map(|(a, b)| EventTime::range(a..b)).collect()))
+}
+
+fn fill<G: AdditionOps + DeletionOps>(g: &G, updates: &[(i64, u64, u64, bool)]) {
+    for &(t, src, dst, deletes) in updates {
+        if deletes {
+            g.delete_edge(t, src, dst, None).unwrap();
+        } else {
+            g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+        }
+    }
+}
+
+proptest! {
+    #[test]
+    fn multi_window_is_the_union_of_its_windows_on_an_event_graph(
+        updates in arb_updates(),
+        set in arb_ranges(),
+    ) {
+        let g = Graph::new();
+        fill(&g, &updates);
+        check_union(g, &set)?;
+    }
+
+    #[test]
+    fn multi_window_is_the_union_of_its_windows_on_a_persistent_graph(
+        updates in arb_updates(),
+        set in arb_ranges(),
+    ) {
+        let g = PersistentGraph::new();
+        fill(&g, &updates);
+        check_union(g, &set)?;
+    }
 }
 
 #[test]
