@@ -1,19 +1,22 @@
-use crate::core::{
-    entities::{
-        properties::prop::{
-            check_for_unification, unify_types, Prop, PropError, PropType, PropTypeError,
+use crate::{
+    core::{
+        entities::{
+            properties::prop::{
+                check_for_unification, unify_types, Prop, PropError, PropType, PropTypeError,
+            },
+            LayerId, LayerIds,
         },
-        LayerId, LayerIds,
+        storage::{
+            arc_str::ArcStr,
+            dict_mapper::{
+                DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper,
+            },
+        },
     },
-    storage::{
-        arc_str::ArcStr,
-        dict_mapper::{DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper},
-    },
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
 };
 use itertools::{Either, Itertools};
-use parking_lot::{
-    ArcRwLockReadGuard, ArcRwLockWriteGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
-};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -567,7 +570,7 @@ pub struct WriteLockedPropMapper<'a> {
 
 /// Write-locked view of a [`PropMapper`]'s per-layer property presence bitset.
 pub struct WriteLockedLayerPresence {
-    presence: ArcRwLockWriteGuard<RawRwLock, Vec<Vec<bool>>>,
+    presence: ArcRwLockWriteGuard<Vec<Vec<bool>>>,
 }
 
 impl WriteLockedLayerPresence {
@@ -591,7 +594,7 @@ impl WriteLockedLayerPresence {
 
 /// Read guard on a presence bitset, held by locked graphs.
 #[derive(Debug)]
-pub struct ReadLockedLayerPresence(ArcRwLockReadGuard<RawRwLock, Vec<Vec<bool>>>);
+pub struct ReadLockedLayerPresence(ArcRwLockReadGuard<Vec<Vec<bool>>>);
 
 impl ReadLockedLayerPresence {
     #[inline]

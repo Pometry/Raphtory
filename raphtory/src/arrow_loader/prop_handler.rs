@@ -116,7 +116,8 @@ impl PropCols {
 }
 
 /// Mark every `(layer, prop)` pair this chunk may write, once, before any rows
-/// are appended. Call it before taking the graph's write lock.
+/// are appended. Loaders call this while holding the graph's write lock, which keeps
+/// out locked graphs (the only long-held presence read locks) so marking never waits on one.
 pub fn mark_chunk_prop_presence(
     node_or_edge_meta: &Meta,
     layer_per_row: Option<&[usize]>,
