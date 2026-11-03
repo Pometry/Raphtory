@@ -27,8 +27,10 @@ use std::{
     hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::segments::graph_prop::segment::MemGraphPropSegment;
-use storage::pages::{locked::nodes::MemNodeSegmentGuards, resolve_pos};
+use storage::{
+    pages::{locked::nodes::MemNodeSegmentGuards, resolve_pos},
+    segments::graph_prop::segment::MemGraphPropSegment,
+};
 
 pub mod edge_props;
 pub mod edges;
