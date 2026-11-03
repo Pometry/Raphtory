@@ -460,8 +460,16 @@ impl EdgeTimeSemanticsOps for MultiWindowTimeSemantics {
         t: EventTime,
         layer_id: LayerId,
     ) -> Option<Prop> {
-        self.semantics
-            .temporal_edge_prop_exploded(e, view, prop_id, t, layer_id)
+        self.windows.iter().find_map(|w| {
+            self.semantics.temporal_edge_prop_exploded_window(
+                e,
+                view.clone(),
+                prop_id,
+                t,
+                layer_id,
+                w.clone(),
+            )
+        })
     }
 
     fn temporal_edge_prop_exploded_last_at<'graph, G: GraphView + 'graph>(

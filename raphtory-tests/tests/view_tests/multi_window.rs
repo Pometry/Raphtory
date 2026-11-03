@@ -27,7 +27,10 @@ use raphtory::{
     },
     prelude::*,
 };
-use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
+use raphtory_api::core::{
+    entities::edges::edge_ref::EdgeRef,
+    storage::timeindex::{AsTime, EventTime},
+};
 use std::{collections::BTreeSet, ops::Range};
 
 fn build<G: StaticGraphViewOps + AdditionOps>(g: &G) {
@@ -244,5 +247,52 @@ fn edge_layers_are_the_union_over_the_ranges() {
                     .collect::<BTreeSet<_>>()
             );
         }
+    }
+}
+
+/// ```text
+/// time:  0    1    2    3    4    5    6    7
+/// a→b         ●         ●         ●         ●     w = the update's time
+/// ranges [0,2) [4,6)  [====)        [====)
+/// ```
+/// An exploded edge read through the multi-window view answers as it does
+/// through whichever single window holds it: an event graph only inside a
+/// range, a persistent graph also for the update a range carries in.
+#[test]
+fn an_exploded_edge_read_through_a_multi_window_answers_as_its_windows_do() {
+    let g = Graph::new();
+    for t in [1i64, 3, 5, 7] {
+        g.add_edge(t, "a", "b", [("w", t)], None).unwrap();
+    }
+    let some = |t: i64| Some(Prop::I64(t));
+    let bases = [
+        (
+            "event",
+            g.clone().into_dynamic(),
+            vec![some(1), None, some(5), None],
+        ),
+        (
+            "persistent",
+            g.persistent_graph().into_dynamic(),
+            vec![some(1), some(3), some(5), None],
+        ),
+    ];
+    for (kind, g, expected) in bases {
+        let (w1, w2) = (g.window(0, 2), g.window(4, 6));
+        let multi = MultiWindowedGraph::new(g.clone(), ranges(&[0..2, 4..6]));
+        let read = |view: DynamicGraph, e: EdgeRef| EdgeView::new(view, e).properties().get("w");
+        let exploded = g.edges().explode();
+        let from_windows: Vec<_> = exploded
+            .iter()
+            .map(|e| {
+                read(w1.clone().into_dynamic(), e.edge).or(read(w2.clone().into_dynamic(), e.edge))
+            })
+            .collect();
+        let from_multi: Vec<_> = exploded
+            .iter()
+            .map(|e| read(multi.clone().into_dynamic(), e.edge))
+            .collect();
+        assert_eq!(from_windows, expected, "{kind}: single windows");
+        assert_eq!(from_multi, expected, "{kind}: multi-window");
     }
 }
