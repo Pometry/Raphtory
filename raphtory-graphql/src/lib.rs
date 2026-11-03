@@ -2353,15 +2353,14 @@ mod graphql_test {
                 r#"query { root { graphs { list { path } } } }"#,
             )
             .await;
-            assert!(
-                !res.errors.is_empty(),
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
                 "a fault must fail the listing, got {:?}",
                 res.data,
-            );
-            assert!(
-                res.errors[0].message.contains("test fault"),
-                "the fault, not a denial, must surface: {}",
-                res.errors[0].message,
             );
         }
     }
@@ -2436,6 +2435,29 @@ mod graphql_test {
             let res = run_query_as_user(
                 &setup.schema,
                 r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
+            )
+            .await;
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
+            );
+        }
+    }
+
+    /// The namespace write gate answers a fault with the generic policy error, never with
+    /// the fault's own message.
+    #[tokio::test]
+    async fn test_policy_fault_on_namespace_write_gate_is_generic() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let policy = Arc::new(FakePolicy::default().with_fault(""));
+            let setup = setup_with_policy(&[], work_dir.path(), policy).await;
+            let res = run_query_as_user(
+                &setup.schema,
+                r#"mutation { newGraph(path: "g", graphType: EVENT) }"#,
             )
             .await;
             assert_eq!(

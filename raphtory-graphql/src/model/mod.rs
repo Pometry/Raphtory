@@ -143,7 +143,7 @@ fn require_namespace_write(
                     error = %e,
                     "Authorization policy could not resolve namespace permissions"
                 );
-                gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)
+                PermissionError::AuthPolicyError.into_gql_error()
             })?;
             if ns_perm < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {

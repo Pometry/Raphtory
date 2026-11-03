@@ -1,5 +1,5 @@
 use crate::{
-    data::Data,
+    data::{Data, PermissionError},
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
@@ -77,7 +77,9 @@ impl MetaGraph {
     fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> Result<bool> {
         match data.auth_policy.as_ref() {
             None => Ok(true),
-            Some(p) => Ok(p.full_read(ctx, self.folder.local_path())?),
+            Some(p) => Ok(p
+                .full_read(ctx, self.folder.local_path())
+                .map_err(PermissionError::from)?),
         }
     }
 

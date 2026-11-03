@@ -2,7 +2,7 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-    auth_policy::{AuthPolicyError, AuthorizationPolicy},
+    auth_policy::AuthorizationPolicy,
     data::{get_relative_path, Data, PermissionError, WorkDirGuard},
     model::graph::{
         collection::GqlCollection,
@@ -215,7 +215,7 @@ fn is_graph_visible(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     g: &MetaGraph,
-) -> Result<bool, AuthPolicyError> {
+) -> Result<bool, PermissionError> {
     let Some(policy) = policy.as_ref() else {
         return Ok(true);
     };
