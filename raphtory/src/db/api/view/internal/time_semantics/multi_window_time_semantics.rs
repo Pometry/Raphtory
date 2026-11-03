@@ -166,10 +166,7 @@ impl NodeTimeSemanticsOps for MultiWindowTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> bool {
-        self.windows.iter().any(|w| {
-            self.semantics
-                .node_valid_window(node, view.clone(), w.clone())
-        })
+        self.holds(|w| self.semantics.node_valid_window(node, view.clone(), w))
     }
 
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
