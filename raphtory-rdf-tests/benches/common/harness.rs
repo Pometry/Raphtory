@@ -19,7 +19,6 @@ use std::{
     fmt::Write as _,
     hint::black_box,
     sync::{Mutex, OnceLock},
-    thread,
     time::{Duration, Instant},
 };
 
@@ -89,26 +88,14 @@ impl Engines {
             }
             Engine::Store => {
                 let store = self.store.as_ref().expect("a Store");
-                let query = q.store();
-                // the stack `RdfView::sparql` gives the query
-                let stack_size = (16 << 20) + query.len() * (8 << 10);
-                thread::scope(|scope| {
-                    thread::Builder::new()
-                        .stack_size(stack_size)
-                        .spawn_scoped(scope, || {
-                            collect(
-                                SparqlEvaluator::new()
-                                    .parse_query(query)
-                                    .expect("query")
-                                    .on_store(store)
-                                    .execute()
-                                    .expect("Store query"),
-                            )
-                        })
-                        .expect("a thread")
-                        .join()
-                        .expect("Store query")
-                })
+                collect(
+                    SparqlEvaluator::new()
+                        .parse_query(q.store())
+                        .expect("query")
+                        .on_store(store)
+                        .execute()
+                        .expect("Store query"),
+                )
             }
         };
         match results {
