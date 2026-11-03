@@ -846,67 +846,75 @@ pub(crate) fn parent_namespace(path: &str) -> &str {
 
 /// Checks that the caller has at least READ permission for the graph at `path`.
 /// Returns the effective `GraphPermission` (including any stored filter) on success.
+/// The caller's grant on the graph, or the error that hides the graph when they have none.
 /// When denied and the caller has no INTROSPECT on the parent namespace, returns a
 /// "Graph does not exist" error to avoid leaking that the graph is present.
 /// A misconfigured authorisation policy logs the error and returns a generic error message to the
 /// caller instead of silently hiding everything.
+fn graph_grant(
+    ctx: &Context<'_>,
+    policy: &dyn AuthorizationPolicy,
+    path: &str,
+) -> async_graphql::Result<GraphPermission> {
+    match policy.graph_permissions(ctx, path) {
+        Err(e) => {
+            error!(
+                graph = path,
+                error = %e,
+                "Authorization policy could not resolve graph permissions"
+            );
+            Err(PermissionError::AuthPolicyError.into_gql_error())
+        }
+        Ok(None) => {
+            warn!(graph = path, "Access denied by auth policy");
+            // Admitting the denial admits the graph exists, so it is only safe for a
+            // caller who can already see the namespace. A policy fault resolving the namespace
+            // is reported as a generic policy error, same as if the graph permission fails to resolve.
+            let namespace = parent_namespace(path);
+            let disclosable = match policy.namespace_permissions(ctx, namespace) {
+                Ok(perm) => perm.is_some(),
+                Err(e) => {
+                    error!(
+                        namespace,
+                        error = %e,
+                        "Authorization policy could not resolve namespace permissions when checking graph visibility."
+                    );
+                    return Err(PermissionError::AuthPolicyError.into_gql_error());
+                }
+            };
+            if disclosable {
+                Err(PermissionError::GraphAccessDenied {
+                    graph: path.to_string(),
+                }
+                .into_gql_error())
+            } else {
+                Err(PermissionError::GraphNotFound.into_gql_error())
+            }
+        }
+        Ok(Some(perm)) => Ok(perm),
+    }
+}
+
 fn require_at_least_read(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
 ) -> async_graphql::Result<GraphPermission> {
     if let Some(policy) = policy {
-        return match policy.graph_permissions(ctx, path) {
-            Err(e) => {
-                error!(
-                    graph = path,
-                    error = %e,
-                    "Authorization policy could not resolve graph permissions"
-                );
-                Err(PermissionError::AuthPolicyError.into_gql_error())
+        let perm = graph_grant(ctx, policy.as_ref(), path)?;
+        return if let Some(p) = perm.at_least_read() {
+            Ok(p)
+        } else {
+            warn!(graph = path, "Permission denied: introspect-only access");
+            debug!(
+                graph = path,
+                "Introspect-only grants can read graphMetadata() but not graph(); \
+                 use graphMetadata() instead or request a read grant"
+            );
+            Err(PermissionError::IntrospectOnly {
+                graph: path.to_string(),
             }
-            Ok(None) => {
-                warn!(graph = path, "Access denied by auth policy");
-                // Admitting the denial admits the graph exists, so it is only safe for a
-                // caller who can already see the namespace. A policy fault resolving the namespace
-                // is reported as a generic policy error, same as if the graph permission fails to resolve.
-                let namespace = parent_namespace(path);
-                let disclosable = match policy.namespace_permissions(ctx, namespace) {
-                    Ok(perm) => perm.is_some(),
-                    Err(e) => {
-                        error!(
-                            namespace,
-                            error = %e,
-                            "Authorization policy could not resolve namespace permissions when checking graph visibility."
-                        );
-                        return Err(PermissionError::AuthPolicyError.into_gql_error());
-                    }
-                };
-                if disclosable {
-                    Err(PermissionError::GraphAccessDenied {
-                        graph: path.to_string(),
-                    }
-                    .into_gql_error())
-                } else {
-                    Err(PermissionError::GraphNotFound.into_gql_error())
-                }
-            }
-            Ok(Some(perm)) => {
-                if let Some(p) = perm.at_least_read() {
-                    Ok(p)
-                } else {
-                    warn!(graph = path, "Permission denied: introspect-only access");
-                    debug!(
-                        graph = path,
-                        "Introspect-only grants can read graphMetadata() but not graph(); \
-                         use graphMetadata() instead or request a read grant"
-                    );
-                    Err(PermissionError::IntrospectOnly {
-                        graph: path.to_string(),
-                    }
-                    .into_gql_error())
-                }
-            }
+            .into_gql_error())
         };
     }
     Ok(GraphPermission::Write)
@@ -951,16 +959,8 @@ pub(crate) fn require_graph_write(
             .require_jwt_write_access()
             .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
-            p.graph_permissions(ctx, path)
-                .map_err(|e| {
-                    error!(
-                        graph = path,
-                        error = %e,
-                        "Authorization policy could not resolve graph permissions"
-                    );
-                    gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)
-                })?
-                .and_then(|perm| perm.at_least_write())
+            graph_grant(ctx, p.as_ref(), path)?
+                .at_least_write()
                 .ok_or_else(|| {
                     PermissionError::GraphWriteRequired {
                         graph: path.to_string(),

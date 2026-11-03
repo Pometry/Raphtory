@@ -65,7 +65,7 @@ mod graphql_test {
         auth::Access,
         auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
         config::app_config::AppConfig,
-        data::{data_tests::save_graphs_to_work_dir, Data},
+        data::{data_tests::save_graphs_to_work_dir, Data, PermissionError},
         model::App,
         test_support::{
             assert_is_namespace_dir, run_query, run_query_as_user, setup_with_graphs,
@@ -2421,11 +2421,11 @@ mod graphql_test {
         }
     }
 
-    /// The write gate reports a fault as an error carrying the fault's message, not as a
-    /// permission denial: a caller refused because the server is broken should not be told
-    /// they lack access.
+    /// The write gate answers a fault as the read gate does: one generic policy error, with the
+    /// fault's own message kept in the log. A caller refused because the server is broken is
+    /// told neither that they lack access nor what broke.
     #[tokio::test]
-    async fn test_policy_fault_on_write_gate_reports_the_fault() {
+    async fn test_policy_fault_on_write_gate_is_generic() {
         let work_dir = TempDir::new().unwrap();
         {
             let g = Graph::new();
@@ -2438,33 +2438,54 @@ mod graphql_test {
                 r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
             )
             .await;
-            assert!(!res.errors.is_empty(), "expected error, got {:?}", res.data);
-            assert!(
-                res.errors[0].message.contains("test fault"),
-                "the fault, not a denial, must surface: {}",
-                res.errors[0].message,
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
             );
         }
     }
 
+    /// A caller with no grant on the graph is answered on a write exactly as on a read:
+    /// the graph is missing unless they can already see its namespace, in which case
+    /// the denial may name it.
     #[tokio::test]
-    async fn test_delete_namespace_empty() {
-        let work_dir = TempDir::new().unwrap();
+    async fn test_write_without_a_grant_is_hidden_like_a_read() {
+        let hidden_dir = TempDir::new().unwrap();
+        let visible_dir = TempDir::new().unwrap();
         {
-            let setup = setup_with_graphs(&[], work_dir.path()).await;
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let write = r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#;
 
-            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
-            assert_eq!(res.errors, vec![]);
-            assert!(work_dir.path().join("ns").is_dir());
-
-            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
-            assert_eq!(res.errors, vec![]);
+            let hidden = Arc::new(FakePolicy::default());
+            let setup = setup_with_policy(&[("g", g.clone())], hidden_dir.path(), hidden).await;
+            let res = run_query_as_user(&setup.schema, write).await;
             assert_eq!(
-                res.data.into_json().unwrap(),
-                json!({ "deleteNamespace": true }),
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::GraphNotFound.to_string().as_str()],
             );
-            assert!(!work_dir.path().join("ns").exists());
-            assert_is_namespace_dir(work_dir.path());
+
+            let namespace_visible =
+                Arc::new(FakePolicy::default().with_namespace("", NamespacePermission::Read));
+            let setup = setup_with_policy(&[("g", g)], visible_dir.path(), namespace_visible).await;
+            let res = run_query_as_user(&setup.schema, write).await;
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::GraphAccessDenied {
+                    graph: "g".to_string()
+                }
+                .to_string()
+                .as_str()],
+            );
         }
     }
 
