@@ -90,8 +90,8 @@ pub struct ConcurrencyConfig {
     pub max_sparql_result_bytes: Option<usize>,
 
     /// Maximum time in milliseconds a SPARQL query, of the `sparql` field of `RdfGraph` or the
-    /// SPARQL endpoint, may run; a longer one fails, and the endpoint answers 503. On oxigraph
-    /// 0.5 the timeout interrupts a query only between reads of the graph. Defaults to
+    /// SPARQL endpoint, may run; a longer one fails, and the endpoint answers 503. The timeout is
+    /// checked while the query is evaluated, not while it is parsed or planned. Defaults to
     /// `DEFAULT_MAX_SPARQL_QUERY_MS`; `None` means unlimited.
     #[cfg(feature = "rdf")]
     pub max_sparql_query_ms: Option<u64>,

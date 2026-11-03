@@ -199,7 +199,7 @@ pub struct ConfigArgs {
     #[arg(
         long,
         env = "RAPHTORY_MAX_SPARQL_QUERY_MS",
-        help = help_with_default!("Maximum time in milliseconds a SPARQL query (the `sparql` field or the `/sparql` endpoint) may run. Longer queries fail; on oxigraph 0.5 the timeout interrupts a query only between reads of the graph.", DEFAULT_MAX_SPARQL_QUERY_MS)
+        help = help_with_default!("Maximum time in milliseconds a SPARQL query (the `sparql` field or the `/sparql` endpoint) may run. Longer queries fail; the timeout is checked while a query is evaluated, not while it is parsed or planned.", DEFAULT_MAX_SPARQL_QUERY_MS)
     )]
     pub(crate) max_sparql_query_ms: Option<u64>,
 

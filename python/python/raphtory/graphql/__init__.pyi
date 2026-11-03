@@ -107,8 +107,8 @@ class GraphServer(object):
                                    `max_sparql_result_bytes` (int, maximum size in bytes of the
                                    results of a SPARQL query; default 268435456, null for
                                    unlimited), `max_sparql_query_ms` (int, maximum time in
-                                   milliseconds a SPARQL query may run, interrupted only between
-                                   reads of the graph on oxigraph 0.5; default 30000, null for
+                                   milliseconds a SPARQL query may run, checked while it is
+                                   evaluated, not parsed or planned; default 30000, null for
                                    unlimited), `max_shacl_shapes_length` (int, maximum length in
                                    bytes of the shapes of `validateShacl`; default 102400, null
                                    for unlimited), `max_shacl_results` (int, maximum number of
