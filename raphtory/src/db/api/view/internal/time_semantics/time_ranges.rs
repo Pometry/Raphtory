@@ -50,11 +50,15 @@ impl TimeRanges {
     pub fn new(mut ranges: Vec<Range<EventTime>>) -> Self {
         ranges.retain(|r| r.start < r.end);
         ranges.sort_by_key(|r| r.start);
-        let mut out: Vec<Range<EventTime>> = Vec::with_capacity(ranges.len());
-        for r in ranges {
-            push_merged(&mut out, r);
-        }
-        Self::normalised(out.into())
+        // `<=` merges touching ranges too, so `[a,b) ∪ [b,c)` is `[a,c)`.
+        ranges.dedup_by(|range, last| {
+            let merges = range.start <= last.end;
+            if merges {
+                last.end = last.end.max(range.end);
+            }
+            merges
+        });
+        Self::normalised(ranges.into())
     }
 
     /// `ranges` must already be sorted, disjoint, non-adjacent and non-empty.
