@@ -1218,7 +1218,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         layer: LayerId,
         w: Range<EventTime>,
     ) -> bool {
-        !e.filtered_deletions(layer, &view).active(t.next()..w.end)
+        t < w.end
+            && !e.filtered_deletions(layer, &view).active(t.next()..w.end)
             && !e
                 .additions(layer) // unfiltered as filtered additions act as deletions
                 .active(t.next()..w.end)

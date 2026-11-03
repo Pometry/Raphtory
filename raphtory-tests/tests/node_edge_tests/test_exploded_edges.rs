@@ -636,3 +636,20 @@ fn an_exploded_edge_carried_in_and_deleted_inside_a_persistent_window_keeps_its_
     assert!(!carried_in.is_valid());
     assert_eq!(windowed_w(&graph, 6, 9), vec![None]);
 }
+
+#[test]
+fn an_exploded_edge_starting_after_a_persistent_window_is_not_valid_in_it() {
+    let graph = PersistentGraph::new();
+    edge_updated_at_1_3_5_7(&graph);
+    let valid = |start: i64, end: i64| {
+        graph
+            .edges()
+            .explode()
+            .window(start, end)
+            .iter()
+            .map(|e| e.is_valid())
+            .collect_vec()
+    };
+    assert_eq!(valid(3, 6), vec![false, false, true, false]);
+    assert_eq!(valid(2, 3), vec![true, false, false, false]);
+}
