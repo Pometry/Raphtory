@@ -317,8 +317,8 @@ impl Deref for Data {
 }
 
 /// flushes the graph to avoid errors due to writing to deleted directory
-async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
-    if let Some(old_graph) = old_graph {
+async fn flush_graph(graph: Option<GraphWithVectors>) {
+    if let Some(old_graph) = graph {
         let inner = old_graph.into_inner().await;
         blocking_compute(move || {
             if let Err(e) = inner.graph.flush() {
@@ -458,7 +458,8 @@ impl Data {
 
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
-                invalidate_graph(old_graph).await;
+                flush_graph(old_graph).await;
+
                 blocking_compute(move || {
                     let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, args)?;
                     let folder = writeable_folder.finish()?;
@@ -488,7 +489,8 @@ impl Data {
 
         self.cache
             .invalidate_with(&key, |old_graph| async {
-                invalidate_graph(old_graph).await;
+                flush_graph(old_graph).await;
+
                 blocking_io(move || {
                     folder.write_graph_bytes(bytes, args)?;
                     folder.finish()
@@ -499,15 +501,18 @@ impl Data {
         Ok(())
     }
 
-    async fn delete_graph_inner(
-        &self,
-        graph_folder: ExistingGraphFolder,
-    ) -> Result<(), MutationErrorInner> {
+    pub async fn delete_graph(&self, path: &str) -> Result<(), DeletionError> {
+        let work_dir = self.work_dir_write().await;
+        let graph_folder = ExistingGraphFolder::try_from(work_dir.into(), path)?;
         let key = graph_folder.local_path().to_string();
-        let dirty_file = mark_dirty(graph_folder.root())?;
+        let dirty_file = mark_dirty(graph_folder.root()).map_err(|err| {
+            DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+
         self.cache
             .invalidate_with(&key, |old_graph| async {
-                invalidate_graph(old_graph).await;
+                flush_graph(old_graph).await;
+
                 blocking_io(move || {
                     fs::remove_dir_all(graph_folder.root())?;
                     fs::remove_file(dirty_file)?;
@@ -515,16 +520,9 @@ impl Data {
                 })
                 .await
             })
-            .await?;
-        Ok(())
-    }
-
-    pub async fn delete_graph(&self, path: &str) -> Result<(), DeletionError> {
-        let work_dir = self.work_dir_write().await;
-        let graph_folder = ExistingGraphFolder::try_from(work_dir.into(), path)?;
-        self.delete_graph_inner(graph_folder)
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
+
         Ok(())
     }
 
@@ -547,7 +545,7 @@ impl Data {
             if let NamespacedItem::MetaGraph(g) = item {
                 self.cache
                     .invalidate_with(g.local_path(), |old_graph| async {
-                        invalidate_graph(old_graph).await;
+                        flush_graph(old_graph).await;
                     })
                     .await;
             }
@@ -683,10 +681,58 @@ impl Data {
             })
     }
 
-    async fn read_graph_from_disk_inner(
+    /// Replace the graph at `path` in the cache with `new_graph`.
+    pub(crate) async fn replace_graph_in_cache(
         &self,
-        folder: ExistingGraphFolder,
-    ) -> Result<GraphWithVectors, GraphError> {
+        path: &str,
+        new_graph: MaterializedGraph,
+    ) -> Result<(), GQLError> {
+        let work_dir = self.work_dir_read().await;
+        let folder = ExistingGraphFolder::try_from(work_dir, path)?;
+        let key = path.to_string();
+        let read_only = self.read_only.is_read_only(&key);
+
+        self.cache
+            .insert_or_replace_with(&key, |old_graph| async move {
+                flush_graph(old_graph).await;
+
+                blocking_compute(move || {
+                    let graph = GraphWithVectors::new(new_graph, None, folder);
+                    graph.set_dirty(false);
+
+                    Ok::<_, InsertionError>(if read_only {
+                        graph.into_read_only()
+                    } else {
+                        graph
+                    })
+                })
+                .await
+            })
+            .await
+            .map_err(GQLError::Insertion)?;
+
+        Ok(())
+    }
+
+    /// Refresh the graph at `path` from disk.
+    pub(crate) async fn reload_graph_in_cache(&self, path: &str) -> Result<(), GQLError> {
+        let key = path.to_string();
+        let new_graph = self.read_graph_from_disk(path).await?;
+
+        self.cache
+            .insert_or_replace_with(&key, |old_graph| async move {
+                flush_graph(old_graph).await;
+                Ok(new_graph)
+            })
+            .await
+            .map_err(GQLError::Insertion)?;
+
+        Ok(())
+    }
+
+    async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
+        let work_dir = self.work_dir_read().await;
+        let folder = ExistingGraphFolder::try_from(work_dir, path)?;
         let args = self.graph_args.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
@@ -697,17 +743,12 @@ impl Data {
             args,
         )
         .await?;
+
         Ok(if self.read_only.is_read_only(folder.local_path()) {
             graph.into_read_only()
         } else {
             graph
         })
-    }
-
-    async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
-        let work_dir = self.work_dir_read().await;
-        let folder = ExistingGraphFolder::try_from(work_dir, path)?;
-        Ok(self.read_graph_from_disk_inner(folder).await?)
     }
 }
 
