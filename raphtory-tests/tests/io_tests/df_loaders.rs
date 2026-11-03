@@ -1453,6 +1453,35 @@ mod io_tests {
         let _ = wlg.lock_new_segments();
     }
 
+    /// A bulk load takes edge ids from one segment per writer and pushes a segment only when no
+    /// segment has free positions, so it leaves no empty edge segment and at most one partly
+    /// filled segment per writer.
+    #[test]
+    fn test_load_edges_fills_edge_segments() {
+        let g = small_pages_graph();
+        let edges = (0..500u64)
+            .map(|i| (i % 37, i, i as i64, i.to_string(), i as i64))
+            .collect_vec();
+        let column_names = ColumnNames::new("time", None, "src", "dst", None);
+        load_edges_from_df(build_df(64, &edges), column_names, true, &[], &[], None, None, &g, false)
+            .unwrap();
+
+        let wlg = g.write_lock().unwrap();
+        let store = wlg.graph.storage().edges();
+        let counts = store
+            .segments()
+            .iter()
+            .map(|(_, segment)| segment.num_edges())
+            .collect_vec();
+        assert_eq!(counts.iter().map(|&n| n as usize).sum::<usize>(), edges.len());
+        assert!(counts.iter().all(|&n| n > 0), "empty edge segment: {counts:?}");
+        let partial = counts.iter().filter(|&&n| n < store.max_page_len()).count();
+        assert!(
+            partial <= rayon::current_num_threads(),
+            "{partial} partly filled edge segments: {counts:?}"
+        );
+    }
+
     #[test]
     fn test_pipelined_hand_over_waits_for_the_next_chunk() {
         let g = small_pages_graph();

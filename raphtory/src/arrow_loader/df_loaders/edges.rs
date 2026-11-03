@@ -21,7 +21,7 @@ use crate::{
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
-use db4_graph::{TemporalGraph, WriteLockedGraph};
+use db4_graph::{TemporalGraph, WriteLockedGraph, NEW_SEGMENT_LOCK_TIMEOUT};
 use itertools::izip;
 use parking_lot::Mutex;
 use raphtory_api::{
@@ -45,6 +45,7 @@ use storage::{
             edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
             nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment},
         },
+        edge_store::EdgeStorageInner,
         resolve_pos,
     },
     resolver::GIDResolverOps,
@@ -391,10 +392,10 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
 
     /// Writes a prepared chunk: new nodes' ids, outbound edges, then inbound edges and edge
     /// properties together.
-    fn write(
+    fn write<'g>(
         &self,
         buffers: &mut WriteBuffers,
-        write_locked_graph: &mut WriteLockedGraph<'_, Extension>,
+        write_locked_graph: &mut WriteLockedGraph<'g, Extension>,
         prepared: PreparedChunk,
     ) -> Result<(), GraphError> {
         let PreparedChunk {
@@ -460,12 +461,11 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
         layer_eids_exist.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(eid_col_resolved));
 
-        let arc_edges = write_locked_graph.graph().storage().edges().clone();
-
-        let next_edge_id = |row: usize| {
-            let (page, pos) = arc_edges.reserve_free_pos(row);
-            pos.as_eid(page, arc_edges.max_page_len())
-        };
+        let edge_store: &'g EdgeStorageInner<_, _> = write_locked_graph.graph.storage().edges();
+        let arc_edges = edge_store;
+        edge_store.seed_bulk_segments();
+        // edge segments created by the outbound pass, locked before their first edge id
+        let created_edge_segments = Mutex::new(Vec::new());
 
         let max_edge_page_len = arc_edges.max_page_len();
         let WriteLockedGraph {
@@ -485,7 +485,7 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
         nodes
             .par_iter_mut()
             .enumerate()
-            .for_each(|(segment_id, locked_page)| {
+            .try_for_each(|(segment_id, locked_page)| -> Result<(), GraphError> {
                 let src_rows = &src_rows_by_segment[segment_id];
                 let dst_rows = &dst_rows_by_segment[segment_id];
                 if src_rows.is_empty() && (!resolve_nodes || dst_rows.is_empty()) {
@@ -493,7 +493,7 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
                     if locked_page.segment().is_dirty() {
                         let _writer = locked_page.writer();
                     }
-                    return;
+                    return Ok(());
                 }
 
                 // resolve_nodes=false
@@ -504,7 +504,7 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
                 }
 
                 if src_rows.is_empty() {
-                    return;
+                    return Ok(());
                 }
 
                 let zip = izip!(
@@ -519,16 +519,19 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
                 );
 
                 if resolve_nodes {
-                    add_and_resolve_outbound_edges(
+                    let mut new_edge_ids = EdgeIdAllocator::new(edge_store);
+                    let added = add_and_resolve_outbound_edges(
                         eids_exist,
                         layer_eids_exist,
                         &eid_col_shared,
                         zip,
-                        next_edge_id,
+                        |_| new_edge_ids.next_id(),
                         edges,
                         locked_page,
                         delete,
                     );
+                    created_edge_segments.lock().extend(new_edge_ids.finish());
+                    added
                 } else if let Some(edge_ids) = eids {
                     add_and_resolve_outbound_edges(
                         eids_exist,
@@ -538,18 +541,20 @@ impl<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeLoad<'a,
                         |row| {
                             let eid = EID(edge_ids[row] as usize);
                             arc_edges.increment_edge_segment_count(eid);
-                            eid
+                            Ok(eid)
                         },
                         edges,
                         locked_page,
                         delete,
-                    );
+                    )
+                } else {
+                    Ok(())
                 }
-            });
+            })?;
 
-        // outbound edges may have created new edge segments
+        // hand over the edge segments the outbound edges created, and lock any created elsewhere
         write_locked_graph
-            .lock_new_edge_segments()
+            .extend_new_edges(created_edge_segments.into_inner())
             .map_err(into_graph_err)?;
         let edge_rows_by_segment = group_rows_by_eid_segment(
             eid_col_resolved,
@@ -889,11 +894,11 @@ fn add_and_resolve_outbound_edges<
     layer_eids_exist: &[AtomicBool],
     eid_col_shared: &&mut [AtomicUsize],
     zip: impl Iterator<Item = (usize, VID, VID, i64, usize, usize)>,
-    next_edge_id: impl Fn(usize) -> EID,
+    mut next_edge_id: impl FnMut(usize) -> Result<EID, GraphError>,
     edges: &WriteLockedEdgeSegments<'_, ES>,
     locked_page: &mut WriteLockedNodeSegment<'_, NS>,
     delete: bool,
-) {
+) -> Result<(), GraphError> {
     let mut writer = locked_page.bulk_writer();
     for (row, src, dst, time, secondary_index, layer) in zip {
         if let Some(src_pos) = writer.resolve_pos(src) {
@@ -906,7 +911,7 @@ fn add_and_resolve_outbound_edges<
                 eids_exist[row].store(true, Ordering::Relaxed);
                 MaybeNew::Existing(edge_id)
             } else {
-                let edge_id = next_edge_id(row);
+                let edge_id = next_edge_id(row)?;
                 writer.add_static_outbound_edge(src_pos, dst, edge_id);
                 eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                 eids_exist[row].store(false, Ordering::Relaxed);
@@ -934,6 +939,70 @@ fn add_and_resolve_outbound_edges<
             } else {
                 writer.add_outbound_edge(Some(t), src_pos, dst, edge_id.inner());
             }
+        }
+    }
+    Ok(())
+}
+
+/// Hands out new edge ids for one writer, filling one edge segment at a time that no other
+/// writer takes ids from. An id is reserved only as its edge is written, so a segment's edge
+/// count never covers an unwritten edge, and a segment is pushed only when none has free
+/// positions; a pushed segment is locked before its first id is reserved.
+struct EdgeIdAllocator<'a, ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
+{
+    store: &'a EdgeStorageInner<ES, EXT>,
+    filling: Option<usize>,
+    created: Vec<LockedEdgeSegment<'a, ES>>,
+}
+
+impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
+    EdgeIdAllocator<'a, ES, EXT>
+{
+    fn new(store: &'a EdgeStorageInner<ES, EXT>) -> Self {
+        Self {
+            store,
+            filling: None,
+            created: Vec::new(),
+        }
+    }
+
+    fn next_id(&mut self) -> Result<EID, GraphError> {
+        loop {
+            if let Some(segment_id) = self.filling.take() {
+                if let Some(pos) = self.store.reserve_pos_in(segment_id) {
+                    self.filling = Some(segment_id);
+                    return Ok(pos.as_eid(segment_id, self.store.max_page_len()));
+                }
+                self.store.release_bulk_segment(segment_id);
+            }
+            let segment_id = match self.store.claim_bulk_segment() {
+                Some(segment_id) => segment_id,
+                None => {
+                    let segment_id = self.store.push_new_segment();
+                    let segment = self
+                        .store
+                        .lock_segment(segment_id, NEW_SEGMENT_LOCK_TIMEOUT)
+                        .map_err(into_graph_err)?;
+                    self.created.push(segment);
+                    segment_id
+                }
+            };
+            self.filling = Some(segment_id);
+        }
+    }
+
+    /// Hands back the segment being filled and returns the locks of the segments pushed.
+    fn finish(mut self) -> Vec<LockedEdgeSegment<'a, ES>> {
+        std::mem::take(&mut self.created)
+    }
+}
+
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>> Drop
+    for EdgeIdAllocator<'_, ES, EXT>
+{
+    fn drop(&mut self) {
+        if let Some(segment_id) = self.filling.take() {
+            self.store.release_bulk_segment(segment_id);
         }
     }
 }

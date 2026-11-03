@@ -13,7 +13,7 @@ use crate::{
     segments::edge::segment::MemEdgeSegment,
 };
 use either::Either;
-use parking_lot::{RwLock, RwLockWriteGuard};
+use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{
     EID, LayerId, VID,
     properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
@@ -38,6 +38,8 @@ pub struct EdgeStorageInner<ES, EXT> {
     segments: boxcar::Vec<Arc<ES>>,
     layer_counter: Arc<GraphStats>,
     free_segments: Box<[RwLock<usize>]>,
+    /// segments with free positions for bulk loads to fill, each taken by one writer at a time
+    bulk_free_segments: Mutex<Vec<usize>>,
     path: Option<PathBuf>,
     prop_meta: Arc<Meta>,
     ext: EXT,
@@ -188,6 +190,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
             free_segments,
+            bulk_free_segments: Mutex::default(),
             path,
             prop_meta: edge_meta,
             ext,
@@ -383,6 +386,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             path: Some(path.to_path_buf()),
             layer_counter: stats.into(),
             free_segments: free_segments.into(),
+            bulk_free_segments: Mutex::default(),
             prop_meta: meta,
             ext,
         })
@@ -512,6 +516,48 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             &self.layer_counter,
             lock,
         ))
+    }
+
+    /// Offers the segments the regular writers fill to bulk-load writers, so a bulk load fills
+    /// them before pushing new ones. Call before a bulk load's writers start claiming segments.
+    pub fn seed_bulk_segments(&self) {
+        let mut free = self.bulk_free_segments.lock();
+        free.extend(
+            self.free_segments
+                .iter()
+                .map(|slot| *slot.read())
+                .filter(|&segment_id| self.has_free_positions(segment_id)),
+        );
+        free.sort_unstable_by(|a, b| b.cmp(a));
+        free.dedup();
+    }
+
+    /// Takes a segment with free positions for one bulk-load writer to fill, or `None` if there
+    /// is none and the writer must push a new one. The writer reserves positions only as it
+    /// writes their edges, so the segment's edge count never covers an unwritten edge; it hands
+    /// the segment back with [`Self::release_bulk_segment`].
+    pub fn claim_bulk_segment(&self) -> Option<usize> {
+        let mut free = self.bulk_free_segments.lock();
+        while let Some(segment_id) = free.pop() {
+            if self.has_free_positions(segment_id) {
+                return Some(segment_id);
+            }
+        }
+        None
+    }
+
+    /// Hands back a segment taken with [`Self::claim_bulk_segment`] or pushed by a bulk-load
+    /// writer, for the next writer to fill if it has free positions left.
+    pub fn release_bulk_segment(&self, segment_id: usize) {
+        if self.has_free_positions(segment_id) {
+            self.bulk_free_segments.lock().push(segment_id);
+        }
+    }
+
+    fn has_free_positions(&self, segment_id: usize) -> bool {
+        self.segments
+            .get(segment_id)
+            .is_some_and(|segment| segment.num_edges() < self.max_page_len())
     }
 
     /// Reserves the next free position in segment `segment_id`, or `None` if it is full.

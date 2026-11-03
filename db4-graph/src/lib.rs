@@ -31,7 +31,7 @@ use storage::{
     pages::{
         layer_counter::GraphStats,
         locked::{
-            edges::WriteLockedEdgeSegments,
+            edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
             nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
@@ -520,6 +520,30 @@ where
             .storage
             .edges()
             .lock_new_segments(&mut self.edges, timeout)
+    }
+
+    /// Hands over the edge segments a bulk load created and locked while writing, and locks any
+    /// other edge segment created since the last call, so every edge segment stays held.
+    pub fn extend_new_edges(
+        &mut self,
+        mut created: Vec<LockedEdgeSegment<'a, ES<EXT>>>,
+    ) -> Result<(), StorageError> {
+        created.sort_unstable_by_key(|segment| segment.segment_id());
+        let mut created = created.into_iter().peekable();
+        let edges = self.graph.storage.edges();
+        for segment_id in self.edges.len()..edges.num_segments() {
+            match created.next_if(|segment| segment.segment_id() == segment_id) {
+                Some(segment) => self.edges.push(segment),
+                None => self
+                    .edges
+                    .push(edges.lock_segment(segment_id, NEW_SEGMENT_LOCK_TIMEOUT)?),
+            }
+        }
+        assert!(
+            created.next().is_none(),
+            "a created edge segment was not handed over in order"
+        );
+        Ok(())
     }
 
     pub fn extend_new(&mut self, new_segments: MemNodeSegmentGuards) {

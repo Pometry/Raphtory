@@ -48,6 +48,10 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
         }
     }
 
+    pub fn segment_id(&self) -> usize {
+        self.id
+    }
+
     #[inline(always)]
     pub fn writer(&mut self) -> EdgeWriter<'_, &mut MemEdgeSegment, ES> {
         EdgeWriter::new(self.num_edges, self.segment, self.head.deref_mut())
