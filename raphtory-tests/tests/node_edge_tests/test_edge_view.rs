@@ -1,4 +1,4 @@
-use raphtory::prelude::*;
+use raphtory::{db::api::view::IntoDynamic, prelude::*};
 use raphtory_tests::{test_storage, utils::test_graph};
 
 #[test]
@@ -159,4 +159,46 @@ fn test_sorting_by_event_id() {
             ]
         )
     });
+}
+
+/// A part of an edge on a layer the view hides has no answer: a layer edge or an
+/// exploded edge on layer `x`, read through a view of layer `y`, shows no property,
+/// history, metadata or activity.
+#[test]
+fn a_read_through_a_hidden_layer_has_no_answer() {
+    let g = Graph::new();
+    g.add_edge(1, "a", "b", [("w", 1i64)], Some("x")).unwrap();
+    g.add_edge(2, "a", "b", [("w", 2i64)], Some("y")).unwrap();
+    g.edge("a", "b")
+        .unwrap()
+        .add_metadata([("m", 9i64)], Some("x"))
+        .unwrap();
+    for graph in [
+        g.clone().into_dynamic(),
+        g.persistent_graph().into_dynamic(),
+    ] {
+        let edge = graph.edge("a", "b").unwrap();
+        let (layers, exploded) = (edge.explode_layers(), edge.explode());
+        let on_x = layers
+            .iter()
+            .chain(exploded.iter())
+            .filter(|e| e.layer_name().unwrap() == "x")
+            .collect::<Vec<_>>();
+        assert_eq!(on_x.len(), 2);
+        for e in on_x {
+            let hidden = e.valid_layers(["y"]);
+            assert_eq!(hidden.properties().get("w"), None);
+            assert_eq!(
+                hidden
+                    .properties()
+                    .temporal()
+                    .get("w")
+                    .map(|p| p.values().collect::<Vec<_>>()),
+                Some(vec![])
+            );
+            assert_eq!(hidden.metadata().get("m"), None);
+            assert!(!hidden.is_active());
+            assert!(!hidden.is_valid());
+        }
+    }
 }
