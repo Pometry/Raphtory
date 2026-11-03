@@ -64,6 +64,7 @@ inventory = { workspace = true }
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
+parking_lot = { workspace = true }
 zip = { workspace = true }
 clap = { workspace = true }
 rust-embed = { workspace = true }

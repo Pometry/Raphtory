@@ -113,7 +113,6 @@ impl GqlStagedGraph {
             let data_path = PathBuf::from(data_path);
 
             data.is_parquet_path_allowed(&data_path).await?;
-
             let gql_stage = self.clone();
 
             blocking_write(move || {
@@ -201,7 +200,6 @@ impl GqlStagedGraph {
             let data_path = PathBuf::from(data_path);
 
             data.is_parquet_path_allowed(&data_path).await?;
-
             let gql_stage = self.clone();
 
             blocking_write(move || {
