@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use raphtory::prelude::*;
+use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_tests::test_storage;
 
 #[test]
@@ -548,4 +549,90 @@ fn test_exploded_edges() {
     test_storage!(&graph, |graph| {
         assert_eq!(graph.count_temporal_edges(), 4)
     });
+}
+
+fn edge_updated_at_1_3_5_7<G: AdditionOps>(graph: &G) {
+    for t in [1i64, 3, 5, 7] {
+        graph.add_edge(t, "a", "b", [("w", t)], None).unwrap();
+    }
+}
+
+/// `w` read on each exploded edge through `window(start, end)`, applied both to the exploded
+/// collection and to each exploded edge on its own.
+fn windowed_w<'graph, G: GraphViewOps<'graph>>(
+    graph: G,
+    start: i64,
+    end: i64,
+) -> Vec<Option<Prop>> {
+    let on_collection = graph
+        .edges()
+        .explode()
+        .window(start, end)
+        .iter()
+        .map(|e| e.properties().get("w"))
+        .collect_vec();
+    let on_each = graph
+        .edges()
+        .explode()
+        .iter()
+        .map(|e| e.window(start, end).properties().get("w"))
+        .collect_vec();
+    assert_eq!(on_collection, on_each);
+    on_collection
+}
+
+#[test]
+fn an_exploded_edge_outside_a_window_has_no_property_value() {
+    let graph = Graph::new();
+    edge_updated_at_1_3_5_7(&graph);
+    assert_eq!(
+        windowed_w(&graph, 3, 6),
+        vec![None, Some(Prop::I64(3)), Some(Prop::I64(5)), None]
+    );
+}
+
+#[test]
+fn an_exploded_edge_carried_into_a_persistent_window_keeps_its_property_value() {
+    let graph = PersistentGraph::new();
+    edge_updated_at_1_3_5_7(&graph);
+    assert_eq!(
+        windowed_w(&graph, 3, 6),
+        vec![None, Some(Prop::I64(3)), Some(Prop::I64(5)), None]
+    );
+    assert_eq!(
+        windowed_w(&graph, 2, 3),
+        vec![Some(Prop::I64(1)), None, None, None]
+    );
+    let exploded = graph.edges().explode();
+    let carried_in = exploded.iter().next().unwrap().window(2, 3);
+    assert!(!carried_in.is_active());
+    assert_eq!(
+        carried_in
+            .properties()
+            .temporal()
+            .get("w")
+            .unwrap()
+            .iter()
+            .map(|(t, v)| (t.t(), v))
+            .collect_vec(),
+        vec![(1, Prop::I64(1))]
+    );
+    assert_eq!(
+        carried_in.properties().temporal().get("w").unwrap().at(2),
+        Some(Prop::I64(1))
+    );
+}
+
+/// a→b added @1 and deleted @5: `window(3,6)` carries the addition in, so it
+/// still has its value, though a deletion inside the window makes it invalid.
+#[test]
+fn an_exploded_edge_carried_in_and_deleted_inside_a_persistent_window_keeps_its_value() {
+    let graph = PersistentGraph::new();
+    graph.add_edge(1, "a", "b", [("w", 1i64)], None).unwrap();
+    graph.delete_edge(5, "a", "b", None).unwrap();
+    assert_eq!(windowed_w(&graph, 3, 6), vec![Some(Prop::I64(1))]);
+    let exploded = graph.edges().explode();
+    let carried_in = exploded.iter().next().unwrap().window(3, 6);
+    assert!(!carried_in.is_valid());
+    assert_eq!(windowed_w(&graph, 6, 9), vec![None]);
 }

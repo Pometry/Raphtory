@@ -225,6 +225,47 @@ fn a_scoped_exploded_state_predicate_is_judged_per_exploded_edge() {
     check_scoped_exploded_activity(PersistentGraph::new());
 }
 
+fn check_scoped_exploded_property<G: StaticGraphViewOps + AdditionOps>(
+    g: G,
+    cases: &[((i64, i64), Vec<i64>)],
+) {
+    for t in [1i64, 3, 5, 7] {
+        g.add_edge(t, "a", "b", [("w", t)], None).unwrap();
+    }
+    for ((start, end), times) in cases {
+        let filter = ExplodedEdgeFilter
+            .window(*start, *end)
+            .property("w")
+            .gt(0i64);
+        let expected = times
+            .iter()
+            .map(|t| ("a".to_string(), "b".to_string(), *t))
+            .collect::<Vec<_>>();
+        let filtered = g.filter(filter.clone()).unwrap();
+        assert_eq!(exploded(&filtered.edges()), expected, "filter {filter}");
+        let selected = g.edges().explode().select(filter.clone()).unwrap();
+        assert_eq!(exploded(&selected), expected, "select {filter}");
+    }
+}
+
+/// ```text
+/// time          1    2    3    4    5    6    7
+/// a→b           ●         ●         ●         ●      w = the update's time
+/// window(2,3)        [===)
+/// window(3,6)             [============)
+/// ```
+/// A scoped property predicate reads an exploded edge only where the
+/// edge holds in the scope's window: on an event graph that is the updates
+/// in the window; a persistent window also carries in the update @1.
+#[test]
+fn a_scoped_exploded_property_predicate_is_judged_per_exploded_edge() {
+    check_scoped_exploded_property(Graph::new(), &[((2, 3), vec![]), ((3, 6), vec![3, 5])]);
+    check_scoped_exploded_property(
+        PersistentGraph::new(),
+        &[((2, 3), vec![1]), ((3, 6), vec![3, 5])],
+    );
+}
+
 /// ```text
 /// time          1    2    3    4    5    6    7    8    9   10
 /// a→b           ●+                  ●-        ●+

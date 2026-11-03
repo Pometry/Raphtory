@@ -86,6 +86,24 @@ fn persisted_event<
     last_before(additions, deletions, t)
 }
 
+/// The exploded edge at `t` holds in `w` if it starts in `w` or is the one `w` carries in at its
+/// start, the same instances a windowed explode lists.
+fn exploded_holds_in_window<'graph, G: GraphViewOps<'graph>>(
+    e: EdgeEntryRef<'graph>,
+    view: G,
+    t: EventTime,
+    layer: LayerId,
+    w: Range<EventTime>,
+) -> bool {
+    w.contains(&t)
+        || (w.start < w.end
+            && persisted_event(
+                e.filtered_additions(layer, &view),
+                e.filtered_deletions(layer, &view),
+                w.start,
+            ) == Some(t))
+}
+
 fn edge_alive_at_end<'graph, G: GraphViewOps<'graph>>(
     e: EdgeEntryRef<'graph>,
     t: EventTime,
@@ -1273,6 +1291,22 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .map(|(_, v)| v)
     }
 
+    fn temporal_edge_prop_exploded_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        t: EventTime,
+        layer_id: LayerId,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        if exploded_holds_in_window(e, &view, t, layer_id, w) {
+            self.temporal_edge_prop_exploded(e, view, prop_id, t, layer_id)
+        } else {
+            None
+        }
+    }
+
     fn temporal_edge_prop_exploded_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -1306,7 +1340,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         at: EventTime,
         w: Range<EventTime>,
     ) -> Option<Prop> {
-        if w.contains(&edge_time) {
+        if exploded_holds_in_window(e, &view, edge_time, layer_id, w) {
             self.temporal_edge_prop_exploded_last_at(e, view, edge_time, layer_id, prop_id, at)
         } else {
             None

@@ -970,6 +970,38 @@ def test_a_scoped_exploded_state_predicate_is_judged_per_exploded_edge(GraphClas
         assert instances(g.edges.explode()[expr]) == expected, expr
 
 
+@pytest.mark.parametrize(
+    "GraphClass, carried_in", [(Graph, []), (PersistentGraph, [("a", "b", 1)])]
+)
+def test_a_scoped_exploded_property_predicate_is_judged_per_exploded_edge(
+    GraphClass, carried_in
+):
+    """a→b @1, @3, @5, @7 with w = the update's time
+
+    time          1    2    3    4    5    6    7
+    a→b           ●         ●         ●         ●
+    window(2,3)        [===)
+    window(3,6)             [============)
+    """
+    g = GraphClass()
+    for t in [1, 3, 5, 7]:
+        g.add_edge(t, "a", "b", properties={"w": t})
+
+    def instances(edges):
+        return [(e.src.name, e.dst.name, e.time.t) for e in edges]
+
+    cases = [
+        (filter.ExplodedEdge.window(2, 3).property("w") > 0, carried_in),
+        (
+            filter.ExplodedEdge.window(3, 6).property("w") > 0,
+            [("a", "b", 3), ("a", "b", 5)],
+        ),
+    ]
+    for expr, expected in cases:
+        assert instances(g.filter(expr).edges.explode()) == expected, expr
+        assert instances(g.edges.explode()[expr]) == expected, expr
+
+
 def _added_deleted_readded(graph):
     """a→b added @1, deleted @5, added again @7
 

@@ -722,6 +722,19 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
     }
 
     #[inline]
+    fn temporal_edge_prop_exploded_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        t: EventTime,
+        layer_id: LayerId,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_exploded_window(e, view, prop_id, t, layer_id, w))
+    }
+
+    #[inline]
     fn temporal_edge_prop_exploded_last_at<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
