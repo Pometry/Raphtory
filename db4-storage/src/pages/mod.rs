@@ -20,7 +20,10 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder};
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder},
+};
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
@@ -321,7 +324,7 @@ impl<
     pub fn node_writer(
         &self,
         node_segment: usize,
-    ) -> NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS> {
+    ) -> NodeWriter<'_, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         self.nodes().writer(node_segment)
     }
 
@@ -486,8 +489,8 @@ pub fn row_group_par_iter<I: From<usize>>(
     max_seg_len: u32,
     max_actual_seg_len: u32,
 ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = I>)> {
-    let (num_chunks, chunk_size) = if num_segments != 0 {
-        let chunk_size = (chunk_size / num_segments).max(1);
+    let (num_chunks, chunk_size) = if let Some(per_segment) = chunk_size.checked_div(num_segments) {
+        let chunk_size = per_segment.max(1);
         let num_chunks = (max_seg_len as usize).div_ceil(chunk_size);
         (num_chunks, chunk_size)
     } else {

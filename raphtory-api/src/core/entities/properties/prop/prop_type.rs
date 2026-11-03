@@ -1,11 +1,10 @@
 use arrow_schema::{ArrowError, DataType};
 use serde::{Deserialize, Serialize};
 use std::{
-    cell::LazyCell,
     collections::HashMap,
     fmt::{self, Display, Formatter},
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -140,7 +139,7 @@ impl Display for PropType {
     }
 }
 
-const CONTAINER_SIZE: LazyCell<usize> = LazyCell::new(|| {
+static CONTAINER_SIZE: LazyLock<usize> = LazyLock::new(|| {
     std::env::var("RAPHTORY_PROP_CONTAINER_SIZE")
         .ok()
         .map(|size| {

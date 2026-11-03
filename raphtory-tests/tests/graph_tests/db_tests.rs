@@ -247,7 +247,7 @@ fn add_edge_grows_graph_edge_len_proptest() {
 
 #[test]
 fn simple_add_edge() {
-    let edges = vec![(1, 1, 2), (2, 2, 3), (3, 3, 4)];
+    let edges = [(1, 1, 2), (2, 2, 3), (3, 3, 4)];
 
     let g = Graph::new();
     for &(t, src, dst) in edges.iter() {
@@ -1221,26 +1221,20 @@ fn temporal_node_rows_1_node() {
 #[test]
 fn temporal_node_rows_nodes() {
     let graph = Graph::new();
-    let mut nodes = Vec::new();
-    nodes.push(
+    let nodes = vec![
         graph
             .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None, None)
             .unwrap()
             .node,
-    );
-    nodes.push(
         graph
             .add_node(1, 2, [("cool".to_string(), Prop::U64(2))], None, None)
             .unwrap()
             .node,
-    );
-    nodes.push(
         graph
             .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None, None)
             .unwrap()
             .node,
-    );
-
+    ];
     let prop_ids: Arc<[usize]> = graph.node_meta().temporal_prop_mapper().ids().collect();
     for (id, n) in nodes.into_iter().enumerate() {
         let actual = graph

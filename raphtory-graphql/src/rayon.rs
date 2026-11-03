@@ -114,7 +114,7 @@ mod deadlock_tests {
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
-        test_pool_lock(43871, |lock| {
+        test_pool_lock(|lock| {
             COMPUTE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock();
             });
@@ -124,7 +124,7 @@ mod deadlock_tests {
 
     #[tokio::test]
     async fn test_deadlock_in_write_pool() {
-        test_pool_lock(43872, |lock| {
+        test_pool_lock(|lock| {
             WRITE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock();
             });
@@ -132,13 +132,17 @@ mod deadlock_tests {
         .await;
     }
 
-    async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
+    // Holding TEST_SERIAL (and the pool-jamming lock) across awaits is deliberate: it
+    // serialises tests that block the process-global pools.
+    #[allow(clippy::await_holding_lock)]
+    async fn test_pool_lock(pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let _serial = super::TEST_SERIAL.lock();
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
-        let _running = server.start_with_port(port).await.unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
         tokio::time::sleep(Duration::from_secs(1)).await; // this is to wait for the server to be up
         let lock = Arc::new(Mutex::new(()));
         let _guard = lock.lock();
@@ -150,13 +154,13 @@ mod deadlock_tests {
         let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
-        assert_eq!(health.healthy, false);
+        assert!(!health.healthy);
 
         let req = client.get(format!("http://localhost:{port}/health?timeout=5"));
         let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
-        assert_eq!(health.healthy, false);
+        assert!(!health.healthy);
     }
 }
 
