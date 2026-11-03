@@ -868,8 +868,8 @@ fn require_at_least_read(
             Ok(None) => {
                 warn!(graph = path, "Access denied by auth policy");
                 // Admitting the denial admits the graph exists, so it is only safe for a
-                // caller who can already see the namespace. A fault resolving the namespace
-                // is reported and treated as invisible, never as permission to disclose.
+                // caller who can already see the namespace. A policy fault resolving the namespace
+                // is reported as a generic policy error, same as if the graph permission fails to resolve.
                 let namespace = parent_namespace(path);
                 let disclosable = match policy.namespace_permissions(ctx, namespace) {
                     Ok(perm) => perm.is_some(),
