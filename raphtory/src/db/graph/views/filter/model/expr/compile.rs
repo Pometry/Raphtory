@@ -1567,11 +1567,10 @@ impl ResolvedView {
     /// and layer value, so they are refused.
     fn of_views(views: &[ViewOp], graph: &DynGraphArc<'_>) -> Result<Self, GraphError> {
         FilterExpr::needs_view(views)?;
-        if views.iter().any(ViewOp::restricts_entities) {
-            return Err(GraphError::invalid_filter(
-                "only time and layer views combine under `or` or `not`; `subgraph`, \
-                 `exclude_nodes`, `subgraph_node_types` and `valid` do not",
-            ));
+        if let Some(view) = views.iter().find(|view| view.restricts_entities()) {
+            return Err(GraphError::invalid_filter(format!(
+                "only time and layer views combine under `or` or `not`, not {view}"
+            )));
         }
         let viewed = apply_views(graph.clone(), views)?;
         let time = viewed.view_ranges();

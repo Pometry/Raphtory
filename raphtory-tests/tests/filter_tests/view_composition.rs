@@ -236,8 +236,16 @@ fn shapes_that_are_not_one_view_are_still_refused() {
         GraphFilter.window(0, 2).and(GraphFilter.layers("y")).not()
     )
     .contains("both time and layers"));
-    // A view that restricts edges, not time or layers, has no place in the value.
-    assert!(refused(&g, GraphFilter.valid().not()).contains("only time and layer views"));
+    // A view that restricts nodes or edges, not time or layers, has no place in the
+    // value; the refusal names the view.
+    assert_eq!(
+        refused(&g, GraphFilter.valid().not()),
+        "only time and layer views combine under `or` or `not`, not VALID"
+    );
+    assert_eq!(
+        refused(&g, GraphFilter.subgraph(["a", "b"]).not()),
+        "only time and layer views combine under `or` or `not`, not SUBGRAPH([a, b])"
+    );
 }
 
 /// A view's times are resolved when it is built, from the bounds the views
