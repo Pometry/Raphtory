@@ -5642,28 +5642,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "oxigraph"
-version = "0.5.13"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
-dependencies = [
- "dashmap",
- "getrandom 0.3.4",
- "libc",
- "oxhttp",
- "oxiri 0.2.11",
- "oxrdf",
- "oxrdfio",
- "oxsdatatypes",
- "rand 0.9.5",
- "rustc-hash",
- "siphasher",
- "sparesults",
- "spareval",
- "spargebra",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "oxilangtag"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5690,7 +5668,8 @@ dependencies = [
 [[package]]
 name = "oxjsonld"
 version = "0.2.7"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1554d73123a75723a4e0a4d400a3fb19ca09673563a2557090267729622fcb2"
 dependencies = [
  "json-event-parser",
  "oxiri 0.2.11",
@@ -5702,7 +5681,8 @@ dependencies = [
 [[package]]
 name = "oxrdf"
 version = "0.3.5"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08037a3c3cf580d065caec6a864cf97f51be219862d95c691a48c7543406d675"
 dependencies = [
  "hex",
  "oxilangtag",
@@ -5714,46 +5694,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "oxrdfio"
-version = "0.2.7"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
-dependencies = [
- "oxjsonld",
- "oxrdf",
- "oxrdfxml",
- "oxttl",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "oxrdfxml"
-version = "0.2.5"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
-dependencies = [
- "oxilangtag",
- "oxiri 0.2.11",
- "oxrdf",
- "quick-xml",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "oxsdatatypes"
 version = "0.2.4"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "034779b2d182d5069cd28b1f921ba334cad708ab1340db9776312464b6874b78"
 dependencies = [
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "oxttl"
-version = "0.2.5"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
-dependencies = [
- "memchr",
- "oxilangtag",
- "oxiri 0.2.11",
- "oxrdf",
  "thiserror 2.0.21",
 ]
 
@@ -6217,6 +6162,260 @@ dependencies = [
 ]
 
 [[package]]
+name = "pometry-oxigraph"
+version = "0.5.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76cfa62543bc072ff5c4ff38daed3ed0c72e33b913faad51c3fc44140f86710b"
+dependencies = [
+ "dashmap",
+ "getrandom 0.3.4",
+ "libc",
+ "oxhttp",
+ "oxiri 0.2.11",
+ "oxrdf",
+ "oxsdatatypes",
+ "pometry-oxrdfio",
+ "pometry-sparesults",
+ "pometry-spareval",
+ "pometry-spargebra",
+ "rand 0.9.5",
+ "rustc-hash",
+ "siphasher",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-oxrdfio"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "905c44513944406fcbc30454efb22f0e7ee9cbaea3eae120127ec251af067498"
+dependencies = [
+ "oxjsonld",
+ "oxrdf",
+ "pometry-oxrdfxml",
+ "pometry-oxttl",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-oxrdfxml"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d05a79054a2e8c6e953f3a71b0376defbb0f7e27daf75276461944fdea0cfb76"
+dependencies = [
+ "oxilangtag",
+ "oxiri 0.2.11",
+ "oxrdf",
+ "quick-xml",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-oxttl"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "578a1a2b247c38c83de6041741a95c40591b4a437aefaedd0b07cc1b86004428"
+dependencies = [
+ "memchr",
+ "oxilangtag",
+ "oxiri 0.2.11",
+ "oxrdf",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-prefixmap"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa52459721c9c0f219b310b4e5ccb19c54a314b8c060ed1c064f48cc3eb012df"
+dependencies = [
+ "colored",
+ "indexmap 2.14.2",
+ "pometry-rudof_iri",
+ "proptest",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-rudof_config"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aea7d45146a9b16b50418d5ba9b52eeb2d19c43ba2e8f1284bfd3f5e0114bf40"
+dependencies = [
+ "dirs",
+ "serde",
+ "thiserror 2.0.21",
+ "toml 0.9.12+spec-1.1.0",
+]
+
+[[package]]
+name = "pometry-rudof_iri"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e910318c26e62c6da386b16fb4371c80cab600d7c1123e9e75309b63b9258c8"
+dependencies = [
+ "getrandom 0.3.4",
+ "getrandom 0.4.3",
+ "indexmap 2.14.2",
+ "oxiri 0.3.1",
+ "oxrdf",
+ "proptest",
+ "reqwest 0.12.28",
+ "serde",
+ "thiserror 2.0.21",
+ "url",
+]
+
+[[package]]
+name = "pometry-rudof_rdf"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0434d8f65093d8dbe2659592ef634c5cefee67736140b08b6b898f1adb572cd3"
+dependencies = [
+ "colored",
+ "const_format",
+ "csv",
+ "getrandom 0.3.4",
+ "include_dir",
+ "once_cell",
+ "oxilangtag",
+ "oxiri 0.3.1",
+ "oxjsonld",
+ "oxrdf",
+ "oxsdatatypes",
+ "paste",
+ "pometry-oxigraph",
+ "pometry-oxrdfio",
+ "pometry-oxrdfxml",
+ "pometry-oxttl",
+ "pometry-prefixmap",
+ "pometry-rudof_config",
+ "pometry-rudof_iri",
+ "pometry-rudof_viz",
+ "regex",
+ "rust_decimal",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "tabled",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "pometry-rudof_typing"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72ea3adadb15d5a889066056f9f93cdf41ebc6aeb25609c0eefbe86d77e38327"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "pometry-rudof_viz"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f45e1388358964fea12d8df3d08ad3b7815cf8df0dcc7d4089d828d5f306e3e"
+dependencies = [
+ "serde",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-shacl"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46aac8ce322840e726f0c99b265a033887881c3fca19612259cf5d3359f4ab7c"
+dependencies = [
+ "anyhow",
+ "dashmap",
+ "either",
+ "indoc",
+ "itertools 0.14.0",
+ "petgraph",
+ "pometry-prefixmap",
+ "pometry-rudof_config",
+ "pometry-rudof_iri",
+ "pometry-rudof_rdf",
+ "pometry-rudof_typing",
+ "rayon",
+ "rust_decimal",
+ "schemars 1.2.3",
+ "serde",
+ "stacker",
+ "thiserror 2.0.21",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
+]
+
+[[package]]
+name = "pometry-sparesults"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "babca6d1f68b9ba9f19879da3de87625b6043bacfcecb577eca033b86a9c8aa5"
+dependencies = [
+ "json-event-parser",
+ "memchr",
+ "oxrdf",
+ "quick-xml",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-spareval"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d07557570c991eb4f896dae2d91722b14f960021617fccef07348ed0759860f2"
+dependencies = [
+ "hex",
+ "json-event-parser",
+ "md-5",
+ "oxiri 0.2.11",
+ "oxrdf",
+ "oxsdatatypes",
+ "pometry-sparesults",
+ "pometry-spargebra",
+ "pometry-sparopt",
+ "rand 0.9.5",
+ "regex",
+ "rustc-hash",
+ "sha1 0.11.0",
+ "sha2",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-spargebra"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1136f7558312469ef5a55642bf6ec3941df4c7714f7064f3904ac835235105e"
+dependencies = [
+ "oxilangtag",
+ "oxiri 0.2.11",
+ "oxrdf",
+ "peg",
+ "rand 0.9.5",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pometry-sparopt"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "099abdd4517023d1987665aac6d07ff29c2475ea50c8217a4f0c80ba5754530c"
+dependencies = [
+ "oxrdf",
+ "pometry-spargebra",
+ "rand 0.9.5",
+]
+
+[[package]]
 name = "portable-atomic"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6261,20 +6460,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
  "zerocopy",
-]
-
-[[package]]
-name = "prefixmap"
-version = "0.3.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "596b0d8d941330a484bc5275a74fa0b1e4a199acfbb771f2ba23e31f748c49ba"
-dependencies = [
- "colored",
- "indexmap 2.14.2",
- "proptest",
- "rudof_iri",
- "serde",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -6993,10 +7178,10 @@ dependencies = [
  "opentelemetry-otlp 0.32.0",
  "opentelemetry-stdout",
  "opentelemetry_sdk 0.32.1",
- "oxigraph",
  "parking_lot",
  "parquet",
  "poem",
+ "pometry-oxigraph",
  "pretty_assertions",
  "pyo3",
  "pythonize",
@@ -7099,21 +7284,21 @@ dependencies = [
  "chrono",
  "indexmap 2.14.2",
  "itertools 0.15.0",
- "oxigraph",
  "oxiri 0.2.11",
  "percent-encoding",
- "prefixmap",
+ "pometry-oxigraph",
+ "pometry-prefixmap",
+ "pometry-rudof_iri",
+ "pometry-rudof_rdf",
+ "pometry-shacl",
+ "pometry-spareval",
+ "pometry-spargebra",
  "proptest",
  "pyo3",
  "raphtory",
  "raphtory-api",
  "raphtory-core",
- "rudof_iri",
- "rudof_rdf",
  "rustc-hash",
- "shacl",
- "spareval",
- "spargebra",
  "tempfile",
  "thiserror 2.0.21",
 ]
@@ -7126,15 +7311,15 @@ dependencies = [
  "criterion",
  "csv",
  "flate2",
- "oxigraph",
+ "pometry-oxigraph",
+ "pometry-rudof_rdf",
+ "pometry-shacl",
+ "pometry-spargebra",
  "raphtory",
  "raphtory-rdf",
  "rayon",
  "regex",
- "rudof_rdf",
  "rustc-hash",
- "shacl",
- "spargebra",
  "tar",
  "url",
  "zip",
@@ -7546,96 +7731,6 @@ dependencies = [
  "serde_derive",
  "typeid",
  "unicode-ident",
-]
-
-[[package]]
-name = "rudof_config"
-version = "0.3.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2c718ec2cf0e2c0d83a86e3678325da3177d858fd9d1a8b5c8d28829e968256"
-dependencies = [
- "dirs",
- "serde",
- "thiserror 2.0.21",
- "toml 0.9.12+spec-1.1.0",
-]
-
-[[package]]
-name = "rudof_iri"
-version = "0.3.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e268c90513da6d45d7f8775882ee509f485ebf231ee4541e99626b6a2a0db43"
-dependencies = [
- "getrandom 0.3.4",
- "getrandom 0.4.3",
- "indexmap 2.14.2",
- "oxiri 0.3.1",
- "oxrdf",
- "proptest",
- "reqwest 0.12.28",
- "serde",
- "thiserror 2.0.21",
- "url",
-]
-
-[[package]]
-name = "rudof_rdf"
-version = "0.3.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e818ea48ac14c90de86c01361dd5512da21cd7da45c07f22cb7b295653148590"
-dependencies = [
- "colored",
- "const_format",
- "csv",
- "getrandom 0.3.4",
- "include_dir",
- "once_cell",
- "oxigraph",
- "oxilangtag",
- "oxiri 0.3.1",
- "oxjsonld",
- "oxrdf",
- "oxrdfio",
- "oxrdfxml",
- "oxsdatatypes",
- "oxttl",
- "paste",
- "prefixmap",
- "regex",
- "rudof_config",
- "rudof_iri",
- "rudof_viz",
- "rust_decimal",
- "schemars 1.2.3",
- "serde",
- "serde_json",
- "tabled",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "toml 0.9.12+spec-1.1.0",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "rudof_typing"
-version = "0.3.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40b795cdc3ecb5da858613fc8666f3fba06db193ffa0010b239a94252e986580"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "rudof_viz"
-version = "0.3.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32af2f2475c22d094e3e714cc6b74bb6b52412246c27e61d87b4790f6cf8833f"
-dependencies = [
- "serde",
- "tempfile",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -8182,33 +8277,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shacl"
-version = "0.3.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18b49b97901184f76c256a2cca57246edeb196061d5d0b9290189677c7794ced"
-dependencies = [
- "anyhow",
- "dashmap",
- "either",
- "indoc",
- "itertools 0.14.0",
- "petgraph",
- "prefixmap",
- "rayon",
- "rudof_config",
- "rudof_iri",
- "rudof_rdf",
- "rudof_typing",
- "rust_decimal",
- "schemars 1.2.3",
- "serde",
- "stacker",
- "thiserror 2.0.21",
- "toml 0.9.12+spec-1.1.0",
- "tracing",
-]
-
-[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8359,63 +8427,6 @@ checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "sparesults"
-version = "0.3.5"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
-dependencies = [
- "json-event-parser",
- "memchr",
- "oxrdf",
- "quick-xml",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "spareval"
-version = "0.2.9"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
-dependencies = [
- "hex",
- "json-event-parser",
- "md-5",
- "oxiri 0.2.11",
- "oxrdf",
- "oxsdatatypes",
- "rand 0.9.5",
- "regex",
- "rustc-hash",
- "sha1 0.11.0",
- "sha2",
- "sparesults",
- "spargebra",
- "sparopt",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "spargebra"
-version = "0.4.8"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
-dependencies = [
- "oxilangtag",
- "oxiri 0.2.11",
- "oxrdf",
- "peg",
- "rand 0.9.5",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "sparopt"
-version = "0.3.9"
-source = "git+https://github.com/miratepuffin/oxigraph?rev=7e3cca6d3762c899ba92b204929473e1d9b8e17d#7e3cca6d3762c899ba92b204929473e1d9b8e17d"
-dependencies = [
- "oxrdf",
- "rand 0.9.5",
- "spargebra",
 ]
 
 [[package]]

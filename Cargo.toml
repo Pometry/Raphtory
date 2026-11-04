@@ -208,34 +208,19 @@ opentelemetry-appender-tracing = "0.32.0"
 mock-collector = "0.2.14"
 dyn-clone = "1.0.20"
 inventory = "0.3.24"
-oxigraph = { version = "0.5.13", default-features = false }
-spareval = "0.2.9"
-spargebra = { version = "0.4.8", features = ["sep-0006"] }
+# pometry-*: our releases of oxigraph and rudof, with bounds on hostile input and quick-xml 0.41
+oxigraph = { package = "pometry-oxigraph", version = "0.5.13", default-features = false }
+spareval = { package = "pometry-spareval", version = "0.2.9" }
+spargebra = { package = "pometry-spargebra", version = "0.4.8", features = ["sep-0006"] }
 # names the IRI type of spareval's `DefaultServiceHandler` (the handler that refuses SERVICE calls)
 oxiri = "0.2.11"
 percent-encoding = "2.3"
 # rudof: keep its `sparql` features off, or the native engine needs a SPARQL store
-shacl = { version = "0.3.36", default-features = false }
-rudof_rdf = { version = "0.3.36", default-features = false }
-rudof_iri = { version = "0.3.36", default-features = false }
-prefixmap = "0.3.36"
+shacl = { package = "pometry-shacl", version = "0.3.36", default-features = false }
+rudof_rdf = { package = "pometry-rudof_rdf", version = "0.3.36", default-features = false }
+rudof_iri = { package = "pometry-rudof_iri", version = "0.3.36", default-features = false }
+prefixmap = { package = "pometry-prefixmap", version = "0.3.36" }
 
 [workspace.dependencies.storage]
 package = "db4-storage"
 path = "db4-storage"
-
-# oxigraph 0.5.13 with bounds on query nesting and depth, triple term nesting, string sizes,
-# planning and parsing time, and cancellation; until a 0.5 release carries them. Every crate of
-# its workspace comes from the fork, so there is one copy of each.
-[patch.crates-io]
-oxigraph = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-oxjsonld = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-oxrdf = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-oxrdfio = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-oxrdfxml = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-oxsdatatypes = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-oxttl = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-sparesults = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-spareval = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-spargebra = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
-sparopt = { git = "https://github.com/miratepuffin/oxigraph", rev = "7e3cca6d3762c899ba92b204929473e1d9b8e17d" }
