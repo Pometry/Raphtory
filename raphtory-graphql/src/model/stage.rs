@@ -6,6 +6,7 @@ use crate::{
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
+use parking_lot::Mutex;
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
@@ -16,7 +17,6 @@ use raphtory::{
     io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
 };
 use raphtory_storage::stage::Stage;
-use parking_lot::Mutex;
 use std::{
     path::PathBuf,
     sync::{
@@ -330,10 +330,12 @@ impl StagedGraph {
 
     fn finish(self, set_active: bool) -> Result<MaterializedGraph, GraphError> {
         match self {
-            StagedGraph::Event(stage) => Ok(MaterializedGraph::EventGraph(stage.finish(set_active)?)),
-            StagedGraph::Persistent(stage) => {
-                Ok(MaterializedGraph::PersistentGraph(stage.finish(set_active)?))
+            StagedGraph::Event(stage) => {
+                Ok(MaterializedGraph::EventGraph(stage.finish(set_active)?))
             }
+            StagedGraph::Persistent(stage) => Ok(MaterializedGraph::PersistentGraph(
+                stage.finish(set_active)?,
+            )),
         }
     }
 

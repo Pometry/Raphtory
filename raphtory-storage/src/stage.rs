@@ -93,9 +93,7 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
             let cleanup_old = false; // Keep the previous data folders around as archives.
             folder.finish(cleanup_old).map_err(StageError::Finish)?;
         } else {
-            folder
-                .finish_inactive()
-                .map_err(StageError::Finish)?;
+            folder.finish_inactive().map_err(StageError::Finish)?;
         }
 
         Ok(graph)

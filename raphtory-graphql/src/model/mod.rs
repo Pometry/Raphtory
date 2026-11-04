@@ -39,10 +39,7 @@ use raphtory::{
     prelude::*,
     version,
 };
-use raphtory_api::core::{
-    entities::properties::prop::PropType,
-    storage::graph_folder::GraphPaths,
-};
+use raphtory_api::core::{entities::properties::prop::PropType, storage::graph_folder::GraphPaths};
 use std::{collections::HashMap, sync::Arc};
 use tracing::{error, warn};
 
@@ -176,10 +173,8 @@ impl QueryRoot {
     /// Returns a graph
     pub async fn graph<'a>(
         ctx: &Context<'a>,
-        #[graphql(
-            desc = "Graph path relative to the root namespace \
-                    (e.g. `\"master\"` or `\"team/project/graph\"`)."
-        )]
+        #[graphql(desc = "Graph path relative to the root namespace \
+                    (e.g. `\"master\"` or `\"team/project/graph\"`).")]
         path: &str,
         #[graphql(
             desc = "Optional override for graph semantics — `EVENT` treats every update \
