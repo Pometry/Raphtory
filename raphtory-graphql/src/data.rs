@@ -51,6 +51,7 @@ use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::{debug, error, warn};
 use walkdir::WalkDir;
 
+use crate::auth_policy::AuthPolicyError;
 #[cfg(feature = "vectors")]
 use {
     crate::model::graph::vectorised_graph::GqlVectorisedGraph,
@@ -746,6 +747,15 @@ pub enum PermissionError {
         graph: String,
         operation: String,
     },
+    #[error("Internal server error, access policy is misconfigured")]
+    AuthPolicyError,
+}
+
+impl From<AuthPolicyError> for PermissionError {
+    fn from(value: AuthPolicyError) -> Self {
+        error!("Auth policy failure: {value}");
+        PermissionError::AuthPolicyError
+    }
 }
 
 /// Machine-readable `extensions.code` values attached to authorization errors so
@@ -756,6 +766,7 @@ pub enum PermissionError {
 /// an unauthorized caller.
 pub const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
 pub const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
+pub const CODE_AUTH_ERROR: &str = "AUTH_ERROR";
 
 /// Build an `async_graphql::Error` carrying a `code` in its extensions. The
 /// human-readable message is preserved unchanged; only the structured code is
@@ -779,6 +790,7 @@ impl PermissionError {
             | PermissionError::GraphWriteRequired { .. }
             | PermissionError::GraphUnfilteredReadRequired { .. }
             | PermissionError::NamespaceWriteRequired { .. } => CODE_ACCESS_DENIED,
+            PermissionError::AuthPolicyError => CODE_AUTH_ERROR,
         }
     }
 
@@ -836,6 +848,8 @@ pub(crate) fn parent_namespace(path: &str) -> &str {
 /// Returns the effective `GraphPermission` (including any stored filter) on success.
 /// When denied and the caller has no INTROSPECT on the parent namespace, returns a
 /// "Graph does not exist" error to avoid leaking that the graph is present.
+/// A misconfigured authorisation policy logs the error and returns a generic error message to the
+/// caller instead of silently hiding everything.
 fn require_at_least_read(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
@@ -849,13 +863,13 @@ fn require_at_least_read(
                     error = %e,
                     "Authorization policy could not resolve graph permissions"
                 );
-                Err(PermissionError::GraphNotFound.into_gql_error())
+                Err(PermissionError::AuthPolicyError.into_gql_error())
             }
             Ok(None) => {
                 warn!(graph = path, "Access denied by auth policy");
                 // Admitting the denial admits the graph exists, so it is only safe for a
-                // caller who can already see the namespace. A fault resolving the namespace
-                // is reported and treated as invisible, never as permission to disclose.
+                // caller who can already see the namespace. A policy fault resolving the namespace
+                // is reported as a generic policy error, same as if the graph permission fails to resolve.
                 let namespace = parent_namespace(path);
                 let disclosable = match policy.namespace_permissions(ctx, namespace) {
                     Ok(perm) => perm.is_some(),
@@ -863,10 +877,9 @@ fn require_at_least_read(
                         error!(
                             namespace,
                             error = %e,
-                            "Authorization policy could not resolve namespace permissions; \
-                             hiding the graph"
+                            "Authorization policy could not resolve namespace permissions when checking graph visibility."
                         );
-                        false
+                        return Err(PermissionError::AuthPolicyError.into_gql_error());
                     }
                 };
                 if disclosable {
@@ -912,8 +925,11 @@ async fn refine(
             .refine_permission(ctx, path, perm)
             .await
             .map_err(|msg| {
-                warn!(graph = path, "Access denied while refining permission");
-                msg.into()
+                error!(
+                    graph = path,
+                    "Authpolicy failure when refining permissions: {msg}"
+                );
+                PermissionError::AuthPolicyError.into_gql_error()
             }),
         None => Ok(perm),
     }
