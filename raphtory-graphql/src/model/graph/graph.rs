@@ -66,6 +66,11 @@ impl GqlGraph {
         }
     }
 
+    /// The view this object resolves against, for schema extensions that read it directly.
+    pub fn graph(&self) -> &DynamicGraph {
+        &self.graph
+    }
+
     fn apply<F, G>(&self, graph_operation: F) -> Self
     where
         F: Fn(&DynamicGraph) -> G,
