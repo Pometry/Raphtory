@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use rand::{distr::Distribution, rngs::SmallRng, Rng, SeedableRng};
+    use rand::{distr::Distribution, rngs::SmallRng, Rng, RngExt, SeedableRng};
     use rand_distr::Exp;
     use raphtory::{
         algorithms::dynamics::temporal::epidemics::{temporal_SEIR, Number},

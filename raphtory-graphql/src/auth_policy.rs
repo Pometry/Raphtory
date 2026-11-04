@@ -11,7 +11,7 @@ use raphtory::{
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
 #[derive(Debug)]
-pub struct AuthPolicyError(String);
+pub struct AuthPolicyError(pub String);
 
 impl AuthPolicyError {
     pub fn new(msg: impl Into<String>) -> Self {

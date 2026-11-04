@@ -20,7 +20,7 @@ use crate::{
     },
     prelude::{NodeStateOps, NO_PROPS},
 };
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{make_rng, rngs::StdRng, RngExt, SeedableRng};
 use raphtory_api::core::storage::timeindex::AsTime;
 use std::collections::HashSet;
 use tracing::error;
@@ -62,7 +62,7 @@ pub fn ba_preferential_attachment(
     if let Some(seed_value) = seed {
         rng = StdRng::from_seed(seed_value);
     } else {
-        rng = StdRng::from_os_rng();
+        rng = make_rng();
     }
     let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     let view = graph;

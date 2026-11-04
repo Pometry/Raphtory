@@ -3,7 +3,7 @@
 
 use crate::{
     auth_policy::{AuthPolicyError, AuthorizationPolicy},
-    data::{get_relative_path, Data, WorkDirGuard},
+    data::{get_relative_path, Data, PermissionError, WorkDirGuard},
     model::graph::{
         collection::GqlCollection,
         meta_graph::MetaGraph,
@@ -227,14 +227,12 @@ fn is_graph_visible(
 pub(crate) fn is_namespace_visible(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    n: &Namespace,
-) -> Result<bool, AuthPolicyError> {
+    n: &str,
+) -> Result<bool, PermissionError> {
     let Some(policy) = policy.as_ref() else {
         return Ok(true);
     };
-    Ok(policy
-        .namespace_permissions(ctx, &n.relative_path)?
-        .is_some())
+    Ok(policy.namespace_permissions(ctx, n)?.is_some())
 }
 
 #[ResolvedObjectFields]
@@ -361,7 +359,7 @@ impl Namespace {
         .await;
         let mut visible = Vec::new();
         for n in namespaces {
-            if is_namespace_visible(ctx, &data.auth_policy, &n)? {
+            if is_namespace_visible(ctx, &data.auth_policy, &n.relative_path)? {
                 visible.push(n);
             }
         }
@@ -392,7 +390,9 @@ impl Namespace {
         for item in all_items {
             let keep = match &item {
                 NamespacedItem::MetaGraph(g) => is_graph_visible(ctx, &data.auth_policy, g)?,
-                NamespacedItem::Namespace(n) => is_namespace_visible(ctx, &data.auth_policy, n)?,
+                NamespacedItem::Namespace(n) => {
+                    is_namespace_visible(ctx, &data.auth_policy, &n.relative_path)?
+                }
             };
             if keep {
                 visible.push(item);
