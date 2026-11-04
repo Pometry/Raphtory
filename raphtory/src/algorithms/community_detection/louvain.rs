@@ -4,7 +4,7 @@ use crate::{
     db::api::state::{GenericNodeState, TypedNodeState},
     prelude::GraphViewOps,
 };
-use rand::{prelude::SliceRandom, rngs::StdRng, SeedableRng};
+use rand::{make_rng, prelude::SliceRandom, rngs::StdRng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
@@ -35,7 +35,7 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     let tol = tol.unwrap_or(1e-8);
     let mut rng = match rng_seed {
         Some(seed) => StdRng::seed_from_u64(seed),
-        None => StdRng::from_os_rng(),
+        None => make_rng(),
     };
     let mut modularity_state = M::new(
         g,
