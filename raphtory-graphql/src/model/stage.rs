@@ -281,7 +281,7 @@ impl GqlStagedGraph {
 }
 
 impl GqlStagedGraph {
-    pub(crate) async fn start(
+    pub(crate) async fn new(
         ctx: &Context<'_>,
         graph_path: String,
         set_active_on_finish: bool,

@@ -526,7 +526,7 @@ impl Mut {
         )]
         set_active: bool,
     ) -> Result<GqlStagedGraph> {
-        GqlStagedGraph::start(ctx, graph_path, set_active).await
+        GqlStagedGraph::new(ctx, graph_path, set_active).await
     }
 
     /// Set the active version for `graphPath` and start serving it immediately.
