@@ -312,3 +312,28 @@ def test_filtering_valid():
 #
 #     assert G.window(3, 10).count_nodes() == 2
 #     assert G.window(3, 10).count_edges() == 0
+
+
+def test_open_exploded_edge_latest_time_is_the_view_end_not_a_sentinel():
+    p = PersistentGraph()
+    p.add_edge(1, "a", "b")  # still in force
+    p.add_edge(2, "c", "d")
+    p.delete_edge(5, "c", "d")  # deleted
+
+    open_edge = [e for e in p.edges.explode() if e.src.name == "a"][0]
+    windowed = [e for e in p.window(0, 10).edges.explode() if e.src.name == "a"][0]
+    deleted = [e for e in p.edges.explode() if e.src.name == "c"][0]
+
+    # the end of the view, never the usize::MAX range marker
+    assert open_edge.latest_time.event_id != 2**64 - 1
+    assert open_edge.latest_time.t == 5
+    # the unwindowed clamp agrees with the windowed one
+    assert open_edge.latest_time.event_id == windowed.latest_time.event_id == 0
+    assert windowed.latest_time.t == 10
+    # a deleted edge still reports the deletion's own event id
+    assert (deleted.latest_time.t, deleted.latest_time.event_id) == (5, 2)
+
+    single = PersistentGraph()
+    single.add_edge(1, "a", "b")
+    (only,) = single.edges.explode()
+    assert (only.latest_time.t, only.latest_time.event_id) == (1, 0)
