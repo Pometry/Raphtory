@@ -48,6 +48,10 @@ pub struct ConcurrencyConfig {
     /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
     /// at least 2.
     pub max_concurrent_loads: Option<usize>,
+
+    /// Threads that cache filtered graph views in the background. `None` = 4 with more than 6
+    /// cores, otherwise cores / 2.
+    pub caching_threads: Option<usize>,
 }
 
 impl Default for ConcurrencyConfig {
@@ -60,6 +64,7 @@ impl Default for ConcurrencyConfig {
             disable_lists: DEFAULT_DISABLE_LISTS,
             max_page_size: None,
             max_concurrent_loads: None,
+            caching_threads: None,
         }
     }
 }

@@ -62,6 +62,10 @@ pub trait FilterOps {
 
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool;
 
+    /// [`filter_edge`](FilterOps::filter_edge) without checking the edge's endpoints against the
+    /// node filter.
+    fn filter_edge_except_nodes(&self, edge: EdgeEntryRef) -> bool;
+
     fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool;
 
     fn filter_exploded_edge(&self, eid: ELID, t: EventTime) -> bool;
@@ -248,35 +252,14 @@ impl<G: GraphView> FilterOps for G {
 
     #[inline]
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool {
-        // we need to call this to optimise the cached view
-        if !self.internal_filter_edge(edge, self.layer_ids()) {
-            return false;
-        }
+        edge_in_layers(self, edge)
+            && (!self.internal_nodes_filtered() || self.filter_edge_from_nodes(edge))
+            && edge_has_visible_history(self, edge)
+    }
 
-        if !edge.has_layer(self.layer_ids()) {
-            return false;
-        }
-
-        if self.internal_nodes_filtered() && !self.filter_edge_from_nodes(edge) {
-            return false;
-        }
-
-        if (self.window_filtered() && !self.edge_filter_includes_window_filter())
-            || (self.internal_edge_layer_filtered()
-                && !self.edge_filter_includes_edge_layer_filter())
-            || (self.internal_exploded_edge_filtered()
-                && !self.edge_filter_includes_exploded_edge_filter())
-        {
-            let time_semantics = self.edge_time_semantics();
-            if !edge.layer_ids_iter(self.layer_ids()).any(|layer_id| {
-                self.internal_filter_edge_layer(edge, layer_id)
-                    && time_semantics.include_edge(edge, self, layer_id)
-            }) {
-                return false;
-            }
-        }
-
-        true
+    #[inline]
+    fn filter_edge_except_nodes(&self, edge: EdgeEntryRef) -> bool {
+        edge_in_layers(self, edge) && edge_has_visible_history(self, edge)
     }
 
     fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
@@ -309,6 +292,30 @@ impl<G: GraphView> FilterOps for G {
             || (self.internal_filter_node(self.core_node(edge.src()).as_ref(), self.layer_ids())
                 && self.internal_filter_node(self.core_node(edge.dst()).as_ref(), self.layer_ids()))
     }
+}
+
+/// The view's own edge filter, and the edge being in one of its layers.
+#[inline]
+fn edge_in_layers<G: GraphView>(view: &G, edge: EdgeEntryRef) -> bool {
+    // we need to call this to optimise the cached view
+    view.internal_filter_edge(edge, view.layer_ids()) && edge.has_layer(view.layer_ids())
+}
+
+/// Whether any of the edge's layers survives the view's window and its layer and exploded filters.
+#[inline]
+fn edge_has_visible_history<G: GraphView>(view: &G, edge: EdgeEntryRef) -> bool {
+    if (view.window_filtered() && !view.edge_filter_includes_window_filter())
+        || (view.internal_edge_layer_filtered() && !view.edge_filter_includes_edge_layer_filter())
+        || (view.internal_exploded_edge_filtered()
+            && !view.edge_filter_includes_exploded_edge_filter())
+    {
+        let time_semantics = view.edge_time_semantics();
+        return edge.layer_ids_iter(view.layer_ids()).any(|layer_id| {
+            view.internal_filter_edge_layer(edge, layer_id)
+                && time_semantics.include_edge(edge, view, layer_id)
+        });
+    }
+    true
 }
 
 fn filter_edge_from_exploded_filter<G: GraphView>(view: &G, edge: EdgeEntryRef) -> bool {

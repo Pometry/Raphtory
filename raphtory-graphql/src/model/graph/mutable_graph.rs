@@ -491,17 +491,17 @@ impl GqlMutableGraph {
         #[graphql(desc = "List of `{key, value}` pairs to set.")] properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let result = blocking_write(move || {
+        blocking_write(move || {
             self_clone
                 .graph
                 .add_properties(t.into_input_time(), as_properties(properties)?)?;
-            Ok(true)
+            Ok::<_, GraphError>(())
         })
-        .await;
+        .await?;
 
         self.post_mutation_ops().await;
 
-        result
+        Ok(true)
     }
 
     /// Add metadata to the graph itself. Errors if any of the keys already
@@ -513,14 +513,15 @@ impl GqlMutableGraph {
         >,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let result = blocking_write(move || {
+        blocking_write(move || {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
-            Ok(true)
+            Ok::<_, GraphError>(())
         })
-        .await;
+        .await?;
+
         self.post_mutation_ops().await;
 
-        result
+        Ok(true)
     }
 
     /// Update metadata of the graph itself, overwriting any existing values for
@@ -532,17 +533,17 @@ impl GqlMutableGraph {
         >,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let result = blocking_write(move || {
+        blocking_write(move || {
             self_clone
                 .graph
                 .update_metadata(as_properties(properties)?)?;
-            Ok(true)
+            Ok::<_, GraphError>(())
         })
-        .await;
+        .await?;
 
         self.post_mutation_ops().await;
 
-        result
+        Ok(true)
     }
 
     /// Persist any in-memory state for this graph to disk so other
@@ -611,9 +612,10 @@ impl GqlMutableGraph {
             })
     }
 
-    /// Post mutation operations.
+    /// Only reached once the mutation has succeeded.
     async fn post_mutation_ops(&self) {
         self.graph.set_dirty(true);
+        self.graph.notify_mutated();
     }
 }
 
@@ -738,9 +740,10 @@ impl GqlMutableNode {
 }
 
 impl GqlMutableNode {
-    /// Post mutation operations.
+    /// Only reached once the mutation has succeeded.
     async fn post_mutation_ops(&self) {
         self.node.graph.set_dirty(true);
+        self.node.graph.notify_mutated();
     }
 }
 
@@ -915,9 +918,10 @@ impl GqlMutableEdge {
 }
 
 impl GqlMutableEdge {
-    /// Post mutation operations.
+    /// Only reached once the mutation has succeeded.
     async fn post_mutation_ops(&self) {
         self.edge.graph.set_dirty(true);
+        self.edge.graph.notify_mutated();
     }
 }
 
