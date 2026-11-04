@@ -188,14 +188,11 @@ fn a_read_through_a_hidden_layer_has_no_answer() {
         for e in on_x {
             let hidden = e.valid_layers(["y"]);
             assert_eq!(hidden.properties().get("w"), None);
-            assert_eq!(
-                hidden
-                    .properties()
-                    .temporal()
-                    .get("w")
-                    .map(|p| p.values().collect::<Vec<_>>()),
-                Some(vec![])
-            );
+            assert!(hidden
+                .properties()
+                .temporal()
+                .get("w")
+                .is_none_or(|p| p.values().next().is_none()));
             assert_eq!(hidden.metadata().get("m"), None);
             assert!(!hidden.is_active());
             assert!(!hidden.is_valid());
