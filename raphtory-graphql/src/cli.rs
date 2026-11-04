@@ -163,6 +163,14 @@ pub struct ConfigArgs {
 
     #[arg(
         long,
+        env = "RAPHTORY_MAX_SORT_SIZE",
+        help = "Maximum number of items a `sorted` query may sort. Larger collections are rejected. Unlimited if unset.",
+        long_help = "Maximum number of items a `sorted` query may sort. Sorting materialises the whole collection, so on a large graph an unbounded sort can exhaust memory; queries over a larger collection are rejected with an error. Unlimited if unset."
+    )]
+    pub(crate) max_sort_size: Option<usize>,
+
+    #[arg(
+        long,
         env = "RAPHTORY_MAX_QUERY_DEPTH",
         help = "Limits how deeply nested a query can be."
     )]
@@ -390,6 +398,20 @@ mod tests {
         );
     }
 
+    async fn test_cli_parsing_max_sort_size() {
+        std::env::remove_var("RAPHTORY_MAX_SORT_SIZE");
+        let app_config = generate_config(vec!["raphtory-server", "server"]);
+        assert_eq!(app_config.concurrency.max_sort_size, None);
+
+        std::env::set_var("RAPHTORY_MAX_SORT_SIZE", "1000");
+        let app_config = generate_config(vec!["raphtory-server", "server"]);
+        assert_eq!(app_config.concurrency.max_sort_size, Some(1000));
+
+        let app_config = generate_config(vec!["raphtory-server", "server", "--max-sort-size", "7"]);
+        assert_eq!(app_config.concurrency.max_sort_size, Some(7));
+        std::env::remove_var("RAPHTORY_MAX_SORT_SIZE");
+    }
+
     #[tokio::test]
     async fn test_cli_parsing() {
         // tests must be synchronized so that env variables are not modified in parallel
@@ -397,5 +419,6 @@ mod tests {
         test_cli_parsing_with_config_file().await;
         test_cli_parsing_with_env_var().await;
         test_cli_parsing_with_command_line_arg().await;
+        test_cli_parsing_max_sort_size().await;
     }
 }

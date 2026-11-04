@@ -4878,6 +4878,18 @@ input NodeSortBy {
 	Property
 	"""
 	property: String
+	"""
+	Number of distinct neighbours (in or out).
+	"""
+	degree: Boolean
+	"""
+	Number of distinct in-neighbours.
+	"""
+	inDegree: Boolean
+	"""
+	Number of distinct out-neighbours.
+	"""
+	outDegree: Boolean
 }
 
 """
@@ -5406,7 +5418,7 @@ type Nodes {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property` / `degree` / `inDegree` / `outDegree`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [NodeSortBy!]!
 	): Nodes!

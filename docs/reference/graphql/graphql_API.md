@@ -9046,7 +9046,7 @@ first key break to the second, etc.).
 <td valign="top">[<a href="#nodesortby">NodeSortBy</a>!]!</td>
 <td>
 
-Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
+Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property` / `degree` / `inDegree` / `outDegree`, with an optional `reverse: true` to flip order.
 
 </td>
 </tr>
@@ -13738,6 +13738,33 @@ Time
 <td>
 
 Property
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodesortby.degree">degree</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Number of distinct neighbours (in or out).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodesortby.indegree">inDegree</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Number of distinct in-neighbours.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodesortby.outdegree">outDegree</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Number of distinct out-neighbours.
 
 </td>
 </tr>
