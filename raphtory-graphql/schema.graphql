@@ -3281,117 +3281,6 @@ type MotifCounts {
 
 type MutRoot {
 	"""
-	Delete graph from a path on the server.
-	"""
-	deleteGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!
-	): Boolean!
-	"""
-	Load nodes
-	"""
-	loadNodes(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		graphPath: String!,
-		"""
-		Path to the parquet directory.
-		"""
-		dataPath: String!,
-		"""
-		The column name for the timestamps.
-		"""
-		time: String!,
-		"""
-		The column name for the node IDs.
-		"""
-		id: String!,
-		"""
-		A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
-		"""
-		nodeType: String,
-		"""
-		The node type column name in a dataframe. Cannot be used in combination with node_type.
-		"""
-		nodeTypeCol: String,
-		"""
-		List of node property column names.
-		"""
-		properties: [String!],
-		"""
-		List of node metadata column names.
-		"""
-		metadata: [String!],
-		"""
-		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
-		"""
-		schema: String,
-		"""
-		The column name for the secondary index.
-		"""
-		eventId: String,
-		"""
-		A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
-		"""
-		layer: String,
-		"""
-		The node layer column name in a dataframe. Cannot be used in combination with layer.
-		"""
-		layerCol: String
-	): Boolean!
-	"""
-	Load edges
-	"""
-	loadEdges(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		graphPath: String!,
-		"""
-		Path to the parquet directory.
-		"""
-		dataPath: String!,
-		"""
-		The column name for the update timestamps.
-		"""
-		time: String!,
-		"""
-		The column name for the source node IDs.
-		"""
-		src: String!,
-		"""
-		The column name for the destination node IDs.
-		"""
-		dst: String!,
-		"""
-		List of edge property column names. Defaults to None.
-		"""
-		properties: [String!],
-		"""
-		List of edge metadata column names. Defaults to None.
-		"""
-		metadata: [String!],
-		"""
-		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
-		"""
-		schema: String,
-		"""
-		The column name for the secondary index.
-		"""
-		eventId: String,
-		"""
-		A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-		"""
-		layer: String,
-		"""
-		The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
-		"""
-		layerCol: String
-	): Boolean!
-	"""
 	Creates a new graph.
 	"""
 	newGraph(
@@ -3399,6 +3288,15 @@ type MutRoot {
 		Destination path relative to the root namespace.
 		"""
 		path: String!,		graphType: GraphType!
+	): Boolean!
+	"""
+	Delete graph from a path on the server.
+	"""
+	deleteGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!
 	): Boolean!
 	"""
 	Move graph from a path on the server to a new_path on the server.
@@ -3474,6 +3372,32 @@ type MutRoot {
 		"""
 		overwrite: Boolean!
 	): String!
+	"""
+	Begin staging the graph at `graphPath`.
+	"""
+	stage(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!,
+		"""
+		When true, promotes the staged version as the active graph after the stage is complete. When false, the staged version is saved to disk as an inactive version.
+		"""
+		setActive: Boolean!
+	): StagedGraph!
+	"""
+	Set the active version for `graphPath` and start serving it immediately.
+	"""
+	setActiveVersion(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!,
+		"""
+		Version id to serve.
+		"""
+		version: Int!
+	): Boolean!
 	"""
 	Create an empty namespace at `path`.
 	
@@ -6611,6 +6535,15 @@ type QueryRoot {
 		path: String!
 	): MetaGraph
 	"""
+	List all version ids for a graph.
+	"""
+	versions(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!
+	): [Int!]!
+	"""
 	Update graph query, has side effects to update graph state
 	
 	Returns:: GqlMutableGraph
@@ -6756,6 +6689,103 @@ enum SpecialFloat {
 	NAN
 	INFINITY
 	NEG_INFINITY
+}
+
+type StagedGraph {
+	version: Int!
+	loadNodes(
+		"""
+		Path to the parquet directory.
+		"""
+		dataPath: String!,
+		"""
+		The column name for the timestamps.
+		"""
+		time: String!,
+		"""
+		The column name for the node IDs.
+		"""
+		id: String!,
+		"""
+		A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
+		"""
+		nodeType: String,
+		"""
+		The node type column name in a dataframe. Cannot be used in combination with node_type.
+		"""
+		nodeTypeCol: String,
+		"""
+		List of node property column names.
+		"""
+		properties: [String!],
+		"""
+		List of node metadata column names.
+		"""
+		metadata: [String!],
+		"""
+		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+		"""
+		schema: String,
+		"""
+		The column name for the secondary index.
+		"""
+		eventId: String,
+		"""
+		A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
+		"""
+		layer: String,
+		"""
+		The node layer column name in a dataframe. Cannot be used in combination with layer.
+		"""
+		layerCol: String
+	): Boolean!
+	loadEdges(
+		"""
+		Path to the parquet directory.
+		"""
+		dataPath: String!,
+		"""
+		The column name for the update timestamps.
+		"""
+		time: String!,
+		"""
+		The column name for the source node IDs.
+		"""
+		src: String!,
+		"""
+		The column name for the destination node IDs.
+		"""
+		dst: String!,
+		"""
+		List of edge property column names. Defaults to None.
+		"""
+		properties: [String!],
+		"""
+		List of edge metadata column names. Defaults to None.
+		"""
+		metadata: [String!],
+		"""
+		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+		"""
+		schema: String,
+		"""
+		The column name for the secondary index.
+		"""
+		eventId: String,
+		"""
+		A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
+		"""
+		layer: String,
+		"""
+		The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+		"""
+		layerCol: String
+	): Boolean!
+	"""
+	Promote the staged snapshot and reload the graph in the server cache.
+	If any load in this stage failed, the stage is discarded instead.
+	"""
+	finish: Boolean!
 }
 
 """
