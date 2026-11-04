@@ -80,7 +80,8 @@ fn exploded<'a, G: GraphViewOps<'a>>(e: Option<EdgeView<G>>) -> usize {
 /// What each single window keeps, combined as the multi-window view over them
 /// should be: edges and nodes as a union, each edge's history and the exploded
 /// counts range by range in order, and the extremes of the earliest and latest
-/// times, to the millisecond.
+/// times, to the millisecond (not the event id: the unfiltered fast path
+/// invents one, #2883).
 fn check_union<'a, G: GraphViewOps<'a>>(g: G, set: &TimeRanges) -> Result<(), TestCaseError> {
     let windows: Vec<_> = set.iter().map(|r| g.window(r.start, r.end)).collect();
     let multi = WindowedGraph::from_ranges(g.clone(), set.clone());
