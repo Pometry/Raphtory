@@ -21,6 +21,7 @@ use itertools::Itertools;
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{
     borrow::Borrow,
+    fmt::{self, Debug, Formatter},
     ops::Range,
     sync::{Arc, LazyLock},
 };
@@ -36,7 +37,7 @@ static NONE: LazyLock<Arc<[Range<EventTime>]>> =
 /// cloning a set is a refcount bump and windowing one ([`Self::clipped_to`]) is
 /// two binary searches: neither allocates. `span` holds the indices of the
 /// ranges that overlap `clip`; each is yielded intersected with it.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct TimeRanges {
     ranges: Arc<[Range<EventTime>]>,
     span: Range<usize>,
@@ -215,6 +216,13 @@ fn push_merged(out: &mut Vec<Range<EventTime>>, range: Range<EventTime>) {
         // `<=` merges touching ranges too, so `[a,b) ∪ [b,c)` is `[a,c)`.
         Some(last) if range.start <= last.end => last.end = last.end.max(range.end),
         _ => out.push(range),
+    }
+}
+
+/// The ranges the set keeps, as a caller sees them.
+impl Debug for TimeRanges {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
     }
 }
 
