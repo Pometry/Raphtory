@@ -206,9 +206,9 @@ pub struct DataInner {
     pub(crate) graph_args: Args,
     pub(crate) read_only: ReadOnlyGraphs,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
-    /// Needed so that graphs loaded through the policy's probe `Data` (which has no
-    /// `auth_policy`) still notify it. Weak, not Arc: the auth policy holds this probe `Data` (and
-    /// `DataInner`). An Arc back would be a cycle, so `DataInner` would never drop or flush its graphs.
+    /// So graphs loaded through the policy's `Data` in the probe schema's env (which has no
+    /// `auth_policy`) still notify it. Weak: the policy holds the probe `Data`, so an Arc would
+    /// create a reference cycle that never drops or flushes.
     auth_policy: std::sync::RwLock<Option<Weak<dyn AuthorizationPolicy>>>,
 }
 
@@ -312,8 +312,8 @@ impl WorkDirGuard {
 #[derive(Clone)]
 pub struct Data {
     pub inner: Arc<DataInner>,
-    /// Enforced on requests through this `Data`, so `None` on the policy's unrestricted probe
-    /// `Data`. Also what keeps the policy alive (in the server), as `DataInner` only holds it weakly.
+    /// Enforced on requests through this `Data`; `None` on the policy's unrestricted probe `Data`.
+    /// Keeps the policy alive, as `DataInner` only holds it weakly.
     pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
@@ -371,7 +371,7 @@ impl Data {
         WorkDirWriteGuard { guard }
     }
 
-    /// Handed to every graph this `Data` loads, so successful writes reach the authorization policy.
+    /// Handed to every graph this `Data` loads, so successful writes reach the policy.
     fn mutation_listener(&self) -> MutationListener {
         let policy = self
             .inner
@@ -381,7 +381,7 @@ impl Data {
         MutationListener::new(policy.clone())
     }
 
-    /// Report a successful mutation on a whole graph (such as create, delete, replace, move, ...)
+    /// Report a successful whole-graph mutation (create, delete, replace, move, ...).
     fn notify_graph_mutated(&self) {
         self.mutation_listener().notify();
     }

@@ -138,7 +138,7 @@ impl DynGraphWithFolder {
     }
 }
 
-/// Stops the graph cache evicting a graph while held by owning an Arc reference to it.
+/// Stops the graph cache evicting a graph while held.
 #[derive(Clone)]
 pub struct GraphPin(#[allow(dead_code)] GraphWithVectors); // holds GraphWithVectors without exposing it
 

@@ -103,7 +103,7 @@ static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// Limit to 1 caching operation at a time because they run in parallel.
+/// One caching operation at a time, as each already runs in parallel.
 static CACHING_PERMITS: LazyLock<Arc<Semaphore>> = LazyLock::new(|| Arc::new(Semaphore::new(1)));
 
 /// Queue `closure` behind any other caching operation and run it on the caching pool.

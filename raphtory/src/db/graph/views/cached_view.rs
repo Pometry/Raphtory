@@ -200,7 +200,7 @@ fn union(mut masks: Vec<RoaringTreemap>, others: Vec<RoaringTreemap>) -> Vec<Roa
     masks
 }
 
-/// Useful for event ids, which aren't necessarily in storage order, so they are sorted first.
+/// For ids not sorted in storage order, such as event ids.
 fn sorted_id_mask(mut ids: Vec<u64>) -> RoaringTreemap {
     ids.par_sort_unstable();
     ids.dedup();

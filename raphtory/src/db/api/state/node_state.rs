@@ -749,8 +749,8 @@ impl<K: Copy> ExactSizeIterator for SortedIndexIntoIter<K> {}
 struct RoaringIter {
     keys: Arc<RoaringTreemap>,
     range: Range<usize>,
-    /// Whether the back of `iter` is at `range.end` yet; it is moved there lazily since iteration
-    /// from the front never needs it.
+    /// Whether the back of `iter` is at `range.end` yet; moved lazily, as front-only iteration
+    /// never needs it.
     back_seeked: bool,
     #[borrows(keys)]
     #[covariant]
@@ -792,7 +792,7 @@ impl Iterator for RoaringIter {
         self.borrow_range().size_hint()
     }
 
-    /// Faster than repeatedly calling next on the iterator.
+    /// Seeks instead of stepping through with `next`.
     fn nth(&mut self, n: usize) -> Option<u64> {
         if n == 0 {
             return self.next();

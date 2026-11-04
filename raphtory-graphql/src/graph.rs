@@ -66,11 +66,9 @@ pub struct GraphWithVectorsInner {
     listener: MutationListener,
 }
 
-/// Tells the authorization policy when a graph's contents change or it is evicted. Empty when
-/// there is no policy.
-// We use a weak reference because the graph (which holds this `MutationListener`) is cached in a
-// `DataInner` the policy holds, so a strong reference back to the policy would create a cycle, and
-// they would keep each other alive in memory forever.
+/// Tells the authorization policy when a graph changes or is evicted. Empty without a policy.
+// Weak: the policy holds the `DataInner` that is caching this graph, so an Arc back would create
+// a cycle.
 #[derive(Clone, Default)]
 pub struct MutationListener(Option<Weak<dyn AuthorizationPolicy>>);
 
