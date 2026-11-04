@@ -173,15 +173,15 @@ impl WriteLockedDictMapper<'_> {
         new_id
     }
 
-    pub fn set_id(&mut self, name: impl Into<ArcStr>, id: usize) {
+    /// map name to id, returns true if the name was not previously present in the map
+    pub fn set_id(&mut self, name: impl Into<ArcStr>, id: usize) -> bool {
         let arc_name = name.into();
-        let map_entry = self.map.entry(arc_name.clone());
         let keys = self.reverse_map.deref_mut();
         if keys.len() <= id {
             keys.resize(id + 1, Default::default())
         }
-        keys[id] = arc_name;
-        map_entry.insert_entry(id);
+        keys[id] = arc_name.clone();
+        self.map.insert(arc_name, id).is_none()
     }
 
     pub fn map(&self) -> &FxHashMap<ArcStr, usize> {

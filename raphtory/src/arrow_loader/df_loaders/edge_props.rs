@@ -80,6 +80,8 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
             .resolve_edge_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
+    // resolved outside the chunk's columns, marked separately below
+    let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
     #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading edges metadata".to_string(), df_view.num_rows)?;
@@ -115,7 +117,17 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
                     .map(|array| array.values().as_ref())
             })
             .transpose()?;
-        let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
+        let (layer_col_resolved, distinct_layers) =
+            layer.resolve_layer(layer_id_values, graph, false)?;
+
+        // mark this chunk's (layer, prop) presence once
+        mark_chunk_metadata_presence(
+            graph.edge_meta(),
+            Some(&layer_col_resolved),
+            &distinct_layers,
+            &metadata_cols,
+            &shared_metadata_ids,
+        );
 
         // Metadata can only be attached to an edge that exists, so its endpoints must exist too:
         // look the ids up, never create them. Resolving the whole chunk before taking the write
