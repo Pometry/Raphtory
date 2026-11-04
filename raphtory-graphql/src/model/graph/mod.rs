@@ -35,6 +35,9 @@ pub mod vectorised_graph;
 #[cfg(feature = "vectors")]
 pub mod document;
 
+#[cfg(feature = "rdf")]
+pub mod rdf_graph;
+
 #[derive(OneOfInput, Clone)]
 pub enum WindowDuration {
     /// Duration of window period.

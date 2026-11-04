@@ -60,6 +60,7 @@ pythonize = { workspace = true, optional = true }
 indexmap = { workspace = true }
 dyn-clone = { workspace = true }
 inventory = { workspace = true }
+raphtory-rdf = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -73,6 +74,7 @@ parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }
+oxigraph = { workspace = true }
 parquet = { workspace = true }
 # The deny_unknown_fields lint test parses source with syn.
 syn = { version = "2", features = ["full"] }
@@ -82,6 +84,7 @@ quote = "1"
 [features]
 default = []
 vectors = ["dep:raphtory-vectors"]
+rdf = ["dep:raphtory-rdf"]
 integration-test = ["opentelemetry_sdk/testing"]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python", "raphtory-vectors?/python"]
 panic-on-drop = ["raphtory/panic-on-drop", "raphtory-vectors?/panic-on-drop"]
