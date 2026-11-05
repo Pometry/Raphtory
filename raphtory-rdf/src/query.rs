@@ -1,0 +1,268 @@
+//! Running SPARQL queries over graph views.
+use crate::{
+    algebra::{walk, Node},
+    dataset::RaphtoryDataset,
+    functions::temporal_functions_of,
+    limits::{cancel_after, check_query_length, check_result_count, check_triple_patterns},
+    time_graph::time_graphs_in,
+    RdfError, TimeGraph, RESERVED_NS,
+};
+use indexmap::IndexSet;
+use oxigraph::{
+    model::{NamedNode, Term, Triple},
+    sparql::{
+        CancellationToken, DefaultServiceHandler, QueryEvaluationError, QueryResults,
+        QuerySolutionIter, SparqlEvaluator, Variable,
+    },
+};
+use oxiri::Iri;
+use raphtory::db::api::view::DynamicGraph;
+use rustc_hash::{FxBuildHasher, FxHashSet};
+use spargebra::{
+    algebra::{Expression, Function, GraphPattern},
+    term::NamedNodePattern,
+    Query, SparqlParser,
+};
+use std::time::Duration;
+
+// refuses `SERVICE` calls so no query makes a network request, whatever oxigraph features are on
+pub(crate) fn evaluator() -> SparqlEvaluator {
+    SparqlEvaluator::new().with_default_service_handler(NoService)
+}
+
+struct NoService;
+
+impl DefaultServiceHandler for NoService {
+    type Error = QueryEvaluationError;
+
+    fn handle(
+        &self,
+        service_name: &NamedNode,
+        _pattern: &GraphPattern,
+        _base_iri: Option<&Iri<String>>,
+    ) -> Result<QuerySolutionIter<'static>, Self::Error> {
+        Err(QueryEvaluationError::UnsupportedService(
+            service_name.clone(),
+        ))
+    }
+}
+
+/// The fully collected results of a SPARQL query.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SparqlResults {
+    /// `SELECT`: one row per solution, `None` where a variable is unbound.
+    Solutions {
+        variables: Vec<Variable>,
+        rows: Vec<Vec<Option<Term>>>,
+    },
+    /// `ASK`.
+    Boolean(bool),
+    /// `CONSTRUCT` or `DESCRIBE`: distinct triples, in the order first built.
+    Graph(Vec<Triple>),
+}
+
+impl SparqlResults {
+    pub(crate) fn from_query_results(
+        results: QueryResults<'_>,
+        max_results: Option<usize>,
+    ) -> Result<Self, RdfError> {
+        Ok(match results {
+            QueryResults::Solutions(solutions) => {
+                let variables = solutions.variables().to_vec();
+                let mut rows = Vec::new();
+                for solution in solutions {
+                    rows.push(solution.map_err(RdfError::from)?.values().to_vec());
+                    check_result_count(rows.len(), max_results)?;
+                }
+                Self::Solutions { variables, rows }
+            }
+            QueryResults::Boolean(value) => Self::Boolean(value),
+            QueryResults::Graph(triples) => {
+                let mut graph = IndexSet::<_, FxBuildHasher>::default();
+                for triple in triples {
+                    if graph.insert(triple.map_err(RdfError::from)?) {
+                        check_result_count(graph.len(), max_results)?;
+                    }
+                }
+                Self::Graph(graph.into_iter().collect())
+            }
+        })
+    }
+}
+
+/// The form of a SPARQL query, which decides what its results are.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QueryForm {
+    Select,
+    Ask,
+    Construct,
+    Describe,
+}
+
+impl QueryForm {
+    pub(crate) fn of(query: &Query) -> Self {
+        match query {
+            Query::Select { .. } => Self::Select,
+            Query::Ask { .. } => Self::Ask,
+            Query::Construct { .. } => Self::Construct,
+            Query::Describe { .. } => Self::Describe,
+        }
+    }
+
+    /// The keyword of the form, such as `SELECT`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Select => "SELECT",
+            Self::Ask => "ASK",
+            Self::Construct => "CONSTRUCT",
+            Self::Describe => "DESCRIBE",
+        }
+    }
+
+    /// Whether the results are triples (`CONSTRUCT` and `DESCRIBE`).
+    pub fn is_graph(self) -> bool {
+        matches!(self, Self::Construct | Self::Describe)
+    }
+}
+
+/// What a SPARQL query asks for, read from the query without running it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QueryOutline {
+    pub form: QueryForm,
+    /// Whether the query may read a time graph; one only passed to a function is not read.
+    pub reads_time_graphs: bool,
+}
+
+impl QueryOutline {
+    /// Parses `query` as [`RdfView::sparql`](crate::RdfView::sparql) does, with the same errors.
+    pub fn parse(query: &str, options: &SparqlOptions) -> Result<Self, RdfError> {
+        check_query_length(query, options.max_query_length)?;
+        RdfError::caught("the query", || {
+            let query = parse(query)?;
+            let from_names_time_graph = query
+                .dataset()
+                .into_iter()
+                .flat_map(|dataset| dataset.default.iter().chain(dataset.named.iter().flatten()))
+                .any(|iri| matches!(TimeGraph::parse(iri), Ok(Some(_))));
+            let (mut has_graph, mut graph_var, mut builds_iri) = (false, false, false);
+            walk(&query, |node| match node {
+                Node::Pattern(GraphPattern::Graph { name, .. }) => {
+                    has_graph = true;
+                    graph_var |= matches!(name, NamedNodePattern::Variable(_));
+                }
+                Node::Expression(Expression::FunctionCall(Function::Iri, _)) => builds_iri = true,
+                _ => {}
+            });
+            Ok(Self {
+                form: QueryForm::of(&query),
+                reads_time_graphs: from_names_time_graph
+                    || (has_graph && !time_graphs_in(&query).is_empty())
+                    || (graph_var && builds_iri),
+            })
+        })
+    }
+}
+
+/// Bounds on the work of a SPARQL query; the default has none.
+#[derive(Clone, Debug, Default)]
+pub struct SparqlOptions {
+    pub(crate) max_query_length: Option<usize>,
+    pub(crate) max_triple_patterns: Option<usize>,
+    pub(crate) max_result_bytes: Option<usize>,
+    pub(crate) max_results: Option<usize>,
+    pub(crate) timeout: Option<Duration>,
+}
+
+impl SparqlOptions {
+    /// The longest query, in bytes; a longer one fails before it is parsed.
+    pub fn with_max_query_length(mut self, max: impl Into<Option<usize>>) -> Self {
+        self.max_query_length = max.into();
+        self
+    }
+
+    /// The most triple patterns a query may have; more fails before planning.
+    /// Path predicates, `BIND`s and `(.. AS ?v)` count one each; `VALUES` 1 + variables + rows/100.
+    pub fn with_max_triple_patterns(mut self, max: impl Into<Option<usize>>) -> Self {
+        self.max_triple_patterns = max.into();
+        self
+    }
+
+    /// The most bytes of results [`sparql_to_writer`](crate::RdfView::sparql_to_writer) writes.
+    pub fn with_max_result_bytes(mut self, max: impl Into<Option<usize>>) -> Self {
+        self.max_result_bytes = max.into();
+        self
+    }
+
+    /// The most solutions, or distinct triples, a query may return; one more fails the query.
+    pub fn with_max_results(mut self, max: impl Into<Option<usize>>) -> Self {
+        self.max_results = max.into();
+        self
+    }
+
+    /// How long a query may run, from planning to its last result; past it the query fails.
+    pub fn with_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.timeout = timeout.into();
+        self
+    }
+}
+
+// spareval does not dedup triples with blank nodes (stored ones repeat), and forgets after 2^20
+pub(crate) fn dedup_triples<'a>(
+    triples: impl Iterator<Item = Result<Triple, QueryEvaluationError>> + 'a,
+) -> impl Iterator<Item = Result<Triple, QueryEvaluationError>> + 'a {
+    let mut seen = FxHashSet::default();
+    triples.filter(move |triple| match triple {
+        Ok(triple) => seen.insert(triple.clone()),
+        Err(_) => true,
+    })
+}
+
+pub(crate) fn parse(query: &str) -> Result<Query, RdfError> {
+    Ok(SparqlParser::new()
+        .with_prefix("raphtory", RESERVED_NS)?
+        .parse_query(query)?)
+}
+
+pub(crate) fn execute<R>(
+    view: &DynamicGraph,
+    query: Query,
+    options: &SparqlOptions,
+    f: impl FnOnce(QueryResults<'_>) -> Result<R, RdfError>,
+) -> Result<R, RdfError> {
+    check_triple_patterns(&query, options.max_triple_patterns)?;
+    let token = CancellationToken::new();
+    // held until the results are written
+    let _timer = options
+        .timeout
+        .map(|timeout| cancel_after(timeout, token.clone()))
+        .transpose()?;
+    // time graphs cannot be enumerated, so an unbound `GRAPH ?g` visits those the query names
+    let dataset = RaphtoryDataset::new(view.clone()).with_time_graphs(time_graphs_in(&query));
+    let results = temporal_functions_of(
+        evaluator().with_cancellation_token(token.clone()),
+        view.clone(),
+    )
+    .for_query(query)
+    .on_queryable_dataset(dataset)
+    .execute()
+    .map_err(RdfError::from)
+    .and_then(f);
+    match options.timeout {
+        // spareval reads a cancelled `EXISTS` as true, so even a finished answer may be wrong
+        Some(timeout) if token.is_cancelled() => Err(RdfError::Timeout { timeout }),
+        _ => results,
+    }
+}
+
+pub(crate) fn sparql(
+    view: &DynamicGraph,
+    query: &str,
+    options: &SparqlOptions,
+) -> Result<SparqlResults, RdfError> {
+    check_query_length(query, options.max_query_length)?;
+    RdfError::caught("the query", || {
+        execute(view, parse(query)?, options, |results| {
+            SparqlResults::from_query_results(results, options.max_results)
+        })
+    })
+}
