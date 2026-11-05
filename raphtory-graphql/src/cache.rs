@@ -29,14 +29,15 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
             return true;
         }
 
+        if val.is_dirty() && !val.is_flushing() {
+            let graph = val.clone();
+            EVICT_POOL.spawn(move || {
+                debug!("Flushing graph {}", graph.folder().local_path());
+                flush_graph(graph);
+            })
+        }
+
         if val.is_dirty() {
-            if !val.is_flushing() {
-                let graph = val.clone();
-                EVICT_POOL.spawn(move || {
-                    debug!("Flushing graph {}", graph.folder().local_path());
-                    flush_graph(graph);
-                })
-            }
             return true;
         }
 
