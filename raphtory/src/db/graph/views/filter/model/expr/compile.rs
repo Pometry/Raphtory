@@ -1579,10 +1579,13 @@ impl ResolvedView {
         Ok(views.into_iter().fold(Self::all(), Self::and))
     }
 
-    /// The view an `or` of views resolves to: the union of its operands.
+    /// The view an `or` of views resolves to: the union of its operands,
+    /// folded from the first, so no layer is added that no operand keeps.
     fn or_of(expressions: &[FilterExpr], graph: &DynGraphArc<'_>) -> Result<Self, GraphError> {
         let views: Vec<Self> = each_operand(expressions, "or", |expr| Self::resolve(expr, graph))?;
-        views.into_iter().try_fold(Self::nothing(), Self::or)
+        let mut views = views.into_iter();
+        let first = views.next().unwrap_or_else(Self::nothing);
+        views.try_fold(first, Self::or)
     }
 
     /// The times and layers `views` keep of `graph`, read back from the graph
@@ -1620,7 +1623,7 @@ impl ResolvedView {
         }
     }
 
-    /// No time: the identity of `or`.
+    /// No time: what `not` of every time and every layer keeps.
     fn nothing() -> Self {
         Self {
             time: TimeRanges::empty(),
@@ -1648,11 +1651,19 @@ impl ResolvedView {
         }
     }
 
-    /// Either: one pair when one keeps no time or keeps everything, or when the
-    /// two agree on times or on layers. Otherwise `(T1 ∪ T2, L1 ∪ L2)` would
+    /// Either: one pair when the two agree on times or on layers, or when one
+    /// keeps no time or keeps everything. Otherwise `(T1 ∪ T2, L1 ∪ L2)` would
     /// keep `T1` events on `L2` layers, which neither keeps. No layers is not
     /// nothing: the graph's temporal properties in its times are still kept.
+    /// No time is not nothing either: its layers are still the view's layers,
+    /// so two views with no time keep the layers of both.
     fn or(self, other: Self) -> Result<Self, GraphError> {
+        if self.time == other.time || self.layers == other.layers {
+            return Ok(Self {
+                time: self.time.union(&other.time),
+                layers: self.layers.union(&other.layers),
+            });
+        }
         if other.time.is_empty() {
             return Ok(self);
         }
@@ -1661,12 +1672,6 @@ impl ResolvedView {
         }
         if self.is_all() || other.is_all() {
             return Ok(Self::all());
-        }
-        if self.time == other.time || self.layers == other.layers {
-            return Ok(Self {
-                time: self.time.union(&other.time),
-                layers: self.layers.union(&other.layers),
-            });
         }
         Err(GraphError::invalid_filter(
             "an `or` of views that restrict both time and layers differently is not one view; \

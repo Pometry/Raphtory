@@ -17,8 +17,8 @@ use raphtory::{
         api::view::{DynamicGraph, Filter, IntoDynamic, Select},
         graph::views::filter::{
             model::{
-                edge_filter::EdgeFilter, graph_filter::GraphFilter, ComposableFilter,
-                PropertyExprFactory, ViewWrapOps,
+                edge_filter::EdgeFilter, expr::FilterExpr, graph_filter::GraphFilter,
+                ComposableFilter, PropertyExprFactory, ViewWrapOps,
             },
             CreateFilter,
         },
@@ -397,6 +397,49 @@ fn an_or_of_views_with_no_layers_keeps_the_graph_properties_of_either() {
             .or(GraphFilter.window(5, 10).and(no_layers()))
     )
     .contains("both time and layers"));
+}
+
+/// A view with no time keeps no events but still has its layers, so an `or` of
+/// such views has the layers of either; beside a view with time it adds nothing.
+///
+/// ```text
+/// time         0    1    2    3    4    5    6    7    8    9
+/// a→b [x]           ●(1)           ●(4)                ●(8)
+/// c→d [y]                     ●(3)                ●(6)
+/// window(3,3)                 ‖                                    no time
+/// window(6,6)                                     ‖                no time
+/// window(0,5)  [========================)
+/// ```
+#[test]
+fn an_or_with_no_time_keeps_the_layers_of_its_operands() {
+    let g = graph().into_dynamic();
+    let view = |start: i64, end: i64, layer: &str| {
+        GraphFilter
+            .window(start, end)
+            .and(GraphFilter.layers(layer))
+    };
+    let layers_and_edges = |filter: FilterExpr| {
+        let viewed = g.filter(filter).unwrap();
+        let layers: Vec<String> = viewed.unique_layers().map(|l| l.to_string()).collect();
+        (layers, histories(&viewed))
+    };
+    assert_eq!(
+        layers_and_edges(view(3, 3, "x").or(view(6, 6, "x"))),
+        (vec!["x".to_string()], expected(&[]))
+    );
+    assert_eq!(
+        layers_and_edges(view(3, 3, "x").or(view(6, 6, "y"))),
+        (vec!["x".to_string(), "y".to_string()], expected(&[]))
+    );
+    for filter in [
+        view(0, 5, "x").or(view(6, 6, "y")),
+        view(6, 6, "y").or(view(0, 5, "x")),
+    ] {
+        assert_eq!(
+            layers_and_edges(filter),
+            (vec!["x".to_string()], expected(&[("a→b", &[1, 4])]))
+        );
+    }
 }
 
 /// On a base that already keeps some layers, `not` of a layer keeps the base's
