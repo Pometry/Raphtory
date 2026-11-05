@@ -318,7 +318,8 @@ impl<
     }
 
     pub fn set_max_event_id(&self, value: usize) -> usize {
-        self.event_id.fetch_max(value, atomic::Ordering::Relaxed)
+        self.event_id
+            .fetch_max(value.saturating_add(1), atomic::Ordering::Relaxed)
     }
 
     pub fn node_writer(

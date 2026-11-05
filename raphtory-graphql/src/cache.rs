@@ -30,7 +30,7 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
         }
 
         if val.is_dirty() {
-            if !val.is_flushing() {
+            if val.try_start_flush() {
                 let graph = val.clone();
                 EVICT_POOL.spawn(move || {
                     debug!("Flushing graph {}", graph.folder().local_path());
