@@ -1,7 +1,4 @@
-use crate::{
-    config::app_config::AppConfig,
-    data::{gql_error_with_code, CODE_ACCESS_DENIED},
-};
+use crate::config::app_config::AppConfig;
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
@@ -237,19 +234,6 @@ pub enum AuthError {
     BatchingDisabled,
     #[error("Batch size {actual} exceeds the maximum allowed {max}")]
     BatchSizeExceeded { max: usize, actual: usize },
-}
-
-impl From<AuthError> for async_graphql::Error {
-    fn from(error: AuthError) -> Self {
-        match error {
-            AuthError::RequireRead | AuthError::RequireWrite => {
-                gql_error_with_code(error.to_string(), CODE_ACCESS_DENIED)
-            }
-            AuthError::BatchingDisabled | AuthError::BatchSizeExceeded { .. } => {
-                async_graphql::Error::new(error.to_string())
-            }
-        }
-    }
 }
 
 impl From<AuthError> for ServerError {

@@ -648,16 +648,16 @@ impl GqlAlgorithms {
         )]
         rolling_step: Option<WindowDuration>,
     ) -> Result<f64, GQLError> {
-        self.run(move |graph| {
-            Ok::<_, GraphError>(temporal_rich_club_coefficient(
-                &graph,
-                graph.rolling(rolling_window, rolling_step)?,
-                k,
-                window_size,
-            ))
-        })
-        .await
-        .map_err(GQLError::from)
+        Ok(self
+            .run(move |graph| {
+                Ok::<_, GraphError>(temporal_rich_club_coefficient(
+                    &graph,
+                    graph.rolling(rolling_window, rolling_step)?,
+                    k,
+                    window_size,
+                ))
+            })
+            .await?)
     }
 
     /// Simulates an SEIR epidemic, returning the infection, activation and

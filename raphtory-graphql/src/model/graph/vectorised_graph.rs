@@ -82,7 +82,7 @@ impl<'b> VectorQuery<'b> {
         nodes: Option<Template>,
         #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
         edges: Option<Template>,
-    ) -> async_graphql::Result<bool> {
+    ) -> Result<bool, GQLError> {
         {
             ctx.require_jwt_write_access()?;
             let data = ctx.data_unchecked::<Data>();
@@ -93,8 +93,7 @@ impl<'b> VectorQuery<'b> {
             let cached_model = model
                 .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
                 .cache(ctx)
-                .await
-                .map_err(GQLError::from)?;
+                .await?;
             let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
             data.vectorise_folder(&folder, &template, cached_model)
                 .await?;
@@ -118,7 +117,7 @@ impl<'b> VectorQuery<'b> {
         nodes: Option<Template>,
         #[graphql(desc = "Edge-document template; must match the one the index was built with.")]
         edges: Option<Template>,
-    ) -> async_graphql::Result<bool> {
+    ) -> Result<bool, GQLError> {
         ctx.require_jwt_write_access()?;
         let data = ctx.data_unchecked::<Data>();
         let template = DocumentTemplate {
@@ -128,8 +127,7 @@ impl<'b> VectorQuery<'b> {
         let cached_model = model
             .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
             .cache(ctx)
-            .await
-            .map_err(GQLError::from)?;
+            .await?;
         let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
         data.vectorise_missing_in_folder(&folder, &template, cached_model)
             .await?;
@@ -142,7 +140,7 @@ impl<'b> VectorQuery<'b> {
     async fn vectorised_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
-    ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
+    ) -> Result<Option<GqlVectorisedGraph>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         data.get_vectors_with_read_permission(ctx, path).await
     }

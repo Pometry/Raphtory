@@ -272,7 +272,7 @@ impl GqlEdge {
 
     /// Returns the time of an exploded edge. Errors on an unexploded edge.
     pub async fn time(&self) -> Result<GqlEventTime, GQLError> {
-        self.ee.time().map(|t| t.into()).map_err(GQLError::from)
+        Ok(self.ee.time()?.into())
     }
 
     /// Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
@@ -350,10 +350,7 @@ impl GqlEdge {
 
     /// Returns the layer name of an exploded edge, errors on an edge.
     pub async fn layer_name(&self) -> Result<String, GQLError> {
-        self.ee
-            .layer_name()
-            .map(|x| x.into())
-            .map_err(GQLError::from)
+        Ok(self.ee.layer_name()?.into())
     }
 
     /// Returns an edge object for each update within the original edge.
@@ -448,7 +445,7 @@ impl GqlEdge {
         #[graphql(desc = "Optional layer name the event must belong to.")] layer: Option<String>,
     ) -> Result<GqlEdge, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             // Narrow with indexed views instead of scanning the full exploded
             // history: layer and time restrictions bound the storage walk, so
             // exploding yields only the matching event(s). `valid_layers`
@@ -482,8 +479,7 @@ impl GqlEdge {
                 }
             }
         })
-        .await
-        .map_err(GQLError::from)
+        .await?)
     }
 
     /// Pin this edge to a single layer-exploded instance by layer name — the
@@ -495,7 +491,7 @@ impl GqlEdge {
         #[graphql(desc = "Layer name to pin to.")] name: String,
     ) -> Result<GqlEdge, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             // Restrict to the layer up front — exploding then yields at most
             // that one instance, instead of scanning every layer instance.
             let exploded = self_clone.ee.valid_layers(name.as_str()).explode_layers();
@@ -512,8 +508,7 @@ impl GqlEdge {
                 }
             }
         })
-        .await
-        .map_err(GQLError::from)
+        .await?)
     }
 }
 

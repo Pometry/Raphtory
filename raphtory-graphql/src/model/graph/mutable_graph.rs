@@ -55,12 +55,6 @@ fn split_failures<S>(
     (succeeded, err)
 }
 
-impl From<BatchFailures> for async_graphql::Error {
-    fn from(error: BatchFailures) -> Self {
-        async_graphql::Error::new_with_source(error)
-    }
-}
-
 impl Display for BatchFailures {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(embedding_failure) = self.write_failure.as_ref() {
@@ -293,7 +287,7 @@ impl GqlMutableGraph {
             desc = "List of `NodeAddition` inputs, each specifying a node's name, optional type, layer, per-timestamp updates, and metadata."
         )]
         nodes: Vec<NodeAddition>,
-    ) -> Result<bool, BatchFailures> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
 
         let (succeeded, batch_failures) = blocking_write(move || {
@@ -341,7 +335,7 @@ impl GqlMutableGraph {
             );
         }
         if let Some(failures) = batch_failures {
-            Err(failures)
+            Err(failures.into())
         } else {
             Ok(true)
         }
@@ -406,7 +400,7 @@ impl GqlMutableGraph {
             desc = "List of `EdgeAddition` inputs, each specifying an edge's `src`, `dst`, optional layer, per-timestamp updates, and metadata."
         )]
         edges: Vec<EdgeAddition>,
-    ) -> Result<bool, BatchFailures> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
 
         let (edge_pairs, failures) = blocking_write(move || {
@@ -452,7 +446,7 @@ impl GqlMutableGraph {
 
         match failures {
             None => Ok(true),
-            Some(failures) => Err(failures),
+            Some(failures) => Err(failures.into()),
         }
     }
 
@@ -556,15 +550,14 @@ impl GqlMutableGraph {
     /// processes attaching a read-only handle observe up-to-date data.
     pub async fn flush(&self) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_write(move || {
+        Ok(blocking_write(move || {
             let res = self_clone.graph.persist();
             if res.is_err() {
                 self_clone.graph.set_dirty(true);
             }
             res.map(|_| true)
         })
-        .await
-        .map_err(GQLError::from)
+        .await?)
     }
 
     /// Build secondary indexes over node property values to speed up property
@@ -582,11 +575,11 @@ impl GqlMutableGraph {
     ) -> Result<bool, GQLError> {
         let graph = self.graph.graph().clone();
         let index_gid = index_gid.unwrap_or(false);
-        Ok(blocking_write(move || {
+        blocking_write(move || {
             graph.core_graph().build_node_prop_index(props, index_gid)?;
-            Ok::<_, GraphError>(true)
+            Ok(true)
         })
-        .await?)
+        .await
     }
 
     /// The node property names that index builds consider, or null when every

@@ -8,10 +8,25 @@ pub use crate::{
     server::GraphServer,
 };
 
-use crate::{data::InsertionError, paths::PathValidationError};
+use crate::{
+    auth::AuthError,
+    auth_policy::AuthPolicyError,
+    data::{
+        gql_error_with_code, DeletionError, InsertionError, ParquetPathError, PermissionError,
+        CODE_ACCESS_DENIED,
+    },
+    model::graph::mutable_graph::BatchFailures,
+    paths::PathValidationError,
+};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
-use raphtory::{algorithms::dynamics::temporal::epidemics::SeedError, errors::GraphError};
-use raphtory_api::core::{entities::properties::prop::PropTypeError, utils::time::ParseTimeError};
+use raphtory::{
+    algorithms::dynamics::temporal::epidemics::SeedError, db::api::storage::storage::StorageError,
+    errors::GraphError,
+};
+use raphtory_api::core::{
+    entities::properties::prop::PropTypeError, storage::graph_folder::GraphFolderError,
+    utils::time::ParseTimeError,
+};
 #[cfg(feature = "vectors")]
 use raphtory_vectors::errors::VectorError;
 use std::sync::Arc;
@@ -52,6 +67,22 @@ pub enum GQLError {
     Validation(#[from] PathValidationError),
     #[error(transparent)]
     Insertion(#[from] InsertionError),
+    #[error(transparent)]
+    Deletion(#[from] DeletionError),
+    #[error(transparent)]
+    ParquetPath(#[from] ParquetPathError),
+    #[error(transparent)]
+    BatchFailures(#[from] BatchFailures),
+    #[error(transparent)]
+    Permission(#[from] PermissionError),
+    #[error(transparent)]
+    Auth(#[from] AuthError),
+    /// A namespace listing's filter or sort is malformed.
+    #[error("Invalid filter: {0}")]
+    InvalidFilter(String),
+    /// A grant's row filter failed to apply; what the filter said is logged, not shown.
+    #[error("access filter could not be applied; the grant is misconfigured")]
+    AccessFilterMisconfigured,
     /// A server-side I/O failure; never shown to the client.
     #[error(transparent)]
     Io(#[from] std::io::Error),
@@ -65,33 +96,42 @@ impl GQLError {
         match self {
             GQLError::Io(_) => true,
             GQLError::Arc(inner) => inner.is_internal(),
-            GQLError::GraphError(_) | GQLError::Validation(_) | GQLError::Insertion(_) => false,
+            GQLError::GraphError(_)
+            | GQLError::Validation(_)
+            | GQLError::Insertion(_)
+            | GQLError::Deletion(_)
+            | GQLError::ParquetPath(_)
+            | GQLError::BatchFailures(_)
+            | GQLError::Permission(_)
+            | GQLError::Auth(_)
+            | GQLError::InvalidFilter(_)
+            | GQLError::AccessFilterMisconfigured => false,
         }
     }
 }
 
-/// What a client is told about an error from the graph layer: its own message, unless the
-/// error is about the server, which is logged and answered generically.
+/// A policy fault is logged where it becomes a denial, and answered like one.
+impl From<AuthPolicyError> for GQLError {
+    fn from(error: AuthPolicyError) -> Self {
+        PermissionError::from(error).into()
+    }
+}
+
+/// What a client is told about an error: its own message, with the `code` a denial carries,
+/// unless the error is about the server, which is logged and answered generically.
 impl From<GQLError> for async_graphql::Error {
     fn from(error: GQLError) -> Self {
-        if error.is_internal() {
-            error!(error = %error, "internal error while serving a request");
-            async_graphql::Error::new("Internal server error")
-        } else {
-            async_graphql::Error::new_with_source(error)
+        match error {
+            GQLError::Permission(error) => error.into_gql_error(),
+            GQLError::Auth(error @ (AuthError::RequireRead | AuthError::RequireWrite)) => {
+                gql_error_with_code(error.to_string(), CODE_ACCESS_DENIED)
+            }
+            error if error.is_internal() => {
+                error!(error = %error, "internal error while serving a request");
+                async_graphql::Error::new("Internal server error")
+            }
+            error => async_graphql::Error::new_with_source(error),
         }
-    }
-}
-
-impl From<PathValidationError> for async_graphql::Error {
-    fn from(error: PathValidationError) -> Self {
-        GQLError::from(error).into()
-    }
-}
-
-impl From<InsertionError> for async_graphql::Error {
-    fn from(error: InsertionError) -> Self {
-        GQLError::from(error).into()
     }
 }
 
@@ -111,6 +151,18 @@ impl From<PropTypeError> for GQLError {
 
 impl From<SeedError> for GQLError {
     fn from(error: SeedError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<StorageError> for GQLError {
+    fn from(error: StorageError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<GraphFolderError> for GQLError {
+    fn from(error: GraphFolderError) -> Self {
         GraphError::from(error).into()
     }
 }

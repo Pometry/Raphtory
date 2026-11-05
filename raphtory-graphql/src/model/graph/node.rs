@@ -352,12 +352,11 @@ impl GqlNode {
     pub async fn in_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GQLError> {
         let self_clone = self.clone();
         match select {
-            Some(select) => blocking_compute(move || {
+            Some(select) => Ok(blocking_compute(move || {
                 in_component_filtered(self_clone.vv.clone(), select)
                     .map(|state| GqlNodes::new(state.nodes()))
             })
-            .await
-            .map_err(GQLError::from),
+            .await?),
             None => Ok(blocking_compute(move || {
                 GqlNodes::new(in_component(self_clone.vv.clone()).nodes())
             })
@@ -372,12 +371,11 @@ impl GqlNode {
     pub async fn out_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GQLError> {
         let self_clone = self.clone();
         match select {
-            Some(select) => blocking_compute(move || {
+            Some(select) => Ok(blocking_compute(move || {
                 out_component_filtered(self_clone.vv.clone(), select)
                     .map(|state| GqlNodes::new(state.nodes()))
             })
-            .await
-            .map_err(GQLError::from),
+            .await?),
             None => Ok(blocking_compute(move || {
                 GqlNodes::new(out_component(self_clone.vv.clone()).nodes())
             })

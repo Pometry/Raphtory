@@ -5,10 +5,9 @@ use crate::{
     GQLError,
 };
 use async_graphql::Context;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::api::storage::storage::read_constant_graph_properties,
-    errors::GraphError,
     prelude::{GraphViewOps, PropertiesOps},
     serialise::{metadata::build_graph_metadata, parquet::decode_graph_metadata},
 };
@@ -61,7 +60,7 @@ impl MetaGraph {
         self.folder.local_path()
     }
 
-    async fn meta(&self, data: &Data) -> Result<&GraphMetadata> {
+    async fn meta(&self, data: &Data) -> Result<&GraphMetadata, GQLError> {
         Ok(self
             .meta
             .get_or_try_init(|| async {
@@ -75,7 +74,7 @@ impl MetaGraph {
 
     /// Whether the caller has unfiltered read; gates the summary fields below, which are read from
     /// stored metadata without the access filter applied.
-    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> Result<bool> {
+    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> Result<bool, GQLError> {
         match data.auth_policy.as_ref() {
             None => Ok(true),
             Some(p) => Ok(p.full_read(ctx, self.folder.local_path())?),
@@ -95,7 +94,7 @@ impl MetaGraph {
         &self,
         ctx: &Context<'_>,
         data: &Data,
-    ) -> Result<Option<Vec<(String, Prop)>>> {
+    ) -> Result<Option<Vec<(String, Prop)>>, GQLError> {
         if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
@@ -112,15 +111,8 @@ impl MetaGraph {
         }
 
         if self.meta(data).await?.is_diskgraph {
-            let graph_path = self
-                .folder
-                .graph_folder()
-                .graph_path()
-                .map_err(GraphError::from)
-                .map_err(GQLError::from)?;
-            let pairs = read_constant_graph_properties(&graph_path)
-                .map_err(GraphError::from)
-                .map_err(GQLError::from)?;
+            let graph_path = self.folder.graph_folder().graph_path()?;
+            let pairs = read_constant_graph_properties(&graph_path)?;
             return Ok(Some(
                 pairs
                     .into_iter()
@@ -130,8 +122,7 @@ impl MetaGraph {
         }
 
         Ok(Some(
-            decode_graph_metadata(self.folder.graph_folder())
-                .map_err(GQLError::from)?
+            decode_graph_metadata(self.folder.graph_folder())?
                 .into_iter()
                 .filter_map(|(key, value)| value.map(|prop| (key, prop)))
                 .collect(),
@@ -145,7 +136,7 @@ impl MetaGraph {
         ctx: &Context<'_>,
         data: &Data,
         key: &str,
-    ) -> Result<Option<Prop>> {
+    ) -> Result<Option<Prop>, GQLError> {
         Ok(self
             .metadata_pairs(ctx, data)
             .await?
@@ -154,11 +145,11 @@ impl MetaGraph {
             .find_map(|(k, prop)| (k == key).then_some(prop)))
     }
 
-    pub(crate) async fn created_value(&self) -> Result<i64> {
+    pub(crate) async fn created_value(&self) -> Result<i64, GQLError> {
         Ok(self.folder.created_async().await?)
     }
 
-    pub(crate) async fn last_updated_value(&self) -> Result<i64> {
+    pub(crate) async fn last_updated_value(&self) -> Result<i64, GQLError> {
         Ok(self.folder.last_updated_async().await?)
     }
 
@@ -166,7 +157,7 @@ impl MetaGraph {
         &self,
         ctx: &Context<'_>,
         data: &Data,
-    ) -> Result<Option<usize>> {
+    ) -> Result<Option<usize>, GQLError> {
         if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
@@ -177,7 +168,7 @@ impl MetaGraph {
         &self,
         ctx: &Context<'_>,
         data: &Data,
-    ) -> Result<Option<usize>> {
+    ) -> Result<Option<usize>, GQLError> {
         if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
@@ -203,22 +194,22 @@ impl MetaGraph {
     }
 
     /// Returns the timestamp for the creation of the graph.
-    pub async fn created(&self) -> Result<i64> {
+    pub async fn created(&self) -> Result<i64, GQLError> {
         Ok(self.folder.created_async().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
-    pub async fn last_opened(&self) -> Result<i64> {
+    pub async fn last_opened(&self) -> Result<i64, GQLError> {
         Ok(self.folder.last_opened_async().await?)
     }
 
     /// Returns the graph's last updated timestamp.
-    pub async fn last_updated(&self) -> Result<i64> {
+    pub async fn last_updated(&self) -> Result<i64, GQLError> {
         Ok(self.folder.last_updated_async().await?)
     }
 
     /// Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
-    pub async fn node_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
+    pub async fn node_count(&self, ctx: &Context<'_>) -> Result<Option<usize>, GQLError> {
         let data: &Data = ctx.data_unchecked();
         if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
@@ -230,7 +221,7 @@ impl MetaGraph {
     ///
     /// Returns:
     ///     int:
-    pub async fn edge_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
+    pub async fn edge_count(&self, ctx: &Context<'_>) -> Result<Option<usize>, GQLError> {
         let data: &Data = ctx.data_unchecked();
         if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
@@ -245,7 +236,7 @@ impl MetaGraph {
     /// from disk (parquet metadata for parquet-backed graphs, the
     /// `graph_props` segment for disk-backed graphs). This keeps
     /// `MetaGraph.metadata` cheap for namespace listings of many graphs.
-    pub async fn metadata(&self, ctx: &Context<'_>) -> Result<Option<Vec<GqlProperty>>> {
+    pub async fn metadata(&self, ctx: &Context<'_>) -> Result<Option<Vec<GqlProperty>>, GQLError> {
         let data: &Data = ctx.data_unchecked();
         Ok(self
             .metadata_pairs(ctx, data)
