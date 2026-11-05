@@ -458,7 +458,13 @@ impl GqlPathFromNode {
 
     /// Returns the neighbouring nodes reachable one further hop from this path
     /// (both directions), as a flat `PathFromNode`.
-    pub async fn neighbours(&self, select: Option<GqlFilter>) -> Result<GqlPathFromNode, GQLError> {
+    pub async fn neighbours(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -471,6 +477,9 @@ impl GqlPathFromNode {
     /// flat `PathFromNode`.
     pub async fn in_neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.in_neighbours();
@@ -485,6 +494,9 @@ impl GqlPathFromNode {
     /// flat `PathFromNode`.
     pub async fn out_neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.out_neighbours();
