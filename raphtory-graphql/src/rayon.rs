@@ -1,7 +1,10 @@
 use rayon::{ThreadPool, ThreadPoolBuilder};
 #[cfg(test)]
 use std::sync::Mutex;
-use std::sync::{Arc, LazyLock, OnceLock};
+use std::{
+    panic::{self, AssertUnwindSafe},
+    sync::{Arc, LazyLock, OnceLock},
+};
 use tokio::sync::{oneshot, Semaphore};
 use tracing::warn;
 
@@ -65,9 +68,12 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
 ) -> R {
     let (send, recv) = oneshot::channel();
     COMPUTE_POOL.spawn(move || {
-        let _ = send.send(closure()); // this only errors if no-one is listening anymore
+        // a panic in a rayon job aborts the process, so it resumes in the caller instead
+        let _ = send.send(panic::catch_unwind(AssertUnwindSafe(closure)));
     });
-    recv.await.expect("Function panicked in rayon::spawn")
+    recv.await
+        .expect("the compute job was dropped before it ran")
+        .unwrap_or_else(|panic| panic::resume_unwind(panic))
 }
 
 static LOAD_PERMITS: LazyLock<Semaphore> = LazyLock::new(|| {
@@ -203,6 +209,13 @@ mod deadlock_tests {
 mod scheduler_tests {
     use super::*;
     use std::time::Duration;
+
+    #[tokio::test]
+    async fn a_compute_job_that_panics_fails_its_caller() {
+        let job = tokio::spawn(blocking_compute(|| -> usize { panic!("boom") }));
+        assert!(job.await.unwrap_err().is_panic());
+        assert_eq!(blocking_compute(|| 1).await, 1);
+    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn concurrent_loads_are_bounded() {

@@ -1,3 +1,13 @@
+#[cfg(feature = "rdf")]
+use crate::{
+    config::concurrency_config::{
+        DEFAULT_MAX_SHACL_RESULTS, DEFAULT_MAX_SHACL_SHAPES_LENGTH,
+        DEFAULT_MAX_SHACL_VALIDATION_MS, DEFAULT_MAX_SPARQL_QUERY_LENGTH,
+        DEFAULT_MAX_SPARQL_QUERY_MS, DEFAULT_MAX_SPARQL_RESULT_BYTES,
+        DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS,
+    },
+    model::graph::rdf_graph::RdfSchema,
+};
 use crate::{
     config::{
         auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS,
@@ -13,7 +23,7 @@ use crate::{
         schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
     model::App,
-    plugin::server::extension::ArgExtensions,
+    plugin::{schema::RegisterPlugin, server::extension::ArgExtensions},
     server::DEFAULT_PORT,
     GraphServer,
 };
@@ -122,7 +132,7 @@ pub struct ConfigArgs {
         long,
         env = "RAPHTORY_HEAVY_QUERY_LIMIT",
         help = "Restricts how many expensive graph traversal queries can execute simultaneously.",
-        long_help = "Covers operations like connected components, edge traversals, and neighbour lookups (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours). Once the limit is exceeded, queries are parked on a semaphore and wait until a slot becomes available before executing."
+        long_help = "Covers operations like connected components, edge traversals, and neighbour lookups (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours), and also bounds how many SPARQL queries and SHACL validations run at once. Once the limit is exceeded, queries are parked on a semaphore and wait until a slot becomes available before executing."
     )]
     pub(crate) heavy_query_limit: Option<usize>,
 
@@ -161,6 +171,62 @@ pub struct ConfigArgs {
     )]
     pub(crate) max_page_size: Option<usize>,
 
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SPARQL_QUERY_LENGTH",
+        help = help_with_default!("Maximum length in bytes of a SPARQL query (the `sparql` field or the `/sparql` endpoint). Longer queries are rejected before they are parsed.", DEFAULT_MAX_SPARQL_QUERY_LENGTH)
+    )]
+    pub(crate) max_sparql_query_length: Option<usize>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SPARQL_TRIPLE_PATTERNS",
+        help = help_with_default!("Maximum number of triple patterns of a SPARQL query (the `sparql` field or the `/sparql` endpoint). Larger queries are rejected before they are planned.", DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS)
+    )]
+    pub(crate) max_sparql_triple_patterns: Option<usize>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SPARQL_RESULT_BYTES",
+        help = help_with_default!("Maximum size in bytes of the results of a SPARQL query (the `sparql` field or the `/sparql` endpoint). Larger results fail.", DEFAULT_MAX_SPARQL_RESULT_BYTES)
+    )]
+    pub(crate) max_sparql_result_bytes: Option<usize>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SPARQL_QUERY_MS",
+        help = help_with_default!("Maximum time in milliseconds a SPARQL query (the `sparql` field or the `/sparql` endpoint) may run. Longer queries fail; the timeout is checked while a query is evaluated, not while it is parsed or planned.", DEFAULT_MAX_SPARQL_QUERY_MS)
+    )]
+    pub(crate) max_sparql_query_ms: Option<u64>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SHACL_SHAPES_LENGTH",
+        help = help_with_default!("Maximum length in bytes of the shapes of `validateShacl`. Longer shapes are rejected before they are parsed.", DEFAULT_MAX_SHACL_SHAPES_LENGTH)
+    )]
+    pub(crate) max_shacl_shapes_length: Option<usize>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SHACL_RESULTS",
+        help = help_with_default!("Maximum number of results of a `validateShacl` report, split evenly across the shapes with targets. More fail.", DEFAULT_MAX_SHACL_RESULTS)
+    )]
+    pub(crate) max_shacl_results: Option<usize>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SHACL_VALIDATION_MS",
+        help = help_with_default!("Maximum time in milliseconds a `validateShacl` validation may run. Longer validations fail.", DEFAULT_MAX_SHACL_VALIDATION_MS)
+    )]
+    pub(crate) max_shacl_validation_ms: Option<u64>,
+
     #[arg(
         long,
         env = "RAPHTORY_MAX_QUERY_DEPTH",
@@ -195,6 +261,30 @@ pub struct ConfigArgs {
         help = help_with_default!("Fully disable schema introspection, preventing clients from discovering the API's structure and available fields. Recommended for production.", DEFAULT_DISABLE_INTROSPECTION)
     )]
     pub(crate) disable_introspection: Option<bool>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_RDF",
+        help = help_with_default!("Leave the `rdfGraph` field out of the schema. This also turns off the SPARQL endpoint and SHACL.", false)
+    )]
+    pub(crate) disable_rdf: Option<bool>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_SPARQL_ENDPOINT",
+        help = help_with_default!("Do not serve the SPARQL endpoint `/sparql`.", false)
+    )]
+    pub(crate) disable_sparql_endpoint: Option<bool>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_SHACL",
+        help = help_with_default!("Leave the `validateShacl` field of `rdfGraph` out of the schema.", false)
+    )]
+    pub(crate) disable_shacl: Option<bool>,
 
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", help = "Public directory path")]
     pub(crate) public_dir: Option<PathBuf>,
@@ -267,7 +357,11 @@ where
             }
         }
         Commands::Schema => {
-            let schema = App::create_schema().finish().unwrap();
+            let plugins: Vec<Box<dyn RegisterPlugin>> = vec![
+                #[cfg(feature = "rdf")]
+                Box::new(RdfSchema { shacl: true }),
+            ];
+            let schema = App::create_schema_with_plugins(plugins).finish().unwrap();
             println!("{}", schema.sdl());
         }
     }

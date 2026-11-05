@@ -743,8 +743,28 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         t: EventTime,
         layer_id: LayerId,
     ) -> Option<Prop> {
+        self.semantics.temporal_edge_prop_exploded_window(
+            e,
+            view,
+            prop_id,
+            t,
+            layer_id,
+            self.window.clone(),
+        )
+    }
+
+    #[inline]
+    fn temporal_edge_prop_exploded_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        t: EventTime,
+        layer_id: LayerId,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
         self.semantics
-            .temporal_edge_prop_exploded(e, view, prop_id, t, layer_id)
+            .temporal_edge_prop_exploded_window(e, view, prop_id, t, layer_id, w)
     }
 
     #[inline]

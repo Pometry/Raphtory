@@ -2,6 +2,7 @@ from time import time
 import pytest
 import jwt
 import base64
+import gzip
 import json
 import requests
 import tempfile
@@ -234,6 +235,40 @@ def test_disabled_read_access(query):
 
         response = requests.post(raphtory_url(port), headers=WRITE_HEADERS, data=data)
         assert_successful_response(response)
+
+
+def test_sparql_endpoint_forwards_authorization():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(
+        work_dir,
+        config={"auth": {"public_key": PUB_KEY, "require_auth_for_reads": True}},
+    ).start() as server:
+        port = server.port()
+        add_test_graph(port)
+        url = f"{raphtory_url(port)}/sparql/test"
+        params = {"query": "SELECT * { ?s ?p ?o }"}
+
+        assert requests.get(url, params=params).status_code == 401
+        # refused before anything is read or parsed: not 400 for a bad or too long query,
+        # 415, nor 413 for a body over the cap once decompressed
+        for response in [
+            requests.get(url, params={"query": "SELECT"}),
+            requests.get(url, params={"query": "x" * 20_000}),
+            requests.post(url, data="SELECT", headers={"Content-Type": "text/plain"}),
+            requests.post(
+                url,
+                data=gzip.compress(b" " * (1 << 20)),
+                headers={
+                    "Content-Type": "application/sparql-query",
+                    "Content-Encoding": "gzip",
+                },
+            ),
+        ]:
+            assert response.status_code == 401
+        response = requests.get(url, params={"query": "SELECT"}, headers=READ_HEADERS)
+        assert response.status_code == 400
+        response = requests.get(url, params=params, headers=READ_HEADERS)
+        assert response.status_code == 200
 
 
 ADD_NODE = """

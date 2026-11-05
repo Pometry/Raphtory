@@ -32,4 +32,17 @@ pub struct SchemaConfig {
     /// When true, the browser UI is not served: non-POST requests to the GraphQL endpoint
     /// return 404, leaving only the API (POST) plus the `/health` and `/version` routes.
     pub disable_ui: bool,
+
+    /// When true, the `rdfGraph` field is left out of the schema. This also turns off the SPARQL
+    /// endpoint and SHACL, as both run on `rdfGraph`.
+    #[cfg(feature = "rdf")]
+    pub disable_rdf: bool,
+
+    /// When true, the SPARQL endpoint `/sparql` is not served: requests to it return 404.
+    #[cfg(feature = "rdf")]
+    pub disable_sparql_endpoint: bool,
+
+    /// When true, the `validateShacl` field of `rdfGraph` is left out of the schema.
+    #[cfg(feature = "rdf")]
+    pub disable_shacl: bool,
 }
