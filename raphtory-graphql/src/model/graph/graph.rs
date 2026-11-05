@@ -723,4 +723,12 @@ impl GqlGraph {
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))
     }
+
+    /// All version ids for this graph, excluding versions that are being modified.
+    pub async fn versions(&self) -> Result<Vec<u32>> {
+        let path = self.path.clone();
+        blocking_compute(move || path.graph_folder().all_versions())
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))
+    }
 }

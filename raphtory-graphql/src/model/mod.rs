@@ -233,34 +233,6 @@ impl QueryRoot {
         Ok(Some(MetaGraph::new(folder)))
     }
 
-    /// List all version ids for a graph.
-    pub async fn versions<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
-    ) -> Result<Vec<u32>> {
-        let data = ctx.data_unchecked::<Data>();
-
-        if let Some(policy) = &data.auth_policy {
-            match policy.graph_permissions(ctx, &graph_path) {
-                Ok(Some(_)) => {}
-                Ok(None) => {
-                    return Err(async_graphql::Error::new("Graph does not exist"));
-                }
-                Err(e) => {
-                    return Err(async_graphql::Error::new(e.to_string()));
-                }
-            }
-        }
-
-        let work_dir = data.work_dir_read().await;
-        let folder = ExistingGraphFolder::try_from(work_dir, &graph_path)
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
-
-        blocking_compute(move || folder.graph_folder().all_versions())
-            .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
-    }
-
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
