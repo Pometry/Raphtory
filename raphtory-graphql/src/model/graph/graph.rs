@@ -38,7 +38,10 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
+use raphtory_api::core::{
+    storage::{graph_folder::GraphPaths, timeindex::AsTime},
+    utils::time::IntoTime,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{collections::HashSet, convert::Into};
 
@@ -707,5 +710,17 @@ impl GqlGraph {
             ))
         })
         .await
+    }
+
+    ////////////////////////
+    //////// VERSIONS //////
+    ////////////////////////
+
+    /// Version id of the active data snapshot for this graph path.
+    pub async fn active_version(&self) -> Result<u32> {
+        let path = self.path.clone();
+        blocking_compute(move || path.graph_folder().active_version())
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))
     }
 }
