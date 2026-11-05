@@ -362,6 +362,43 @@ fn and_of_views_alone_is_the_overlap_view() {
     );
 }
 
+/// A view with no layers keeps no edges but still keeps the graph's temporal
+/// properties in its times, so it is not a view that keeps nothing.
+///
+/// ```text
+/// time         0    1    2    3    4    5    6    7    8    9
+/// p                      ●(1)                     ●(2)
+/// window(0,5)  [========================)
+/// window(5,10)                          [=========================)
+/// ```
+#[test]
+fn an_or_of_views_with_no_layers_keeps_the_graph_properties_of_either() {
+    let g = graph();
+    g.add_properties(2, [("p", 1i64)]).unwrap();
+    g.add_properties(7, [("p", 2i64)]).unwrap();
+    let no_layers = || GraphFilter.exclude_layers(vec!["x", "y"]);
+    let either = g
+        .filter(
+            GraphFilter
+                .window(0, 5)
+                .and(no_layers())
+                .or(GraphFilter.window(5, 10).and(no_layers())),
+        )
+        .unwrap();
+    assert!(histories(&either).is_empty());
+    let p = either.properties().temporal().get("p").unwrap();
+    assert_eq!(p.values().collect::<Vec<_>>(), [Prop::I64(1), Prop::I64(2)]);
+    // With every layer in one window and none in the other, the property at 7
+    // is kept but the edges between 5 and 10 are not: not one view.
+    assert!(refused(
+        &g.into_dynamic(),
+        GraphFilter
+            .window(0, 5)
+            .or(GraphFilter.window(5, 10).and(no_layers()))
+    )
+    .contains("both time and layers"));
+}
+
 /// On a base that already keeps some layers, `not` of a layer keeps the base's
 /// other layers only.
 #[test]

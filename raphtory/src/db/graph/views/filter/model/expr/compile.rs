@@ -1618,11 +1618,6 @@ impl ResolvedView {
         !self.restricts_time() && !self.restricts_layers()
     }
 
-    /// No time or no layer: nothing is kept, whatever the other part says.
-    fn keeps_nothing(&self) -> bool {
-        self.time.is_empty() || matches!(self.layers, LayerIds::None)
-    }
-
     fn restricts_time(&self) -> bool {
         !self.time.is_all()
     }
@@ -1639,14 +1634,15 @@ impl ResolvedView {
         }
     }
 
-    /// Either: one pair when one keeps nothing or everything, or when the two
-    /// agree on times or on layers. Otherwise `(T1 ∪ T2, L1 ∪ L2)` would keep
-    /// `T1` events on `L2` layers, which neither keeps.
+    /// Either: one pair when one keeps no time or keeps everything, or when the
+    /// two agree on times or on layers. Otherwise `(T1 ∪ T2, L1 ∪ L2)` would
+    /// keep `T1` events on `L2` layers, which neither keeps. No layers is not
+    /// nothing: the graph's temporal properties in its times are still kept.
     fn or(self, other: Self) -> Result<Self, GraphError> {
-        if other.keeps_nothing() {
+        if other.time.is_empty() {
             return Ok(self);
         }
-        if self.keeps_nothing() {
+        if self.time.is_empty() {
             return Ok(other);
         }
         if self.is_all() || other.is_all() {
