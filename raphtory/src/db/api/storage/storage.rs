@@ -39,6 +39,7 @@ use storage::{pages::locked::nodes::MemNodeSegmentGuards, wal::LSN};
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
+    error::StorageError,
     persist::{args::ArgsOps, config::ConfigOps, strategy::PersistenceStrategy},
     read_constant_graph_properties, Args, Config, Extension,
 };

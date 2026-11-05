@@ -74,7 +74,7 @@ raphtory-rdf = { version = "0.18.0", path = "raphtory-rdf", default-features = f
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
 drop-logging = { version = "0.18.0", path = "drop-logging" }
-async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
+async-graphql = { version = "7.2.1", features = ["dynamic-schema", "apollo_tracing", "custom-error-conversion"] }
 async-graphql-poem = "7.2.1"
 dynamic-graphql = "0.10.2"
 derive_more = "2.1.1"

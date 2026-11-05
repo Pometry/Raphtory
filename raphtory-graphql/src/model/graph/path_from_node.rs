@@ -10,6 +10,7 @@ use crate::{
         GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -19,7 +20,6 @@ use raphtory::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
         graph::path::PathFromNode,
     },
-    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::utils::time::IntoTime;
@@ -117,7 +117,7 @@ impl GqlPathFromNode {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
+    ) -> Result<GqlPathFromNodeWindowSet, GQLError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if let Some(unit) = alignment_unit {
@@ -145,7 +145,7 @@ impl GqlPathFromNode {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
+    ) -> Result<GqlPathFromNodeWindowSet, GQLError> {
         let step = step.try_into_interval()?;
         let ws = if let Some(unit) = alignment_unit {
             self.nn.expanding_aligned(step, unit.into())?
@@ -413,7 +413,7 @@ impl GqlPathFromNode {
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.nn.filter(expr)?;
@@ -443,7 +443,7 @@ impl GqlPathFromNode {
             desc = "Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.nn.select(expr)?;
@@ -464,7 +464,7 @@ impl GqlPathFromNode {
             desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
         )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -481,7 +481,7 @@ impl GqlPathFromNode {
             desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
         )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -498,7 +498,7 @@ impl GqlPathFromNode {
             desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
         )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
