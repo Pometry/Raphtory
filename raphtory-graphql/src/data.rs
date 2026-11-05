@@ -635,10 +635,7 @@ impl Data {
         F: FnOnce(MaterializedGraph, PathBuf) -> Fut,
         Fut: std::future::Future<Output = Result<VectorisedGraph<MaterializedGraph>, GraphError>>,
     {
-        let vectors_path = folder
-            .graph_folder()
-            .vectors_path()
-            .map_err(GraphError::from)?;
+        let vectors_path = folder.graph_folder().vectors_path()?;
 
         // The indexing itself runs with no cache guard held: it embeds the whole graph, and holding
         // the entry would block every read of this graph for the duration. Readers keep being served
@@ -748,6 +745,9 @@ pub enum PermissionError {
         graph: String,
         operation: String,
     },
+    /// The request runs in a read-only context (an ABAC probe), which may never write.
+    #[error("Access denied: this context may not write")]
+    ReadOnlyContext,
     #[error("Internal server error, access policy is misconfigured")]
     AuthPolicyError,
 }
@@ -790,7 +790,8 @@ impl PermissionError {
             | PermissionError::IntrospectOnly { .. }
             | PermissionError::GraphWriteRequired { .. }
             | PermissionError::GraphUnfilteredReadRequired { .. }
-            | PermissionError::NamespaceWriteRequired { .. } => CODE_ACCESS_DENIED,
+            | PermissionError::NamespaceWriteRequired { .. }
+            | PermissionError::ReadOnlyContext => CODE_ACCESS_DENIED,
             PermissionError::AuthPolicyError => CODE_AUTH_ERROR,
         }
     }
@@ -856,7 +857,7 @@ fn graph_grant(
     ctx: &Context<'_>,
     policy: &dyn AuthorizationPolicy,
     path: &str,
-) -> async_graphql::Result<GraphPermission> {
+) -> Result<GraphPermission, GQLError> {
     match policy.graph_permissions(ctx, path) {
         Err(e) => {
             error!(
@@ -864,7 +865,7 @@ fn graph_grant(
                 error = %e,
                 "Authorization policy could not resolve graph permissions"
             );
-            Err(PermissionError::AuthPolicyError.into_gql_error())
+            Err(PermissionError::AuthPolicyError.into())
         }
         Ok(None) => {
             warn!(graph = path, "Access denied by auth policy");
@@ -881,16 +882,16 @@ fn graph_grant(
                         error = %e,
                         "Authorization policy could not resolve namespace permissions when checking graph visibility."
                     );
-                    return Err(PermissionError::AuthPolicyError.into_gql_error());
+                    return Err(PermissionError::AuthPolicyError.into());
                 }
             };
             if disclosable {
                 Err(PermissionError::GraphAccessDenied {
                     graph: path.to_string(),
                 }
-                .into_gql_error())
+                .into())
             } else {
-                Err(PermissionError::GraphNotFound.into_gql_error())
+                Err(PermissionError::GraphNotFound.into())
             }
         }
         Ok(Some(perm)) => Ok(perm),
@@ -901,7 +902,7 @@ fn require_at_least_read(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
-) -> async_graphql::Result<GraphPermission> {
+) -> Result<GraphPermission, GQLError> {
     if let Some(policy) = policy {
         let perm = graph_grant(ctx, policy.as_ref(), path)?;
         return if let Some(p) = perm.at_least_read() {
@@ -916,7 +917,7 @@ fn require_at_least_read(
             Err(PermissionError::IntrospectOnly {
                 graph: path.to_string(),
             }
-            .into_gql_error())
+            .into())
         };
     }
     Ok(GraphPermission::Write)
@@ -929,7 +930,7 @@ async fn refine(
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
     perm: GraphPermission,
-) -> async_graphql::Result<GraphPermission> {
+) -> Result<GraphPermission, GQLError> {
     match policy {
         Some(policy) => policy
             .refine_permission(ctx, path, perm)
@@ -939,7 +940,7 @@ async fn refine(
                     graph = path,
                     "Authpolicy failure when refining permissions: {msg}"
                 );
-                PermissionError::AuthPolicyError.into_gql_error()
+                PermissionError::AuthPolicyError.into()
             }),
         None => Ok(perm),
     }
@@ -949,25 +950,17 @@ pub(crate) fn require_graph_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
-) -> async_graphql::Result<()> {
+) -> Result<(), GQLError> {
     if ctx.is_read_only() {
-        return Err(gql_error_with_code(
-            "Access denied: this context may not write",
-            CODE_ACCESS_DENIED,
-        ));
+        return Err(PermissionError::ReadOnlyContext.into());
     }
     match policy {
-        None => ctx
-            .require_jwt_write_access()
-            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
+        None => Ok(ctx.require_jwt_write_access()?),
         Some(p) => {
             graph_grant(ctx, p.as_ref(), path)?
                 .at_least_write()
-                .ok_or_else(|| {
-                    PermissionError::GraphWriteRequired {
-                        graph: path.to_string(),
-                    }
-                    .into_gql_error()
+                .ok_or_else(|| PermissionError::GraphWriteRequired {
+                    graph: path.to_string(),
                 })?;
             Ok(())
         }
@@ -978,14 +971,11 @@ pub(crate) fn require_graph_write(
 async fn apply_graph_filter(
     graph: DynamicGraph,
     row_filter: GqlFilter,
-) -> async_graphql::Result<DynamicGraph> {
+) -> Result<DynamicGraph, GQLError> {
     blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
 }
 
-fn apply_row_filter_sync(
-    graph: DynamicGraph,
-    filter: GqlFilter,
-) -> async_graphql::Result<DynamicGraph> {
+fn apply_row_filter_sync(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GQLError> {
     compile_row_filter(graph, filter).map_err(|e| {
         // The stage is logged with the engine's own message; the caller only learns that
         // the grant is at fault, never what the filter said.
@@ -995,7 +985,7 @@ fn apply_row_filter_sync(
             }
             _ => error!(error = %e, "access filter application failed"),
         }
-        async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
+        GQLError::AccessFilterMisconfigured
     })
 }
 
@@ -1041,7 +1031,7 @@ fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
 async fn apply_access_filter(
     graph: DynamicGraph,
     f: &GraphAccessFilter,
-) -> async_graphql::Result<DynamicGraph> {
+) -> Result<DynamicGraph, GQLError> {
     let graph = if let Some(ref row_filter) = f.filter {
         apply_graph_filter(graph, row_filter.clone()).await?
     } else {
@@ -1066,7 +1056,7 @@ impl Data {
         path: &str,
         perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
+    ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
         let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
@@ -1104,7 +1094,7 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
+    ) -> Result<Option<(UnlockedGraphFolder, DynamicGraph)>, GQLError> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
             Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
                 Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
@@ -1124,7 +1114,7 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
+    ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         let perm = refine(ctx, &self.auth_policy, path, perm).await?;
         self.load_and_filter(path, perm, graph_type).await
@@ -1138,13 +1128,13 @@ impl Data {
         &self,
         ctx: &Context<'_>,
         path: &str,
-    ) -> async_graphql::Result<GraphWithVectors> {
+    ) -> Result<GraphWithVectors, GQLError> {
         let res = require_at_least_read(ctx, &self.auth_policy, path)?;
         if res.level() < PermissionLevel::Read {
             return Err(PermissionError::GraphUnfilteredReadRequired {
                 graph: path.to_string(),
             }
-            .into_gql_error());
+            .into());
         }
         let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
@@ -1155,7 +1145,7 @@ impl Data {
         &self,
         ctx: &Context<'_>,
         path: &str,
-    ) -> async_graphql::Result<GraphWithVectors> {
+    ) -> Result<GraphWithVectors, GQLError> {
         require_graph_write(ctx, &self.auth_policy, path)?;
         let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
@@ -1169,7 +1159,7 @@ impl Data {
         &self,
         ctx: &Context<'_>,
         path: &str,
-    ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
+    ) -> Result<Option<GqlVectorisedGraph>, GQLError> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
