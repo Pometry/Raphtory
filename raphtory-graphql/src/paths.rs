@@ -502,6 +502,11 @@ impl ValidWriteableGraphFolder {
         })
     }
 
+    /// Absolute path to the graph folder.
+    pub fn graph_path(&self) -> Result<PathBuf, PathValidationError> {
+        self.with_internal_errors(|| self.global_path.graph_path())
+    }
+
     /// write graph data to folder (returns a flag to indicate if the graph should be considered dirty)
     pub fn write_graph_data(
         &self,
