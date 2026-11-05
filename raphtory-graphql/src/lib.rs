@@ -8,6 +8,8 @@ pub use crate::{
     server::GraphServer,
 };
 
+#[cfg(feature = "rdf")]
+use crate::sparql::SparqlError;
 use crate::{
     auth::AuthError,
     auth_policy::AuthPolicyError,
@@ -27,6 +29,8 @@ use raphtory_api::core::{
     entities::properties::prop::PropTypeError, storage::graph_folder::GraphFolderError,
     utils::time::ParseTimeError,
 };
+#[cfg(feature = "rdf")]
+use raphtory_rdf::RdfError;
 #[cfg(feature = "vectors")]
 use raphtory_vectors::errors::VectorError;
 use std::sync::Arc;
@@ -77,6 +81,9 @@ pub enum GQLError {
     Permission(#[from] PermissionError),
     #[error(transparent)]
     Auth(#[from] AuthError),
+    #[cfg(feature = "rdf")]
+    #[error(transparent)]
+    Sparql(#[from] SparqlError),
     /// A namespace listing's filter or sort is malformed.
     #[error("Invalid filter: {0}")]
     InvalidFilter(String),
@@ -106,6 +113,8 @@ impl GQLError {
             | GQLError::Auth(_)
             | GQLError::InvalidFilter(_)
             | GQLError::AccessFilterMisconfigured => false,
+            #[cfg(feature = "rdf")]
+            GQLError::Sparql(_) => false,
         }
     }
 }
@@ -126,6 +135,11 @@ impl From<GQLError> for async_graphql::Error {
             GQLError::Auth(error @ (AuthError::RequireRead | AuthError::RequireWrite)) => {
                 gql_error_with_code(error.to_string(), CODE_ACCESS_DENIED)
             }
+            #[cfg(feature = "rdf")]
+            GQLError::Sparql(error) => match error.code() {
+                Some(code) => gql_error_with_code(error.to_string(), code),
+                None => async_graphql::Error::new_with_source(error),
+            },
             error if error.is_internal() => {
                 error!(error = %error, "internal error while serving a request");
                 async_graphql::Error::new("Internal server error")
@@ -164,6 +178,13 @@ impl From<StorageError> for GQLError {
 impl From<GraphFolderError> for GQLError {
     fn from(error: GraphFolderError) -> Self {
         GraphError::from(error).into()
+    }
+}
+
+#[cfg(feature = "rdf")]
+impl From<RdfError> for GQLError {
+    fn from(error: RdfError) -> Self {
+        SparqlError::from(error).into()
     }
 }
 
