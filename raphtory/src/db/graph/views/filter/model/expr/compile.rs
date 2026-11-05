@@ -1275,20 +1275,34 @@ impl CreateFilter for FilterExpr {
                     return NodeLeaf::graph_filter(&Expr::Not(Box::new(node)), graph);
                 }
                 inner.no_view_below_top_level()?;
+                // Every arm recurses only into a smaller expression than this
+                // `not`, so the recursion ends.
+                let not_each = |expressions: Vec<FilterExpr>| {
+                    expressions
+                        .into_iter()
+                        .map(|expression| FilterExpr::Not(Box::new(expression)))
+                        .collect()
+                };
                 match *inner {
+                    FilterExpr::Node(expr) => {
+                        NodeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
+                    }
                     FilterExpr::Edge(expr) => {
                         EdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
                     }
                     FilterExpr::ExplodedEdge(expr) => {
                         ExplodedEdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
                     }
-                    // Pushes the `not` one level down; a node or view under it was
-                    // answered above, so this ends at a leaf.
-                    expression @ (FilterExpr::Node(_)
-                    | FilterExpr::View(_)
-                    | FilterExpr::And(_)
-                    | FilterExpr::Or(_)
-                    | FilterExpr::Not(_)) => expression.negated().create_graph_filter(graph),
+                    FilterExpr::View(views) => Ok(ResolvedView::of_views(&views, &graph)?
+                        .not(&graph)?
+                        .apply(graph)),
+                    FilterExpr::And(expressions) => {
+                        FilterExpr::Or(not_each(expressions)).create_graph_filter(graph)
+                    }
+                    FilterExpr::Or(expressions) => {
+                        FilterExpr::And(not_each(expressions)).create_graph_filter(graph)
+                    }
+                    FilterExpr::Not(expression) => expression.create_graph_filter(graph),
                 }
             }
         }
