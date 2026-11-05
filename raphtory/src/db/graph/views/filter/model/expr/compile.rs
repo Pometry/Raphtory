@@ -1652,23 +1652,16 @@ impl ResolvedView {
     }
 
     /// Either: one pair when the two agree on times or on layers, or when one
-    /// keeps no time or keeps everything. Otherwise `(T1 ∪ T2, L1 ∪ L2)` would
-    /// keep `T1` events on `L2` layers, which neither keeps. No layers is not
-    /// nothing: the graph's temporal properties in its times are still kept.
-    /// No time is not nothing either: its layers are still the view's layers,
-    /// so two views with no time keep the layers of both.
+    /// keeps everything. Otherwise `(T1 ∪ T2, L1 ∪ L2)` would keep `T1` events
+    /// on `L2` layers, which neither keeps. No layers is not nothing: the
+    /// graph's temporal properties in its times are still kept. No time is not
+    /// nothing either: its layers are still the view's layers.
     fn or(self, other: Self) -> Result<Self, GraphError> {
         if self.time == other.time || self.layers == other.layers {
             return Ok(Self {
                 time: self.time.union(&other.time),
                 layers: self.layers.union(&other.layers),
             });
-        }
-        if other.time.is_empty() {
-            return Ok(self);
-        }
-        if self.time.is_empty() {
-            return Ok(other);
         }
         if self.is_all() || other.is_all() {
             return Ok(Self::all());

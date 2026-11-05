@@ -400,7 +400,9 @@ fn an_or_of_views_with_no_layers_keeps_the_graph_properties_of_either() {
 }
 
 /// A view with no time keeps no events but still has its layers, so an `or` of
-/// such views has the layers of either; beside a view with time it adds nothing.
+/// such views has the layers of either. Beside a view with time and other
+/// layers it is refused: its layers with only the other's events is not one
+/// view.
 ///
 /// ```text
 /// time         0    1    2    3    4    5    6    7    8    9
@@ -435,10 +437,7 @@ fn an_or_with_no_time_keeps_the_layers_of_its_operands() {
         view(0, 5, "x").or(view(6, 6, "y")),
         view(6, 6, "y").or(view(0, 5, "x")),
     ] {
-        assert_eq!(
-            layers_and_edges(filter),
-            (vec!["x".to_string()], expected(&[("a→b", &[1, 4])]))
-        );
+        assert!(refused(&g, filter).contains("both time and layers"));
     }
 }
 
