@@ -582,11 +582,11 @@ impl GqlMutableGraph {
     ) -> Result<bool, GQLError> {
         let graph = self.graph.graph().clone();
         let index_gid = index_gid.unwrap_or(false);
-        blocking_write(move || {
+        Ok(blocking_write(move || {
             graph.core_graph().build_node_prop_index(props, index_gid)?;
-            Ok(true)
+            Ok::<_, GraphError>(true)
         })
-        .await
+        .await?)
     }
 
     /// The node property names that index builds consider, or null when every

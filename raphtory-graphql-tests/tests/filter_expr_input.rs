@@ -37,7 +37,7 @@ impl Echo {
     /// The filter `expr` received, as JSON, once it parses to a tree.
     async fn tree(expr: GqlFilter) -> Result<String, GQLError> {
         F::try_from(expr.clone())?;
-        Ok(serde_json::to_string(&expr)?)
+        Ok(serde_json::to_string(&expr).expect("a filter always serialises"))
     }
 }
 

@@ -10,7 +10,10 @@ pub use crate::{
 
 use crate::{data::InsertionError, paths::PathValidationError};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
-use raphtory::errors::GraphError;
+use raphtory::{algorithms::dynamics::temporal::epidemics::SeedError, errors::GraphError};
+use raphtory_api::core::{entities::properties::prop::PropTypeError, utils::time::ParseTimeError};
+#[cfg(feature = "vectors")]
+use raphtory_vectors::errors::VectorError;
 use std::sync::Arc;
 use tracing::error;
 
@@ -44,14 +47,14 @@ pub(crate) mod test_support;
 #[derive(thiserror::Error, Debug)]
 pub enum GQLError {
     #[error(transparent)]
-    GraphError(GraphError),
+    GraphError(#[from] GraphError),
     #[error(transparent)]
     Validation(#[from] PathValidationError),
     #[error(transparent)]
     Insertion(#[from] InsertionError),
     /// A server-side I/O failure; never shown to the client.
     #[error(transparent)]
-    Io(std::io::Error),
+    Io(#[from] std::io::Error),
     #[error(transparent)]
     Arc(Arc<Self>),
 }
@@ -92,9 +95,30 @@ impl From<InsertionError> for async_graphql::Error {
     }
 }
 
-impl<E: Into<GraphError>> From<E> for GQLError {
-    fn from(error: E) -> Self {
-        GQLError::GraphError(error.into())
+/// Errors the graph layer reports through [`GraphError`], spelled out one by one so that
+/// none can reach the client by another route than the one [`GQLError`] gives it.
+impl From<ParseTimeError> for GQLError {
+    fn from(error: ParseTimeError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<PropTypeError> for GQLError {
+    fn from(error: PropTypeError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<SeedError> for GQLError {
+    fn from(error: SeedError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+#[cfg(feature = "vectors")]
+impl From<VectorError> for GQLError {
+    fn from(error: VectorError) -> Self {
+        GraphError::from(error).into()
     }
 }
 
