@@ -16,15 +16,15 @@ use crate::{
         config::{shacl_options, sparql_options},
         format::GqlSparqlFormat,
         jobs::RdfJobs,
-        run_limited,
+        run_limited, SparqlError,
     },
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    internal::Registry, Error, ExpandObject, ExpandObjectFields, ResolvedObject,
-    ResolvedObjectFields, Result,
+    internal::Registry, ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields,
+    Result,
 };
-use raphtory::errors::GraphError;
 use raphtory_rdf::{shacl::ShaclShapes, RdfError, RdfFormat, RdfView, SparqlFormat};
 
 /// Adds `rdfGraph` to the query root and, when `shacl`, `validateShacl` to `RdfGraph`.
@@ -54,7 +54,7 @@ impl<'a> RdfGraphQuery<'a> {
     async fn rdf_graph(
         ctx: &Context<'_>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
-    ) -> Result<Option<GqlRdfGraph>> {
+    ) -> Result<Option<GqlRdfGraph>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let graph = data
             .get_graph_with_read_permission(ctx, path, Some(GqlGraphType::Persistent))
@@ -155,7 +155,7 @@ impl GqlRdfGraph {
         step: Option<WindowDuration>,
         #[graphql(desc = "Unit to align the window boundaries to, as in `Graph.rolling`.")]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlRdfGraphWindowSet, GraphError> {
+    ) -> Result<GqlRdfGraphWindowSet, GQLError> {
         let windows = self.graph.rolling(window, step, alignment_unit).await?;
         Ok(GqlRdfGraphWindowSet { windows })
     }
@@ -166,7 +166,7 @@ impl GqlRdfGraph {
         #[graphql(desc = "How much the window grows by on each step.")] step: WindowDuration,
         #[graphql(desc = "Unit to align the window boundaries to, as in `Graph.expanding`.")]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlRdfGraphWindowSet, GraphError> {
+    ) -> Result<GqlRdfGraphWindowSet, GQLError> {
         let windows = self.graph.expanding(step, alignment_unit).await?;
         Ok(GqlRdfGraphWindowSet { windows })
     }
@@ -240,7 +240,7 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Filter expression; if omitted, applies the identity filter.")]
         expr: Option<GqlFilter>,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         Ok(self.graph.filter(expr).await?.into())
     }
 
@@ -259,7 +259,7 @@ impl GqlRdfGraph {
             desc = "The format of the results: JSON (the default), XML, CSV or TSV for SELECT and ASK; an RDF format for CONSTRUCT and DESCRIBE (N_TRIPLES by default), where JSON is JSON-LD and XML is RDF/XML. A format that does not fit the query is an error."
         )]
         format: Option<GqlSparqlFormat>,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<String>, GQLError> {
         let view = self.view()?;
         let format = format.map_or(Ok(SparqlFormat::default()), GqlSparqlFormat::sparql_format)?;
         run_limited(
@@ -292,17 +292,12 @@ impl<'a> ShaclQuery<'a> {
             desc = "The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors."
         )]
         report_format: Option<GqlSparqlFormat>,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<String>, GQLError> {
         let view = self.0.view()?;
         let format = match format {
             None | Some(GqlSparqlFormat::Turtle) => RdfFormat::Turtle,
             Some(GqlSparqlFormat::NTriples) => RdfFormat::NTriples,
-            // oxigraph 0.5 expands RDF/XML DOCTYPE entities and aborts on deeply nested JSON-LD
-            Some(_) => {
-                return Err(Error::new(
-                    "validateShacl reads shapes in TURTLE or N_TRIPLES only",
-                ))
-            }
+            Some(_) => return Err(SparqlError::ShapesFormat.into()),
         };
         let report_format =
             report_format.map_or(Ok(RdfFormat::Turtle), GqlSparqlFormat::rdf_format)?;

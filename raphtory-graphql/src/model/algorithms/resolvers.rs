@@ -12,7 +12,7 @@ use crate::{
         },
     },
     rayon::blocking_compute,
-    Value,
+    GQLError, Value,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use rand::{make_rng, prelude::StdRng, SeedableRng};
@@ -189,7 +189,7 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> Result<GqlNodeState, GraphError> {
+    ) -> Result<GqlNodeState, GQLError> {
         Ok(self
             .run(move |graph| match filter {
                 None => Ok(in_components(&graph, threads)),
@@ -209,7 +209,7 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> Result<GqlNodeState, GraphError> {
+    ) -> Result<GqlNodeState, GQLError> {
         Ok(self
             .run(move |graph| match filter {
                 None => Ok(out_components(&graph, threads)),
@@ -227,7 +227,7 @@ impl GqlAlgorithms {
             desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
-    ) -> Result<GqlNodeState, GraphError> {
+    ) -> Result<GqlNodeState, GQLError> {
         Ok(self
             .run(move |graph| {
                 let node = get_node(graph, node)?;
@@ -248,7 +248,7 @@ impl GqlAlgorithms {
             desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
-    ) -> Result<GqlNodeState, GraphError> {
+    ) -> Result<GqlNodeState, GQLError> {
         Ok(self
             .run(move |graph| {
                 let node = get_node(graph, node)?;
@@ -332,7 +332,7 @@ impl GqlAlgorithms {
         rel_tol: Option<f64>,
         #[graphql(desc = "Stop after this many iterations without progress. Defaults to 10.")]
         patience: Option<usize>,
-    ) -> Result<GqlNodeState, GraphError> {
+    ) -> Result<GqlNodeState, GQLError> {
         Ok(self
             .run(move |graph| {
                 label_propagation(
@@ -362,7 +362,7 @@ impl GqlAlgorithms {
             desc = "Weight for edges that do not have a weight. Used if `weight` is not specified or the edge does not have a value for that property. Defaults to 1."
         )]
         default_weight: Option<Value>,
-    ) -> Result<GqlNodeState, GraphError> {
+    ) -> Result<GqlNodeState, GQLError> {
         let default_weight = default_weight.map(Prop::try_from).transpose()?;
         Ok(self
             .run(move |graph| {
@@ -394,7 +394,7 @@ impl GqlAlgorithms {
         #[graphql(desc = "Edge direction to consider. Defaults to BOTH.")] direction: Option<
             GqlDirection,
         >,
-    ) -> Result<GqlNodeState, GraphError> {
+    ) -> Result<GqlNodeState, GQLError> {
         Ok(self
             .run(move |graph| {
                 balance(
@@ -647,16 +647,17 @@ impl GqlAlgorithms {
             desc = "Optional gap between the start of one snapshot and the next. Defaults to `rollingWindow`, i.e. non-overlapping snapshots."
         )]
         rolling_step: Option<WindowDuration>,
-    ) -> Result<f64, GraphError> {
-        self.run(move |graph| {
-            Ok::<_, GraphError>(temporal_rich_club_coefficient(
-                &graph,
-                graph.rolling(rolling_window, rolling_step)?,
-                k,
-                window_size,
-            ))
-        })
-        .await
+    ) -> Result<f64, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                Ok::<_, GraphError>(temporal_rich_club_coefficient(
+                    &graph,
+                    graph.rolling(rolling_window, rolling_step)?,
+                    k,
+                    window_size,
+                ))
+            })
+            .await?)
     }
 
     /// Simulates an SEIR epidemic, returning the infection, activation and
@@ -677,7 +678,7 @@ impl GqlAlgorithms {
         incubation_rate: Option<f64>,
         #[graphql(desc = "Seed for the random number generator. If unset, seeded from the OS.")]
         rng_seed: Option<u64>,
-    ) -> Result<GqlNodeState, GraphError> {
+    ) -> Result<GqlNodeState, GQLError> {
         Ok(self
             .run(move |graph| {
                 let mut rng = match rng_seed {
