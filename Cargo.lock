@@ -7278,12 +7278,13 @@ name = "raphtory-vectors"
 version = "0.18.0"
 dependencies = [
  "ahash",
- "arrow",
  "arrow-array",
- "arrow-schema",
+ "arrow-buffer",
  "async-openai",
  "async-trait",
  "axum",
+ "bytemuck",
+ "bytes",
  "dotenvy",
  "either",
  "futures-util",

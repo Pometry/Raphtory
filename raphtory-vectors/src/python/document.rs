@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use crate::{Document, DocumentEntity, Embedding};
+use arrow_array::Float32Array;
+use arrow_buffer::{Buffer, ScalarBuffer};
 use pyo3::{prelude::*, IntoPyObjectExt};
 use pyo3_arrow::PyArray;
 use raphtory::{
@@ -78,7 +80,7 @@ impl PyEmbedding {
     /// Returns:
     ///     pyarrow.Array:
     fn to_arrow(&self) -> PyArray {
-        PyArray::from_array_ref(Arc::new(self.0.inner().clone()))
+        PyArray::from_array_ref(Arc::new(embedding_to_arrow(&self.0)))
     }
 }
 
@@ -101,4 +103,12 @@ impl PyDocument {
     fn __repr__(&self) -> String {
         self.repr()
     }
+}
+
+/// Zero-copy: the array shares the embedding's bytes. This is raphtory's arrow (the one
+/// pyo3-arrow uses), not the one the vector DB uses.
+fn embedding_to_arrow(embedding: &Embedding) -> Float32Array {
+    // the bytes are aligned for f32, which `ScalarBuffer` asserts
+    let values = ScalarBuffer::from(Buffer::from(embedding.as_bytes().clone()));
+    Float32Array::new(values, None)
 }
