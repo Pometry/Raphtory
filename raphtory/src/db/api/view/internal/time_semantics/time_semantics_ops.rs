@@ -552,6 +552,18 @@ pub trait EdgeTimeSemanticsOps {
         layer_id: LayerId,
     ) -> Option<Prop>;
 
+    /// Return the value of an edge temporal property for the exploded edge at `t`, or `None`
+    /// if that exploded edge does not hold in the window `w`
+    fn temporal_edge_prop_exploded_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        t: EventTime,
+        layer_id: LayerId,
+        w: Range<EventTime>,
+    ) -> Option<Prop>;
+
     fn temporal_edge_prop_exploded_last_at<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,

@@ -68,8 +68,9 @@ impl RemoteNestedEdges {
         }
     }
 
-    /// Filter this collection by an edge filter. **Propagates** to downstream
-    /// traversals from the matching edges. Recorded in `ctx` so members
+    /// Filter this collection by an edge filter. Every edge stays; the filter
+    /// scopes what is reached through them and carries through later
+    /// traversals. Recorded in `ctx` so members
     /// materialized via `.collect()` replay it per handle. Lazy — no RPC.
     pub fn filter(
         &self,

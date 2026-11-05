@@ -848,6 +848,22 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         }
     }
 
+    fn temporal_edge_prop_exploded_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        t: EventTime,
+        layer_id: LayerId,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        if w.contains(&t) {
+            self.temporal_edge_prop_exploded(e, view, prop_id, t, layer_id)
+        } else {
+            None
+        }
+    }
+
     fn temporal_edge_prop_exploded_last_at<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
