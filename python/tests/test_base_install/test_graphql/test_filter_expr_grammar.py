@@ -159,7 +159,8 @@ def test_edge_reads_through_an_endpoint_keep_the_edge_views():
 def test_a_view_expression_restricts_the_whole_filter():
     """`and: [view, predicate]` applies the view first and the predicate inside it,
     like `graph.window(0, 2).filter(predicate)`: dave's updates at 2 and 3 fall
-    outside [0, 2), so he is gone before the predicate runs."""
+    outside [0, 2), so he is gone before the predicate runs. A view alone under
+    `not` keeps the times outside it; beside a predicate under `or` it is refused."""
     g = build()
     window = {"view": [{"window": {"start": 0, "end": 2}}]}
     has_score = node(
@@ -168,9 +169,11 @@ def test_a_view_expression_restricts_the_whole_filter():
     with graphql_client(g) as client:
         assert node_names(client, {"and": [window, has_score]}) == ["alice", "bob"]
         assert node_names(client, has_score) == ["alice", "bob", "dave"]
-        for shape in ({"or": [window, has_score]}, {"not": window}):
-            with pytest.raises(Exception, match="view"):
-                node_names(client, shape)
+        with pytest.raises(Exception, match="view"):
+            node_names(client, {"or": [window, has_score]})
+        # dave's updates at 2, 3 and 6 all fall inside [2, 8)
+        outside = {"not": {"view": [{"window": {"start": 2, "end": 8}}]}}
+        assert node_names(client, outside) == ["alice", "bob", "carol"]
 
 
 def test_structural_predicates_and_views():

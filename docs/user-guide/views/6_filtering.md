@@ -255,7 +255,8 @@ assert [(e.src.name, e.dst.name) for e in g.filter(in_works).edges] == [("bob", 
 |---|---|
 | `graph.filter(expr)` | a graph view with only the matching nodes, or only the matching edges. A node filter keeps the edges between the remaining nodes; an edge filter keeps every node. |
 | `graph.filter(filter.Graph.window(0, 2))` | the graph seen through the view; the same as `graph.window(0, 2)` |
-| `graph.filter(filter.Graph.window(0, 2) & expr)` | what exists in the window and matches `expr`. Each expression is read on the base graph, so `expr` is not read inside the window; to filter inside a window use `graph.window(0, 2).filter(expr)`. Here a view combines with `&` only, so `\|` and `~` on a view are refused |
+| `graph.filter(filter.Graph.window(0, 2) & expr)` | what exists in the window and matches `expr`. Each expression is read on the base graph, so `expr` is not read inside the window; to filter inside a window use `graph.window(0, 2).filter(expr)`. A view beside a predicate combines with `&` only: under `\|` or `~` it is refused |
+| `graph.filter(~filter.Graph.window(0, 2))` | the graph seen outside the window: the events before 0 and from 2 on. Views alone combine under `\|` and `~` into one view, so `filter.Graph.window(0, 1) \| filter.Graph.window(2, 3)` keeps the events in either window and leaves out the time between them. Views that restrict both time and layers cannot combine under `\|` or `~` |
 | `graph.nodes[filter.Graph.window(0, 2) & expr]` | the nodes that exist in the window and match `expr` on the graph itself. On a collection a view expression is a test like any other, so `&` here is plain intersection and `expr` is not read inside the window |
 | `graph.nodes.filter(expr)` | every node stays, but each node's edges and neighbours are narrowed to the ones that match |
 | `node.filter(expr)` | the node with its edges and neighbours narrowed the same way |
@@ -264,6 +265,10 @@ assert [(e.src.name, e.dst.name) for e in g.filter(in_works).edges] == [("bob", 
 
 ```{.python continuation}
 assert g.filter(filter.Graph.window(0, 2)).count_edges() == 1
+
+# alice→bob happens at 1, inside [0, 2); bob→carol happens at 2, outside it
+outside = ~filter.Graph.window(0, 2)
+assert [(e.src.name, e.dst.name) for e in g.filter(outside).edges] == [("bob", "carol")]
 
 narrowed = g.nodes.filter(filter.Node.name() != "carol")
 assert [n.name for n in narrowed] == ["alice", "bob", "carol"]
