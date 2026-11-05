@@ -686,9 +686,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             let meta = GraphFolderMetadata {
                 path: path.relative_graph_path()?,
                 meta: build_graph_metadata(&graph),
+                src_version: None,
+                src_event_id: None,
             };
 
-            path.write_metadata(meta)?;
+            path.write_graph_meta(meta)?;
             Ok(graph)
         } else {
             Err(GraphError::DiskGraphNotEnabled)

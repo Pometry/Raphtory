@@ -62,7 +62,7 @@ pub struct GraphStore<
     event_id: AtomicUsize,
     ext: EXT,
     /// Write-held for the whole of a bulk load; regular updates and vacuum hold a read guard.
-    bulk_loader_lock: RwLock<()>,
+    bulk_load_lock: RwLock<()>,
 }
 
 impl<
@@ -108,7 +108,7 @@ impl<
         Ok(())
     }
 
-    /// Refresh the graph metadata file (`.meta`) for disk-backed graphs.
+    /// Refresh the graph metadata file (`meta`) for disk-backed graphs.
     pub fn refresh_metadata(&self) -> Result<(), StorageError> {
         if let Some(graph_dir) = self.graph_dir.as_ref()
             && let Some(data_folder) = graph_dir.parent()
@@ -194,7 +194,7 @@ impl<
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|dir| dir.path().to_path_buf()),
             ext,
-            bulk_loader_lock: RwLock::new(()),
+            bulk_load_lock: RwLock::new(()),
         })
     }
 
@@ -235,7 +235,7 @@ impl<
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.path().to_path_buf()),
             ext,
-            bulk_loader_lock: RwLock::new(()),
+            bulk_load_lock: RwLock::new(()),
         })
     }
 
@@ -342,12 +342,12 @@ impl<
     /// Read guard held by regular updates and vacuum, excluding them from bulk loads.
     /// Recursive, so a regular update nested in another does not wait behind a queued bulk load.
     pub fn bulk_load_shared(&self) -> RwLockReadGuard<'_, ()> {
-        self.bulk_loader_lock.read_recursive()
+        self.bulk_load_lock.read_recursive()
     }
 
     /// Write guard held for the whole of a bulk load or WAL replay.
     pub fn bulk_load_exclusive(&self) -> RwLockWriteGuard<'_, ()> {
-        self.bulk_loader_lock.write()
+        self.bulk_load_lock.write()
     }
 
     pub fn vacuum(self: &Arc<Self>) -> Result<(), StorageError> {

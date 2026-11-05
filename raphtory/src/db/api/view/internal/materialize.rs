@@ -111,9 +111,10 @@ impl MaterializedGraph {
 
     #[cfg(feature = "io")]
     pub fn load(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        let meta = path.read_metadata()?;
-        if meta.is_diskgraph {
-            match meta.graph_type {
+        let graph_meta = path.read_graph_meta()?;
+
+        if graph_meta.meta.is_diskgraph {
+            match graph_meta.meta.graph_type {
                 GraphType::EventGraph => Ok(Self::EventGraph(Graph::load(path)?)),
                 GraphType::PersistentGraph => {
                     Ok(Self::PersistentGraph(PersistentGraph::load(path)?))
@@ -129,9 +130,10 @@ impl MaterializedGraph {
         path: &(impl GraphPaths + ?Sized),
         args: Args,
     ) -> Result<Self, GraphError> {
-        let meta = path.read_metadata()?;
-        if meta.is_diskgraph {
-            match meta.graph_type {
+        let graph_meta = path.read_graph_meta()?;
+
+        if graph_meta.meta.is_diskgraph {
+            match graph_meta.meta.graph_type {
                 GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_with_config(path, args)?)),
                 GraphType::PersistentGraph => Ok(Self::PersistentGraph(
                     PersistentGraph::load_with_config(path, args)?,
