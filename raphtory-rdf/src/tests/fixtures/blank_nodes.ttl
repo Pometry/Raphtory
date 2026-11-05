@@ -1,0 +1,4 @@
+@prefix ex: <http://ex/> .
+
+_:x ex:p ex:o .
+[] ex:q "anonymous" .

@@ -155,6 +155,34 @@ impl AppConfigBuilder {
         if let Some(max_page_size) = server_args.max_page_size {
             builder.with_max_page_size(Some(max_page_size));
         }
+        #[cfg(feature = "rdf")]
+        if let Some(max_sparql_query_length) = server_args.max_sparql_query_length {
+            builder.with_max_sparql_query_length(Some(max_sparql_query_length));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_sparql_triple_patterns) = server_args.max_sparql_triple_patterns {
+            builder.with_max_sparql_triple_patterns(Some(max_sparql_triple_patterns));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_sparql_result_bytes) = server_args.max_sparql_result_bytes {
+            builder.with_max_sparql_result_bytes(Some(max_sparql_result_bytes));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_sparql_query_ms) = server_args.max_sparql_query_ms {
+            builder.with_max_sparql_query_ms(Some(max_sparql_query_ms));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_shacl_shapes_length) = server_args.max_shacl_shapes_length {
+            builder.with_max_shacl_shapes_length(Some(max_shacl_shapes_length));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_shacl_results) = server_args.max_shacl_results {
+            builder.with_max_shacl_results(Some(max_shacl_results));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_shacl_validation_ms) = server_args.max_shacl_validation_ms {
+            builder.with_max_shacl_validation_ms(Some(max_shacl_validation_ms));
+        }
         if let Some(max_query_depth) = server_args.max_query_depth {
             builder.with_max_query_depth(Some(max_query_depth));
         }
@@ -169,6 +197,18 @@ impl AppConfigBuilder {
         }
         if let Some(disable_introspection) = server_args.disable_introspection {
             builder.with_disable_introspection(disable_introspection);
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(disable_rdf) = server_args.disable_rdf {
+            builder.with_disable_rdf(disable_rdf);
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(disable_sparql_endpoint) = server_args.disable_sparql_endpoint {
+            builder.with_disable_sparql_endpoint(disable_sparql_endpoint);
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(disable_shacl) = server_args.disable_shacl {
+            builder.with_disable_shacl(disable_shacl);
         }
         Ok(builder)
     }
@@ -382,6 +422,55 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxSparqlQueryLength => {
+                                self.with_max_sparql_query_length(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxSparqlTriplePatterns => {
+                                self.with_max_sparql_triple_patterns(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxSparqlResultBytes => {
+                                self.with_max_sparql_result_bytes(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxSparqlQueryMs => {
+                                self.with_max_sparql_query_ms(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxShaclShapesLength => {
+                                self.with_max_shacl_shapes_length(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxShaclResults => {
+                                self.with_max_shacl_results(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxShaclValidationMs => {
+                                self.with_max_shacl_validation_ms(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -425,6 +514,27 @@ impl AppConfigBuilder {
                             }
                             SchemaConfigFieldName::DisableUi => {
                                 self.with_disable_ui(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            SchemaConfigFieldName::DisableRdf => {
+                                self.with_disable_rdf(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            SchemaConfigFieldName::DisableSparqlEndpoint => {
+                                self.with_disable_sparql_endpoint(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            SchemaConfigFieldName::DisableShacl => {
+                                self.with_disable_shacl(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -592,6 +702,63 @@ impl AppConfigBuilder {
         self
     }
 
+    #[cfg(feature = "rdf")]
+    pub fn with_max_sparql_query_length(
+        &mut self,
+        max_sparql_query_length: Option<usize>,
+    ) -> &mut Self {
+        self.config.concurrency.max_sparql_query_length = max_sparql_query_length;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_sparql_triple_patterns(
+        &mut self,
+        max_sparql_triple_patterns: Option<usize>,
+    ) -> &mut Self {
+        self.config.concurrency.max_sparql_triple_patterns = max_sparql_triple_patterns;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_sparql_result_bytes(
+        &mut self,
+        max_sparql_result_bytes: Option<usize>,
+    ) -> &mut Self {
+        self.config.concurrency.max_sparql_result_bytes = max_sparql_result_bytes;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_sparql_query_ms(&mut self, max_sparql_query_ms: Option<u64>) -> &mut Self {
+        self.config.concurrency.max_sparql_query_ms = max_sparql_query_ms;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_shacl_shapes_length(
+        &mut self,
+        max_shacl_shapes_length: Option<usize>,
+    ) -> &mut Self {
+        self.config.concurrency.max_shacl_shapes_length = max_shacl_shapes_length;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_shacl_results(&mut self, max_shacl_results: Option<usize>) -> &mut Self {
+        self.config.concurrency.max_shacl_results = max_shacl_results;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_shacl_validation_ms(
+        &mut self,
+        max_shacl_validation_ms: Option<u64>,
+    ) -> &mut Self {
+        self.config.concurrency.max_shacl_validation_ms = max_shacl_validation_ms;
+        self
+    }
+
     pub fn with_max_concurrent_loads(&mut self, max_concurrent_loads: Option<usize>) -> &mut Self {
         self.config.concurrency.max_concurrent_loads = max_concurrent_loads;
         self
@@ -627,6 +794,24 @@ impl AppConfigBuilder {
 
     pub fn with_disable_ui(&mut self, disable_ui: bool) -> &mut Self {
         self.config.schema.disable_ui = disable_ui;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_disable_rdf(&mut self, disable_rdf: bool) -> &mut Self {
+        self.config.schema.disable_rdf = disable_rdf;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_disable_sparql_endpoint(&mut self, disable_sparql_endpoint: bool) -> &mut Self {
+        self.config.schema.disable_sparql_endpoint = disable_sparql_endpoint;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_disable_shacl(&mut self, disable_shacl: bool) -> &mut Self {
+        self.config.schema.disable_shacl = disable_shacl;
         self
     }
 

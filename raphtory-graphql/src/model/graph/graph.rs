@@ -49,7 +49,7 @@ use std::{collections::HashSet, convert::Into};
 #[graphql(name = "Graph")]
 pub struct GqlGraph {
     path: UnlockedGraphFolder,
-    graph: DynamicGraph,
+    pub(crate) graph: DynamicGraph,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
