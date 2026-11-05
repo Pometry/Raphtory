@@ -18,3 +18,4 @@ tempfile = { workspace = true }
 
 [features]
 vectors = ["raphtory-graphql/vectors"]
+rdf = ["raphtory-graphql/rdf"]

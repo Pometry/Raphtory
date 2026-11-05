@@ -10,7 +10,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
-use rand::Rng;
+use rand::RngExt;
 use raphtory_api::core::{entities::VID, utils::hashing::calculate_hash, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
