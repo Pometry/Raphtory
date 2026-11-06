@@ -264,14 +264,7 @@ impl WorkDirGuard {
     }
 }
 
-/// Outer data struct that wraps the inner data to make sure it is only dropped once
-#[derive(Clone)]
-pub struct Data {
-    pub inner: Arc<DataInner>,
-    pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
-}
-
-/// Inner struct with a drop implementation that cleans up the graphs
+/// Inner struct with a drop implementation that cleans up the graphs.
 pub struct DataInner {
     /// Lock for filesystem operations.
     /// Acquisition order should always be `work_dir` -> `cache` to prevent deadlocks.
@@ -282,6 +275,19 @@ pub struct DataInner {
     pub(crate) graph_args: Args,
     pub(crate) read_only: ReadOnlyGraphs,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
+}
+
+impl Drop for DataInner {
+    fn drop(&mut self) {
+        self.cache.flush_and_clear();
+    }
+}
+
+/// Outer data struct that wraps the inner data to make sure it is only dropped once.
+#[derive(Clone)]
+pub struct Data {
+    pub inner: Arc<DataInner>,
+    pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
 impl Data {
@@ -325,17 +331,20 @@ impl Data {
         let canonical_path = path
             .canonicalize()
             .map_err(|_| ParquetPathError::Unresolvable(path.to_path_buf()))?;
+
         if let Ok(canonical_work_dir) = self.work_dir_read().await.to_path_buf().canonicalize() {
             if canonical_path.starts_with(canonical_work_dir) {
                 return Err(ParquetPathError::WithinWorkDir(path.to_path_buf()));
             }
         }
+
         let allowed = self.inner.allowed_parquet_paths.iter().any(|allowed| {
             allowed
                 .canonicalize()
                 .map(|c| canonical_path.starts_with(c))
                 .unwrap_or(false)
         });
+
         if allowed {
             Ok(())
         } else {
@@ -738,96 +747,6 @@ impl Data {
     }
 }
 
-/// Flushes the graph to avoid errors due to writing to deleted directory.
-///
-/// Note that this method waits until it holds the only reference to `graph`.
-/// Do NOT call while another clone is still held on the same thread.
-async fn flush_graph(graph: Option<GraphWithVectors>) {
-    if let Some(old_graph) = graph {
-        let inner = old_graph.into_inner().await;
-        blocking_compute(move || {
-            if let Err(e) = inner.graph.flush() {
-                error!(
-                    "Failed to flush old graph {} before replacing: {e}",
-                    inner.folder.local_path()
-                )
-            }
-        })
-        .await;
-    }
-}
-
-/// Why a grant's row filter cannot be applied to a graph.
-#[derive(thiserror::Error, Debug)]
-pub enum AccessFilterError {
-    /// The filter does not fit the graph: a value of the wrong type for a property, say.
-    #[error("the filter does not fit the graph: {0}")]
-    DoesNotApply(#[source] GraphError),
-    /// The graph could not be loaded.
-    #[error(transparent)]
-    Load(GQLError),
-}
-
-async fn apply_access_filter(
-    graph: DynamicGraph,
-    f: &GraphAccessFilter,
-) -> async_graphql::Result<DynamicGraph> {
-    let graph = if let Some(row_filter) = f.filter.clone() {
-        blocking_compute(move || {
-            graph
-                .filter(row_filter)
-                .map(|g| g.into_dynamic())
-                .map_err(|e| {
-                    // The stage is logged with the engine's own message; the caller only learns that
-                    // the grant is at fault, never what the filter said.
-                    match e {
-                        GraphError::InvalidGqlFilter(_) | GraphError::InvalidFilter(_) => {
-                            error!(error = %e, "access filter conversion failed")
-                        }
-                        _ => error!(error = %e, "access filter application failed"),
-                    }
-                    async_graphql::Error::new(
-                        "access filter could not be applied; the grant is misconfigured",
-                    )
-                })
-        })
-        .await?
-    } else {
-        graph
-    };
-
-    let redaction = build_redaction(f);
-
-    if redaction.has_restrictions() {
-        Ok(graph.exclude_properties(&redaction).into_dynamic())
-    } else {
-        Ok(graph)
-    }
-}
-
-fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
-    let hp = filter.hidden_properties.as_ref();
-    let hm = filter.hidden_metadata.as_ref();
-
-    fn collect(
-        keys: Option<&HiddenKeys>,
-        pick: fn(&HiddenKeys) -> Option<&Vec<String>>,
-    ) -> std::collections::HashSet<String> {
-        keys.and_then(pick)
-            .map(|v| v.iter().cloned().collect())
-            .unwrap_or_default()
-    }
-
-    PropertyRedaction {
-        node_hidden_props: collect(hp, |h| h.node.as_ref()),
-        node_hidden_meta: collect(hm, |h| h.node.as_ref()),
-        edge_hidden_props: collect(hp, |h| h.edge.as_ref()),
-        edge_hidden_meta: collect(hm, |h| h.edge.as_ref()),
-        graph_hidden_props: collect(hp, |h| h.graph.as_ref()),
-        graph_hidden_meta: collect(hm, |h| h.graph.as_ref()),
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Data permission methods
 // ---------------------------------------------------------------------------
@@ -952,9 +871,93 @@ impl Data {
     }
 }
 
-impl Drop for DataInner {
-    fn drop(&mut self) {
-        self.cache.flush_and_clear();
+/// Flushes the graph to avoid errors due to writing to deleted directory.
+///
+/// Note that this method waits until it holds the only reference to `graph`.
+/// Do NOT call while another clone is still held on the same thread.
+async fn flush_graph(graph: Option<GraphWithVectors>) {
+    if let Some(old_graph) = graph {
+        let inner = old_graph.into_inner().await;
+        blocking_compute(move || {
+            if let Err(e) = inner.graph.flush() {
+                error!(
+                    "Failed to flush old graph {} before replacing: {e}",
+                    inner.folder.local_path()
+                )
+            }
+        })
+        .await;
+    }
+}
+
+/// Why a grant's row filter cannot be applied to a graph.
+#[derive(thiserror::Error, Debug)]
+pub enum AccessFilterError {
+    /// The filter does not fit the graph: a value of the wrong type for a property, say.
+    #[error("the filter does not fit the graph: {0}")]
+    DoesNotApply(#[source] GraphError),
+    /// The graph could not be loaded.
+    #[error(transparent)]
+    Load(GQLError),
+}
+
+async fn apply_access_filter(
+    graph: DynamicGraph,
+    f: &GraphAccessFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    let graph = if let Some(row_filter) = f.filter.clone() {
+        blocking_compute(move || {
+            graph
+                .filter(row_filter)
+                .map(|g| g.into_dynamic())
+                .map_err(|e| {
+                    // The stage is logged with the engine's own message; the caller only learns that
+                    // the grant is at fault, never what the filter said.
+                    match e {
+                        GraphError::InvalidGqlFilter(_) | GraphError::InvalidFilter(_) => {
+                            error!(error = %e, "access filter conversion failed")
+                        }
+                        _ => error!(error = %e, "access filter application failed"),
+                    }
+                    async_graphql::Error::new(
+                        "access filter could not be applied; the grant is misconfigured",
+                    )
+                })
+        })
+        .await?
+    } else {
+        graph
+    };
+
+    let redaction = build_redaction(f);
+
+    if redaction.has_restrictions() {
+        Ok(graph.exclude_properties(&redaction).into_dynamic())
+    } else {
+        Ok(graph)
+    }
+}
+
+fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
+    let hp = filter.hidden_properties.as_ref();
+    let hm = filter.hidden_metadata.as_ref();
+
+    fn collect(
+        keys: Option<&HiddenKeys>,
+        pick: fn(&HiddenKeys) -> Option<&Vec<String>>,
+    ) -> std::collections::HashSet<String> {
+        keys.and_then(pick)
+            .map(|v| v.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    PropertyRedaction {
+        node_hidden_props: collect(hp, |h| h.node.as_ref()),
+        node_hidden_meta: collect(hm, |h| h.node.as_ref()),
+        edge_hidden_props: collect(hp, |h| h.edge.as_ref()),
+        edge_hidden_meta: collect(hm, |h| h.edge.as_ref()),
+        graph_hidden_props: collect(hp, |h| h.graph.as_ref()),
+        graph_hidden_meta: collect(hm, |h| h.graph.as_ref()),
     }
 }
 
