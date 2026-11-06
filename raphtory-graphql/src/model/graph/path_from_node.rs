@@ -4,7 +4,7 @@ use crate::{
         edges::GqlEdges,
         filter_expr_input::GqlFilter,
         history::GqlHistory,
-        node::GqlNode,
+        node::{GqlDegreeBounds, GqlNode, DEFAULT_DEGREE_THRESHOLD},
         timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlPathFromNodeWindowSet,
         GqlAlignmentUnit, WindowDuration,
@@ -296,6 +296,78 @@ impl GqlPathFromNode {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.nn.out_degree().collect()).await)
+    }
+
+    /// Bounds on the degree of every node in the path, in order; see `Node.approximateDegree`.
+    pub async fn approximate_degree(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> async_graphql::Result<Vec<GqlDegreeBounds>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        Ok(blocking_compute(move || {
+            self_clone
+                .nn
+                .approx_degree(threshold)
+                .map(GqlDegreeBounds::from)
+                .collect()
+        })
+        .await)
+    }
+
+    /// Bounds on the in-degree of every node in the path, in order; see `Node.approximateInDegree`.
+    pub async fn approximate_in_degree(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> async_graphql::Result<Vec<GqlDegreeBounds>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        Ok(blocking_compute(move || {
+            self_clone
+                .nn
+                .approx_in_degree(threshold)
+                .map(GqlDegreeBounds::from)
+                .collect()
+        })
+        .await)
+    }
+
+    /// Bounds on the out-degree of every node in the path, in order; see `Node.approximateOutDegree`.
+    pub async fn approximate_out_degree(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> async_graphql::Result<Vec<GqlDegreeBounds>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        Ok(blocking_compute(move || {
+            self_clone
+                .nn
+                .approx_out_degree(threshold)
+                .map(GqlDegreeBounds::from)
+                .collect()
+        })
+        .await)
     }
 
     /// The number of edge updates incident to every node in the path, in order.
