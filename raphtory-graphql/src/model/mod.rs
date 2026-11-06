@@ -1,10 +1,7 @@
 use crate::{
-    auth::{ContextValidation, Roles},
-    auth_policy::{AuthorizationPolicy, NamespacePermission},
-    data::{
-        gql_error_with_code, parent_namespace, require_graph_write, Data, GqlGraphType,
-        PermissionError, CODE_ACCESS_DENIED,
-    },
+    auth::Roles,
+    auth_policy::AuthorizationPolicy,
+    data::{Data, GqlGraphType},
     model::{
         graph::{
             collection::GqlCollection,
@@ -18,6 +15,7 @@ use crate::{
         stage::GqlStagedGraph,
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
+    permissions::{parent_namespace, require_graph_write, require_namespace_write},
     rayon::{blocking_compute, blocking_write},
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
@@ -105,44 +103,6 @@ fn auto_grant_on_create(
     Ok(())
 }
 
-fn require_namespace_write(
-    ctx: &Context<'_>,
-    policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    ns_path: &str,
-    new_path: &str,
-    operation: &str,
-) -> Result<()> {
-    if ctx.is_read_only() {
-        return Err(gql_error_with_code(
-            "Access denied: this context may not write",
-            CODE_ACCESS_DENIED,
-        ));
-    }
-    match policy {
-        None => ctx
-            .require_jwt_write_access()
-            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
-        Some(p) => {
-            let ns_perm = p.namespace_permissions(ctx, ns_path).map_err(|e| {
-                error!(
-                    namespace = ns_path,
-                    error = %e,
-                    "Authorization policy could not resolve namespace permissions"
-                );
-                gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)
-            })?;
-            if ns_perm < Some(NamespacePermission::Write) {
-                return Err(PermissionError::NamespaceWriteRequired {
-                    namespace: ns_path.to_string(),
-                    graph: new_path.to_string(),
-                    operation: operation.to_string(),
-                }
-                .into_gql_error());
-            }
-            Ok(())
-        }
-    }
-}
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub struct QueryRoot;

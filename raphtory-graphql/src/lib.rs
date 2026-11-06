@@ -15,6 +15,7 @@ use std::sync::Arc;
 
 pub mod auth;
 pub mod auth_policy;
+pub mod permissions;
 
 pub mod cache;
 pub mod cli;
@@ -2633,7 +2634,6 @@ mod graphql_test {
                 run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
-            // Substring is from `require_graph_write` in raphtory-graphql/src/model/mod.rs.
             assert!(
                 res.errors[0]
                     .message

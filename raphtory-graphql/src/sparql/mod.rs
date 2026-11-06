@@ -10,7 +10,7 @@ use self::{
     jobs::RdfJobs,
 };
 use crate::{
-    config::concurrency_config::ConcurrencyConfig, data::gql_error_with_code,
+    config::concurrency_config::ConcurrencyConfig, permissions::gql_error_with_code,
     rayon::blocking_compute,
 };
 use async_graphql::Error as GqlError;
