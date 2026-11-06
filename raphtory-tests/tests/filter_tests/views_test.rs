@@ -11,9 +11,7 @@ mod test_nodes_filters_window_graph {
         prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps, TimeOps},
     };
     use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
-    use raphtory_storage::mutation::{
-        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
-    };
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use raphtory_tests::assertions::{
         assert_filter_nodes_results, TestVariants, WindowGraphTransformer,
     };
@@ -188,11 +186,7 @@ mod test_nodes_filters_window_graph {
     }
 
     fn init_graph2<
-        G: StaticGraphViewOps
-            + AdditionOps
-            + InternalAdditionOps
-            + InternalPropertyAdditionOps
-            + PropertyAdditionOps,
+        G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
     >(
         graph: G,
     ) -> G {

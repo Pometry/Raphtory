@@ -1,11 +1,8 @@
 use crate::error::StorageError;
 use either::Either;
-use raphtory_api::core::{
-    entities::properties::{
-        meta::{Meta, PropMapper, PropWithStatus, StagedPropMapper},
-        prop::{Prop, PropType},
-    },
-    storage::dict_mapper::MaybeNew,
+use raphtory_api::core::entities::properties::{
+    meta::{Meta, PropMapper, StagedPropMapper},
+    prop::{Prop, PropType},
 };
 
 pub enum PropsMetaWriter<'a, PN: AsRef<str>> {
@@ -105,22 +102,34 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
         }
     }
 
-    pub fn into_props(self) -> Vec<(usize, Prop)> {
-        self.into_props_with_status()
-            .into_iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.inner();
-                (prop_id, prop)
-            })
-            .collect()
+    /// iterator over references to the already resolved properties, including those that need unifying, excluding unresolved properties
+    pub fn resolved(&self) -> impl Iterator<Item = (usize, &Prop)> {
+        match self {
+            PropsMetaWriter::Change {
+                resolved, change, ..
+            } => Either::Left(
+                resolved.iter().map(|(_, id, prop)| (*id, prop)).chain(
+                    change
+                        .iter()
+                        .filter_map(|(_, id, prop)| id.as_ref().map(|(id, _)| (*id, prop))),
+                ),
+            ),
+            PropsMetaWriter::NoChange { props } => {
+                Either::Right(props.iter().map(|(_, id, prop)| (*id, prop)))
+            }
+        }
     }
 
-    pub fn into_props_with_status(self) -> Vec<PropWithStatus<PN>> {
+    pub fn into_props(self) -> Vec<(usize, Prop)> {
+        self.into_props_and_names().1
+    }
+
+    pub fn into_props_and_names(self) -> (Vec<PN>, Vec<(usize, Prop)>) {
         match self {
             Self::NoChange { props } => props
                 .into_iter()
-                .map(|(prop_name, prop_id, prop)| MaybeNew::Existing((prop_name, prop_id, prop)))
-                .collect(),
+                .map(|(prop_name, prop_id, prop)| (prop_name, (prop_id, prop)))
+                .unzip(),
             Self::Change {
                 resolved,
                 change,
@@ -129,25 +138,23 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
                 let mut mapper = mapper.upgrade();
                 resolved
                     .into_iter()
-                    .map(|(prop_name, prop_id, prop)| {
-                        MaybeNew::Existing((prop_name, prop_id, prop))
-                    })
+                    .map(|(prop_name, prop_id, prop)| (prop_name, (prop_id, prop)))
                     .chain(
                         change
                             .into_iter()
                             .map(|(prop_name, prop_id, prop)| match prop_id {
                                 Some((id, unified_type)) => {
                                     mapper.set_dtype(id, unified_type);
-                                    MaybeNew::Existing((prop_name, id, prop))
+                                    (prop_name, (id, prop))
                                 }
                                 None => {
                                     let id =
                                         mapper.new_id_and_dtype(prop_name.as_ref(), prop.dtype());
-                                    MaybeNew::New((prop_name, id, prop))
+                                    (prop_name, (id, prop))
                                 }
                             }),
                     )
-                    .collect()
+                    .unzip()
             }
         }
     }

@@ -19,14 +19,14 @@ use crate::{
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
-use db4_graph::WriteLockedGraph;
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use itertools::izip;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::entities::{properties::prop::AsPropRef, LayerId, EID},
 };
 use raphtory_core::entities::VID;
-use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -56,6 +56,8 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
         return Ok(());
     }
 
+    let graph = graph.mutable()?;
+
     let ColumnNames {
         src,
         dst,
@@ -74,9 +76,8 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
     let layer_id_index = layer_id_col.and_then(|name| df_view.get_index_opt(name));
     let layer_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
 
-    let session = graph.write_session().map_err(into_graph_err)?;
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-        session
+        graph
             .resolve_edge_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
@@ -97,7 +98,7 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
         let df = chunk?;
         let metadata_cols =
             combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
+                graph
                     .resolve_edge_property(key, dtype, true)
                     .map_err(into_graph_err)
             })?;
@@ -234,8 +235,8 @@ pub fn load_edges_metadata_from_df_prefetch<
 /// graph; the first that is not fails the load with `GraphError::NodeMissingError`, naming it.
 /// Without it the columns hold VIDs written by our own parquet encoder and are used as they are.
 #[allow(clippy::too_many_arguments)]
-fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
-    graph: &G,
+fn lookup_node_vids<'a: 'c, 'b: 'c, 'c>(
+    graph: &TemporalGraph,
     src_index: usize,
     dst_index: usize,
     src_col_resolved: &'a mut Vec<VID>,
@@ -256,7 +257,7 @@ fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
                 .zip_eq(resolved.par_iter_mut())
                 .try_for_each(|(gid, vid)| {
                     *vid = graph
-                        .internalise_node(gid.as_node_ref())
+                        .resolve_node_ref(gid.as_node_ref())
                         .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?;
                     Ok::<(), GraphError>(())
                 })?;

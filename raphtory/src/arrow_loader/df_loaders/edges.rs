@@ -21,7 +21,7 @@ use crate::{
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
-use db4_graph::WriteLockedGraph;
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use itertools::{izip, Itertools};
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
@@ -31,7 +31,7 @@ use raphtory_api::{
     },
 };
 use raphtory_core::entities::{GidRef, VID};
-use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -168,6 +168,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         return Ok(());
     }
 
+    let graph = graph.mutable()?;
     let ColumnNames {
         time,
         secondary_index,
@@ -197,9 +198,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         .transpose()?;
     let layer_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
 
-    let session = graph.write_session().map_err(into_graph_err)?;
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-        session
+        graph
             .resolve_edge_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
@@ -227,19 +227,19 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut node_resolve_cache: Option<NodeResolveCache<VID>> = None;
 
     // held for the whole load
-    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+    let mut write_locked_graph = graph.write_lock()?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
-                session
+                graph
                     .resolve_edge_property(key, dtype, false)
                     .map_err(into_graph_err)
             })?;
         let metadata_cols =
             combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
+                graph
                     .resolve_edge_property(key, dtype, true)
                     .map_err(into_graph_err)
             })?;
@@ -301,7 +301,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         // Load the secondary index column if it exists, otherwise generate from start_id.
         let secondary_index_col =
-            extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
+            extract_secondary_index_col::<G>(secondary_index_index, graph, &df)?;
 
         // node resolution may have created new node segments
         write_locked_graph.extend_new(new_segment_guards);
@@ -497,8 +497,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    graph: &G,
+fn resolve_node_vids_with_cache<'a>(
+    graph: &TemporalGraph,
     node_cache: &mut NodeResolveCache<VID>,
     src_col_resolved: &'a mut Vec<VID>,
     dst_col_resolved: &'a mut Vec<VID>,
@@ -595,13 +595,8 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn get_or_resolve_node_vids<
-    'a: 'c,
-    'b: 'c,
-    'c,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
+pub fn get_or_resolve_node_vids<'a: 'c, 'b: 'c, 'c>(
+    graph: &TemporalGraph,
     src_index: usize,
     dst_index: usize,
     src_col_resolved: &'a mut Vec<VID>,
@@ -626,7 +621,7 @@ pub fn get_or_resolve_node_vids<
         let atomic_src_col = atomic_vid_from_mut_slice(src_col_resolved);
         let atomic_dst_col = atomic_vid_from_mut_slice(dst_col_resolved);
 
-        let (gid_str_cache, new_seg_guards) = resolve_nodes_with_cache::<G>(
+        let (gid_str_cache, new_seg_guards) = resolve_nodes_with_cache(
             graph,
             [src_col, dst_col].as_ref(),
             [atomic_src_col, atomic_dst_col].as_ref(),

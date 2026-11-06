@@ -4,10 +4,9 @@ use crate::{
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_storage::{
-    core_ops::CoreGraphOps,
     durability_ops::DurabilityOps,
-    mutation::{
-        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+    mutation::addition_ops::{
+        GraphMutationOps, InternalAdditionOps, MetadataMutationOps, PropertyMutationOps,
     },
 };
 use storage::{
@@ -15,9 +14,7 @@ use storage::{
     wal::{GraphWalOps, WalOps},
 };
 
-pub trait PropertyAdditionOps:
-    InternalPropertyAdditionOps<Error: Into<GraphError>> + InternalAdditionOps<Error: Into<GraphError>>
-{
+pub trait PropertyAdditionOps: InternalAdditionOps {
     fn add_properties<
         T: TryIntoInputTime,
         PN: AsRef<str>,
@@ -40,12 +37,7 @@ pub trait PropertyAdditionOps:
     ) -> Result<(), GraphError>;
 }
 
-impl<
-        G: InternalPropertyAdditionOps<Error: Into<GraphError>>
-            + InternalAdditionOps<Error: Into<GraphError>>
-            + CoreGraphOps,
-    > PropertyAdditionOps for G
-{
+impl<G: InternalAdditionOps> PropertyAdditionOps for G {
     fn add_properties<
         T: TryIntoInputTime,
         PN: AsRef<str>,
@@ -56,45 +48,37 @@ impl<
         t: T,
         props: PII,
     ) -> Result<(), GraphError> {
-        let transaction_manager = self.core_graph().transaction_manager()?;
-        let wal = self.core_graph().wal()?;
+        let mutable_graph = self.mutable()?;
+        let transaction_manager = mutable_graph.transaction_manager()?;
+        let wal = mutable_graph.wal()?;
         let transaction_id = transaction_manager.begin_transaction();
-        let session = self.write_session().map_err(|err| err.into())?;
-        let t = time_from_input_session(&session, t)?;
+        let t = time_from_input_session(&mutable_graph, t)?;
 
-        let (props_with_status, _) = self
-            .validate_props_with_status(
-                false,
-                self.graph_props_meta(),
-                || Ok(MemGraphPropSegment::DEFAULT_LAYER),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
+        let validated_props = mutable_graph
+            .validate_props(false, mutable_graph.graph_props_meta(), props)
             .map_err(into_graph_err)?;
+        let mut writer = mutable_graph.atomic_update_graph_props();
 
-        let props = props_with_status
+        // We are modifying the graph from this point, no failures allowed!
+        let (prop_names, props) = validated_props.into_props_and_names();
+        mutable_graph
+            .graph_props_meta()
+            .temporal_prop_mapper()
+            .mark_props_in_layer(
+                MemGraphPropSegment::DEFAULT_LAYER,
+                props.iter().map(|(id, _)| *id),
+            );
+        let props_for_wal = prop_names
             .iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.as_ref().inner();
-                (*prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
-        let mut writer = self
-            .internal_add_properties(t, &props)
-            .map_err(into_graph_err)?;
-
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
+            .zip(props.iter())
+            .map(|(prop_name, (prop_id, prop))| (prop_name.as_ref(), *prop_id, prop.clone()))
             .collect::<Vec<_>>();
 
         let lsn = wal
             .log_add_graph_props(transaction_id, t, props_for_wal)
             .map_err(into_graph_err)?;
 
+        writer.update_properties(t, MemGraphPropSegment::DEFAULT_LAYER, props);
         writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);
         drop(writer);
@@ -129,55 +113,44 @@ fn add_metadata_impl<G, PN, P, PII>(
     is_update: bool,
 ) -> Result<(), GraphError>
 where
-    G: InternalPropertyAdditionOps<Error: Into<GraphError>>
-        + InternalAdditionOps<Error: Into<GraphError>>
-        + CoreGraphOps,
+    G: InternalAdditionOps,
     PN: AsRef<str>,
     P: Into<Prop>,
     PII: IntoIterator<Item = (PN, P)>,
 {
-    let transaction_manager = graph.core_graph().transaction_manager()?;
-    let wal = graph.core_graph().wal()?;
+    let mutable_graph = graph.mutable()?;
+    let transaction_manager = mutable_graph.transaction_manager()?;
+    let wal = mutable_graph.wal()?;
     let transaction_id = transaction_manager.begin_transaction();
 
-    let (props_with_status, _) = graph
-        .validate_props_with_status(
-            true,
-            graph.graph_props_meta(),
-            || Ok(MemGraphPropSegment::DEFAULT_LAYER),
-            props.into_iter().map(|(k, v)| (k, v.into())),
-        )
-        .map_err(into_graph_err)?;
-
-    let props = props_with_status
+    let validated_props =
+        mutable_graph.validate_props(true, mutable_graph.graph_props_meta(), props)?;
+    let mut writer = mutable_graph.atomic_update_graph_props();
+    if !is_update {
+        writer.check_metadata(
+            MemGraphPropSegment::DEFAULT_LAYER,
+            validated_props.resolved(),
+        )?;
+    }
+    // we are modifying the graph at this point, no failure allowed!
+    let (prop_names, props) = validated_props.into_props_and_names();
+    mutable_graph
+        .graph_props_meta()
+        .metadata_mapper()
+        .mark_props_in_layer(
+            MemGraphPropSegment::DEFAULT_LAYER,
+            props.iter().map(|(id, _)| *id),
+        );
+    let props_for_wal = prop_names
         .iter()
-        .map(|maybe_new| {
-            let (_, prop_id, prop) = maybe_new.as_ref().inner();
-            (*prop_id, prop.clone())
-        })
+        .zip(props.iter())
+        .map(|(prop_name, (prop_id, prop))| (prop_name.as_ref(), *prop_id, prop.clone()))
         .collect::<Vec<_>>();
-
-    let mut writer = if is_update {
-        graph
-            .internal_update_metadata(&props)
-            .map_err(into_graph_err)?
-    } else {
-        graph
-            .internal_add_metadata(&props)
-            .map_err(into_graph_err)?
-    };
-
-    let props_for_wal = props_with_status
-        .iter()
-        .map(|maybe_new| {
-            let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-            (prop_name.as_ref(), *prop_id, prop.clone())
-        })
-        .collect::<Vec<_>>();
-
     let lsn = wal
         .log_add_graph_metadata(transaction_id, props_for_wal)
         .map_err(into_graph_err)?;
+
+    writer.update_metadata(MemGraphPropSegment::DEFAULT_LAYER, props);
 
     writer.set_lsn(lsn);
     transaction_manager.end_transaction(transaction_id);
