@@ -39,7 +39,7 @@ use raphtory::{
     prelude::*,
     version,
 };
-use raphtory_api::core::{entities::properties::prop::PropType, storage::graph_folder::GraphPaths};
+use raphtory_api::core::entities::properties::prop::PropType;
 use std::{collections::HashMap, sync::Arc};
 use tracing::{error, warn};
 
@@ -509,7 +509,7 @@ impl Mut {
         GqlStagedGraph::new(ctx, graph_path, set_active).await
     }
 
-    /// Set the active version for `graphPath` and start serving it immediately.
+    /// Set the active version and start serving it immediately.
     pub async fn set_active_version<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
@@ -517,19 +517,7 @@ impl Mut {
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         require_graph_write(ctx, &data.auth_policy, &graph_path)?;
-
-        let work_dir = data.work_dir_write().await;
-        let folder = ExistingGraphFolder::try_from(work_dir.into(), &graph_path)
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
-
-        blocking_write(move || folder.graph_folder().set_active_version(version))
-            .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
-
-        data.reload_graph_in_cache(&graph_path)
-            .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
-
+        data.set_active_version(&graph_path, version).await?;
         Ok(true)
     }
 

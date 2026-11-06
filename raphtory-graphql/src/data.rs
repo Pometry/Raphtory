@@ -197,6 +197,7 @@ impl ReadOnlyGraphs {
 
 /// Inner struct with a drop implementation that cleans up the graphs
 pub struct DataInner {
+    /// Lock acquisition should always be work_dir -> cache guard to prevent deadlocks.
     work_dir: Arc<RwLock<PathBuf>>,
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
@@ -317,7 +318,10 @@ impl Deref for Data {
     }
 }
 
-/// flushes the graph to avoid errors due to writing to deleted directory
+/// Flushes the graph to avoid errors due to writing to deleted directory.
+///
+/// Note that this method waits until it holds the only reference to `graph`.
+/// Do NOT call while another clone is still held on the same thread.
 async fn flush_graph(graph: Option<GraphWithVectors>) {
     if let Some(old_graph) = graph {
         let inner = old_graph.into_inner().await;
@@ -406,9 +410,19 @@ impl Data {
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
     async fn get_graph_unchecked(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
-        self.cache
-            .get_or_insert(path, self.read_graph_from_disk(path))
-            .await
+        // Fast path without the work_dir guard if the graph is in the cache.
+        if let Some(graph) = self.cache.get(path) {
+            return Ok(graph);
+        }
+
+        // Acquire the work_dir guard to read the graph from disk.
+        let work_dir = self.work_dir_read().await;
+        let folder = ExistingGraphFolder::try_from(work_dir, path)?;
+
+        Ok(self
+            .cache
+            .get_or_insert(path, self.read_graph_from_disk(folder))
+            .await?)
     }
 
     /// Whether `filter` can be applied to the graph at `path`. Policies use it to
@@ -488,6 +502,7 @@ impl Data {
         let key = folder.local_path().to_owned();
         let args = self.graph_args.clone();
 
+        // TODO: Should this be cache.insert_or_replace_with?
         self.cache
             .invalidate_with(&key, |old_graph| async {
                 flush_graph(old_graph).await;
@@ -655,13 +670,13 @@ impl Data {
         // Swapping the new index in is the only part that needs the guard, and it is quick. On the
         // error path above the entry is never touched, so a failed vectorise leaves the graph with
         // exactly the vectors it had.
-        let cloned_folder = folder.clone();
+        let folder_clone = folder.clone();
         let fallback = graph;
         self.cache
             .insert_or_replace_with(folder.local_path(), |old_graph| async {
                 let current = old_graph.unwrap_or(fallback);
                 let updated =
-                    GraphWithVectors::new(current.graph().clone(), Some(vectors), cloned_folder);
+                    GraphWithVectors::new(current.graph().clone(), Some(vectors), folder_clone);
                 updated.set_dirty(current.is_dirty());
                 Ok::<_, GQLError>(updated)
             })
@@ -709,31 +724,46 @@ impl Data {
                 })
                 .await
             })
-            .await
-            .map_err(GQLError::Insertion)?;
+            .await?;
 
         Ok(())
     }
 
-    /// Refresh the graph at `path` from disk.
-    pub(crate) async fn reload_graph_in_cache(&self, path: &str) -> Result<(), GQLError> {
+    pub(crate) async fn set_active_version(
+        &self,
+        path: &str,
+        version: u32,
+    ) -> Result<(), GQLError> {
+        let work_dir: WorkDirGuard = self.work_dir_write().await.into();
+        let folder = ExistingGraphFolder::try_from(work_dir, path)?;
         let key = path.to_string();
-        let new_graph = self.read_graph_from_disk(path).await?;
+        let path = path.to_string();
 
         self.cache
             .insert_or_replace_with(&key, |old_graph| async move {
                 flush_graph(old_graph).await;
-                Ok(new_graph)
+
+                let folder_clone = folder.clone();
+                blocking_io(move || -> Result<(), GraphError> {
+                    folder_clone.graph_folder().set_active_version(version)?;
+                    Ok(())
+                })
+                .await
+                .map_err(|e| InsertionError::from_graph_err(&path, e))?;
+
+                self.read_graph_from_disk(folder)
+                    .await
+                    .map_err(|e| InsertionError::from_graph_err(&path, e))
             })
-            .await
-            .map_err(GQLError::Insertion)?;
+            .await?;
 
         Ok(())
     }
 
-    async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
-        let work_dir = self.work_dir_read().await;
-        let folder = ExistingGraphFolder::try_from(work_dir, path)?;
+    async fn read_graph_from_disk(
+        &self,
+        folder: ExistingGraphFolder,
+    ) -> Result<GraphWithVectors, GraphError> {
         let args = self.graph_args.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();

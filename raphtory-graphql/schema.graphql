@@ -3394,7 +3394,7 @@ type MutRoot {
 		setActive: Boolean!
 	): StagedGraph!
 	"""
-	Set the active version for `graphPath` and start serving it immediately.
+	Set the active version and start serving it immediately.
 	"""
 	setActiveVersion(
 		"""
