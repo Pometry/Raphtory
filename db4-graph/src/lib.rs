@@ -196,7 +196,7 @@ where
         self.storage().extension()
     }
 
-    pub fn read_event_counter(&self) -> usize {
+    pub fn read_event_id(&self) -> usize {
         self.storage().read_event_id()
     }
 

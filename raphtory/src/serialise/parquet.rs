@@ -62,7 +62,7 @@ pub trait ParquetEncoder {
         self.encode_parquet(&temp_dir)?;
 
         // Walk through the directory and add files and directories to the zip.
-        // Files and directories are stored in the archive under the GRAPH_PATH directory.
+        // Files and directories are stored in the archive under `prefix`.
         for entry in WalkDir::new(temp_dir.path())
             .into_iter()
             .filter_map(Result::ok)
@@ -73,12 +73,11 @@ pub trait ParquetEncoder {
                 GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
             })?;
 
-            // Attach GRAPH_PATH as a prefix to the relative path
+            // Attach `prefix` to the relative path so the entry is stored under it.
             let zip_entry_name = prefix.join(relative_path).to_string_lossy().into_owned();
 
             if path.is_file() {
                 zip_writer.start_file::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
-
                 let mut file = File::open(path)?;
                 std::io::copy(&mut file, &mut zip_writer)?;
             } else if path.is_dir() {
@@ -86,6 +85,7 @@ pub trait ParquetEncoder {
                 zip_writer.add_directory::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
             }
         }
+
         Ok(())
     }
 

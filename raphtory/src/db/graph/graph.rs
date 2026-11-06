@@ -29,8 +29,11 @@ use crate::{
 };
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps, stage::Stage,
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::graph::GraphStorage,
+    layer_ops::InheritLayerOps,
+    mutation::InheritMutationOps,
+    stage::Stage,
 };
 use rayon::prelude::*;
 use std::{
@@ -185,12 +188,15 @@ impl Graph {
             inner: Arc::new(Storage::new_at_path_with_config(graph_path, args)?),
         };
 
-        let meta = GraphFolderMetadata {
+        let graph_meta = GraphFolderMetadata {
             path: path.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
+            src_version: None,
+            src_event_id: None,
         };
 
-        path.write_metadata(meta)?;
+        path.write_graph_meta(graph_meta)?;
+
         Ok(graph)
     }
 
@@ -269,10 +275,6 @@ impl Graph {
         }
     }
 
-    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
-        Stage::new(self).map_err(GraphError::from)
-    }
-
     pub fn event_graph(&self) -> Graph {
         self.clone()
     }
@@ -280,6 +282,32 @@ impl Graph {
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
         PersistentGraph::from(self.inner.clone())
+    }
+}
+
+impl Graph {
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self).map_err(GraphError::from)
+    }
+
+    pub fn version(&self) -> Result<u32, GraphError> {
+        Ok(self.core_graph().version()?)
+    }
+
+    pub fn src_version(&self) -> Result<Option<u32>, GraphError> {
+        Ok(self.core_graph().src_version()?)
+    }
+
+    pub fn active_version(&self) -> Result<u32, GraphError> {
+        Ok(self.core_graph().active_version()?)
+    }
+
+    pub fn all_versions(&self) -> Result<Vec<u32>, GraphError> {
+        Ok(self.core_graph().all_versions()?)
+    }
+
+    pub fn set_active_version(&self, version: u32) -> Result<(), GraphError> {
+        Ok(self.core_graph().set_active_version(version)?)
     }
 }
 
