@@ -13,6 +13,7 @@ use crate::{
             filtering::{GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
+            GqlGraphType,
         },
     },
     paths::{
@@ -23,7 +24,6 @@ use crate::{
     GQLError,
 };
 use async_graphql::Context;
-use dynamic_graphql::Enum;
 use raphtory::{
     db::{
         api::{
@@ -42,7 +42,6 @@ use std::{
     fs, io,
     io::{Read, Seek},
     path::{Path, PathBuf},
-    str::FromStr,
     sync::Arc,
 };
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
@@ -779,43 +778,6 @@ impl Data {
         } else {
             graph
         })
-    }
-}
-
-#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
-#[graphql(name = "GraphType")]
-pub enum GqlGraphType {
-    /// Persistent.
-    Persistent,
-    /// Event.
-    Event,
-}
-
-impl GqlGraphType {
-    /// The GraphQL enum literal for this variant, for splicing into a query.
-    /// Unquoted by design — GraphQL enum values are not strings.
-    pub fn as_gql(&self) -> &'static str {
-        match self {
-            GqlGraphType::Persistent => "PERSISTENT",
-            GqlGraphType::Event => "EVENT",
-        }
-    }
-}
-
-impl FromStr for GqlGraphType {
-    type Err = String;
-
-    /// Parses the GraphQL literal. The error names the accepted values,
-    /// because this is the boundary where a caller's string (a Python
-    /// argument, a config value) becomes a typed graph model.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "EVENT" => Ok(GqlGraphType::Event),
-            "PERSISTENT" => Ok(GqlGraphType::Persistent),
-            other => Err(format!(
-                "invalid graph type `{other}`: expected \"EVENT\" or \"PERSISTENT\""
-            )),
-        }
     }
 }
 

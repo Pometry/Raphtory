@@ -1,7 +1,7 @@
 use crate::{
     auth::Roles,
     auth_policy::AuthorizationPolicy,
-    data::{Data, GqlGraphType},
+    data::Data,
     model::{
         graph::{
             collection::GqlCollection,
@@ -11,6 +11,7 @@ use crate::{
             namespace::{is_namespace_visible, Namespace},
             namespaced_item::NamespacedItem,
             node_id::GqlNodeId,
+            GqlGraphType,
         },
         stage::GqlStagedGraph,
     },

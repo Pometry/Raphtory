@@ -5,7 +5,8 @@
 //! what "an operation" means on the wire.
 
 use crate::{
-    client::properties_to_input, data::GqlGraphType, model::graph::filter_expr_input::GqlFilter,
+    client::properties_to_input,
+    model::graph::{filter_expr_input::GqlFilter, GqlGraphType},
 };
 use raphtory_api::core::entities::{properties::prop::Prop, GID};
 // Re-exported so the client transport wrappers import the op tree's time type

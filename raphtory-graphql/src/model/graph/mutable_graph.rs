@@ -1,11 +1,8 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
-    model::{
-        graph::{
-            edge::GqlEdge, graph::GqlGraph, node::GqlNode, node_id::GqlNodeId, property::Value,
-            timeindex::GqlTimeInput,
-        },
-        GqlGraphType,
+    model::graph::{
+        edge::GqlEdge, graph::GqlGraph, node::GqlNode, node_id::GqlNodeId, property::Value,
+        timeindex::GqlTimeInput, GqlGraphType,
     },
     paths::ValidGraphPaths,
     rayon::blocking_write,
