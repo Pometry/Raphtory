@@ -135,7 +135,6 @@ type SchemaDataInjector = Arc<
 /// A struct for defining and running a Raphtory GraphQL server
 pub struct GraphServer {
     data: Data,
-    work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
     key_resolver: Option<Arc<dyn KeyResolver>>,
@@ -162,7 +161,6 @@ impl GraphServer {
         let extensions = config.extensions.clone();
         let data = Data::new(work_dir.as_path(), &config, graph_args);
         let server = Self {
-            work_dir,
             data,
             config,
             schema_data: Vec::new(),
@@ -188,7 +186,7 @@ impl GraphServer {
 
     /// Returns the working directory for this server.
     pub fn work_dir(&self) -> &Path {
-        &self.work_dir
+        self.data.work_dir().path()
     }
 
     /// Register a custom JWT key resolver (e.g. an SSO/JWKS resolver from an auth extension). When
@@ -267,7 +265,7 @@ impl GraphServer {
     ) -> Result<(), GQLError> {
         let vector = self.data.inner.vector_cache.resolve();
         let model = vector.await?.openai(embeddings.into()).await?;
-        let folder = ExistingGraphFolder::try_from(self.data.work_dir_read().await, path)?;
+        let folder = ExistingGraphFolder::try_from(self.data.work_dir().read().await.into(), path)?;
         self.data.vectorise_folder(&folder, template, model).await
     }
 

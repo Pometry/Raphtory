@@ -112,7 +112,7 @@ impl GqlStagedGraph {
             let arced_schema = schema.map(Arc::new);
             let data_path = PathBuf::from(data_path);
 
-            data.is_parquet_path_allowed(&data_path).await?;
+            data.is_parquet_path_allowed(&data_path)?;
             let gql_stage = self.clone();
 
             blocking_write(move || {
@@ -199,7 +199,7 @@ impl GqlStagedGraph {
             let arced_schema = schema.map(Arc::new);
             let data_path = PathBuf::from(data_path);
 
-            data.is_parquet_path_allowed(&data_path).await?;
+            data.is_parquet_path_allowed(&data_path)?;
             let gql_stage = self.clone();
 
             blocking_write(move || {

@@ -188,8 +188,8 @@ impl QueryRoot {
             }
         }
 
-        let work_dir = data.work_dir_read().await;
-        let folder = ExistingGraphFolder::try_from(work_dir, &path)
+        let work_dir = data.work_dir().read().await;
+        let folder = ExistingGraphFolder::try_from(work_dir.into(), &path)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
         Ok(Some(MetaGraph::new(folder)))
     }
@@ -215,7 +215,7 @@ impl QueryRoot {
     /// Returns::  List of namespaces on root
     pub async fn namespaces<'a>(ctx: &Context<'a>) -> Result<GqlCollection<Namespace>> {
         let data = ctx.data_unchecked::<Data>();
-        let root = Namespace::root(data.work_dir_read().await);
+        let root = Namespace::root(data.work_dir().read().await.into());
         let all: Vec<Namespace> = blocking_compute(move || {
             root.self_and_all_children()
                 .filter_map(|child| match child {
@@ -245,7 +245,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         if is_namespace_visible(ctx, &data.auth_policy, &path)? {
             Ok(Namespace::try_new(
-                data.work_dir_read().await,
+                data.work_dir().read().await.into(),
                 path.clone(),
             )?)
         } else {
@@ -258,7 +258,7 @@ impl QueryRoot {
     /// Returns::  Root namespace
     pub async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
-        Namespace::root(data.work_dir_read().await)
+        Namespace::root(data.work_dir().read().await.into())
     }
 
     /// Encodes graph and returns as string.
@@ -301,7 +301,8 @@ impl Mut {
         require_namespace_write(ctx, &data.auth_policy, ns, &path, "create")?;
         let overwrite = false;
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
@@ -385,7 +386,8 @@ impl Mut {
         let graph = src.graph().clone();
         drop(src);
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, graph).await?;
@@ -412,7 +414,8 @@ impl Mut {
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &path, "upload")?;
         let in_file = graph.value(ctx)?.content;
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
@@ -437,7 +440,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, path, "send")?;
-        let work_dir = data.work_dir_write().await;
+        let work_dir = data.work_dir().write().await;
         let folder = if overwrite {
             ValidWriteableGraphFolder::try_existing_or_new(work_dir, path)?
         } else {
@@ -517,7 +520,7 @@ impl Mut {
         require_namespace_write(ctx, &data.auth_policy, parent_ns, path, "delete")?;
         require_namespace_write(ctx, &data.auth_policy, path, path, "delete")?;
 
-        let namespace = Namespace::try_new(data.work_dir_write().await.into(), path.to_string())?;
+        let namespace = Namespace::try_new(data.work_dir().write().await.into(), path.to_string())?;
         let ns_clone = namespace.clone();
         let descendants: Vec<NamespacedItem> =
             blocking_compute(move || ns_clone.get_all_children().collect()).await;
@@ -560,7 +563,8 @@ impl Mut {
             .get_graph_requiring_read(ctx, parent_path, None)
             .await?;
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(&new_path, overwrite)?;
         let folder_clone = folder.clone();

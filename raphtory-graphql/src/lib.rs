@@ -2816,7 +2816,8 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert("g", false)
             .unwrap();

@@ -93,7 +93,8 @@ impl<'b> VectorQuery<'b> {
                 .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
                 .cache(ctx)
                 .await?;
-            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
+            let work_dir = data.work_dir().read().await.into();
+            let folder = ExistingGraphFolder::try_from(work_dir, &path)?;
             data.vectorise_folder(&folder, &template, cached_model)
                 .await?;
             Ok(true)
@@ -127,7 +128,8 @@ impl<'b> VectorQuery<'b> {
             .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
             .cache(ctx)
             .await?;
-        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
+        let work_dir = data.work_dir().read().await.into();
+        let folder = ExistingGraphFolder::try_from(work_dir, &path)?;
         data.vectorise_missing_in_folder(&folder, &template, cached_model)
             .await?;
         Ok(true)
