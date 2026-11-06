@@ -17,8 +17,8 @@ use crate::{
         },
     },
     paths::{
-        mark_dirty, ExistingGraphFolder, InternalPathValidationError, PathValidationError,
-        UnlockedGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder,
+        get_relative_path, mark_dirty, ExistingGraphFolder, InternalPathValidationError,
+        PathValidationError, UnlockedGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder,
     },
     rayon::blocking_compute,
     GQLError,
@@ -120,14 +120,6 @@ pub enum DeletionError {
     PathValidation(#[from] PathValidationError),
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum MoveError {
-    #[error("Failed to move graph: {0}")]
-    Insertion(#[from] InsertionError),
-    #[error("Failed to move graph: {0}")]
-    Deletion(#[from] DeletionError),
-}
-
 impl DeletionError {
     fn from_inner(graph: &str, error: MutationErrorInner) -> Self {
         DeletionError::Insertion {
@@ -137,28 +129,12 @@ impl DeletionError {
     }
 }
 
-/// Get relative path as String joined with `"/"` for use with the validation methods.
-/// The path is not validated here!
-pub(crate) fn get_relative_path(
-    work_dir: &Path,
-    path: &Path,
-) -> Result<String, InternalPathValidationError> {
-    let relative = path.strip_prefix(work_dir)?;
-    let mut path_str = String::new();
-    let mut components = relative.components().map(|component| {
-        component
-            .as_os_str()
-            .to_str()
-            .ok_or(InternalPathValidationError::NonUTFCharacters)
-    });
-    if let Some(first) = components.next() {
-        path_str.push_str(first?);
-    }
-    for component in components {
-        path_str.push('/');
-        path_str.push_str(component?);
-    }
-    Ok(path_str)
+#[derive(thiserror::Error, Debug)]
+pub enum MoveError {
+    #[error("Failed to move graph: {0}")]
+    Insertion(#[from] InsertionError),
+    #[error("Failed to move graph: {0}")]
+    Deletion(#[from] DeletionError),
 }
 
 /// Which graphs are served read-only.
@@ -190,19 +166,6 @@ impl ReadOnlyGraphs {
             Self::Only(graphs) => graphs.contains(path),
         }
     }
-}
-
-/// Inner struct with a drop implementation that cleans up the graphs
-pub struct DataInner {
-    /// Lock for filesystem operations.
-    /// Acquisition order should always be `work_dir` -> `cache` to prevent deadlocks.
-    work_dir: Arc<RwLock<PathBuf>>,
-    pub(crate) cache: GraphCache,
-    #[cfg(feature = "vectors")]
-    pub(crate) vector_cache: LazyDiskVectorCache,
-    pub(crate) graph_args: Args,
-    pub(crate) read_only: ReadOnlyGraphs,
-    pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -308,23 +271,17 @@ pub struct Data {
     pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
-/// Flushes the graph to avoid errors due to writing to deleted directory.
-///
-/// Note that this method waits until it holds the only reference to `graph`.
-/// Do NOT call while another clone is still held on the same thread.
-async fn flush_graph(graph: Option<GraphWithVectors>) {
-    if let Some(old_graph) = graph {
-        let inner = old_graph.into_inner().await;
-        blocking_compute(move || {
-            if let Err(e) = inner.graph.flush() {
-                error!(
-                    "Failed to flush old graph {} before replacing: {e}",
-                    inner.folder.local_path()
-                )
-            }
-        })
-        .await;
-    }
+/// Inner struct with a drop implementation that cleans up the graphs
+pub struct DataInner {
+    /// Lock for filesystem operations.
+    /// Acquisition order should always be `work_dir` -> `cache` to prevent deadlocks.
+    work_dir: Arc<RwLock<PathBuf>>,
+    pub(crate) cache: GraphCache,
+    #[cfg(feature = "vectors")]
+    pub(crate) vector_cache: LazyDiskVectorCache,
+    pub(crate) graph_args: Args,
+    pub(crate) read_only: ReadOnlyGraphs,
+    pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
 
 impl Data {
@@ -778,6 +735,25 @@ impl Data {
         } else {
             graph
         })
+    }
+}
+
+/// Flushes the graph to avoid errors due to writing to deleted directory.
+///
+/// Note that this method waits until it holds the only reference to `graph`.
+/// Do NOT call while another clone is still held on the same thread.
+async fn flush_graph(graph: Option<GraphWithVectors>) {
+    if let Some(old_graph) = graph {
+        let inner = old_graph.into_inner().await;
+        blocking_compute(move || {
+            if let Err(e) = inner.graph.flush() {
+                error!(
+                    "Failed to flush old graph {} before replacing: {e}",
+                    inner.folder.local_path()
+                )
+            }
+        })
+        .await;
     }
 }
 

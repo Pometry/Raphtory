@@ -724,6 +724,30 @@ fn read_dirty_relative_path(
     Ok(Some(path.path))
 }
 
+/// Get relative path as String joined with `"/"` for use with the validation methods.
+/// The path is not validated here!
+pub(crate) fn get_relative_path(
+    work_dir: &Path,
+    path: &Path,
+) -> Result<String, InternalPathValidationError> {
+    let relative = path.strip_prefix(work_dir)?;
+    let mut path_str = String::new();
+    let mut components = relative.components().map(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .ok_or(InternalPathValidationError::NonUTFCharacters)
+    });
+    if let Some(first) = components.next() {
+        path_str.push_str(first?);
+    }
+    for component in components {
+        path_str.push('/');
+        path_str.push_str(component?);
+    }
+    Ok(path_str)
+}
+
 pub(crate) fn ensure_clean_folder(base_path: &Path) -> Result<(), InternalPathValidationError> {
     if base_path.is_dir() {
         match read_dirty_relative_path(base_path) {
