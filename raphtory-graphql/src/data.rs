@@ -197,7 +197,8 @@ impl ReadOnlyGraphs {
 
 /// Inner struct with a drop implementation that cleans up the graphs
 pub struct DataInner {
-    /// Lock acquisition should always be work_dir -> cache guard to prevent deadlocks.
+    /// Lock for filesystem operations.
+    /// Acquisition order should always be `work_dir` -> `cache` to prevent deadlocks.
     work_dir: Arc<RwLock<PathBuf>>,
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
