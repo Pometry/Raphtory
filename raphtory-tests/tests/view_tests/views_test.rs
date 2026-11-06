@@ -1,9 +1,15 @@
 use itertools::Itertools;
-use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
+use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest, test_runner::TestCaseError};
 use rand::{prelude::*, rng};
 use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
-    db::graph::{assertions::assert_graph_equal, views::window_graph::WindowedGraph},
+    db::{
+        api::{
+            state::ops::DegreeBounds,
+            view::{DynamicGraph, IntoDynamic},
+        },
+        graph::{assertions::assert_graph_equal, views::window_graph::WindowedGraph},
+    },
     prelude::*,
 };
 use raphtory_api::core::{
@@ -528,5 +534,146 @@ fn test_entity_history() {
                 .collect_vec(),
             [vec![], vec![0, 4], vec![0], vec![0],]
         );
+    });
+}
+
+#[test]
+fn approx_degree_examples() {
+    let bounds = |lower, upper| DegreeBounds { lower, upper };
+
+    // Hub 0 points at 1..=5 (t=1) and is pointed at by 4..=7 (t=2): 4 and 5 are on both sides,
+    // so out-degree 5, in-degree 4, degree 7, and walking the adjacency takes 9 entries.
+    let graph = Graph::new();
+    for dst in 1..=5u64 {
+        graph.add_edge(1, 0, dst, NO_PROPS, None).unwrap();
+    }
+    for src in 4..=7u64 {
+        graph.add_edge(2, src, 0, NO_PROPS, None).unwrap();
+    }
+
+    // Without a filter, in/out-degree are exact whatever the threshold, and bound the degree.
+    let hub = graph.node(0).unwrap();
+    assert_eq!(hub.approx_out_degree(0), bounds(5, 5));
+    assert_eq!(hub.approx_in_degree(0), bounds(4, 4));
+    assert_eq!(hub.approx_degree(8), bounds(5, 9));
+    assert_eq!(hub.approx_degree(9), bounds(7, 7));
+
+    // A node with neighbours on one side only is exact for free.
+    assert_eq!(graph.node(1).unwrap().approx_degree(0), bounds(1, 1));
+
+    // In a window, the all-time adjacency sizes are only an upper bound.
+    let windowed = graph.window(2, 3);
+    let hub = windowed.node(0).unwrap();
+    assert_eq!(hub.degree(), 4);
+    assert_eq!(hub.approx_degree(8), bounds(0, 9));
+    assert_eq!(hub.approx_degree(9), bounds(4, 4));
+    assert_eq!(hub.approx_out_degree(4), bounds(0, 5));
+    assert_eq!(hub.approx_out_degree(5), bounds(0, 0));
+
+    // A self-loop is in both the in and the out adjacency, but is a single neighbour.
+    let graph = Graph::new();
+    graph.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
+    let node = graph.node(0).unwrap();
+    assert_eq!(node.degree(), 1);
+    assert_eq!(node.approx_degree(1), bounds(1, 2));
+    assert_eq!(node.approx_degree(2), bounds(1, 1));
+}
+
+/// `approx_degree` and co. bound the exact degree, are exact whenever their upper bound fits in
+/// `threshold`, and are always exact with an unlimited threshold.
+fn check_approx_degree(view: &DynamicGraph, threshold: usize) -> Result<(), TestCaseError> {
+    for node in view.nodes() {
+        let cases = [
+            (
+                "degree",
+                node.degree(),
+                node.approx_degree(threshold),
+                node.approx_degree(usize::MAX),
+            ),
+            (
+                "in-degree",
+                node.in_degree(),
+                node.approx_in_degree(threshold),
+                node.approx_in_degree(usize::MAX),
+            ),
+            (
+                "out-degree",
+                node.out_degree(),
+                node.approx_out_degree(threshold),
+                node.approx_out_degree(usize::MAX),
+            ),
+        ];
+        for (name, exact, bounds, unlimited) in cases {
+            prop_assert!(
+                bounds.lower <= exact && exact <= bounds.upper,
+                "{} of {} is {}, outside {:?}",
+                name,
+                node.name(),
+                exact,
+                bounds
+            );
+            if bounds.upper <= threshold {
+                prop_assert_eq!(bounds.lower, bounds.upper, "{} of {}", name, node.name());
+            }
+            prop_assert_eq!(
+                unlimited,
+                DegreeBounds {
+                    lower: exact,
+                    upper: exact
+                },
+                "{} of {}",
+                name,
+                node.name()
+            );
+        }
+    }
+    // The collection variant, behind the columnar GraphQL fields, agrees with the per-node one.
+    let per_node = view
+        .nodes()
+        .iter()
+        .map(|node| node.approx_degree(threshold))
+        .collect_vec();
+    prop_assert_eq!(
+        view.nodes().approx_degree(threshold).collect_vec(),
+        per_node
+    );
+    Ok(())
+}
+
+#[test]
+fn approx_degree_bounds_degree_proptest() {
+    proptest!(|(
+        updates in proptest::collection::vec(
+            (-10i64..10, 0u64..6, 0u64..6, 0usize..3, proptest::bool::ANY),
+            0..40,
+        ),
+        window in (-10i64..10, -10i64..10),
+        threshold in 0usize..12,
+    )| {
+        let graph = Graph::new();
+        for (t, src, dst, layer, deletes) in updates {
+            let layer = Some(["a", "b", "c"][layer]);
+            if deletes {
+                graph.delete_edge(t, src, dst, layer).unwrap();
+            } else {
+                graph.add_edge(t, src, dst, NO_PROPS, layer).unwrap();
+            }
+        }
+        let (start, end) = (window.0.min(window.1), window.0.max(window.1));
+        let persistent = graph.persistent_graph();
+        let views = [
+            graph.clone().into_dynamic(),
+            graph.window(start, end).into_dynamic(),
+            graph.valid_layers("a").into_dynamic(),
+            graph.valid_layers(["a", "b"]).into_dynamic(),
+            graph.valid_layers(["a", "b"]).window(start, end).into_dynamic(),
+            graph.subgraph([0, 1, 2]).into_dynamic(),
+            persistent.clone().into_dynamic(),
+            persistent.window(start, end).into_dynamic(),
+            persistent.valid().into_dynamic(),
+        ];
+        for view in &views {
+            check_approx_degree(view, threshold)?;
+        }
     });
 }

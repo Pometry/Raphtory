@@ -4,6 +4,8 @@ Node fields covered:
 - `firstUpdate`, `lastUpdate`
 - `edgeHistoryCount`
 - `inDegree`, `outDegree`
+- `approximateDegree`, `approximateInDegree`, `approximateOutDegree` (also on
+  `Nodes` / `PathFromNode`)
 - `inEdges`, `outEdges`
 
 Edge fields covered:
@@ -298,6 +300,201 @@ def test_node_directed_degrees_and_edges():
     )
 
     run_group_graphql_test(queries_and_expected, graph, sort_output=True)
+
+
+def test_node_approximate_degrees():
+    """`approximateDegree`, `approximateInDegree`, `approximateOutDegree` under
+    base / window / layer, and their columnar `Nodes` / `PathFromNode` forms.
+
+    The degree is counted exactly when that walks at most `threshold` adjacency
+    entries; otherwise the bounds come from the all-time adjacency sizes.
+    """
+    graph = create_graph()
+    queries_and_expected = []
+
+    def bounds(lower, upper):
+        return {"lowerBound": lower, "upperBound": upper}
+
+    # Base on A: out-neighbours {A, B, C}, in-neighbours {A, B} => degree 3 over
+    # 5 adjacency entries. Over the threshold the degree is bounded by
+    # max(in, out)=3 and in+out=5, while in/out-degree stay exact.
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "A") {
+          bounded: approximateDegree(threshold: 4) { lowerBound upperBound }
+          exact: approximateDegree(threshold: 5) { lowerBound upperBound }
+          defaultThreshold: approximateDegree { lowerBound upperBound }
+          approximateInDegree(threshold: 0) { lowerBound upperBound }
+          approximateOutDegree(threshold: 0) { lowerBound upperBound }
+        }
+      }
+    }
+    """
+    queries_and_expected.append(
+        (
+            query,
+            {
+                "graph": {
+                    "node": {
+                        "bounded": bounds(3, 5),
+                        "exact": bounds(3, 3),
+                        "defaultThreshold": bounds(3, 3),
+                        "approximateInDegree": bounds(2, 2),
+                        "approximateOutDegree": bounds(3, 3),
+                    }
+                }
+            },
+        )
+    )
+
+    # windowed [10, 30) on A: degree 3, in-degree 1 (A->A), out-degree 3, but
+    # the all-time sizes (in 2, out 3) only bound them from above.
+    query = """
+    {
+      graph(path: "g") {
+        window(start: 10, end: 30) {
+          node(name: "A") {
+            bounded: approximateDegree(threshold: 4) { lowerBound upperBound }
+            exact: approximateDegree(threshold: 5) { lowerBound upperBound }
+            boundedIn: approximateInDegree(threshold: 1) { lowerBound upperBound }
+            exactIn: approximateInDegree(threshold: 2) { lowerBound upperBound }
+            boundedOut: approximateOutDegree(threshold: 2) { lowerBound upperBound }
+            exactOut: approximateOutDegree(threshold: 3) { lowerBound upperBound }
+          }
+        }
+      }
+    }
+    """
+    queries_and_expected.append(
+        (
+            query,
+            {
+                "graph": {
+                    "window": {
+                        "node": {
+                            "bounded": bounds(0, 5),
+                            "exact": bounds(3, 3),
+                            "boundedIn": bounds(0, 2),
+                            "exactIn": bounds(1, 1),
+                            "boundedOut": bounds(0, 3),
+                            "exactOut": bounds(3, 3),
+                        }
+                    }
+                }
+            },
+        )
+    )
+
+    # layer(layer2) on A: out-neighbours {B, C}, in-neighbours {B} => degree 2
+    # over 3 adjacency entries; a layer isn't a filter, so the lower bound holds.
+    query = """
+    {
+      graph(path: "g") {
+        layer(name: "layer2") {
+          node(name: "A") {
+            bounded: approximateDegree(threshold: 2) { lowerBound upperBound }
+            exact: approximateDegree(threshold: 3) { lowerBound upperBound }
+          }
+        }
+      }
+    }
+    """
+    queries_and_expected.append(
+        (
+            query,
+            {
+                "graph": {
+                    "layer": {
+                        "node": {
+                            "bounded": bounds(2, 3),
+                            "exact": bounds(2, 2),
+                        }
+                    }
+                }
+            },
+        )
+    )
+
+    # Columnar, in collection order. Degrees: A 3, B 1 ({A} on both sides),
+    # C 2 ({A} in, {D} out), D 1 (in only, so exact for free).
+    query = """
+    {
+      graph(path: "g") {
+        nodes {
+          list { name }
+          approximateDegree(threshold: 0) { lowerBound upperBound }
+          approximateInDegree(threshold: 0) { lowerBound upperBound }
+          approximateOutDegree(threshold: 0) { lowerBound upperBound }
+        }
+        node(name: "A") {
+          neighbours {
+            list { name }
+            approximateDegree(threshold: 0) { lowerBound upperBound }
+            approximateInDegree(threshold: 0) { lowerBound upperBound }
+            approximateOutDegree(threshold: 0) { lowerBound upperBound }
+          }
+        }
+      }
+    }
+    """
+    queries_and_expected.append(
+        (
+            query,
+            {
+                "graph": {
+                    "nodes": {
+                        "list": [
+                            {"name": "A"},
+                            {"name": "B"},
+                            {"name": "C"},
+                            {"name": "D"},
+                        ],
+                        "approximateDegree": [
+                            bounds(3, 5),
+                            bounds(1, 2),
+                            bounds(1, 2),
+                            bounds(1, 1),
+                        ],
+                        "approximateInDegree": [
+                            bounds(2, 2),
+                            bounds(1, 1),
+                            bounds(1, 1),
+                            bounds(1, 1),
+                        ],
+                        "approximateOutDegree": [
+                            bounds(3, 3),
+                            bounds(1, 1),
+                            bounds(1, 1),
+                            bounds(0, 0),
+                        ],
+                    },
+                    "node": {
+                        "neighbours": {
+                            "list": [{"name": "A"}, {"name": "B"}, {"name": "C"}],
+                            "approximateDegree": [
+                                bounds(3, 5),
+                                bounds(1, 2),
+                                bounds(1, 2),
+                            ],
+                            "approximateInDegree": [
+                                bounds(2, 2),
+                                bounds(1, 1),
+                                bounds(1, 1),
+                            ],
+                            "approximateOutDegree": [
+                                bounds(3, 3),
+                                bounds(1, 1),
+                                bounds(1, 1),
+                            ],
+                        }
+                    },
+                }
+            },
+        )
+    )
+
+    run_group_graphql_test(queries_and_expected, graph)
 
 
 def test_edge_update_times():
