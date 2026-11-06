@@ -55,7 +55,7 @@ impl EmbeddingModel {
                     project_id,
                     dim: None,
                 };
-                let vector_cache = data.vector_cache.resolve().await?;
+                let vector_cache = data.inner.vector_cache.resolve().await?;
                 Ok(vector_cache.openai(embeddings.into()).await?)
             }
         }

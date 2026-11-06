@@ -42,7 +42,6 @@ use std::{
     collections::HashSet,
     fs, io,
     io::{Read, Seek},
-    ops::Deref,
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
@@ -311,14 +310,6 @@ pub struct Data {
     pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
-impl Deref for Data {
-    type Target = DataInner;
-
-    fn deref(&self) -> &Self::Target {
-        self.inner.deref()
-    }
-}
-
 /// Flushes the graph to avoid errors due to writing to deleted directory.
 ///
 /// Note that this method waits until it holds the only reference to `graph`.
@@ -358,12 +349,12 @@ impl Data {
     }
 
     pub async fn work_dir_read(&self) -> WorkDirGuard {
-        let guard = Arc::new(self.work_dir.clone().read_owned().await);
+        let guard = Arc::new(self.inner.work_dir.clone().read_owned().await);
         WorkDirGuard::Read { guard }
     }
 
     pub async fn work_dir_write(&self) -> WorkDirWriteGuard {
-        let guard = Arc::new(self.work_dir.clone().write_owned().await);
+        let guard = Arc::new(self.inner.work_dir.clone().write_owned().await);
         WorkDirWriteGuard { guard }
     }
 
@@ -384,7 +375,7 @@ impl Data {
                 return Err(ParquetPathError::WithinWorkDir(path.to_path_buf()));
             }
         }
-        let allowed = self.allowed_parquet_paths.iter().any(|allowed| {
+        let allowed = self.inner.allowed_parquet_paths.iter().any(|allowed| {
             allowed
                 .canonicalize()
                 .map(|c| canonical_path.starts_with(c))
@@ -412,7 +403,7 @@ impl Data {
     /// `get_graph_with_write_permission` instead.
     async fn get_graph_unchecked(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         // Fast path without the work_dir guard if the graph is in the cache.
-        if let Some(graph) = self.cache.get(path) {
+        if let Some(graph) = self.inner.cache.get(path) {
             return Ok(graph);
         }
 
@@ -421,6 +412,7 @@ impl Data {
         let folder = ExistingGraphFolder::try_from(work_dir, path)?;
 
         Ok(self
+            .inner
             .cache
             .get_or_insert(path, self.read_graph_from_disk(folder))
             .await?)
@@ -460,7 +452,7 @@ impl Data {
     }
 
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
-        self.cache.get(path)
+        self.inner.cache.get(path)
     }
 
     pub async fn insert_graph(
@@ -469,10 +461,11 @@ impl Data {
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
         let key = writeable_folder.local_path().to_owned();
-        let args = self.graph_args.clone();
-        let read_only = self.read_only.is_read_only(&key);
+        let args = self.inner.graph_args.clone();
+        let read_only = self.inner.read_only.is_read_only(&key);
 
-        self.cache
+        self.inner
+            .cache
             .insert_or_replace_with(&key, |old_graph| async {
                 flush_graph(old_graph).await;
 
@@ -501,10 +494,11 @@ impl Data {
         bytes: R,
     ) -> Result<(), InsertionError> {
         let key = folder.local_path().to_owned();
-        let args = self.graph_args.clone();
+        let args = self.inner.graph_args.clone();
 
         // TODO: Should this be cache.insert_or_replace_with?
-        self.cache
+        self.inner
+            .cache
             .invalidate_with(&key, |old_graph| async {
                 flush_graph(old_graph).await;
 
@@ -526,7 +520,8 @@ impl Data {
             DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
         })?;
 
-        self.cache
+        self.inner
+            .cache
             .invalidate_with(&key, |old_graph| async {
                 flush_graph(old_graph).await;
 
@@ -560,7 +555,8 @@ impl Data {
         })?;
         for item in descendants {
             if let NamespacedItem::MetaGraph(g) = item {
-                self.cache
+                self.inner
+                    .cache
                     .invalidate_with(g.local_path(), |old_graph| async {
                         flush_graph(old_graph).await;
                     })
@@ -673,7 +669,8 @@ impl Data {
         // exactly the vectors it had.
         let folder_clone = folder.clone();
         let fallback = graph;
-        self.cache
+        self.inner
+            .cache
             .insert_or_replace_with(folder.local_path(), |old_graph| async {
                 let current = old_graph.unwrap_or(fallback);
                 let updated =
@@ -707,9 +704,10 @@ impl Data {
         let work_dir = self.work_dir_read().await;
         let folder = ExistingGraphFolder::try_from(work_dir, path)?;
         let key = path.to_string();
-        let read_only = self.read_only.is_read_only(&key);
+        let read_only = self.inner.read_only.is_read_only(&key);
 
-        self.cache
+        self.inner
+            .cache
             .insert_or_replace_with(&key, |old_graph| async move {
                 flush_graph(old_graph).await;
 
@@ -740,7 +738,8 @@ impl Data {
         let key = path.to_string();
         let path = path.to_string();
 
-        self.cache
+        self.inner
+            .cache
             .insert_or_replace_with(&key, |old_graph| async move {
                 flush_graph(old_graph).await;
 
@@ -765,9 +764,9 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let args = self.graph_args.clone();
+        let args = self.inner.graph_args.clone();
         #[cfg(feature = "vectors")]
-        let cache = self.vector_cache.clone();
+        let cache = self.inner.vector_cache.clone();
         let graph = GraphWithVectors::read_from_folder(
             &folder,
             #[cfg(feature = "vectors")]
@@ -776,7 +775,7 @@ impl Data {
         )
         .await?;
 
-        Ok(if self.read_only.is_read_only(folder.local_path()) {
+        Ok(if self.inner.read_only.is_read_only(folder.local_path()) {
             graph.into_read_only()
         } else {
             graph
@@ -1431,7 +1430,7 @@ pub(crate) mod data_tests {
         graph.set_dirty(true);
         drop(graph);
 
-        data.cache.flush_and_clear();
+        data.inner.cache.flush_and_clear();
 
         let read_folder = ExistingGraphFolder::try_from(data.work_dir_read().await, path).unwrap();
         let graph_meta = read_folder.graph_folder().read_graph_meta().unwrap();
@@ -1483,6 +1482,7 @@ pub(crate) mod data_tests {
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
         let embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
         let model = data
+            .inner
             .vector_cache
             .resolve()
             .await
@@ -1579,6 +1579,7 @@ pub(crate) mod data_tests {
         {
             let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
             let model = data
+                .inner
                 .vector_cache
                 .resolve()
                 .await
@@ -1605,6 +1606,7 @@ pub(crate) mod data_tests {
         );
 
         let model = data
+            .inner
             .vector_cache
             .resolve()
             .await
@@ -1670,6 +1672,7 @@ pub(crate) mod data_tests {
             edge_template: None,
         };
         let model = data
+            .inner
             .vector_cache
             .resolve()
             .await
@@ -1709,7 +1712,7 @@ pub(crate) mod data_tests {
                 // the graph has to be dropped for the cache to be allowed to evict it
                 drop(graph);
                 assert_eq!(
-                    data.cache.iter().count(),
+                    data.inner.cache.iter().count(),
                     1,
                     "pass {pass}: cache should hold only {name}, so the next read reloads"
                 );
@@ -1736,16 +1739,16 @@ pub(crate) mod data_tests {
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
-        assert!(!data.cache.contains_key("test_g"));
-        assert!(!data.cache.contains_key("test_g2"));
+        assert!(!data.inner.cache.contains_key("test_g"));
+        assert!(!data.inner.cache.contains_key("test_g2"));
 
         // Test size based eviction
         data.get_graph_unchecked("test_g2").await.unwrap();
-        assert!(data.cache.contains_key("test_g2"));
-        assert!(!data.cache.contains_key("test_g"));
+        assert!(data.inner.cache.contains_key("test_g2"));
+        assert!(!data.inner.cache.contains_key("test_g"));
 
         data.get_graph_unchecked("test_g").await.unwrap(); // wait for any eviction
-        assert_eq!(data.cache.iter().count(), 1);
+        assert_eq!(data.inner.cache.iter().count(), 1);
     }
 
     #[tokio::test]

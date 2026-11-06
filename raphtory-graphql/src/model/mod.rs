@@ -482,7 +482,7 @@ impl Mut {
         } else {
             ValidWriteableGraphFolder::try_new(work_dir, path)?
         };
-        let args = data.graph_args.clone();
+        let args = data.inner.graph_args.clone();
         let folder_clone = folder.clone();
         let g: MaterializedGraph =
             blocking_compute(move || url_decode_graph_at(graph, folder_clone.graph_folder(), args))

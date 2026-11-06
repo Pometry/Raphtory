@@ -972,7 +972,7 @@ mod tests {
         let embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
 
         let config = OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}"));
-        let vector_cache = data.vector_cache.resolve().await.unwrap();
+        let vector_cache = data.inner.vector_cache.resolve().await.unwrap();
         let model = vector_cache.openai(config.into()).await.unwrap();
         data.vectorise_folder(
             &ExistingGraphFolder::try_from(data.work_dir_read().await, graph_name).unwrap(),
