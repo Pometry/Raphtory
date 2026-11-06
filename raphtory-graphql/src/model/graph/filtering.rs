@@ -264,7 +264,7 @@ fn require_string_value(op: &str, v: &Value) -> Result<String, GraphError> {
     if let Value::Str(s) = v {
         Ok(s.clone())
     } else {
-        Err(GraphError::InvalidGqlFilter(format!(
+        Err(GraphError::invalid_filter(format!(
             "{op} requires a string value, got {v}"
         )))
     }
@@ -279,7 +279,7 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
             .collect::<Result<_, _>>()?;
         Ok(PropertyFilterValue::Set(Arc::new(members)))
     } else {
-        Err(GraphError::InvalidGqlFilter(format!(
+        Err(GraphError::invalid_filter(format!(
             "{op} requires a list value, got {v}"
         )))
     }
@@ -337,7 +337,7 @@ fn translate_prop_leaf_to_filter(
         And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_) | Avg(_)
         | Min(_) | Max(_) | Len(_) => {
             let op = cmp.op_name();
-            return Err(GraphError::InvalidGqlFilter(format!(
+            return Err(GraphError::invalid_filter(format!(
                 "Expected comparison at leaf for {name_for_errors}; got '{op}'"
             )));
         }

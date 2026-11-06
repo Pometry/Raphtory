@@ -83,7 +83,7 @@ impl TryFrom<NodeSortBy> for sort::NodeSortBy {
                 reverse: v.reverse == Some(true),
                 key,
             }),
-            Err(keys) => Err(GraphError::InvalidGqlFilter(format!(
+            Err(keys) => Err(GraphError::invalid_filter(format!(
                 "a node sort key must set exactly one of id/name/type/time/property, got {}",
                 keys.len()
             ))),
@@ -116,7 +116,7 @@ impl TryFrom<EdgeSortBy> for sort::EdgeSortBy {
                 reverse: v.reverse == Some(true),
                 key,
             }),
-            Err(keys) => Err(GraphError::InvalidGqlFilter(format!(
+            Err(keys) => Err(GraphError::invalid_filter(format!(
                 "an edge sort key must set exactly one of src/dst/neighbour/time/property, got {}",
                 keys.len()
             ))),
