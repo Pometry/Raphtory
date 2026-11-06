@@ -7,7 +7,7 @@ use raphtory_api::{
         edges::edge_ref::Dir,
         properties::{
             meta::Meta,
-            prop::{AsPropRef, Prop},
+            prop::{Prop, PropRef},
             tprop::TPropOps,
         },
     },
@@ -132,11 +132,12 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
-    fn check_metadata_immut<PR: AsPropRef>(
+    fn check_metadata_immut(
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, PR)],
+        prop_id: usize,
+        prop: PropRef,
     ) -> Result<(), StorageError>;
 }
 

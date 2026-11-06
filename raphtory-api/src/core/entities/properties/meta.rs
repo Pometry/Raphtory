@@ -9,14 +9,15 @@ use crate::{
         storage::{
             arc_str::ArcStr,
             dict_mapper::{
-                DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper,
+                DictMapper, LockedDictMapper, MaybeNew, PublicKeys, StagedDictMapper,
+                WriteLockedDictMapper,
             },
         },
     },
     ArcRwLockReadGuard, ArcRwLockWriteGuard,
 };
 use itertools::{Either, Itertools};
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockUpgradableReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -524,6 +525,14 @@ impl PropMapper {
         }
     }
 
+    pub fn stage(&self) -> StagedPropMapper<'_> {
+        StagedPropMapper {
+            dict_mapper: self.id_mapper.stage(),
+            d_types: self.dtypes.upgradable_read(),
+            row_size: &self.row_size,
+        }
+    }
+
     /// Write-locks only the per-layer presence bitset.
     pub fn write_locked_layer_presence(&self) -> WriteLockedLayerPresence {
         WriteLockedLayerPresence {
@@ -719,6 +728,80 @@ impl<'a> WriteLockedPropMapper<'a> {
         dtype: PropType,
     ) -> Result<Option<Either<usize, usize>>, PropError> {
         fast_proptype_check(self.dict_mapper.map(), &self.d_types, prop, dtype)
+    }
+}
+
+pub struct StagedPropMapper<'a> {
+    dict_mapper: StagedDictMapper<'a>,
+    d_types: RwLockUpgradableReadGuard<'a, Vec<PropType>>,
+    row_size: &'a AtomicUsize,
+}
+
+impl<'a> StagedPropMapper<'a> {
+    pub fn upgrade(self) -> WriteLockedPropMapper<'a> {
+        WriteLockedPropMapper {
+            dict_mapper: self.dict_mapper.upgrade(),
+            d_types: RwLockUpgradableReadGuard::upgrade(self.d_types),
+            row_size: self.row_size,
+        }
+    }
+
+    pub fn get_id(&self, prop: &str) -> Option<usize> {
+        self.dict_mapper.get_id(prop)
+    }
+
+    /// Try to resolve a previously unresolved property and unify types when needed
+    ///
+    /// Outcomes:
+    ///     - `Ok(None)` if the property still does not exist
+    ///     - `Ok(Some(Either::Left(id, unified_type)))` if the property exists and needs unification
+    ///     - `Ok(Some(Either::Right(id)` if the property exists and does not need unification
+    ///     - `Err(err)` if the property exists and types are not compatible
+    pub fn resolve_and_unify(
+        &self,
+        prop: &str,
+        dtype: PropType,
+    ) -> Result<Option<Either<(usize, PropType), usize>>, PropError> {
+        match self.get_id(prop) {
+            Some(id) => match self.recheck_and_unify(prop, id, dtype)? {
+                Some(unified_type) => Ok(Some(Either::Left((id, unified_type)))),
+                None => Ok(Some(Either::Right(id))),
+            },
+            None => Ok(None),
+        }
+    }
+
+    /// Recheck the need for unification for an already resolved property.
+    /// Outcomes are `Ok(None)` if no unification is needed, `Ok(Some(PropType)` if types are compatible
+    /// but need to be unified, and `Err(PropError)` if the types are incompatible.
+    pub fn recheck_and_unify(
+        &self,
+        prop: &str,
+        id: usize,
+        dtype: PropType,
+    ) -> Result<Option<PropType>, PropError> {
+        let existing_dtype = self
+            .d_types
+            .get(id)
+            .expect("existing property ids should always have a type");
+        let outcome = check_for_unification(existing_dtype, &dtype);
+        match outcome {
+            None => Ok(None),
+            Some(can_unify) => {
+                if can_unify {
+                    let mut unified = false;
+                    let unified_type = unify_types(existing_dtype, &dtype, &mut unified)
+                        .map_err(|err| err.with_name(prop.to_string()))?;
+                    Ok(Some(unified_type))
+                } else {
+                    Err(PropError {
+                        name: prop.to_string(),
+                        expected: existing_dtype.clone(),
+                        actual: dtype,
+                    })
+                }
+            }
+        }
     }
 }
 

@@ -20,7 +20,7 @@ use raphtory::{
 use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    mutation::addition_ops::{GraphMutationOps, InternalAdditionOps},
 };
 use raphtory_tests::{
     assertions::assert_ok_or_missing_edges,
@@ -52,7 +52,7 @@ fn build_filtered_graph(
         }
     }
     if !edges.is_empty() {
-        g.resolve_layer(None).unwrap();
+        g.mutable().unwrap().resolve_layer(None);
     }
     g
 }
@@ -62,6 +62,7 @@ fn build_filtered_nodes_graph(
     filter: impl Fn(i64) -> bool,
 ) -> Graph {
     let g = Graph::new();
+    let mutable = g.mutable().unwrap();
     for (src, dst, t, str_prop, int_prop) in edges {
         if filter(*int_prop) {
             g.add_edge(
@@ -76,11 +77,11 @@ fn build_filtered_nodes_graph(
             )
             .unwrap();
         }
-        g.atomic_add_node(src.as_node_ref()).unwrap();
-        g.atomic_add_node(dst.as_node_ref()).unwrap();
+        mutable.atomic_add_node(src.as_node_ref(), None).unwrap();
+        mutable.atomic_add_node(dst.as_node_ref(), None).unwrap();
     }
     if !edges.is_empty() {
-        g.resolve_layer(None).unwrap();
+        mutable.resolve_layer(None);
     }
     g
 }
@@ -92,7 +93,7 @@ fn build_filtered_persistent_graph(
     let g = PersistentGraph::new();
     let g_filtered = PersistentGraph::new();
     if !edges.iter().all(|(_, v)| v.is_empty()) {
-        g_filtered.resolve_layer(None).unwrap();
+        g_filtered.mutable().unwrap().resolve_layer(None);
     }
     for ((src, dst), updates) in edges {
         for (t, update) in updates {
@@ -129,7 +130,7 @@ fn build_filtered_persistent_graph(
                     } else {
                         g_filtered.delete_edge(t, src, dst, None).unwrap();
                         // properties still exist after filtering
-                        let session = g_filtered.write_session().unwrap();
+                        let session = g_filtered.mutable().unwrap();
                         session
                             .resolve_edge_property("str_prop", PropType::Str, false)
                             .unwrap();
@@ -185,7 +186,7 @@ fn test_one_edge() {
         .filter(ExplodedEdgeFilter.property("int_prop").gt(1i64))
         .unwrap();
     let gf = Graph::new();
-    gf.resolve_layer(None).unwrap();
+    gf.mutable().unwrap().resolve_layer(None);
     assert_eq!(filtered.count_nodes(), 0);
     assert_eq!(filtered.count_edges(), 0);
     assert_graph_equal(&filtered, &gf);
@@ -237,7 +238,7 @@ fn test_filter_persistent_single_filtered_edge() {
     expected.delete_edge(0, 0, 0, None).unwrap();
     //the property still exists!
     expected
-        .write_session()
+        .mutable()
         .unwrap()
         .resolve_edge_property("test", PropType::I64, false)
         .unwrap();

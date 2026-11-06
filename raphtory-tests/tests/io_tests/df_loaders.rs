@@ -26,10 +26,7 @@ mod io_tests {
         entities::{LayerIds, VID},
         storage::arc_str::ArcStr,
     };
-    use raphtory_storage::{
-        core_ops::CoreGraphOps,
-        mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
-    };
+    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
     use raphtory_tests::utils::{
         build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index,
     };
@@ -668,13 +665,10 @@ mod io_tests {
         assert_graph_equal(&g, &g2);
 
         // Both graphs should have the same event_id / secondary_index
-        assert_eq!(
-            g.write_session().unwrap().read_event_id().unwrap(),
-            g2.write_session().unwrap().read_event_id().unwrap(),
-        );
+        assert_eq!(g.read_event_id(), g2.read_event_id(),);
 
         assert_eq!(
-            g.write_session().unwrap().read_event_id().unwrap(),
+            g.read_event_id(),
             10 // max secondary index in edges
         );
     }
@@ -734,12 +728,12 @@ mod io_tests {
 
             // Both graphs should have the same event_id / secondary_index
             assert_eq!(
-                g.write_session().unwrap().read_event_id().unwrap(),
-                g2.write_session().unwrap().read_event_id().unwrap(),
+                g.read_event_id(),
+                g2.read_event_id(),
             );
 
             assert_eq!(
-                g.write_session().unwrap().read_event_id().unwrap(),
+                g.read_event_id(),
                 max_secondary_index
             );
         })
@@ -834,13 +828,10 @@ mod io_tests {
         assert_graph_equal(&g, &g2);
 
         // Both graphs should have the same event_id / secondary_index
-        assert_eq!(
-            g.write_session().unwrap().read_event_id().unwrap(),
-            g2.write_session().unwrap().read_event_id().unwrap(),
-        );
+        assert_eq!(g.read_event_id(), g2.read_event_id(),);
 
         assert_eq!(
-            g.write_session().unwrap().read_event_id().unwrap(),
+            g.read_event_id(),
             10 // max secondary index in nodes
         );
 

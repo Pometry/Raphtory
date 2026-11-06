@@ -17,7 +17,7 @@ use raphtory_api::{
             LayerId,
             properties::{
                 meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
-                prop::{AsPropRef, Prop, PropUnwrap, prop_hashable::HashableProp},
+                prop::{AsPropRef, Prop, PropRef, PropUnwrap, prop_hashable::HashableProp},
                 tprop::TPropOps,
             },
         },
@@ -292,11 +292,12 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn get_metadata_immut(&self, pos: LocalPOS, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
-    fn check_metadata_immut<P: AsPropRef>(
+    fn check_metadata_immut(
         &self,
         pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, P)],
+        prop_id: usize,
+        prop_ref: PropRef,
     ) -> Result<(), StorageError>;
 }
 

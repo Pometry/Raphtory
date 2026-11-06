@@ -49,9 +49,9 @@ use raphtory_core::entities::{
 use raphtory_storage::{
     durability_ops::DurabilityOps,
     graph::edges::edge_storage_ops::EdgeStorageOps,
-    mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps},
-        property_addition_ops::InternalPropertyAdditionOps,
+    mutation::addition_ops::{
+        EdgeWriteLock, GraphMutationOps, InternalAdditionOps, MetadataMutationOps,
+        PropertyMutationOps, SetLsn,
     },
 };
 use std::{
@@ -162,27 +162,22 @@ impl<G: GraphView> EdgeView<G> {
     }
 }
 
-impl<
-        G: StaticGraphViewOps
-            + InternalAdditionOps<Error = GraphError>
-            + InternalPropertyAdditionOps<Error = GraphError>,
-    > EdgeView<G>
-{
+impl<G: StaticGraphViewOps + InternalAdditionOps> EdgeView<G> {
     pub fn delete<T: TryIntoInputTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
-        let transaction_manager = self.graph.core_graph().transaction_manager()?;
-        let wal = self.graph.core_graph().wal()?;
+        let mutable_graph = self.graph.mutable()?;
+        let transaction_manager = mutable_graph.transaction_manager()?;
+        let wal = mutable_graph.wal()?;
         let transaction_id = transaction_manager.begin_transaction();
         let src = self.src();
         let dst = self.dst();
         let edge_id = self.edge.pid();
 
-        let layer_id = self.resolve_layer(layer, true)?;
         let t = time_from_input(&self.graph, t)?;
 
-        let mut writer = self
-            .graph
+        let mut writer = mutable_graph
             .atomic_add_edge(src.as_node_ref(), dst.as_node_ref(), None)
             .map_err(into_graph_err)?;
+        let layer_id = self.resolve_layer(layer, true)?;
 
         let src_name = None;
         let dst_name = None;
@@ -305,10 +300,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
                     })?,
                 None => {
                     if create {
-                        self.graph
-                            .resolve_layer(layer)
-                            .map_err(into_graph_err)?
-                            .inner()
+                        self.graph.mutable()?.resolve_layer(layer).inner()
                     } else {
                         self.graph.get_layer_id(name).ok_or_else(|| {
                             InvalidLayer::new(
@@ -332,11 +324,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
                     // call spelled two ways, behaving differently.
                     None => match self.graph.get_default_layer_id() {
                         Some(id) => id,
-                        None if create => self
-                            .graph
-                            .resolve_layer(None)
-                            .map_err(into_graph_err)?
-                            .inner(),
+                        None if create => self.graph.mutable()?.resolve_layer(None).inner(),
                         None => return Err(GraphError::no_default_layer(&self.graph)),
                     },
                 }
@@ -345,10 +333,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         Ok(layer_id)
     }
 
-    fn resolve_and_check_layer_for_metadata(
-        &self,
-        layer: Option<&str>,
-    ) -> Result<LayerId, GraphError> {
+    fn get_and_check_layer_for_metadata(&self, layer: Option<&str>) -> Result<LayerId, GraphError> {
         let create = false;
         let layer_id = self.resolve_layer(layer, create)?;
 
@@ -409,47 +394,34 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         layer: Option<&str>,
         is_update: bool,
     ) -> Result<(), GraphError> {
-        let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
-        let transaction_manager = self.graph.core_graph().transaction_manager()?;
-        let wal = self.graph.core_graph().wal()?;
+        // this never creates the layer
+        let input_layer_id = self.get_and_check_layer_for_metadata(layer)?;
+        let mutable_graph = self.graph.mutable()?;
+        let transaction_manager = mutable_graph.transaction_manager()?;
+        let wal = mutable_graph.wal()?;
         let transaction_id = transaction_manager.begin_transaction();
 
-        let (props_with_status, _) = self.graph.core_graph().validate_props_with_status(
-            true,
-            self.graph.edge_meta(),
-            || Ok(input_layer_id),
-            properties.into_iter().map(|(n, p)| (n, p.into())),
-        )?;
-
-        let props = props_with_status
+        let validated_props =
+            mutable_graph.validate_props(true, mutable_graph.edge_meta(), properties)?;
+        let mut writer = mutable_graph.atomic_update_edge(self.edge);
+        if !is_update {
+            writer.check_metadata(input_layer_id, validated_props.resolved())?;
+        }
+        // we are modifying the graph at this point, no failure allowed!
+        let (prop_names, props) = validated_props.into_props_and_names();
+        mutable_graph
+            .edge_meta()
+            .metadata_mapper()
+            .mark_props_in_layer(input_layer_id, props.iter().map(|(id, _)| *id));
+        let props_for_wal = prop_names
             .iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.as_ref().inner();
-                (*prop_id, prop.clone())
-            })
+            .zip(props.iter())
+            .map(|(prop_name, (prop_id, prop))| (prop_name.as_ref(), *prop_id, prop.clone()))
             .collect::<Vec<_>>();
 
         let eid = self.edge.pid();
-
-        let mut writer = if is_update {
-            self.graph
-                .internal_update_edge_metadata(eid, input_layer_id, props)
-                .map_err(into_graph_err)?
-        } else {
-            self.graph
-                .internal_add_edge_metadata(eid, input_layer_id, props)
-                .map_err(into_graph_err)?
-        };
-
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
         let lsn = wal.log_add_edge_metadata(transaction_id, eid, input_layer_id, props_for_wal)?;
+        writer.update_metadata(input_layer_id, props);
 
         writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);
@@ -473,23 +445,13 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         props: PII,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let transaction_manager = self.graph.core_graph().transaction_manager()?;
-        let wal = self.graph.core_graph().wal()?;
+        let mutable_graph = self.graph.mutable()?;
+        let transaction_manager = mutable_graph.transaction_manager()?;
+        let wal = mutable_graph.wal()?;
         let transaction_id = transaction_manager.begin_transaction();
-        let session = self.graph.write_session().map_err(|err| err.into())?;
-
-        let t = time_from_input_session(&session, time)?;
-        let layer_id = self.resolve_layer(layer, true)?;
-
-        let (props_with_status, _) = self
-            .graph
-            .validate_props_with_status(
-                false,
-                self.graph.edge_meta(),
-                || Ok(layer_id),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
-            .map_err(into_graph_err)?;
+        let t = time_from_input_session(&mutable_graph, time)?;
+        let validated_props =
+            mutable_graph.validate_props(false, mutable_graph.edge_meta(), props)?;
 
         let src = self.src().node;
         let src_name = None;
@@ -497,21 +459,22 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         let dst_name = None;
         let edge_id = self.edge.pid();
 
-        let mut writer = self
-            .graph
-            .atomic_add_edge(
-                NodeRef::Internal(src),
-                NodeRef::Internal(dst),
-                Some(edge_id),
-            )
-            .map_err(into_graph_err)?;
+        let mut writer = mutable_graph.atomic_add_edge(
+            NodeRef::Internal(src),
+            NodeRef::Internal(dst),
+            Some(edge_id),
+        )?;
+        let layer_id = self.resolve_layer(layer, true)?;
 
-        let props_for_wal = props_with_status
+        let (prop_names, props) = validated_props.into_props_and_names();
+        mutable_graph
+            .edge_meta()
+            .temporal_prop_mapper()
+            .mark_props_in_layer(layer_id, props.iter().map(|(id, _)| *id));
+        let props_for_wal = prop_names
             .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
+            .zip(props.iter())
+            .map(|(prop_name, (prop_id, prop))| (prop_name.as_ref(), *prop_id, prop.clone()))
             .collect::<Vec<_>>();
 
         let lsn = wal
@@ -529,15 +492,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             )
             .map_err(into_graph_err)?;
 
-        let props = props_with_status
-            .into_iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.inner();
-                (prop_id, prop)
-            })
-            .collect::<Vec<_>>();
-
-        writer.internal_add_update(t, layer_id, props);
+        writer.update_properties(t, layer_id, props);
 
         writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);
