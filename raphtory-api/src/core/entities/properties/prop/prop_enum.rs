@@ -1252,6 +1252,19 @@ pub fn list_array_from_props<P: Serialize + fmt::Debug + Clone>(
     Ok(arrays.first().unwrap().as_list::<i64>().clone())
 }
 
+/// `props` as one Arrow array of type `dt`, null where a value is `None`.
+pub fn array_from_props<P: Serialize>(
+    dt: &DataType,
+    props: impl IntoIterator<Item = Option<P>>,
+) -> Result<ArrayRef, serde_arrow::Error> {
+    let fields = [FieldRef::new(Field::new("value", dt.clone(), true))];
+    let mut builder = ArrayBuilder::from_arrow(&fields)?;
+    for value in props {
+        builder.push(SerdeRow { value })?;
+    }
+    Ok(builder.to_arrow()?.remove(0))
+}
+
 pub fn struct_array_from_props<P: Serialize>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,

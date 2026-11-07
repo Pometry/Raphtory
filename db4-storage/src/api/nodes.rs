@@ -7,6 +7,8 @@ use crate::{
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
 };
+use arrow_array::{ArrayRef, new_null_array};
+use arrow_schema::DataType;
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
@@ -17,7 +19,10 @@ use raphtory_api::{
             LayerId,
             properties::{
                 meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
-                prop::{AsPropRef, Prop, PropUnwrap, prop_hashable::HashableProp},
+                prop::{
+                    AsPropRef, Prop, PropUnwrap, SerdeArrowProp, array_from_props,
+                    prop_hashable::HashableProp,
+                },
                 tprop::TPropOps,
             },
         },
@@ -309,6 +314,31 @@ pub trait LockedNSSegment: Debug + Send + Sync {
 
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>;
 
+    /// The latest value of each temporal property `(id, declared Arrow type)` in `props`, over
+    /// every layer, of the node at each of `positions`: one array of the declared type per
+    /// property, aligned with `positions`, null where a node has none. This default reads node
+    /// by node; a backend can read its columns directly.
+    fn last_prop_values(
+        &self,
+        props: &[(usize, DataType)],
+        positions: &[LocalPOS],
+    ) -> Result<Vec<ArrayRef>, StorageError> {
+        last_prop_values_by_node(self, props, positions)
+    }
+
+    /// The value of each constant property `(id, declared Arrow type)` in `props` in layer
+    /// `layer_id`, of the node at each of `positions`: one array of the declared type per
+    /// property, aligned with `positions`, null where a node has none. This default reads node
+    /// by node; a backend can read its columns directly.
+    fn metadata_values(
+        &self,
+        props: &[(usize, DataType)],
+        layer_id: LayerId,
+        positions: &[LocalPOS],
+    ) -> Result<Vec<ArrayRef>, StorageError> {
+        metadata_values_by_node(self, props, layer_id, positions)
+    }
+
     fn iter_entries<'a>(&'a self) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
         let num_nodes = self.num_nodes();
         (0..num_nodes).map(move |vid| self.entry_ref(LocalPOS(vid)))
@@ -322,6 +352,56 @@ pub trait LockedNSSegment: Debug + Send + Sync {
             .into_par_iter()
             .map(move |vid| self.entry_ref(LocalPOS(vid)))
     }
+}
+
+/// [`LockedNSSegment::last_prop_values`] read node by node through [`NodeRefOps`].
+pub fn last_prop_values_by_node<S: LockedNSSegment + ?Sized>(
+    segment: &S,
+    props: &[(usize, DataType)],
+    positions: &[LocalPOS],
+) -> Result<Vec<ArrayRef>, StorageError> {
+    props_by_node(props, positions, |pos, prop_id| {
+        let node = segment.entry_ref(pos);
+        (0..node.internal_num_layers())
+            .filter_map(|layer| node.temporal_prop_layer(LayerId(layer), prop_id).last())
+            .max_by_key(|(t, _)| *t)
+            .map(|(_, value)| value)
+    })
+}
+
+/// [`LockedNSSegment::metadata_values`] read node by node through [`NodeRefOps`].
+pub fn metadata_values_by_node<S: LockedNSSegment + ?Sized>(
+    segment: &S,
+    props: &[(usize, DataType)],
+    layer_id: LayerId,
+    positions: &[LocalPOS],
+) -> Result<Vec<ArrayRef>, StorageError> {
+    props_by_node(props, positions, |pos, prop_id| {
+        segment.entry_ref(pos).c_prop(layer_id, prop_id)
+    })
+}
+
+/// One array of its declared type per property in `props`, of `value(position, prop_id)`.
+fn props_by_node(
+    props: &[(usize, DataType)],
+    positions: &[LocalPOS],
+    value: impl Fn(LocalPOS, usize) -> Option<Prop>,
+) -> Result<Vec<ArrayRef>, StorageError> {
+    let mut values: Vec<Option<Prop>> = Vec::with_capacity(positions.len());
+    (props.iter())
+        .map(|(prop_id, dtype)| {
+            values.clear();
+            values.extend(positions.iter().map(|&pos| value(pos, *prop_id)));
+            if values.iter().all(Option::is_none) {
+                return Ok(new_null_array(dtype, values.len()));
+            }
+            let values = values
+                .iter()
+                .map(|value| value.as_ref().map(SerdeArrowProp));
+            array_from_props(dtype, values)
+                .map_err(|e| StorageError::GenericFailure(format!("property {prop_id}: {e}")))
+        })
+        .collect()
 }
 
 pub trait NodeEntryOps<'a>: Send + Sync + 'a {

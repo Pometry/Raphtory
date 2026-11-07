@@ -2285,6 +2285,7 @@ dependencies = [
  "ahash",
  "arrow-array",
  "arrow-schema",
+ "arrow-select",
  "bigdecimal",
  "boxcar",
  "chrono",
