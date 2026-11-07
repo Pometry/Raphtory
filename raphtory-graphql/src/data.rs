@@ -220,27 +220,6 @@ impl WorkDirReadGuard {
     }
 }
 
-impl PartialEq for WorkDirReadGuard {
-    fn eq(&self, other: &Self) -> bool {
-        self.path() == other.path()
-    }
-}
-
-impl Eq for WorkDirReadGuard {}
-
-#[allow(clippy::non_canonical_partial_ord_impl)]
-impl PartialOrd for WorkDirReadGuard {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.path().partial_cmp(other.path())
-    }
-}
-
-impl Ord for WorkDirReadGuard {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.path().cmp(other.path())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct WorkDirWriteGuard {
     _guard: Arc<OwnedRwLockWriteGuard<()>>,
@@ -266,27 +245,6 @@ impl WorkDirWriteGuard {
         } else {
             ValidWriteableGraphFolder::try_new(self, path)
         }
-    }
-}
-
-impl PartialEq for WorkDirWriteGuard {
-    fn eq(&self, other: &Self) -> bool {
-        self.path() == other.path()
-    }
-}
-
-impl Eq for WorkDirWriteGuard {}
-
-#[allow(clippy::non_canonical_partial_ord_impl)]
-impl PartialOrd for WorkDirWriteGuard {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.path().partial_cmp(other.path())
-    }
-}
-
-impl Ord for WorkDirWriteGuard {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.path().cmp(other.path())
     }
 }
 
