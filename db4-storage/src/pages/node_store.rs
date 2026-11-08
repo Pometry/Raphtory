@@ -17,7 +17,7 @@ use crate::{
 };
 use arrow_array::{Array, ArrayRef, new_empty_array};
 use arrow_schema::DataType;
-use arrow_select::interleave::interleave;
+use arrow_select::{concat::concat, interleave::interleave};
 use parking_lot::RwLock;
 use raphtory_api::{
     ArcRwLockWriteGuard,
@@ -138,6 +138,50 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         nodes: &[VID],
         read: impl Fn(&NS::ArcLockedSegment, &[LocalPOS]) -> Result<Vec<ArrayRef>, StorageError>,
     ) -> Result<Vec<ArrayRef>, StorageError> {
+        let segment_of = |node: VID| self.storage.resolve_pos(node);
+        let locked = |segment_id: usize, node: VID| {
+            self.segments.get(segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!("node {node:?} is out of range"))
+            })
+        };
+        // Nodes already in segment order (as a scan yields them) are read in one pass, without
+        // sorting; a node out of order sends them all to the sorting path below.
+        let mut parts: Vec<Vec<ArrayRef>> = Vec::new();
+        let mut positions = Vec::new();
+        let mut current: Option<(usize, VID)> = None;
+        let mut grouped = true;
+        for &node in nodes {
+            let (segment_id, pos) = segment_of(node);
+            if let Some((id, first)) = current.filter(|&(id, _)| id != segment_id) {
+                if id > segment_id {
+                    grouped = false;
+                    break;
+                }
+                parts.push(read(locked(id, first)?, &positions)?);
+                positions.clear();
+                current = None;
+            }
+            current.get_or_insert((segment_id, node));
+            positions.push(pos);
+        }
+        if grouped {
+            if let Some((id, first)) = current {
+                parts.push(read(locked(id, first)?, &positions)?);
+            }
+            if parts.len() == 1 {
+                return Ok(parts.pop().unwrap());
+            }
+            return (props.iter().enumerate())
+                .map(|(column, (_, dtype))| {
+                    let arrays: Vec<&dyn Array> =
+                        parts.iter().map(|part| part[column].as_ref()).collect();
+                    Ok(match arrays.is_empty() {
+                        true => new_empty_array(dtype),
+                        false => concat(&arrays)?,
+                    })
+                })
+                .collect();
+        }
         // (segment, position, place in `nodes`), grouped by segment in `nodes` order.
         let mut order: Vec<(usize, LocalPOS, usize)> = (nodes.iter().enumerate())
             .map(|(at, &node)| {
@@ -146,26 +190,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             })
             .collect();
         order.sort_by_key(|&(segment, _, _)| segment);
-        let mut parts: Vec<Vec<ArrayRef>> = Vec::new();
+        parts.clear();
         let mut at = vec![(0, 0); nodes.len()];
-        let mut positions = Vec::new();
         for group in order.chunk_by(|a, b| a.0 == b.0) {
-            let segment = self.segments.get(group[0].0).ok_or_else(|| {
-                StorageError::GenericFailure(format!(
-                    "node {:?} is out of range",
-                    nodes[group[0].2]
-                ))
-            })?;
+            let segment = locked(group[0].0, nodes[group[0].2])?;
             positions.clear();
             positions.extend(group.iter().map(|&(_, pos, _)| pos));
             for (row, &(_, _, place)) in group.iter().enumerate() {
                 at[place] = (parts.len(), row);
             }
             parts.push(read(segment, &positions)?);
-        }
-        let in_order = (at.iter().enumerate()).all(|(row, &(part, at))| part == 0 && at == row);
-        if parts.len() == 1 && in_order {
-            return Ok(parts.pop().unwrap());
         }
         (props.iter().enumerate())
             .map(|(column, (_, dtype))| {
