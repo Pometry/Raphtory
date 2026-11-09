@@ -46,6 +46,7 @@ pub mod config;
 pub mod data;
 mod graph;
 pub mod model;
+mod nesting_depth;
 pub mod observability;
 mod paths;
 pub mod rayon;

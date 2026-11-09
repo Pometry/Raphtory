@@ -2,6 +2,7 @@ use field_types::FieldName;
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_DISABLE_INTROSPECTION: bool = false;
+pub const DEFAULT_MAX_NESTING_DEPTH: usize = 128;
 
 /// Controls GraphQL schema-level protections applied when the server builds its schema.
 #[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize, FieldName)]
@@ -18,6 +19,12 @@ pub struct SchemaConfig {
     /// Internal safety limit to prevent stack overflows from pathologically structured
     /// queries. `None` falls back to the async-graphql default of 32.
     pub max_recursive_depth: Option<usize>,
+
+    /// Limits how deeply `{`, `[` and `(` may nest anywhere in a query, argument values
+    /// included, checked before the query is parsed. Prevents stack overflows from deeply
+    /// nested arguments, which `max_recursive_depth` does not count. `None` falls back to
+    /// `DEFAULT_MAX_NESTING_DEPTH`.
+    pub max_nesting_depth: Option<usize>,
 
     /// Limits the number of GraphQL directives on any single field. Directives are
     /// annotations prefixed with @ that modify how a field is executed (e.g. @skip,
