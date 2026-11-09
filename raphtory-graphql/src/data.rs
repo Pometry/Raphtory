@@ -17,8 +17,9 @@ use crate::{
         },
     },
     paths::{
-        get_relative_path, mark_dirty, ExistingGraphFolder, InternalPathValidationError,
-        PathValidationError, UnlockedGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder,
+        get_relative_path, mark_dirty, validate_path_for_namespace_create, ExistingGraphFolder,
+        InternalPathValidationError, PathValidationError, UnlockedGraphFolder, ValidGraphPaths,
+        ValidWriteableGraphFolder,
     },
     rayon::blocking_compute,
     GQLError,
@@ -573,7 +574,7 @@ impl Data {
     pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
         let work_dir = self.inner.work_dir.write().await;
         let target =
-            crate::paths::validate_path_for_namespace_create(work_dir.to_path_buf(), path)?;
+            validate_path_for_namespace_create(work_dir.to_path_buf(), path)?;
         let mut cleanup_root = target.as_path();
         while let Some(parent) = cleanup_root.parent() {
             if parent.is_dir() {
