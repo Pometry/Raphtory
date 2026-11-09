@@ -1,4 +1,7 @@
-use crate::model::graph::{filter_expr_input::GqlFilter, property::Value, timeindex::GqlTimeInput};
+use crate::{
+    model::graph::{filter_expr_input::GqlFilter, property::Value, timeindex::GqlTimeInput},
+    GQLError,
+};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -6,12 +9,9 @@ use dynamic_graphql::{
     },
     InputObject, OneOfInput,
 };
-use raphtory::{
-    db::graph::views::filter::model::{
-        filter_operator::FilterOperator,
-        property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-    },
-    errors::GraphError,
+use raphtory::db::graph::views::filter::model::{
+    filter_operator::FilterOperator,
+    property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
 };
 use raphtory_api::core::entities::properties::prop::{prop_hashable::HashableProp, Prop};
 use serde::{Deserialize, Serialize};
@@ -260,17 +260,17 @@ fn peel_prop_wrappers_and_collect_ops<'a>(
     }
 }
 
-fn require_string_value(op: &str, v: &Value) -> Result<String, GraphError> {
+fn require_string_value(op: &str, v: &Value) -> Result<String, GQLError> {
     if let Value::Str(s) = v {
         Ok(s.clone())
     } else {
-        Err(GraphError::invalid_filter(format!(
+        Err(GQLError::InvalidFilter(format!(
             "{op} requires a string value, got {v}"
         )))
     }
 }
 
-fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, GraphError> {
+fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, GQLError> {
     if let Value::List(vs) = v {
         let members = vs
             .iter()
@@ -279,7 +279,7 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
             .collect::<Result<_, _>>()?;
         Ok(PropertyFilterValue::Set(Arc::new(members)))
     } else {
-        Err(GraphError::invalid_filter(format!(
+        Err(GQLError::InvalidFilter(format!(
             "{op} requires a list value, got {v}"
         )))
     }
@@ -288,11 +288,11 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
 fn translate_prop_leaf_to_filter(
     name_for_errors: &str,
     cmp: &PropCondition,
-) -> Result<(FilterOperator, PropertyFilterValue), GraphError> {
+) -> Result<(FilterOperator, PropertyFilterValue), GQLError> {
     use FilterOperator as FO;
     use PropCondition::*;
 
-    let single = |v: &Value| -> Result<PropertyFilterValue, GraphError> {
+    let single = |v: &Value| -> Result<PropertyFilterValue, GQLError> {
         Ok(PropertyFilterValue::Single(Prop::try_from(v.clone())?))
     };
 
@@ -337,7 +337,7 @@ fn translate_prop_leaf_to_filter(
         And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_) | Avg(_)
         | Min(_) | Max(_) | Len(_) => {
             let op = cmp.op_name();
-            return Err(GraphError::invalid_filter(format!(
+            return Err(GQLError::InvalidFilter(format!(
                 "Expected comparison at leaf for {name_for_errors}; got '{op}'"
             )));
         }
@@ -348,7 +348,7 @@ pub(crate) fn build_property_filter_from_condition_with_entity<M: Clone + Send +
     prop_ref: PropertyRef,
     cond: &PropCondition,
     entity: M,
-) -> Result<PropertyFilter<M>, GraphError> {
+) -> Result<PropertyFilter<M>, GQLError> {
     let mut ops: Vec<Op> = Vec::new();
     let mut cursor = cond;
     while let Some(inner) = peel_prop_wrappers_and_collect_ops(cursor, &mut ops) {
