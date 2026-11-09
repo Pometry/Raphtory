@@ -373,7 +373,7 @@ impl GqlNode {
     /// Returns bounds on the number of unique counter parties for this node, counting them
     /// exactly only when that walks at most `threshold` adjacency entries. Otherwise the bounds
     /// are read from the node's adjacency sizes, ignoring any window or filter, so in a windowed
-    /// or filtered view the lower bound drops to 0. Equal bounds mean the degree is exact.
+    /// or filtered view the lower bound drops to 0.
     pub async fn approximate_degree(
         &self,
         #[graphql(

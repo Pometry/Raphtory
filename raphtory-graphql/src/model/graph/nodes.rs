@@ -29,6 +29,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::utils::time::IntoTime;
+use rayon::iter::ParallelIterator;
 
 /// A lazy collection of nodes from a graph view. Supports all the same view
 /// transforms as `Graph` (window, layer, filter, ...) plus pagination and
@@ -338,8 +339,12 @@ impl GqlNodes {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
         Ok(blocking_compute(move || {
-            let bounds = self_clone.nn.approx_degree(threshold).collect_vec();
-            bounds.into_iter().map(GqlDegreeBounds::from).collect()
+            self_clone
+                .nn
+                .approx_degree(threshold)
+                .into_par_iter_values()
+                .map(GqlDegreeBounds::from)
+                .collect()
         })
         .await)
     }
@@ -359,8 +364,12 @@ impl GqlNodes {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
         Ok(blocking_compute(move || {
-            let bounds = self_clone.nn.approx_in_degree(threshold).collect_vec();
-            bounds.into_iter().map(GqlDegreeBounds::from).collect()
+            self_clone
+                .nn
+                .approx_in_degree(threshold)
+                .into_par_iter_values()
+                .map(GqlDegreeBounds::from)
+                .collect()
         })
         .await)
     }
@@ -380,8 +389,12 @@ impl GqlNodes {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
         Ok(blocking_compute(move || {
-            let bounds = self_clone.nn.approx_out_degree(threshold).collect_vec();
-            bounds.into_iter().map(GqlDegreeBounds::from).collect()
+            self_clone
+                .nn
+                .approx_out_degree(threshold)
+                .into_par_iter_values()
+                .map(GqlDegreeBounds::from)
+                .collect()
         })
         .await)
     }

@@ -183,7 +183,12 @@ impl<G: GraphView> NodeOp for Degree<G> {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
         let node = storage.core_node(node);
-        exact_degree(&self.view, &node, self.dir)
+        if matches!(self.view.filter_state(), FilterState::Neither) {
+            node.degree(self.view.layer_ids(), self.dir)
+        } else {
+            node.filtered_neighbours_iter(&self.view, self.view.layer_ids(), self.dir)
+                .count()
+        }
     }
 }
 
@@ -192,20 +197,6 @@ impl<G: GraphView> ArrowNodeOp for Degree<G> {
 }
 
 impl<G: GraphView + 'static> IntoDynNodeOp for Degree<G> {}
-
-/// The degree of `node` in `view`.
-fn exact_degree<'a, G: GraphView + 'a, N: NodeStorageOps<'a>>(
-    view: &'a G,
-    node: N,
-    dir: Direction,
-) -> usize {
-    if matches!(view.filter_state(), FilterState::Neither) {
-        node.degree(view.layer_ids(), dir)
-    } else {
-        node.filtered_neighbours_iter(view, view.layer_ids(), dir)
-            .count()
-    }
-}
 
 /// Bounds on the degree of a node. `lower == upper` means the degree is exact.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -223,11 +214,7 @@ impl DegreeBounds {
     }
 }
 
-/// The degree of a node, computed exactly only when that is cheap; otherwise bounds on it.
-///
-/// Counting the degree exactly walks the node's adjacency entries (and, in a filtered view such as
-/// a window, checks each of their edges against the filter). That is only done when there are at
-/// most `threshold` entries to walk; otherwise the bounds come from the adjacency sizes alone.
+/// The op behind `NodeViewOps::approx_degree` and co.
 #[derive(Debug, Clone)]
 pub struct ApproxDegree<G> {
     pub(crate) dir: Direction,
@@ -244,23 +231,24 @@ impl<G: GraphView> NodeOp for ApproxDegree<G> {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> DegreeBounds {
         let node = storage.core_node(node);
-        let bounds = unfiltered_degree_bounds(&node, self.view.layer_ids(), self.dir);
-        // `bounds.upper` is also the number of adjacency entries an exact count walks.
-        if matches!(self.view.filter_state(), FilterState::Neither) {
-            if bounds.lower == bounds.upper || bounds.upper > self.threshold {
-                bounds
-            } else {
-                DegreeBounds::exact(exact_degree(&self.view, &node, self.dir))
-            }
-        } else if bounds.upper <= self.threshold {
-            DegreeBounds::exact(exact_degree(&self.view, &node, self.dir))
-        } else {
+        let layer_ids = self.view.layer_ids();
+        let unfiltered = matches!(self.view.filter_state(), FilterState::Neither);
+        let mut bounds = unfiltered_degree_bounds(&node, layer_ids, self.dir);
+        if !unfiltered {
             // A window or filter only ever drops neighbours, so the unfiltered upper bound still
             // holds, but without checking the edges any of them may have been dropped.
-            DegreeBounds {
-                lower: 0,
-                upper: bounds.upper,
-            }
+            bounds.lower = 0;
+        }
+        // `bounds.upper` is also the number of adjacency entries an exact count walks.
+        if bounds.lower == bounds.upper || bounds.upper > self.threshold {
+            bounds
+        } else if unfiltered {
+            DegreeBounds::exact(node.degree(layer_ids, self.dir))
+        } else {
+            DegreeBounds::exact(
+                node.filtered_neighbours_iter(&self.view, layer_ids, self.dir)
+                    .count(),
+            )
         }
     }
 }
@@ -278,29 +266,9 @@ fn unfiltered_degree_bounds<'a, N: NodeStorageOps<'a>>(
     layer_ids: &LayerIds,
     dir: Direction,
 ) -> DegreeBounds {
-    match layer_ids {
-        LayerIds::None => DegreeBounds::exact(0),
-        LayerIds::All | LayerIds::One(_) => layer_degree_bounds(node, layer_ids, dir),
-        LayerIds::Multiple(ids) => ids.iter().fold(DegreeBounds::exact(0), |bounds, id| {
-            let layer = layer_degree_bounds(node, &LayerIds::One(id), dir);
-            // A neighbour can be in several layers: the biggest layer is a lower bound on the
-            // degree and the sum over layers an upper one.
-            DegreeBounds {
-                lower: bounds.lower.max(layer.lower),
-                upper: bounds.upper + layer.upper,
-            }
-        }),
-    }
-}
-
-/// Bounds on the degree of `node` in a single layer (or in all of them), from its O(1) in/out
-/// adjacency sizes.
-fn layer_degree_bounds<'a, N: NodeStorageOps<'a>>(
-    node: N,
-    layer: &LayerIds,
-    dir: Direction,
-) -> DegreeBounds {
-    match dir {
+    // Bounds on the degree of `node` in a single layer (or in all of them), from its O(1) in/out
+    // adjacency sizes.
+    let layer_bounds = |layer: &LayerIds| match dir {
         Direction::OUT | Direction::IN => DegreeBounds::exact(node.degree(layer, dir)),
         Direction::BOTH => {
             // Merging the in and out neighbours to dedup them is the expensive part of `degree`,
@@ -312,5 +280,18 @@ fn layer_degree_bounds<'a, N: NodeStorageOps<'a>>(
                 upper: out + inb,
             }
         }
+    };
+    match layer_ids {
+        LayerIds::Multiple(ids) => ids.iter().fold(DegreeBounds::exact(0), |bounds, id| {
+            let layer = layer_bounds(&LayerIds::One(id));
+            // A neighbour can be in several layers: the biggest layer is a lower bound on the
+            // degree and the sum over layers an upper one.
+            DegreeBounds {
+                lower: bounds.lower.max(layer.lower),
+                upper: bounds.upper + layer.upper,
+            }
+        }),
+        // `All` reads the adjacency every layer feeds into, and `None` has no neighbours.
+        _ => layer_bounds(layer_ids),
     }
 }

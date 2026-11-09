@@ -417,7 +417,12 @@ def test_node_approximate_degrees():
     )
 
     # Columnar, in collection order. Degrees: A 3, B 1 ({A} on both sides),
-    # C 2 ({A} in, {D} out), D 1 (in only, so exact for free).
+    # C 2 ({A} in, {D} out), D 1 (in only, so exact for free). A's neighbours
+    # are A, B and C, so theirs are the first three rows.
+    names = [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}]
+    degree = [bounds(3, 5), bounds(1, 2), bounds(1, 2), bounds(1, 1)]
+    in_degree = [bounds(2, 2), bounds(1, 1), bounds(1, 1), bounds(1, 1)]
+    out_degree = [bounds(3, 3), bounds(1, 1), bounds(1, 1), bounds(0, 0)]
     query = """
     {
       graph(path: "g") {
@@ -444,49 +449,17 @@ def test_node_approximate_degrees():
             {
                 "graph": {
                     "nodes": {
-                        "list": [
-                            {"name": "A"},
-                            {"name": "B"},
-                            {"name": "C"},
-                            {"name": "D"},
-                        ],
-                        "approximateDegree": [
-                            bounds(3, 5),
-                            bounds(1, 2),
-                            bounds(1, 2),
-                            bounds(1, 1),
-                        ],
-                        "approximateInDegree": [
-                            bounds(2, 2),
-                            bounds(1, 1),
-                            bounds(1, 1),
-                            bounds(1, 1),
-                        ],
-                        "approximateOutDegree": [
-                            bounds(3, 3),
-                            bounds(1, 1),
-                            bounds(1, 1),
-                            bounds(0, 0),
-                        ],
+                        "list": names,
+                        "approximateDegree": degree,
+                        "approximateInDegree": in_degree,
+                        "approximateOutDegree": out_degree,
                     },
                     "node": {
                         "neighbours": {
-                            "list": [{"name": "A"}, {"name": "B"}, {"name": "C"}],
-                            "approximateDegree": [
-                                bounds(3, 5),
-                                bounds(1, 2),
-                                bounds(1, 2),
-                            ],
-                            "approximateInDegree": [
-                                bounds(2, 2),
-                                bounds(1, 1),
-                                bounds(1, 1),
-                            ],
-                            "approximateOutDegree": [
-                                bounds(3, 3),
-                                bounds(1, 1),
-                                bounds(1, 1),
-                            ],
+                            "list": names[:3],
+                            "approximateDegree": degree[:3],
+                            "approximateInDegree": in_degree[:3],
+                            "approximateOutDegree": out_degree[:3],
                         }
                     },
                 }

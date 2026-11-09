@@ -579,31 +579,24 @@ fn approx_degree_examples() {
     assert_eq!(node.approx_degree(2), bounds(1, 1));
 }
 
-/// `approx_degree` and co. bound the exact degree, are exact whenever their upper bound fits in
-/// `threshold`, and are always exact with an unlimited threshold.
+/// `approx_degree` and co. bound the exact degree, and are exact whenever their upper bound fits in
+/// `threshold` (so always with `usize::MAX`).
 fn check_approx_degree(view: &DynamicGraph, threshold: usize) -> Result<(), TestCaseError> {
     for node in view.nodes() {
         let cases = [
-            (
-                "degree",
-                node.degree(),
-                node.approx_degree(threshold),
-                node.approx_degree(usize::MAX),
-            ),
+            ("degree", node.degree(), node.approx_degree(threshold)),
             (
                 "in-degree",
                 node.in_degree(),
                 node.approx_in_degree(threshold),
-                node.approx_in_degree(usize::MAX),
             ),
             (
                 "out-degree",
                 node.out_degree(),
                 node.approx_out_degree(threshold),
-                node.approx_out_degree(usize::MAX),
             ),
         ];
-        for (name, exact, bounds, unlimited) in cases {
+        for (name, exact, bounds) in cases {
             prop_assert!(
                 bounds.lower <= exact && exact <= bounds.upper,
                 "{} of {} is {}, outside {:?}",
@@ -615,16 +608,6 @@ fn check_approx_degree(view: &DynamicGraph, threshold: usize) -> Result<(), Test
             if bounds.upper <= threshold {
                 prop_assert_eq!(bounds.lower, bounds.upper, "{} of {}", name, node.name());
             }
-            prop_assert_eq!(
-                unlimited,
-                DegreeBounds {
-                    lower: exact,
-                    upper: exact
-                },
-                "{} of {}",
-                name,
-                node.name()
-            );
         }
     }
     // The collection variant, behind the columnar GraphQL fields, agrees with the per-node one.
@@ -644,7 +627,7 @@ fn check_approx_degree(view: &DynamicGraph, threshold: usize) -> Result<(), Test
 fn approx_degree_bounds_degree_proptest() {
     proptest!(|(
         updates in proptest::collection::vec(
-            (-10i64..10, 0u64..6, 0u64..6, 0usize..3, proptest::bool::ANY),
+            (-10i64..10, 0u64..6, 0u64..6, 0usize..4, proptest::bool::ANY),
             0..40,
         ),
         window in (-10i64..10, -10i64..10),
@@ -652,7 +635,7 @@ fn approx_degree_bounds_degree_proptest() {
     )| {
         let graph = Graph::new();
         for (t, src, dst, layer, deletes) in updates {
-            let layer = Some(["a", "b", "c"][layer]);
+            let layer = [None, Some("a"), Some("b"), Some("c")][layer];
             if deletes {
                 graph.delete_edge(t, src, dst, layer).unwrap();
             } else {
@@ -673,7 +656,9 @@ fn approx_degree_bounds_degree_proptest() {
             persistent.valid().into_dynamic(),
         ];
         for view in &views {
-            check_approx_degree(view, threshold)?;
+            for threshold in [threshold, usize::MAX] {
+                check_approx_degree(view, threshold)?;
+            }
         }
     });
 }
