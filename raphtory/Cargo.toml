@@ -174,5 +174,9 @@ name = "eth_loader"
 required-features = ["io"]
 
 [[example]]
+name = "cyber"
+required-features = ["io"]
+
+[[example]]
 name = "snb_loader"
 required-features = ["io"]
