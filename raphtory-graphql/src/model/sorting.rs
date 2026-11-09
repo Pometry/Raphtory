@@ -1,5 +1,6 @@
+use crate::GQLError;
 use dynamic_graphql::{Enum, InputObject};
-use raphtory::{db::api::view::sort, errors::GraphError};
+use raphtory::db::api::view::sort;
 
 #[derive(InputObject, Clone, Debug, Eq, PartialEq)]
 pub struct EdgeSortBy {
@@ -56,7 +57,7 @@ impl From<SortByTime> for sort::SortByTime {
 }
 
 impl TryFrom<NodeSortBy> for sort::NodeSortBy {
-    type Error = GraphError;
+    type Error = GQLError;
 
     /// The wire type has one optional field per key because GraphQL input
     /// objects cannot express "exactly one of"; this is where that constraint
@@ -83,7 +84,7 @@ impl TryFrom<NodeSortBy> for sort::NodeSortBy {
                 reverse: v.reverse == Some(true),
                 key,
             }),
-            Err(keys) => Err(GraphError::invalid_filter(format!(
+            Err(keys) => Err(GQLError::InvalidFilter(format!(
                 "a node sort key must set exactly one of id/name/type/time/property, got {}",
                 keys.len()
             ))),
@@ -92,7 +93,7 @@ impl TryFrom<NodeSortBy> for sort::NodeSortBy {
 }
 
 impl TryFrom<EdgeSortBy> for sort::EdgeSortBy {
-    type Error = GraphError;
+    type Error = GQLError;
 
     fn try_from(v: EdgeSortBy) -> Result<Self, Self::Error> {
         let mut keys: Vec<sort::EdgeSortKey> = Vec::new();
@@ -116,7 +117,7 @@ impl TryFrom<EdgeSortBy> for sort::EdgeSortBy {
                 reverse: v.reverse == Some(true),
                 key,
             }),
-            Err(keys) => Err(GraphError::invalid_filter(format!(
+            Err(keys) => Err(GQLError::InvalidFilter(format!(
                 "an edge sort key must set exactly one of src/dst/neighbour/time/property, got {}",
                 keys.len()
             ))),
