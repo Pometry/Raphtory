@@ -1,22 +1,24 @@
 use crate::{
     durability_ops::DurabilityOps,
+    graph::graph::Immutable,
     mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
-        MutationError, NodeWriterT,
+        addition_ops::{
+            EdgeWriteLock, GraphMutationOps, InternalAdditionOps, MetadataMutationOps,
+            NodeWriteLock, PropertyMutationOps, SetLsn,
+        },
+        EdgeWriterT, GraphPropWriterT, MutationError, NodeWriterT,
     },
     recovery_ops::RecoveryOps,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
+        edges::edge_ref::EdgeRef,
         properties::{
-            meta::{
-                Meta, PropWithStatus, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID,
-                STATIC_GRAPH_LAYER_ID,
-            },
-            prop::{Prop, PropType, PropUnwrap},
+            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
+            prop::{AsPropEntry, Prop, PropType, PropUnwrap},
         },
-        LayerId,
+        GidType, LayerId,
     },
     storage::dict_mapper::MaybeNew,
 };
@@ -38,6 +40,7 @@ use storage::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
+    segments::graph_prop::segment::MemGraphPropSegment,
     transaction::TransactionGuard,
     wal::LSN,
     ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
@@ -56,19 +59,14 @@ where
     eid: MaybeNew<EID>,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct UnlockedSession<'a> {
-    graph: &'a TemporalGraph<Extension>,
-}
-
-impl<'a, EXT> EdgeWriteLock for AtomicAddEdge<'a, EXT>
+impl<'a, EXT> PropertyMutationOps for AtomicAddEdge<'a, EXT>
 where
-    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
-    NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
 {
-    fn internal_add_update(
+    fn update_properties(
         &mut self,
         t: EventTime,
         layer: LayerId,
@@ -82,7 +80,56 @@ where
             props,
         );
     }
+}
 
+impl<'a, EXT> MetadataMutationOps for AtomicAddEdge<'a, EXT>
+where
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+{
+    fn check_metadata<P: AsPropEntry>(
+        &self,
+        layer: LayerId,
+        props: impl Iterator<Item = P>,
+    ) -> Result<(), MutationError> {
+        let pos = self
+            .static_session
+            .resolve_pos(self.eid.inner())
+            .expect("eid should match writer for AtomicAddEdge");
+        Ok(self.static_session.check_metadata(pos, layer, props)?)
+    }
+
+    fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>) {
+        let pos = self
+            .static_session
+            .resolve_pos(self.eid.inner())
+            .expect("eid should match writer for AtomicAddEdge");
+        self.static_session
+            .update_metadata(pos, self.src.inner(), self.dst.inner(), layer, props)
+    }
+}
+
+impl<'a, EXT> SetLsn for AtomicAddEdge<'a, EXT>
+where
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+{
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.static_session.set_lsn(lsn);
+    }
+}
+
+impl<'a, EXT> EdgeWriteLock for AtomicAddEdge<'a, EXT>
+where
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+{
     fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.static_session.delete_edge_from_layer(
             t,
@@ -90,10 +137,6 @@ where
             self.dst.inner(),
             self.eid.map(|eid| eid.with_layer_deletion(layer)),
         );
-    }
-
-    fn set_lsn(&mut self, lsn: LSN) {
-        self.static_session.set_lsn(lsn);
     }
 
     fn src(&self) -> MaybeNew<VID> {
@@ -109,69 +152,31 @@ where
     }
 }
 
-impl<'a> SessionAdditionOps for UnlockedSession<'a> {
-    type Error = MutationError;
+pub struct AtomicUpdateEdge<'a> {
+    writer: EdgeWriterT<'a>,
+    pos: LocalPOS,
+    src: VID,
+    dst: VID,
+}
 
-    fn read_event_id(&self) -> Result<usize, Self::Error> {
-        Ok(self.graph.storage().read_event_id())
-    }
-
-    fn set_event_id(&self, event_id: usize) -> Result<(), Self::Error> {
-        self.graph.storage().set_event_id(event_id);
-        Ok(())
-    }
-
-    fn next_event_id(&self) -> Result<usize, Self::Error> {
-        Ok(self.graph.storage().next_event_id())
-    }
-
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
-        let event_id = self.graph.storage().reserve_event_ids(num_ids);
-        Ok(event_id)
-    }
-
-    fn set_max_event_id(&self, value: usize) -> Result<usize, Self::Error> {
-        Ok(self.graph.storage().set_max_event_id(value))
-    }
-
-    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
-        Ok(self.graph.gid_resolver.set(gid, vid)?)
-    }
-
-    fn resolve_graph_property(
+impl<'a> MetadataMutationOps for AtomicUpdateEdge<'a> {
+    fn check_metadata<P: AsPropEntry>(
         &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error> {
-        Ok(self
-            .graph
-            .graph_props_meta()
-            .resolve_prop_id(prop, dtype, is_static)?)
+        layer: LayerId,
+        props: impl Iterator<Item = P>,
+    ) -> Result<(), MutationError> {
+        Ok(self.writer.check_metadata(self.pos, layer, props)?)
     }
 
-    fn resolve_node_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error> {
-        Ok(self
-            .graph
-            .node_meta()
-            .resolve_prop_id(prop, dtype, is_static)?)
+    fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>) {
+        self.writer
+            .update_c_props(self.pos, self.src, self.dst, layer, props)
     }
+}
 
-    fn resolve_edge_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error> {
-        Ok(self
-            .graph
-            .edge_meta()
-            .resolve_prop_id(prop, dtype, is_static)?)
+impl<'a> SetLsn for AtomicUpdateEdge<'a> {
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.writer.set_lsn(lsn)
     }
 }
 
@@ -188,8 +193,8 @@ impl<'a> AtomicAddNode<'a> {
     }
 }
 
-impl<'a> NodeWriteLock for AtomicAddNode<'a> {
-    fn internal_add_update(
+impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
+    fn update_properties(
         &mut self,
         t: EventTime,
         layer: LayerId,
@@ -198,7 +203,31 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
         let pos = self.local_pos();
         self.writer.add_props(t, pos, layer, props)
     }
+}
 
+impl<'a> MetadataMutationOps for AtomicAddNode<'a> {
+    fn check_metadata<P: AsPropEntry>(
+        &self,
+        layer: LayerId,
+        props: impl Iterator<Item = P>,
+    ) -> Result<(), MutationError> {
+        let pos = self.local_pos();
+        Ok(self.writer.check_metadata(pos, layer, props)?)
+    }
+
+    fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>) {
+        let pos = self.local_pos();
+        self.writer.update_c_props(pos, layer, props)
+    }
+}
+
+impl<'a> SetLsn for AtomicAddNode<'a> {
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.writer.writer.set_lsn(lsn)
+    }
+}
+
+impl<'a> NodeWriteLock for AtomicAddNode<'a> {
     fn can_set_type(&self) -> bool {
         self.vid.is_new() || self.get_type() == DEFAULT_NODE_TYPE_ID
     }
@@ -217,26 +246,48 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
         self.writer.store_node_type(pos, node_type)
     }
 
-    fn set_lsn(&mut self, lsn: LSN) {
-        self.writer.writer.set_lsn(lsn)
-    }
-
     fn node(&self) -> MaybeNew<VID> {
         self.vid
     }
 }
 
-impl InternalAdditionOps for TemporalGraph {
-    type Error = MutationError;
-    type WS<'a> = UnlockedSession<'a>;
-    type AtomicAddEdge<'a> = AtomicAddEdge<'a, Extension>;
+impl<'a> PropertyMutationOps for GraphPropWriterT<'a> {
+    fn update_properties(
+        &mut self,
+        t: EventTime,
+        layer: LayerId,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        assert_eq!(layer, MemGraphPropSegment::DEFAULT_LAYER); // TODO: graph properties should support layers
+        self.add_properties(t, props)
+    }
+}
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
-        let locked_g = self.write_locked_graph();
-        Ok(locked_g)
+impl<'a> MetadataMutationOps for GraphPropWriterT<'a> {
+    fn check_metadata<P: AsPropEntry>(
+        &self,
+        layer: LayerId,
+        props: impl Iterator<Item = P>,
+    ) -> Result<(), MutationError> {
+        assert_eq!(layer, MemGraphPropSegment::DEFAULT_LAYER); // TODO: graph properties should support layers
+        for entry in props {
+            let (prop_id, prop) = entry.as_prop_entry();
+            self.mem_segment.check_metadata(prop_id, prop.clone())?;
+            self.graph_props.check_metadata_immut(prop_id, prop)?;
+        }
+        Ok(())
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
+    fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>) {
+        assert_eq!(layer, MemGraphPropSegment::DEFAULT_LAYER); // TODO: graph properties should support layers
+        let add = self.mem_segment.update_metadata(props);
+        self.graph_props.increment_est_size(add);
+        self.graph_props.set_dirty(true);
+    }
+}
+
+impl GraphMutationOps for TemporalGraph {
+    fn resolve_layer(&self, layer: Option<&str>) -> MaybeNew<LayerId> {
         let id = self.edge_meta().get_or_create_layer_id(layer);
         // TODO: we replicate the layer id in the node meta as well, perhaps layer meta should be common
         if id.is_new() {
@@ -245,39 +296,7 @@ impl InternalAdditionOps for TemporalGraph {
                 id.inner().0,
             );
         }
-        Ok(id)
-    }
-
-    unsafe fn bulk_load_resolve_node(
-        &self,
-        id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), Self::Error> {
-        let vid = match self.gid_resolver.get(id) {
-            Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
-            None => {
-                let (seg, pos, new_locks) = self
-                    .storage()
-                    .nodes()
-                    .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
-                let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
-                self.gid_resolver.set(id, new_vid)?;
-                (MaybeNew::New(new_vid), new_locks)
-            }
-        };
-
-        Ok(vid)
-    }
-
-    fn validate_gids<'a>(
-        &self,
-        gids: impl IntoIterator<Item = GidRef<'a>>,
-    ) -> Result<(), Self::Error> {
-        self.gid_resolver.validate_gids(gids)?;
-        Ok(())
-    }
-
-    fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
-        Ok(UnlockedSession { graph: self })
+        id
     }
 
     fn atomic_add_edge(
@@ -285,7 +304,7 @@ impl InternalAdditionOps for TemporalGraph {
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+    ) -> Result<AtomicAddEdge<'_, Extension>, MutationError> {
         let nodes = self.storage().nodes();
 
         let (src_init, dst_init) = match (src, dst) {
@@ -301,6 +320,8 @@ impl InternalAdditionOps for TemporalGraph {
                 Some(MaybeInit::VID(dst_id)),
             ),
             (NodeRef::External(src_gid), NodeRef::External(dst_gid)) => {
+                // make sure both ids are of the correct type before modifying anything
+                self.gid_resolver.validate_gids([src_gid, dst_gid])?;
                 // resolve the smaller id first to avoid deadlocks when adding the same edge
                 // in both directions
                 match src_gid.cmp(&dst_gid) {
@@ -574,7 +595,24 @@ impl InternalAdditionOps for TemporalGraph {
         })
     }
 
-    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
+    fn atomic_update_edge(&self, edge: EdgeRef) -> AtomicUpdateEdge<'_> {
+        let writer = self.storage().edge_writer(edge.pid());
+        let pos = writer
+            .resolve_pos(edge.pid())
+            .expect("resolve should not fail for writer matching eid");
+        AtomicUpdateEdge {
+            writer,
+            pos,
+            src: edge.src(),
+            dst: edge.dst(),
+        }
+    }
+
+    fn atomic_add_node(
+        &self,
+        node: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<AtomicAddNode<'_>, MutationError> {
         let node_vid = match node {
             NodeRef::Internal(vid) => vid,
             NodeRef::External(gid) => match self.gid_resolver.get_or_init(gid)? {
@@ -584,7 +622,18 @@ impl InternalAdditionOps for TemporalGraph {
                         self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                         1,
                     );
-                    writer.store_node_id(pos, gid.to_owned());
+                    match node_type {
+                        Some(node_type) => {
+                            let node_type = self
+                                .node_meta()
+                                .get_or_create_node_type_id(node_type)
+                                .inner();
+                            writer.store_node_id_and_node_type(pos, Some(gid), node_type);
+                        }
+                        None => {
+                            writer.store_node_id(pos, gid.to_owned());
+                        }
+                    }
 
                     let vid = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                     init.init(vid)?;
@@ -598,66 +647,132 @@ impl InternalAdditionOps for TemporalGraph {
         };
 
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
-        let writer = self.storage().node_writer(segment_id);
-
-        Ok(AtomicAddNode {
-            writer,
+        let mut writer = AtomicAddNode {
+            writer: self.storage().node_writer(segment_id),
             vid: MaybeNew::Existing(node_vid),
-        })
-    }
-
-    fn internal_add_node(
-        &self,
-        t: EventTime,
-        v: VID,
-        props: Vec<(usize, Prop)>,
-        layer_id: LayerId,
-    ) -> Result<NodeWriterT<'_>, Self::Error> {
-        let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
-        let mut node_writer = self.storage().node_writer(segment);
-        node_writer.add_props(t, node_pos, layer_id, props);
-        Ok(node_writer)
-    }
-
-    fn validate_props<PN: AsRef<str>>(
-        &self,
-        is_static: bool,
-        meta: &Meta,
-        layer: LayerId,
-        props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        let (props, _) = self.validate_props_with_status(is_static, meta, || Ok(layer), props)?;
-        Ok(props
-            .into_iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.inner();
-                (prop_id, prop)
-            })
-            .collect())
-    }
-
-    fn validate_props_with_status<PN: AsRef<str>>(
-        &self,
-        is_static: bool,
-        meta: &Meta,
-        resolve_layer: impl FnOnce() -> Result<LayerId, Self::Error>,
-        props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<(Vec<PropWithStatus<PN>>, LayerId), Self::Error> {
-        let (props, mapper) = if is_static {
-            let props = PropsMetaWriter::constant(meta, props)
-                .and_then(|pmw| pmw.into_props_const_with_status())
-                .map_err(MutationError::StorageError)?;
-            (props, meta.metadata_mapper())
-        } else {
-            let props = PropsMetaWriter::temporal(meta, props)
-                .and_then(|pmw| pmw.into_props_temporal_with_status())
-                .map_err(MutationError::StorageError)?;
-            (props, meta.temporal_prop_mapper())
         };
-        // after PropsMetaWriter has dropped its mapper locks
-        let layer = resolve_layer()?;
-        mapper.mark_props_in_layer(layer, props.iter().map(|p| p.as_ref().inner().1));
-        Ok((props, layer))
+        // node already exists, save to check node type
+        if let Some(node_type) = node_type {
+            if writer.can_set_type() {
+                let node_type_id = self
+                    .node_meta()
+                    .get_or_create_node_type_id(node_type)
+                    .inner();
+                writer.set_type(node_type_id);
+            } else {
+                self.node_meta()
+                    .get_node_type_id(node_type)
+                    .filter(|&node_type_id| writer.get_type() == node_type_id)
+                    .ok_or(MutationError::NodeTypeError)?;
+            }
+        }
+        Ok(writer)
+    }
+
+    unsafe fn bulk_load_resolve_node(
+        &self,
+        id: GidRef<'_>,
+    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), MutationError> {
+        let vid = match self.gid_resolver.get(id) {
+            Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
+            None => {
+                let (seg, pos, new_locks) = self
+                    .storage()
+                    .nodes()
+                    .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
+                let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
+                self.gid_resolver.set(id, new_vid)?;
+                (MaybeNew::New(new_vid), new_locks)
+            }
+        };
+
+        Ok(vid)
+    }
+
+    fn validate_props<'a, PN: AsRef<str> + 'a, P: Into<Prop>>(
+        &self,
+        is_static: bool,
+        meta: &'a Meta,
+        props: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<PropsMetaWriter<'a, PN>, MutationError> {
+        let props = props.into_iter().map(|(name, prop)| (name, prop.into()));
+        if is_static {
+            Ok(PropsMetaWriter::constant(meta, props)?)
+        } else {
+            Ok(PropsMetaWriter::temporal(meta, props)?)
+        }
+    }
+
+    fn read_event_id(&self) -> usize {
+        self.storage().read_event_id()
+    }
+
+    fn set_event_id(&self, event_id: usize) {
+        self.storage().set_event_id(event_id);
+    }
+
+    fn next_event_id(&self) -> usize {
+        self.storage().next_event_id()
+    }
+
+    fn reserve_event_ids(&self, num_ids: usize) -> usize {
+        self.storage().reserve_event_ids(num_ids)
+    }
+
+    fn set_max_event_id(&self, value: usize) -> usize {
+        self.storage().set_max_event_id(value)
+    }
+
+    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), MutationError> {
+        Ok(self.gid_resolver.set(gid, vid)?)
+    }
+
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, MutationError> {
+        Ok(self
+            .graph_props_meta()
+            .resolve_prop_id(prop, dtype, is_static)?)
+    }
+
+    fn resolve_node_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, MutationError> {
+        Ok(self.node_meta().resolve_prop_id(prop, dtype, is_static)?)
+    }
+
+    fn resolve_edge_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, MutationError> {
+        Ok(self.edge_meta().resolve_prop_id(prop, dtype, is_static)?)
+    }
+
+    fn atomic_update_graph_props(&self) -> GraphPropWriterT<'_> {
+        self.storage().graph_props().writer()
+    }
+
+    fn id_type(&self) -> Option<GidType> {
+        self.gid_resolver.dtype()
+    }
+}
+
+impl InternalAdditionOps for TemporalGraph {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, MutationError> {
+        let locked_g = self.write_locked_graph();
+        Ok(locked_g)
+    }
+
+    fn mutable(&self) -> Result<&TemporalGraph, Immutable> {
+        Ok(self)
     }
 }
 

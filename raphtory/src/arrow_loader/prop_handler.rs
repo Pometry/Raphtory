@@ -42,6 +42,12 @@ impl PropCols {
         (0..self.len()).into_par_iter().map(|i| self.iter_row(i))
     }
 
+    pub fn rows(
+        &self,
+    ) -> impl Iterator<Item = impl Iterator<Item = (usize, PropRef<'_>)> + '_> + '_ {
+        (0..self.len()).map(|i| self.iter_row(i))
+    }
+
     pub fn prop_ids(&self) -> &[usize] {
         &self.prop_ids
     }

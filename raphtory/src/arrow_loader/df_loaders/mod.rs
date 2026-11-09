@@ -10,6 +10,7 @@ use crate::{
     prelude::*,
 };
 use dashmap::SharedValue;
+use db4_graph::TemporalGraph;
 #[cfg(feature = "progress")]
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::core::{
@@ -19,7 +20,9 @@ use raphtory_api::core::{
 use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::{
     durability_ops::DurabilityOps,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    mutation::addition_ops::{
+        GraphMutationOps, InternalAdditionOps, MetadataMutationOps, PropertyMutationOps,
+    },
 };
 use rayon::prelude::*;
 use std::{
@@ -168,6 +171,7 @@ pub(crate) fn load_graph_props_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
+    let graph = graph.mutable()?;
     let properties = properties.unwrap_or(&[]);
     let metadata = metadata.unwrap_or(&[]);
 
@@ -188,20 +192,20 @@ pub(crate) fn load_graph_props_from_df<
     #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
     // Graph properties are written as regular updates, not bulk loaded.
-    let _transaction_manager = graph.core_graph().transaction_manager()?;
-    let session = graph.write_session().map_err(into_graph_err)?;
+    let _transaction_manager = graph.transaction_manager()?;
+    let layer_id = MemGraphPropSegment::DEFAULT_LAYER;
 
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
-                session
+                graph
                     .resolve_graph_property(key, dtype, false)
                     .map_err(into_graph_err)
             })?;
         let metadata_cols =
             combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
+                graph
                     .resolve_graph_property(key, dtype, true)
                     .map_err(into_graph_err)
             })?;
@@ -221,44 +225,38 @@ pub(crate) fn load_graph_props_from_df<
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session
-                    .set_max_event_id(col.max())
-                    .map_err(into_graph_err)?;
+                graph.set_max_event_id(col.max());
                 col
             }
             None => {
-                let start_id = session
-                    .reserve_event_ids(df.len())
-                    .map_err(into_graph_err)?;
+                let start_id = graph.reserve_event_ids(df.len());
                 SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
             }
         };
 
+        let mut writer = graph.atomic_update_graph_props();
         time_col
-            .par_iter()
-            .zip(secondary_index_col.par_iter())
-            .zip(prop_cols.par_rows())
-            .zip(metadata_cols.par_rows())
-            .try_for_each(|(((time, secondary_index), t_props), c_props)| {
+            .iter()
+            .zip(secondary_index_col.iter())
+            .zip(prop_cols.rows())
+            .zip(metadata_cols.rows())
+            .for_each(|(((time, secondary_index), t_props), c_props)| {
                 let t = EventTime(time, secondary_index);
-                let t_props: Vec<_> = t_props.collect();
-
-                if !t_props.is_empty() {
-                    graph
-                        .internal_add_properties(t, &t_props)
-                        .map_err(into_graph_err)?;
+                let mut t_props = t_props.peekable();
+                if t_props.peek().is_some() {
+                    writer.update_properties(
+                        t,
+                        layer_id,
+                        t_props.map(|(id, prop)| (id, prop.into())),
+                    );
                 }
 
-                let c_props: Vec<_> = c_props.collect();
+                let mut c_props = c_props.peekable();
 
-                if !c_props.is_empty() {
-                    graph
-                        .internal_add_metadata(&c_props)
-                        .map_err(into_graph_err)?;
+                if c_props.peek().is_some() {
+                    writer.update_metadata(layer_id, c_props.map(|(id, prop)| (id, prop.into())));
                 }
-
-                Ok::<(), GraphError>(())
-            })?;
+            });
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
@@ -269,30 +267,26 @@ pub(crate) fn load_graph_props_from_df<
 
 pub(crate) fn extract_secondary_index_col<G: InternalAdditionOps + AdditionOps>(
     secondary_index_index: Option<usize>,
-    session: &<G as InternalAdditionOps>::WS<'_>,
+    session: &TemporalGraph,
     df: &DFChunk,
 ) -> Result<SecondaryIndexCol, GraphError> {
     let secondary_index_col = match secondary_index_index {
         Some(col_index) => {
             // Update the event_id to reflect ingesting new secondary indices.
             let col = df.secondary_index_col(col_index)?;
-            session
-                .set_max_event_id(col.max())
-                .map_err(into_graph_err)?;
+            session.set_max_event_id(col.max());
             col
         }
         None => {
-            let start_id = session
-                .reserve_event_ids(df.len())
-                .map_err(into_graph_err)?;
+            let start_id = session.reserve_event_ids(df.len());
             SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
         }
     };
     Ok(secondary_index_col)
 }
 
-fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    graph: &G,
+fn resolve_nodes_with_cache<'a>(
+    graph: &TemporalGraph,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
 ) -> Result<(FxDashMap<GidRef<'a>, VID>, MemNodeSegmentGuards), GraphError> {

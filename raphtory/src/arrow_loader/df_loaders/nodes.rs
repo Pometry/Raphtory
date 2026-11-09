@@ -23,7 +23,7 @@ use raphtory_core::{
     entities::{GidRef, VID},
     storage::timeindex::AsTime,
 };
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -52,6 +52,7 @@ use crate::arrow_loader::{
     prop_handler::*,
     LOAD_POOL,
 };
+use db4_graph::TemporalGraph;
 #[cfg(feature = "progress")]
 use kdam::BarExt;
 
@@ -143,6 +144,8 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         return Ok(());
     }
 
+    let graph = graph.mutable()?;
+
     LOAD_POOL.install(move || {
         let properties_indices = properties
             .iter()
@@ -167,9 +170,8 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .map(|col| df_view.get_index(col))
             .transpose()?;
 
-        let session = graph.write_session().map_err(into_graph_err)?;
         let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-            session
+            graph
                 .resolve_node_property(key, dtype, true)
                 .map_err(into_graph_err)
         })?;
@@ -196,14 +198,14 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             let prop_cols =
                 combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
-                    session
+                    graph
                         .resolve_node_property(key, dtype, false)
                         .map_err(into_graph_err)
                 })?;
 
             let metadata_cols =
                 combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                    session
+                    graph
                         .resolve_node_property(key, dtype, true)
                         .map_err(into_graph_err)
                 })?;
@@ -253,7 +255,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             // Load the secondary index column if it exists, otherwise generate from start_id.
             let secondary_index_col =
-                extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
+                extract_secondary_index_col::<G>(secondary_index_index, graph, &df)?;
             node_col_resolved.resize_with(df.len(), Default::default);
 
             let (src_vids, gid_str_cache, new_segment_guards) = get_or_resolve_node_vids(
@@ -376,6 +378,7 @@ pub fn load_node_props_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
+    let graph = graph.mutable()?;
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -395,10 +398,9 @@ pub fn load_node_props_from_df<
     let layer_col_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
 
     let node_gid_index = df_view.get_index(node_id)?;
-    let session = graph.write_session().map_err(into_graph_err)?;
 
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-        session
+        graph
             .resolve_node_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
@@ -423,7 +425,7 @@ pub fn load_node_props_from_df<
         }
         let metadata_cols =
             combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
+                graph
                     .resolve_node_property(key, dtype, true)
                     .map_err(into_graph_err)
             })?;
@@ -452,9 +454,8 @@ pub fn load_node_props_from_df<
         );
 
         let (node_col_resolved, node_type_col_resolved, new_segment_guards) =
-            get_or_resolve_node_vids_no_events::<G>(
+            get_or_resolve_node_vids_no_events(
                 graph,
-                &session,
                 &mut node_col_resolved,
                 &mut node_type_resolved,
                 node_type_ids_col,
@@ -540,13 +541,8 @@ pub fn load_node_props_from_df<
 type Resolved<'a> = (GidRef<'a>, (VID, usize));
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-fn get_or_resolve_node_vids<
-    'a: 'c,
-    'b: 'c,
-    'c,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
+fn get_or_resolve_node_vids<'a: 'c, 'b: 'c, 'c>(
+    graph: &TemporalGraph,
     locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     src_index: usize,
     node_resolve_cache: &mut Option<NodeResolveCache<(VID, usize)>>,
@@ -587,11 +583,8 @@ fn get_or_resolve_node_vids<
 ///
 /// Cache hits and existing nodes that already have a matching type are skipped.
 /// A GID that reappears with a different node type is rejected.
-fn resolve_node_vids_and_types_with_cache<
-    'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
+fn resolve_node_vids_and_types_with_cache<'a>(
+    graph: &TemporalGraph,
     locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     cache: &mut NodeResolveCache<(VID, usize)>,
     node_col_resolved: &'a mut Vec<VID>,
@@ -700,10 +693,7 @@ fn existing_stored_node_type(
         .map(|id| id as usize)
 }
 
-fn node_type_name<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    graph: &G,
-    node_type: usize,
-) -> String {
+fn node_type_name(graph: &TemporalGraph, node_type: usize) -> String {
     graph
         .node_meta()
         .get_node_type_name_by_id(node_type)
@@ -712,14 +702,8 @@ fn node_type_name<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-fn get_or_resolve_node_vids_no_events<
-    'a: 'c,
-    'b: 'c,
-    'c,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
-    session: &<G as InternalAdditionOps>::WS<'_>,
+fn get_or_resolve_node_vids_no_events<'a: 'c, 'b: 'c, 'c>(
+    graph: &TemporalGraph,
     node_col_resolved: &'a mut Vec<VID>,
     node_type_resolved: &'a mut Vec<usize>,
     node_type_ids_col: Option<usize>,
@@ -733,7 +717,6 @@ fn get_or_resolve_node_vids_no_events<
     if let Some((node_type_index, node_id_col)) = node_type_ids_col.zip(node_id_col) {
         set_meta_for_pre_resolved_nodes_and_node_ids(
             graph,
-            session,
             df,
             src_col,
             node_type_col,
@@ -753,11 +736,8 @@ fn get_or_resolve_node_vids_no_events<
     }
 }
 
-fn resolve_node_and_meta_for_node_col<
-    'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
+fn resolve_node_and_meta_for_node_col<'a>(
+    graph: &TemporalGraph,
     node_col_resolved: &'a mut Vec<VID>,
     node_type_resolved: &'a mut Vec<usize>,
     df: &DFChunk,
@@ -812,7 +792,7 @@ fn resolve_node_and_meta_for_node_col<
             // Metadata can only be attached to a node that exists: an unknown id is an error,
             // the same one load_edge_metadata gives for an unknown endpoint, not a row to skip.
             graph
-                .internalise_node(gid.as_node_ref())
+                .resolve_node_ref(gid.as_node_ref())
                 .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?
         };
         *vid = res_vid;
@@ -826,12 +806,8 @@ fn resolve_node_and_meta_for_node_col<
     ))
 }
 
-fn set_meta_for_pre_resolved_nodes_and_node_ids<
-    'b,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
-    session: &<G as InternalAdditionOps>::WS<'_>,
+fn set_meta_for_pre_resolved_nodes_and_node_ids<'b>(
+    graph: &TemporalGraph,
     df: &'b DFChunk,
     src_col: &NodeCol,
     node_type_col: LayerCol<'_>,
@@ -867,7 +843,7 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
             locked_mapper.set_id(node_type_name, *node_type_id as usize);
         }
         last_node_type = node_type;
-        session
+        graph
             .set_node(gid, VID(*node_id as usize))
             .map_err(into_graph_err)?;
     }

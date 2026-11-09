@@ -2,13 +2,10 @@ use super::{
     edges::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges},
     nodes::node_entry::NodeStorageEntry,
 };
-use crate::{
-    graph::{
-        edges::edges::{EdgesStorage, EdgesStorageRef},
-        locked::ReadLockedGraph,
-        nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
-    },
-    mutation::MutationError,
+use crate::graph::{
+    edges::edges::{EdgesStorage, EdgesStorageRef},
+    locked::ReadLockedGraph,
+    nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
 };
 use db4_graph::TemporalGraph;
 use itertools::Either;
@@ -82,13 +79,6 @@ impl GraphStorage {
                 })
                 | GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(this_graph, other_graph),
             },
-        }
-    }
-
-    pub fn mutable(&self) -> Result<&Arc<TemporalGraph>, MutationError> {
-        match self {
-            GraphStorage::Locked(_) => Err(Immutable::ReadLockedImmutable)?,
-            GraphStorage::Unlocked(graph) => Ok(graph),
         }
     }
 

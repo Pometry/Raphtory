@@ -11,7 +11,7 @@ use raphtory_api::core::entities::{
     EID, LayerId, VID,
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
-        prop::{AsPropRef, Prop},
+        prop::{AsPropEntry, AsPropRef, Prop},
     },
 };
 use raphtory_core::storage::timeindex::{AsTime, EventTime};
@@ -173,6 +173,10 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.segment.segment_id()
     }
 
+    pub fn max_page_len(&self) -> u32 {
+        self.writer.max_page_len()
+    }
+
     #[inline]
     fn increment_layer_num_edges(&self, layer_id: LayerId) {
         self.graph_stats.increment(layer_id);
@@ -183,14 +187,20 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
             .get_edge(edge_pos, layer_id, self.writer.deref())
     }
 
-    pub fn check_metadata<P: AsPropRef>(
+    pub fn check_metadata<P: AsPropEntry>(
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, P)],
+        props: impl Iterator<Item = P>,
     ) -> Result<(), StorageError> {
-        self.writer.check_metadata(edge_pos, layer_id, props)?;
-        self.segment.check_metadata_immut(edge_pos, layer_id, props)
+        for entry in props {
+            let (prop_id, prop) = entry.as_prop_entry();
+            self.writer
+                .check_metadata(edge_pos, layer_id, prop_id, prop.clone())?;
+            self.segment
+                .check_metadata_immut(edge_pos, layer_id, prop_id, prop)?;
+        }
+        Ok(())
     }
 
     pub fn update_c_props<P: AsPropRef>(
