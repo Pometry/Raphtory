@@ -1,0 +1,52 @@
+@prefix ex: <http://ex/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# people: names in several literal forms, ages with equal values in different lexical forms
+ex:alice a foaf:Person ;
+    foaf:name "Alice" ;
+    foaf:age 30 ;
+    ex:knows ex:bob ;
+    ex:likes ex:bob .
+
+ex:bob a foaf:Person ;
+    foaf:name "Bob"@en ;
+    foaf:age 25 ;
+    ex:knows ex:carol .
+
+ex:carol a foaf:Person ;
+    foaf:name "Carol"@en-GB ;
+    foaf:age "041"^^xsd:integer ;
+    ex:knows ex:dave, ex:carol .
+
+ex:dave a ex:Robot ;
+    foaf:name "Dave"^^xsd:string ;
+    foaf:age 41 ;
+    ex:knows ex:alice .
+
+ex:eve foaf:name "Eve" ;
+    foaf:age 30.0 .
+
+# a duplicate triple
+ex:alice ex:knows ex:bob .
+
+# predicates that are also subjects and objects
+ex:knows rdfs:label "knows"@en ;
+    rdfs:subPropertyOf ex:relatedTo ;
+    a rdf:Property .
+ex:likes rdfs:label "likes"@en ;
+    rdfs:subPropertyOf ex:relatedTo .
+ex:dave ex:mentions ex:knows .
+
+# a chain for property paths
+ex:n1 ex:next ex:n2 .
+ex:n2 ex:next ex:n3 .
+ex:n3 ex:next ex:n4 .
+ex:n4 ex:next ex:n2 .
+
+# blank nodes
+_:g1 ex:member ex:alice, ex:bob ;
+    rdfs:label "group" .
+ex:alice ex:address [ ex:city "Paris" ; ex:zip "75001" ] .

@@ -95,6 +95,34 @@ pub enum ViewOp {
     Valid,
 }
 
+impl ViewOp {
+    /// Whether the view restricts which nodes or edges there are, as opposed to
+    /// which times or layers. Only time and layer views combine into one view
+    /// under `or` and `not`.
+    pub(crate) fn restricts_entities(&self) -> bool {
+        match self {
+            ViewOp::ExcludeNodes(_)
+            | ViewOp::Subgraph(_)
+            | ViewOp::SubgraphNodeTypes(_)
+            | ViewOp::Valid => true,
+            ViewOp::Window { .. }
+            | ViewOp::At(_)
+            | ViewOp::After(_)
+            | ViewOp::Before(_)
+            | ViewOp::Latest
+            | ViewOp::SnapshotAt(_)
+            | ViewOp::SnapshotLatest
+            | ViewOp::Layers(_)
+            | ViewOp::DefaultLayer
+            | ViewOp::ExcludeLayers(_)
+            | ViewOp::ValidLayers(_)
+            | ViewOp::ExcludeValidLayers(_)
+            | ViewOp::ShrinkStart(_)
+            | ViewOp::ShrinkEnd(_) => false,
+        }
+    }
+}
+
 /// A built-in node field.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
@@ -473,16 +501,42 @@ impl FilterExpr {
         })
     }
 
-    /// Refuses a view in this expression of `or` or `not`: the union with a view, or
-    /// the complement of one, waits until views compose with time semantics.
+    /// Refuses a view in this expression of an `or` or `not` that also tests
+    /// nodes or edges: the union of a view with a predicate, or the complement
+    /// of their conjunction, keeps different times for different entities, which
+    /// no one view can. An `or` or `not` of views alone never reaches this check.
     pub(crate) fn no_view_below_top_level(&self) -> Result<(), GraphError> {
         if self.has_view() {
             return Err(GraphError::invalid_filter(
-                "a view applies to the whole filter: use it alone or as an expression of the top-level `and`, \
-                 not under `or` or `not`; to test that an entity does not exist in a view, negate `.exists()`",
+                "a view under `or` or `not` combines only with other views: use it alone, beside \
+                 views only, or as an expression of the top-level `and`; to test that an entity \
+                 does not exist in a view, negate `.exists()`",
             ));
         }
         Ok(())
+    }
+
+    /// Whether this filter is graph-level views alone, joined by `and`, `or`
+    /// and `not`.
+    pub(crate) fn views_only(&self) -> bool {
+        self.all_views(|_| true)
+    }
+
+    /// Whether this filter is time and layer views alone, joined by `and`, `or`
+    /// and `not`: the shape that resolves to one view.
+    pub(crate) fn resolves_to_one_view(&self) -> bool {
+        self.all_views(|view| !view.restricts_entities())
+    }
+
+    fn all_views(&self, keep: impl Fn(&ViewOp) -> bool + Copy) -> bool {
+        match self {
+            FilterExpr::View(views) => views.iter().all(keep),
+            FilterExpr::And(items) | FilterExpr::Or(items) => {
+                items.iter().all(|item| item.all_views(keep))
+            }
+            FilterExpr::Not(inner) => inner.all_views(keep),
+            _ => false,
+        }
     }
 
     /// Whether a graph-level view appears anywhere in this filter.

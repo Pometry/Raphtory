@@ -270,19 +270,12 @@ impl<'a> MetadataMutationOps for GraphPropWriterT<'a> {
         props: impl Iterator<Item = P>,
     ) -> Result<(), MutationError> {
         assert_eq!(layer, MemGraphPropSegment::DEFAULT_LAYER); // TODO: graph properties should support layers
-        for entry in props {
-            let (prop_id, prop) = entry.as_prop_entry();
-            self.mem_segment.check_metadata(prop_id, prop.clone())?;
-            self.graph_props.check_metadata_immut(prop_id, prop)?;
-        }
-        Ok(())
+        Ok(self.check_metadata_inner(props)?)
     }
 
     fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>) {
         assert_eq!(layer, MemGraphPropSegment::DEFAULT_LAYER); // TODO: graph properties should support layers
-        let add = self.mem_segment.update_metadata(props);
-        self.graph_props.increment_est_size(add);
-        self.graph_props.set_dirty(true);
+        self.update_metadata_inner(props)
     }
 }
 

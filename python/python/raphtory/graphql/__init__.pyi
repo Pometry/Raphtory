@@ -91,19 +91,40 @@ class GraphServer(object):
                                    `audience` (str), `issuer` (str), `role_claim` (str)
                                  * `concurrency`: `heavy_query_limit` (int, maximum number of
                                    expensive traversal queries allowed to run simultaneously;
-                                   extra queries are parked on a semaphore),
+                                   extra queries are parked on a semaphore; also bounds SPARQL
+                                   queries and SHACL validations),
                                    `exclusive_writes` (bool, run write operations one at a time
                                    and block reads until complete), `disable_batching` (bool,
                                    reject batched GraphQL requests), `max_batch_size` (int, cap
                                    on the number of queries in a batched request; null for
                                    unlimited), `disable_lists` (bool, disable bulk `list`
-                                   endpoints so clients must use `page`), `max_page_size` (int)
+                                   endpoints so clients must use `page`), `max_page_size` (int),
+                                   `max_sparql_query_length` (int, maximum length in bytes of a
+                                   SPARQL query; default 16384, null for unlimited),
+                                   `max_sparql_triple_patterns` (int, maximum number of triple
+                                   patterns of a SPARQL query; default 100, null for unlimited),
+                                   `max_sparql_result_bytes` (int, maximum size in bytes of the
+                                   results of a SPARQL query; default 268435456, null for
+                                   unlimited), `max_sparql_query_ms` (int, maximum time in
+                                   milliseconds a SPARQL query may run, checked while it is
+                                   evaluated, not parsed or planned; default 30000, null for
+                                   unlimited), `max_shacl_shapes_length` (int, maximum length in
+                                   bytes of the shapes of `validateShacl`; default 102400, null
+                                   for unlimited), `max_shacl_results` (int, maximum number of
+                                   results of a SHACL validation, split evenly across the shapes
+                                   with targets; default 10000, null for unlimited),
+                                   `max_shacl_validation_ms` (int, maximum time in milliseconds a
+                                   SHACL validation may run; default 30000, null for unlimited)
                                  * `schema`: `max_query_depth` (int), `max_query_complexity`
                                    (int, based on the number of fields selected),
                                    `max_recursive_depth` (int, safety limit against stack
                                    overflows from pathologically structured queries),
                                    `max_directives_per_field` (int),
-                                   `disable_introspection` (bool)
+                                   `disable_introspection` (bool),
+                                   `disable_rdf` (bool, leave `rdfGraph` out of the schema; also
+                                   turns off the SPARQL endpoint and SHACL),
+                                   `disable_sparql_endpoint` (bool, do not serve `/sparql`),
+                                   `disable_shacl` (bool, leave `validateShacl` out of the schema)
                                  * `parquet`: `allowed_paths` (list[str | PathLike]) - the paths
                                    parquet loading is restricted to
                                  * `public_dir` (str | PathLike): directory served as static
@@ -2291,10 +2312,10 @@ class RemoteNodes(object):
     def filter(self, filter: filter.FilterExpr) -> RemoteNodes:
         """
         Filter this collection by a filter expression from `raphtory.filter`
-        (the same builder used by local graphs). The filter **propagates**:
-        it narrows the current collection AND applies to downstream
-        traversals from the matching nodes (e.g. their `.neighbours`,
-        `.edges`). For a narrow-here-only variant, use `.select(...)`.
+        (the same builder used by local graphs). Every node stays in the
+        collection; the filter scopes what is reached through them (their
+        `.neighbours`, `.edges`, properties) and carries through later
+        traversals. To keep only the matching nodes, use `.select(...)`.
         Lazy — no RPC.
 
         Arguments:
@@ -2762,9 +2783,10 @@ class RemotePathFromNode(object):
 
     def filter(self, filter: filter.FilterExpr) -> RemotePathFromNode:
         """
-        Filter this collection by a node filter. **Propagates** to downstream
-        traversals from the matching nodes. Mirrors the local
-        `PathFromNode.filter(FilterExpr)`. Lazy — no RPC.
+        Filter this collection by a node filter. Every node stays; the filter
+        scopes what is reached through them and carries through later
+        traversals. Mirrors the local `PathFromNode.filter(FilterExpr)`.
+        Lazy — no RPC.
 
         Arguments:
             filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
@@ -3220,8 +3242,9 @@ class RemotePathFromGraph(object):
 
     def filter(self, filter: filter.FilterExpr) -> RemotePathFromGraph:
         """
-        Filter this collection by a node filter. **Propagates** to downstream
-        traversals from the matching nodes. Lazy — no RPC.
+        Filter this collection by a node filter. Every node stays; the filter
+        scopes what is reached through them and carries through later
+        traversals. Lazy — no RPC.
 
         Arguments:
             filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
@@ -3673,10 +3696,10 @@ class RemoteEdges(object):
 
     def filter(self, filter: filter.FilterExpr) -> RemoteEdges:
         """
-        Filter this collection by a filter expression. **The filter
-        propagates**: it applies to the current collection's membership *and*
-        to downstream traversals from the matching edges. For a
-        narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
+        Filter this collection by a filter expression. Every edge stays in the
+        collection; the filter scopes what is reached through them and carries
+        through later traversals. To keep only the matching edges, use
+        `.select(...)`. Lazy — no RPC.
 
         Arguments:
             filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
@@ -4134,8 +4157,9 @@ class RemoteNestedEdges(object):
 
     def filter(self, filter: filter.FilterExpr) -> RemoteNestedEdges:
         """
-        Filter this collection by an edge filter. **Propagates** to downstream
-        traversals from the matching edges. Lazy — no RPC.
+        Filter this collection by an edge filter. Every edge stays; the filter
+        scopes what is reached through them and carries through later
+        traversals. Lazy — no RPC.
 
         Arguments:
             filter (filter.FilterExpr): an edge filter expression from `raphtory.filter`.

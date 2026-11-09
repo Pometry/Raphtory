@@ -1,0 +1,26 @@
+<http://ex/s> <http://ex/int> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://ex/s> <http://ex/int> "042"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://ex/s> <http://ex/int> "1"^^<http://www.w3.org/2001/XMLSchema#int> .
+<http://ex/s> <http://ex/dec> "1.50"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+<http://ex/s> <http://ex/dbl> "1.5E0"^^<http://www.w3.org/2001/XMLSchema#double> .
+<http://ex/s> <http://ex/bool> "true"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+<http://ex/s> <http://ex/bool> "1"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+<http://ex/s> <http://ex/str> "plain" .
+<http://ex/s> <http://ex/str> "typed"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://ex/s> <http://ex/lang> "Hello"@EN-GB .
+<http://ex/s> <http://ex/lang> "hello"@en .
+<http://ex/s> <http://ex/dt> "2024-01-01T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+<http://ex/s> <http://ex/dt> "2024-01-01T00:00:00"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+<http://ex/s> <http://ex/date> "2024-01-01"^^<http://www.w3.org/2001/XMLSchema#date> .
+<http://ex/s> <http://ex/esc> "line1\nline2 \"quoted\" back\\slash\ttab" .
+<http://ex/s> <http://ex/uni> "café 日本" .
+<http://ex/s> <http://ex/other> "x"^^<http://ex/customType> .
+<http://ex/s> <http://ex/bad> "abc"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://ex/knows> <http://www.w3.org/2000/01/rdf-schema#label> "knows" .
+<http://ex/a> <http://ex/knows> <http://ex/b> .
+<http://ex/a> <http://ex/likes> <http://ex/b> .
+<http://ex/x> <http://ex/p> <http://ex/knows> .
+<http://ex/a> <http://ex/knows> <http://ex/a> .
+<http://ex/a> <http://ex/knows> <http://ex/b> .
+<raphtory:Alice%20Smith> <raphtory:_default> <raphtory:12%3A30> .
+<urn:isbn:0451450523> <http://ex/p> <mailto:someone@example.org> .

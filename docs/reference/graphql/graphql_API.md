@@ -279,6 +279,25 @@ Graph path relative to the root namespace.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.rdfgraph">rdfGraph</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a></td>
+<td>
+
+A stored graph, event or persistent, viewed as RDF with persistent semantics.
+Null if the caller cannot read the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -3491,10 +3510,9 @@ Returns a list of all objects in the current selection of the collection. You sh
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Narrow the collection to edges matching `expr`. The filter sticks to the
-returned view — every subsequent traversal through these edges (their
-properties, their endpoints' neighbours, etc.) continues to see the
-filtered scope.
+Keep every edge in the collection and scope what is reached through them
+by `expr`: their properties, their endpoints and the endpoints'
+neighbours all see the filtered graph, and so does every later traversal.
 
 Useful when you want one scoping rule to apply across the whole query.
 E.g. restricting everything to a specific week:
@@ -3505,7 +3523,8 @@ list { src { neighbours { list { name } } } }   # neighbours still windowed
 } }
 ```
 
-Contrast with `select`, which applies here and is not carried through.
+Contrast with `select`, which keeps only the edges matching `expr` and
+is not carried through.
 
 </td>
 </tr>
@@ -4540,7 +4559,7 @@ expression and narrows nodes, edges, and their properties to what matches.
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. A `view` cannot appear under `or` or `not`. If omitted, applies the identity filter.
+Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. Views alone combine under `or` and `not` into one view; a `view` beside a predicate cannot appear under `or` or `not`. If omitted, applies the identity filter.
 
 </td>
 </tr>
@@ -7804,7 +7823,11 @@ queryable.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Filter expression scoping which nodes and edges the walk steps through; a node it excludes is neither returned nor walked through.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outcomponent">outComponent</strong></td>
@@ -7821,7 +7844,11 @@ neighbours remain queryable.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Filter expression scoping which nodes and edges the walk steps through; a node it excludes is neither returned nor walked through.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.edges">edges</strong></td>
@@ -7835,7 +7862,11 @@ Returns all connected edges.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outedges">outEdges</strong></td>
@@ -7849,7 +7880,11 @@ Returns outgoing edges.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.inedges">inEdges</strong></td>
@@ -7863,7 +7898,11 @@ Returns incoming edges.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.neighbours">neighbours</strong></td>
@@ -7877,7 +7916,11 @@ Returns neighbouring nodes.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.inneighbours">inNeighbours</strong></td>
@@ -7891,7 +7934,11 @@ Returns the number of neighbours that have at least one in-going edge to this no
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outneighbours">outNeighbours</strong></td>
@@ -7905,12 +7952,22 @@ Returns the number of neighbours that have at least one out-going edge from this
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.filter">filter</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Return this node with `expr` applied to everything reached through it:
+its neighbours, edges, degrees and properties all see the filtered graph,
+and so does every later traversal.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
@@ -9175,9 +9232,9 @@ bulk list endpoints are disabled.
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Narrow the collection to nodes matching `expr`. The filter sticks to the
-returned view — every subsequent traversal through these nodes (their
-neighbours, edges, properties) continues to see the filtered scope.
+Keep every node in the collection and scope what is reached through them
+by `expr`: their neighbours, edges, degrees and properties all see the
+filtered graph, and so does every later traversal.
 
 Useful when you want one scoping rule to apply across the whole query.
 E.g. restricting everything to a specific week:
@@ -9188,7 +9245,8 @@ list { neighbours { list { name } } }   # neighbours still windowed
 } }
 ```
 
-Contrast with `select`, which applies here and is not carried through.
+Contrast with `select`, which keeps only the nodes matching `expr` and
+is not carried through.
 
 </td>
 </tr>
@@ -9248,7 +9306,11 @@ Returns the neighbouring nodes of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.inneighbours">inNeighbours</strong></td>
@@ -9262,7 +9324,11 @@ Returns the in-neighbours of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.outneighbours">outNeighbours</strong></td>
@@ -9276,7 +9342,11 @@ Returns the out-neighbours of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.edges">edges</strong></td>
@@ -9290,7 +9360,11 @@ Returns the incident edges (both directions) of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.inedges">inEdges</strong></td>
@@ -9304,7 +9378,11 @@ Returns the incoming edges of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.outedges">outEdges</strong></td>
@@ -9318,7 +9396,11 @@ Returns the outgoing edges of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -9914,7 +9996,11 @@ path (both directions), as a nested `PathFromGraph`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.inneighbours">inNeighbours</strong></td>
@@ -9929,7 +10015,11 @@ path, as a nested `PathFromGraph`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.outneighbours">outNeighbours</strong></td>
@@ -9944,7 +10034,11 @@ path, as a nested `PathFromGraph`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.edges">edges</strong></td>
@@ -10576,7 +10670,11 @@ Returns the neighbouring nodes reachable one further hop from this path
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.inneighbours">inNeighbours</strong></td>
@@ -10591,7 +10689,11 @@ flat `PathFromNode`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.outneighbours">outNeighbours</strong></td>
@@ -10606,7 +10708,11 @@ flat `PathFromNode`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.edges">edges</strong></td>
@@ -10987,6 +11093,551 @@ booleans as booleans, etc.
 <td>
 
 The value's exact type, for type-directed decoding of `value`.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### RdfGraph
+
+A graph viewed as RDF: one triple per visible edge and layer (source, layer, destination).
+The RDF fields see exactly the triples of the view.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to the default layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.layers">layers</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to the named layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.excludelayers">excludeLayers</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View with the named layers hidden.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.layer">layer</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to a single layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View with one layer hidden.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.subgraph">subgraph</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to a set of nodes and the edges between them.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Node ids to keep.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.valid">valid</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples valid at the end of this view: on the whole graph, the current
+state.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.subgraphnodetypes">subgraphNodeTypes</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to nodes with the given node types.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeTypes</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Node types to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.excludenodes">excludeNodes</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View with a set of nodes removed, along with their edges.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Node ids to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.rolling">rolling</strong></td>
+<td valign="top"><a href="#rdfgraphwindowset">RdfGraphWindowSet</a>!</td>
+<td>
+
+Windows of a fixed size that move forward by a step, as `Graph.rolling`; each window is
+an `RdfGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">window</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td>
+
+Width of each window, as in `Graph.rolling`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">step</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a></td>
+<td>
+
+Gap between the starts of consecutive windows; defaults to `window`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td>
+
+Unit to align the window boundaries to, as in `Graph.rolling`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.expanding">expanding</strong></td>
+<td valign="top"><a href="#rdfgraphwindowset">RdfGraphWindowSet</a>!</td>
+<td>
+
+Windows that grow by a step, as `Graph.expanding`; each window is an `RdfGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">step</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td>
+
+How much the window grows by on each step.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td>
+
+Unit to align the window boundaries to, as in `Graph.expanding`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.window">window</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples that held at some point between start and end.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Inclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.at">at</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the state at a time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant to pin the view to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.latest">latest</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the state at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples valid at a time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant at which triples must be valid.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples valid at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.before">before</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples that held at some time before `time` (exclusive), including those
+retracted before it; `at` gives the state at a time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.after">after</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples that held at some time after `time` (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+Sets the start of the window to the larger of the given time and the current start.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new start; has no effect if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+Sets the end of the window to the smaller of the given time and the current end.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new end; has no effect if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.filter">filter</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View narrowed by a node or edge filter expression, as `Graph.filter`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
+<td>
+
+Filter expression; if omitted, applies the identity filter.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.graph">graph</strong></td>
+<td valign="top"><a href="#graph">Graph</a>!</td>
+<td>
+
+The same view as a property graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.sparql">sparql</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Runs a SPARQL 1.1 query on the triples of this view and returns the serialized results.
+The server's `max_sparql_*` settings bound it; null if the query fails unexpectedly.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">query</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The SPARQL 1.1 query.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">format</td>
+<td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
+<td>
+
+The format of the results: JSON (the default), XML, CSV or TSV for SELECT and ASK; an RDF format for CONSTRUCT and DESCRIBE (N_TRIPLES by default), where JSON is JSON-LD and XML is RDF/XML. A format that does not fit the query is an error.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.validateshacl">validateShacl</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Validates the triples of this view against SHACL shapes and returns the report.
+The server's `max_shacl_*` settings bound it and recursive shapes are rejected; null if
+the validation fails unexpectedly.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">shapes</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The shapes graph, as an RDF document.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">format</td>
+<td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
+<td>
+
+The RDF format of the shapes: TURTLE (the default) or N_TRIPLES; other formats are errors.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">reportFormat</td>
+<td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
+<td>
+
+The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### RdfGraphWindowSet
+
+The windows of `rolling` or `expanding` on an `RdfGraph`, each an `RdfGraph`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraphwindowset.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of windows in this set.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraphwindowset.page">page</strong></td>
+<td valign="top">[<a href="#rdfgraph">RdfGraph</a>!]!</td>
+<td>
+
+One page of windows, as `GraphWindowSet.page`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of items to return on this page.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Extra items to skip on top of `pageIndex` paging (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Zero-based page number; multiplies `limit` to determine where to start (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraphwindowset.list">list</strong></td>
+<td valign="top">[<a href="#rdfgraph">RdfGraph</a>!]!</td>
+<td>
+
+Every window, as `GraphWindowSet.list`. Rejected when the server sets `disable_lists`.
 
 </td>
 </tr>
@@ -15242,6 +15893,110 @@ Latest time
 <td>
 
 Earliest time
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### SparqlFormat
+
+A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
+CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>JSON</strong></td>
+<td>
+
+SPARQL 1.1 Query Results JSON; JSON-LD for CONSTRUCT and DESCRIBE.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>XML</strong></td>
+<td>
+
+SPARQL Query Results XML; RDF/XML for CONSTRUCT and DESCRIBE.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>CSV</strong></td>
+<td>
+
+SPARQL 1.1 Query Results CSV.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>TSV</strong></td>
+<td>
+
+SPARQL 1.1 Query Results TSV.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>TURTLE</strong></td>
+<td>
+
+Turtle.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>N_TRIPLES</strong></td>
+<td>
+
+N-Triples.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>N_QUADS</strong></td>
+<td>
+
+N-Quads.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>TRIG</strong></td>
+<td>
+
+TriG.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>RDF_XML</strong></td>
+<td>
+
+RDF/XML.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>JSON_LD</strong></td>
+<td>
+
+JSON-LD.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>N3</strong></td>
+<td>
+
+N3.
 
 </td>
 </tr>

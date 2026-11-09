@@ -1,9 +1,9 @@
 use crate::{
-    api::graph_props::GraphPropSegmentOps, segments::graph_prop::segment::MemGraphPropSegment,
-    wal::LSN,
+    api::graph_props::GraphPropSegmentOps, error::StorageError,
+    segments::graph_prop::segment::MemGraphPropSegment, wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::properties::prop::AsPropRef;
+use raphtory_api::core::entities::properties::prop::{AsPropEntry, AsPropRef, Prop};
 use raphtory_core::storage::timeindex::AsTime;
 
 /// Provides mutable access to a graph segment. Holds an exclusive write lock
@@ -31,6 +31,24 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
     ) {
         let add = self.mem_segment.add_properties(t, props);
 
+        self.graph_props.increment_est_size(add);
+        self.graph_props.set_dirty(true);
+    }
+
+    pub fn check_metadata_inner<P: AsPropEntry>(
+        &self,
+        props: impl Iterator<Item = P>,
+    ) -> Result<(), StorageError> {
+        for entry in props {
+            let (prop_id, prop) = entry.as_prop_entry();
+            self.mem_segment.check_metadata(prop_id, prop.clone())?;
+            self.graph_props.check_metadata_immut(prop_id, prop)?;
+        }
+        Ok(())
+    }
+
+    pub fn update_metadata_inner(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
+        let add = self.mem_segment.update_metadata(props);
         self.graph_props.increment_est_size(add);
         self.graph_props.set_dirty(true);
     }

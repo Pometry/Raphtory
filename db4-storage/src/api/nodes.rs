@@ -17,7 +17,7 @@ use raphtory_api::{
             LayerId,
             properties::{
                 meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
-                prop::{AsPropRef, Prop, PropRef, PropUnwrap, prop_hashable::HashableProp},
+                prop::{Prop, PropRef, PropUnwrap, prop_hashable::HashableProp},
                 tprop::TPropOps,
             },
         },

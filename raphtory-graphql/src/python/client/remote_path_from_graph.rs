@@ -48,8 +48,9 @@ impl PyRemotePathFromGraph {
 
 #[pymethods]
 impl PyRemotePathFromGraph {
-    /// Filter this collection by a node filter. **Propagates** to downstream
-    /// traversals from the matching nodes. Lazy — no RPC.
+    /// Filter this collection by a node filter. Every node stays; the filter
+    /// scopes what is reached through them and carries through later
+    /// traversals. Lazy — no RPC.
     ///
     /// Arguments:
     ///     filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.

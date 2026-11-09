@@ -24,51 +24,60 @@ use crate::{
                 Index, NodeOp,
             },
             view::{
-                internal::{DynGraphArc, GraphView, IntoDynGraphArc, NodeList},
+                diff,
+                internal::{
+                    DynGraphArc, GraphTimeSemanticsOps, GraphView, InternalLayerOps,
+                    IntoDynGraphArc, NodeList, TimeRanges,
+                },
                 GraphViewOps, LayerOps, TimeOps,
             },
         },
-        graph::views::filter::{
-            and_filtered_graph::AndFilteredGraph,
-            edge_expr_filtered_graph::EdgeExprFilteredGraph,
-            exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
-            model::{
-                edge_expr::{
-                    ops::{
-                        AllOfEdgeOp, AnyOfEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
-                        EdgeExistsOp, EdgeMetaOp, EdgePropOp, IsActiveEdgePropOp,
-                        IsDeletedEdgePropOp, IsSelfLoopEdgePropOp, IsValidEdgePropOp,
-                        TemporalEdgePropOp, UnaryValueEdgeOp,
+        graph::views::{
+            filter::{
+                and_filtered_graph::AndFilteredGraph,
+                edge_expr_filtered_graph::EdgeExprFilteredGraph,
+                exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
+                model::{
+                    edge_expr::{
+                        ops::{
+                            AllOfEdgeOp, AnyOfEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
+                            EdgeExistsOp, EdgeMetaOp, EdgePropOp, IsActiveEdgePropOp,
+                            IsDeletedEdgePropOp, IsSelfLoopEdgePropOp, IsValidEdgePropOp,
+                            TemporalEdgePropOp, UnaryValueEdgeOp,
+                        },
+                        EdgeOp,
                     },
-                    EdgeOp,
+                    edge_filter::Endpoint,
+                    expr::typing::{
+                        cmp_kernel, comparison_shape, list, not_kernel, presence_kernel,
+                        qualified_type, require_bool, set_kernel, set_shape, str_kernel,
+                        string_shape, truthy, BinaryKernel, SetMembers, Shape, ShapeError,
+                        UnaryKernel,
+                    },
+                    filter_operator::{BinaryOp, UnaryOp},
+                    node_expr::ops::{
+                        AllEdgeOp, AllNodeOp, AllOfNodeOp, AnyEdgeOp, AnyNodeOp, AnyOfNodeOp,
+                        AvgEdgeOp, AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp,
+                        FirstEdgeOp, FirstNodeOp, LastEdgeOp, LastNodeOp, LatestEdgeOp,
+                        LatestNodeOp, LenEdgeOp, LenNodeOp, MaxEdgeOp, MaxNodeOp, MinEdgeOp,
+                        MinNodeOp, NodeIdOp, NodeMetaOp, NodePropOp, ShownNodeOp, SumEdgeOp,
+                        SumNodeOp, TemporalNodePropOp, UnaryValueNodeOp,
+                    },
+                    require_aggregable, resolved_prop_type,
                 },
-                edge_filter::Endpoint,
-                expr::typing::{
-                    cmp_kernel, comparison_shape, list, not_kernel, presence_kernel,
-                    qualified_type, require_bool, set_kernel, set_shape, str_kernel, string_shape,
-                    truthy, BinaryKernel, SetMembers, Shape, ShapeError, UnaryKernel,
-                },
-                filter_operator::{BinaryOp, UnaryOp},
-                node_expr::ops::{
-                    AllEdgeOp, AllNodeOp, AllOfNodeOp, AnyEdgeOp, AnyNodeOp, AnyOfNodeOp,
-                    AvgEdgeOp, AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp,
-                    FirstEdgeOp, FirstNodeOp, LastEdgeOp, LastNodeOp, LatestEdgeOp, LatestNodeOp,
-                    LenEdgeOp, LenNodeOp, MaxEdgeOp, MaxNodeOp, MinEdgeOp, MinNodeOp, NodeIdOp,
-                    NodeMetaOp, NodePropOp, ShownNodeOp, SumEdgeOp, SumNodeOp, TemporalNodePropOp,
-                    UnaryValueNodeOp,
-                },
-                require_aggregable, resolved_prop_type,
+                node_filtered_graph::NodeFilteredGraph,
+                or_filtered_graph::OrFilteredGraph,
+                CreateFilter, DynEdgeFilter,
             },
-            node_filtered_graph::NodeFilteredGraph,
-            or_filtered_graph::OrFilteredGraph,
-            CreateFilter, DynEdgeFilter,
+            layer_graph::LayeredGraph,
+            window_graph::WindowedGraph,
         },
     },
     errors::GraphError,
 };
 use raphtory_api::core::entities::{
     properties::prop::{IntoProp, Prop, PropType},
-    GidRef, GidType,
+    GidRef, GidType, LayerIds,
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use raphtory_storage::core_ops::CoreGraphOps;
@@ -1216,7 +1225,9 @@ impl CreateFilter for FilterExpr {
     /// operands' windows. A `not` of one leaf is the leaf's negated predicate;
     /// a `not` of a combination distributes over it: `not(and(x, y))` is
     /// `or(not(x), not(y))`, `not(or(x, y))` is `and(not(x), not(y))` and
-    /// `not(not(x))` is `x`. A view under `or` or `not` is refused.
+    /// `not(not(x))` is `x`. An `and`, `or` or `not` of time and layer views
+    /// alone is the one view it resolves to (see [`ResolvedView`]); a view
+    /// under `or` or `not` beside a predicate is refused.
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
@@ -1227,10 +1238,73 @@ impl CreateFilter for FilterExpr {
             FilterExpr::Edge(expr) => EdgeLeaf::graph_filter(&expr, graph),
             FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::graph_filter(&expr, graph),
             FilterExpr::View(views) => view_expr(graph, &views),
-            combination => match combination.node_only()? {
-                Some(nodes) => NodeLeaf::graph_filter(&nodes, graph),
-                None => combination.combined_graph(graph),
-            },
+            FilterExpr::And(expressions) => {
+                if expressions.iter().all(FilterExpr::resolves_to_one_view) {
+                    return Ok(ResolvedView::and_of(&expressions, &graph)?.apply(graph));
+                }
+                if let Some(nodes) = FilterExpr::nodes_only(&expressions)? {
+                    return NodeLeaf::graph_filter(&Expr::And(nodes), graph);
+                }
+                let operands: Arc<[DynGraphArc<'graph>]> =
+                    each_operand(&expressions, "and", |expression| {
+                        expression.clone().create_graph_filter(graph.clone())
+                    })?;
+                Ok(AndFilteredGraph::new(graph, operands).into_dyn_graph_arc())
+            }
+            FilterExpr::Or(expressions) => {
+                if expressions.iter().all(FilterExpr::views_only) {
+                    return Ok(ResolvedView::or_of(&expressions, &graph)?.apply(graph));
+                }
+                if let Some(nodes) = FilterExpr::nodes_only(&expressions)? {
+                    return NodeLeaf::graph_filter(&Expr::Or(nodes), graph);
+                }
+                expressions
+                    .iter()
+                    .try_for_each(FilterExpr::no_view_below_top_level)?;
+                let operands = each_operand(&expressions, "or", |expression| {
+                    expression.clone().create_graph_filter(graph.clone())
+                })?;
+                Ok(OrFilteredGraph::new(graph, operands).into_dyn_graph_arc())
+            }
+            FilterExpr::Not(inner) => {
+                if inner.views_only() {
+                    let view = ResolvedView::resolve(&inner, &graph)?.not(&graph)?;
+                    return Ok(view.apply(graph));
+                }
+                if let Some(node) = inner.node_only()? {
+                    return NodeLeaf::graph_filter(&Expr::Not(Box::new(node)), graph);
+                }
+                inner.no_view_below_top_level()?;
+                // Every arm recurses only into a smaller expression than this
+                // `not`, so the recursion ends.
+                let not_each = |expressions: Vec<FilterExpr>| {
+                    expressions
+                        .into_iter()
+                        .map(|expression| FilterExpr::Not(Box::new(expression)))
+                        .collect()
+                };
+                match *inner {
+                    FilterExpr::Node(expr) => {
+                        NodeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
+                    }
+                    FilterExpr::Edge(expr) => {
+                        EdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
+                    }
+                    FilterExpr::ExplodedEdge(expr) => {
+                        ExplodedEdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
+                    }
+                    FilterExpr::View(views) => Ok(ResolvedView::of_views(&views, &graph)?
+                        .not(&graph)?
+                        .apply(graph)),
+                    FilterExpr::And(expressions) => {
+                        FilterExpr::Or(not_each(expressions)).create_graph_filter(graph)
+                    }
+                    FilterExpr::Or(expressions) => {
+                        FilterExpr::And(not_each(expressions)).create_graph_filter(graph)
+                    }
+                    FilterExpr::Not(expression) => expression.create_graph_filter(graph),
+                }
+            }
         }
     }
 
@@ -1270,9 +1344,9 @@ impl FilterExpr {
     /// its value on the node, a view asks that the node exist in the view (its
     /// `exists()` test), `not` of an expression with a view asks that the node
     /// exist in the graph that `not` keeps, and otherwise `and`, `or` and `not`
-    /// are one op over the values of their expressions. That graph is refused
-    /// until multi-window time semantics exist, so today a `not` with a view
-    /// refuses with the graph's message.
+    /// are one op over the values of their expressions. A `not` that puts a
+    /// view beside a predicate has no such graph, so it refuses with the
+    /// graph's message.
     fn node_value<'g>(
         &self,
         graph: DynGraphArc<'g>,
@@ -1325,9 +1399,8 @@ impl FilterExpr {
     /// that the item exist in the graph that `not` keeps, `not` of a
     /// combination distributes over it as on a graph, `not` of a leaf is one op
     /// over its value, and otherwise `and` and `or` are one op over the values
-    /// of their expressions. That graph is refused until multi-window time
-    /// semantics exist, so today a `not` with a view refuses with the graph's
-    /// message.
+    /// of their expressions. A `not` that puts a view beside a predicate has no
+    /// such graph, so it refuses with the graph's message.
     /// Expressions that only test nodes combine into one node predicate
     /// first, so `name == "b" | name == "c"` keeps the edge b→c.
     fn edge_value<'g>(
@@ -1379,46 +1452,6 @@ impl FilterExpr {
         })
     }
 
-    /// The graph of an `and`, `or` or `not` whose expressions are not all node
-    /// expressions: the expressions of `and` and `or` each run on `graph` and
-    /// their graphs combine, and a `not` lands on a leaf or distributes.
-    fn combined_graph<'graph>(
-        self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<DynGraphArc<'graph>, GraphError> {
-        match self {
-            FilterExpr::And(expressions) => {
-                let operands: Arc<[DynGraphArc<'graph>]> =
-                    each_operand(&expressions, "and", |expression| {
-                        expression.clone().create_graph_filter(graph.clone())
-                    })?;
-                Ok(AndFilteredGraph::new(graph, operands).into_dyn_graph_arc())
-            }
-            FilterExpr::Or(expressions) => {
-                expressions
-                    .iter()
-                    .try_for_each(FilterExpr::no_view_below_top_level)?;
-                let operands = each_operand(&expressions, "or", |expression| {
-                    expression.clone().create_graph_filter(graph.clone())
-                })?;
-                Ok(OrFilteredGraph::new(graph, operands).into_dyn_graph_arc())
-            }
-            FilterExpr::Not(inner) => {
-                inner.no_view_below_top_level()?;
-                match *inner {
-                    FilterExpr::Edge(expr) => {
-                        EdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
-                    }
-                    FilterExpr::ExplodedEdge(expr) => {
-                        ExplodedEdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
-                    }
-                    combination => combination.negated().create_graph_filter(graph),
-                }
-            }
-            leaf => leaf.create_graph_filter(graph),
-        }
-    }
-
     /// The negation of this filter pushed down to its leaves: the `not` of an
     /// `and` is the `or` of its negated expressions, the `not` of an `or` the
     /// `and` of them, and the `not` of a `not` the expression under it. A leaf
@@ -1438,20 +1471,22 @@ impl FilterExpr {
     /// This filter as one node predicate, when it tests nodes only. A
     /// constant expression is refused before the expressions merge, as it is on its own.
     fn node_only(&self) -> Result<Option<NodeExpr>, GraphError> {
-        // The expressions' node predicates when every expression has one, `None` when one does not.
-        let all = |expressions: &[FilterExpr]| -> Result<Option<Vec<NodeExpr>>, GraphError> {
-            expressions.iter().map(Self::node_only).collect()
-        };
         Ok(match self {
             FilterExpr::Node(expr) => {
                 expr.refuse_constant()?;
                 Some(expr.clone())
             }
-            FilterExpr::And(expressions) => all(expressions)?.map(Expr::And),
-            FilterExpr::Or(expressions) => all(expressions)?.map(Expr::Or),
+            FilterExpr::And(expressions) => Self::nodes_only(expressions)?.map(Expr::And),
+            FilterExpr::Or(expressions) => Self::nodes_only(expressions)?.map(Expr::Or),
             FilterExpr::Not(inner) => inner.node_only()?.map(|expr| Expr::Not(Box::new(expr))),
             FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) | FilterExpr::View(_) => None,
         })
+    }
+
+    /// The expressions' node predicates when every expression has one, `None`
+    /// when one does not.
+    fn nodes_only(expressions: &[FilterExpr]) -> Result<Option<Vec<NodeExpr>>, GraphError> {
+        expressions.iter().map(Self::node_only).collect()
     }
 }
 
@@ -1506,6 +1541,169 @@ fn apply_views<'g>(
             ViewOp::Valid => graph.valid().into_dyn_graph_arc(),
         })
     })
+}
+
+/// What a tree of time and layer views keeps of a graph, as a value: a set of
+/// time ranges and a set of layers. `and`, `or` and `not` combine it
+/// algebraically and the result is applied to the graph once, so the union of
+/// two windows or the complement of one is seen with the time semantics to
+/// match. Both parts are relative to the graph the filter is given: `all` is
+/// every time, or every layer, that graph has.
+///
+/// One shape is not representable: an `or` or `not` that restricts time and
+/// layers at once. `(T1, L1) ∪ (T2, L2)` is one (time, layers) pair only when
+/// the two agree on one part, and the complement of `(T, L)` is one pair only
+/// when `T` or `L` is `all`. Those are refused, not approximated.
+struct ResolvedView {
+    time: TimeRanges,
+    layers: LayerIds,
+}
+
+impl ResolvedView {
+    /// `expr`, which holds views only, resolved against `graph`.
+    fn resolve(expr: &FilterExpr, graph: &DynGraphArc<'_>) -> Result<Self, GraphError> {
+        match expr {
+            FilterExpr::View(views) => Self::of_views(views, graph),
+            FilterExpr::And(expressions) => Self::and_of(expressions, graph),
+            FilterExpr::Or(expressions) => Self::or_of(expressions, graph),
+            FilterExpr::Not(inner) => Self::resolve(inner, graph)?.not(graph),
+            _ => Err(GraphError::invalid_filter(
+                "only views combine into a view under `or` or `not`",
+            )),
+        }
+    }
+
+    /// The view an `and` of views resolves to: the overlap of its operands.
+    fn and_of(expressions: &[FilterExpr], graph: &DynGraphArc<'_>) -> Result<Self, GraphError> {
+        let views: Vec<Self> = each_operand(expressions, "and", |expr| Self::resolve(expr, graph))?;
+        Ok(views.into_iter().fold(Self::all(), Self::and))
+    }
+
+    /// The view an `or` of views resolves to: the union of its operands,
+    /// folded from the first, so no layer is added that no operand keeps.
+    fn or_of(expressions: &[FilterExpr], graph: &DynGraphArc<'_>) -> Result<Self, GraphError> {
+        let views: Vec<Self> = each_operand(expressions, "or", |expr| Self::resolve(expr, graph))?;
+        let mut views = views.into_iter();
+        let first = views.next().unwrap_or_else(Self::nothing);
+        views.try_fold(first, Self::or)
+    }
+
+    /// The times and layers `views` keep of `graph`, read back from the graph
+    /// they make. Views that restrict nodes or edges have no place in a time
+    /// and layer value, so they are refused.
+    fn of_views(views: &[ViewOp], graph: &DynGraphArc<'_>) -> Result<Self, GraphError> {
+        FilterExpr::needs_view(views)?;
+        if let Some(view) = views.iter().find(|view| view.restricts_entities()) {
+            return Err(GraphError::invalid_filter(format!(
+                "only time and layer views combine under `or` or `not`, not {view}"
+            )));
+        }
+        let viewed = apply_views(graph.clone(), views)?;
+        let time = viewed.view_ranges();
+        let layers = viewed.layer_ids().clone();
+        Ok(Self {
+            time: if time == graph.view_ranges() {
+                TimeRanges::all()
+            } else {
+                time
+            },
+            layers: if &layers == graph.layer_ids() {
+                LayerIds::All
+            } else {
+                layers
+            },
+        })
+    }
+
+    /// Every time and every layer: the identity of `and`.
+    fn all() -> Self {
+        Self {
+            time: TimeRanges::all(),
+            layers: LayerIds::All,
+        }
+    }
+
+    /// No time: what `not` of every time and every layer keeps.
+    fn nothing() -> Self {
+        Self {
+            time: TimeRanges::empty(),
+            layers: LayerIds::All,
+        }
+    }
+
+    fn is_all(&self) -> bool {
+        !self.restricts_time() && !self.restricts_layers()
+    }
+
+    fn restricts_time(&self) -> bool {
+        !self.time.is_all()
+    }
+
+    fn restricts_layers(&self) -> bool {
+        !matches!(self.layers, LayerIds::All)
+    }
+
+    /// Both: the times and the layers in common. Always one pair.
+    fn and(self, other: Self) -> Self {
+        Self {
+            time: self.time.intersect(&other.time),
+            layers: self.layers.intersect(&other.layers),
+        }
+    }
+
+    /// Either: one pair when the two agree on times or on layers, or when one
+    /// keeps everything. Otherwise `(T1 ∪ T2, L1 ∪ L2)` would keep `T1` events
+    /// on `L2` layers, which neither keeps. No layers is not nothing: the
+    /// graph's temporal properties in its times are still kept. No time is not
+    /// nothing either: its layers are still the view's layers.
+    fn or(self, other: Self) -> Result<Self, GraphError> {
+        if self.time == other.time || self.layers == other.layers {
+            return Ok(Self {
+                time: self.time.union(&other.time),
+                layers: self.layers.union(&other.layers),
+            });
+        }
+        if self.is_all() || other.is_all() {
+            return Ok(Self::all());
+        }
+        Err(GraphError::invalid_filter(
+            "an `or` of views that restrict both time and layers differently is not one view; \
+             combine the time views and the layer views separately",
+        ))
+    }
+
+    /// Neither: one pair when at most one part is restricted.
+    fn not(&self, graph: &DynGraphArc<'_>) -> Result<Self, GraphError> {
+        match (self.restricts_time(), self.restricts_layers()) {
+            (false, false) => Ok(Self::nothing()),
+            (true, false) => Ok(Self {
+                time: self.time.complement(),
+                layers: LayerIds::All,
+            }),
+            (false, true) => Ok(Self {
+                time: TimeRanges::all(),
+                layers: diff(&LayerIds::All, graph.clone(), &self.layers),
+            }),
+            (true, true) => Err(GraphError::invalid_filter(
+                "a `not` of a view that restricts both time and layers is not one view; \
+                 negate the time view and the layer view separately",
+            )),
+        }
+    }
+
+    /// `graph` seen through these layers and times.
+    fn apply(self, graph: DynGraphArc<'_>) -> DynGraphArc<'_> {
+        // Every layer set here is already inside `graph`'s: read back from a
+        // view of it, or a complement over its own layers.
+        let graph = match self.layers {
+            LayerIds::All => graph,
+            layers => LayeredGraph::new(graph, layers).into_dyn_graph_arc(),
+        };
+        if self.time.is_all() {
+            return graph;
+        }
+        WindowedGraph::from_ranges(graph, self.time).into_dyn_graph_arc()
+    }
 }
 
 /// A boolean expression is a filter on its entity. A node tree answers which

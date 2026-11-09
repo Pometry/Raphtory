@@ -8,6 +8,7 @@ use crate::{
         timeindex::{GqlEventTime, GqlTimeInput},
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::{Context, Error, Value as GqlValue};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
@@ -16,7 +17,6 @@ use raphtory::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
         graph::path::PathFromGraph,
     },
-    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::utils::time::IntoTime;
@@ -440,7 +440,7 @@ impl GqlPathFromGraph {
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.nn.filter(expr)?;
@@ -459,7 +459,7 @@ impl GqlPathFromGraph {
             desc = "Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.nn.select(expr)?;
@@ -474,7 +474,13 @@ impl GqlPathFromGraph {
 
     /// Returns the neighbouring nodes reachable one further hop from each source
     /// path (both directions), as a nested `PathFromGraph`.
-    pub async fn neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
+    pub async fn neighbours(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<Self, GQLError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -485,7 +491,13 @@ impl GqlPathFromGraph {
 
     /// Returns the in-neighbours reachable one further hop from each source
     /// path, as a nested `PathFromGraph`.
-    pub async fn in_neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
+    pub async fn in_neighbours(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<Self, GQLError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -496,7 +508,13 @@ impl GqlPathFromGraph {
 
     /// Returns the out-neighbours reachable one further hop from each source
     /// path, as a nested `PathFromGraph`.
-    pub async fn out_neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
+    pub async fn out_neighbours(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<Self, GQLError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
