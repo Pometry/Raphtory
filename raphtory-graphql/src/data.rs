@@ -305,10 +305,11 @@ impl WorkDirGuard {
 pub struct DataInner {
     /// The server working directory. Operations that modify the underlying server
     /// filesystem should always acquire the guards from this struct.
-    pub(crate) work_dir: Arc<WorkDir>,
-    /// Cache holding graphs loaded from disk.
+    ///
     /// Note that lock acquisition order should always be `work_dir` -> `cache` guards
     /// to prevent deadlocks.
+    pub(crate) work_dir: Arc<WorkDir>,
+    /// Cache holding graphs loaded from disk.
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
@@ -573,8 +574,7 @@ impl Data {
 
     pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
         let work_dir = self.inner.work_dir.write().await;
-        let target =
-            validate_path_for_namespace_create(work_dir.to_path_buf(), path)?;
+        let target = validate_path_for_namespace_create(work_dir.to_path_buf(), path)?;
         let mut cleanup_root = target.as_path();
         while let Some(parent) = cleanup_root.parent() {
             if parent.is_dir() {
@@ -602,12 +602,12 @@ impl Data {
     #[cfg(feature = "vectors")]
     pub(crate) async fn vectorise_folder(
         &self,
-        folder: &ExistingGraphFolder,
+        path: &str,
         template: &DocumentTemplate,
         model: CachedEmbeddingModel,
     ) -> Result<(), GQLError> {
         let template = template.clone();
-        self.index_folder(folder, move |graph, path| async move {
+        self.index_folder(path, move |graph, path| async move {
             Ok(graph.vectorise(model, template, Some(&path), true).await?)
         })
         .await
@@ -618,12 +618,12 @@ impl Data {
     #[cfg(feature = "vectors")]
     pub(crate) async fn vectorise_missing_in_folder(
         &self,
-        folder: &ExistingGraphFolder,
+        path: &str,
         template: &DocumentTemplate,
         model: CachedEmbeddingModel,
     ) -> Result<(), GQLError> {
         let template = template.clone();
-        self.index_folder(folder, move |graph, path| async move {
+        self.index_folder(path, move |graph, path| async move {
             Ok(graph
                 .vectorise_missing(model, template, &path, true)
                 .await?)
@@ -634,16 +634,14 @@ impl Data {
     /// Run an indexing operation against a graph's vectors under the cache guard, keeping the
     /// vectors it already had if the operation fails and reporting the failure to the caller.
     #[cfg(feature = "vectors")]
-    async fn index_folder<F, Fut>(
-        &self,
-        folder: &ExistingGraphFolder,
-        index: F,
-    ) -> Result<(), GQLError>
+    async fn index_folder<F, Fut>(&self, path: &str, index: F) -> Result<(), GQLError>
     where
         F: FnOnce(MaterializedGraph, PathBuf) -> Fut,
         Fut: std::future::Future<Output = Result<VectorisedGraph<MaterializedGraph>, GraphError>>,
     {
-        let vectors_path = folder
+        let graph = self.get_graph_unchecked(path).await?;
+        let vectors_path = graph
+            .folder()
             .graph_folder()
             .vectors_path()
             .map_err(GraphError::from)?;
@@ -651,13 +649,12 @@ impl Data {
         // The indexing itself runs with no cache guard held: it embeds the whole graph, and holding
         // the entry would block every read of this graph for the duration. Readers keep being served
         // by the vectors currently in the entry while this runs.
-        let graph = self.get_graph_unchecked(folder.local_path()).await?;
         let vectors = index(graph.graph().clone(), vectors_path)
             .await
             .map_err(|error| {
                 error!(
                     "An error occurred when trying to vectorise graph {}: {error}",
-                    folder.local_path()
+                    path
                 );
                 error
             })?;
@@ -665,18 +662,20 @@ impl Data {
         // Swapping the new index in is the only part that needs the guard, and it is quick. On the
         // error path above the entry is never touched, so a failed vectorise leaves the graph with
         // exactly the vectors it had.
-        let folder_clone = folder.clone();
+        let work_dir = self.inner.work_dir.read().await;
+        let folder = ExistingGraphFolder::try_from(work_dir.into(), path)?;
         let fallback = graph;
+
         self.inner
             .cache
-            .insert_or_replace_with(folder.local_path(), |old_graph| async {
+            .insert_or_replace_with(path, |old_graph| async move {
                 let current = old_graph.unwrap_or(fallback);
-                let updated =
-                    GraphWithVectors::new(current.graph().clone(), Some(vectors), folder_clone);
+                let updated = GraphWithVectors::new(current.graph().clone(), Some(vectors), folder);
                 updated.set_dirty(current.is_dirty());
                 Ok::<_, GQLError>(updated)
             })
             .await?;
+
         Ok(())
     }
 
@@ -1237,10 +1236,7 @@ pub(crate) mod data_tests {
             .openai(OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}")).into())
             .await
             .unwrap();
-        let folder =
-            ExistingGraphFolder::try_from(data.work_dir().read().await.into(), name).unwrap();
-
-        data.vectorise_folder(&folder, &template("first"), model.clone())
+        data.vectorise_folder(name, &template("first"), model.clone())
             .await
             .unwrap();
         assert_eq!(
@@ -1254,7 +1250,7 @@ pub(crate) mod data_tests {
         embedding_server.stop().await;
 
         let result = data
-            .vectorise_folder(&folder, &template("second"), model)
+            .vectorise_folder(name, &template("second"), model)
             .await;
         assert!(
             result.is_err(),
@@ -1296,7 +1292,6 @@ pub(crate) mod data_tests {
     #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_vectorise_after_reading_a_reloaded_graph() {
-        use crate::paths::ExistingGraphFolder;
         use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
@@ -1335,11 +1330,7 @@ pub(crate) mod data_tests {
                 .openai(embeddings.clone().into())
                 .await
                 .unwrap();
-            let folder =
-                ExistingGraphFolder::try_from(data.work_dir().read().await.into(), name).unwrap();
-            data.vectorise_folder(&folder, &template, model)
-                .await
-                .unwrap();
+            data.vectorise_folder(name, &template, model).await.unwrap();
         }
 
         // second server: the read loads the persisted index before anything else touches the
@@ -1363,11 +1354,7 @@ pub(crate) mod data_tests {
             .openai(embeddings.into())
             .await
             .unwrap();
-        let folder =
-            ExistingGraphFolder::try_from(data.work_dir().read().await.into(), name).unwrap();
-        data.vectorise_folder(&folder, &template, model)
-            .await
-            .unwrap();
+        data.vectorise_folder(name, &template, model).await.unwrap();
 
         let graph = data.get_graph_unchecked(name).await.unwrap();
         let vectors = graph
@@ -1391,7 +1378,6 @@ pub(crate) mod data_tests {
     #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_eviction_reloads_vectorised_graph() {
-        use crate::paths::ExistingGraphFolder;
         use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
@@ -1432,9 +1418,7 @@ pub(crate) mod data_tests {
             .unwrap();
 
         for name in ["test_vg", "test_vg2"] {
-            let folder =
-                ExistingGraphFolder::try_from(data.work_dir().read().await.into(), name).unwrap();
-            data.vectorise_folder(&folder, &template, model.clone())
+            data.vectorise_folder(name, &template, model.clone())
                 .await
                 .unwrap();
         }

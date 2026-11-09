@@ -973,15 +973,9 @@ mod tests {
         let config = OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}"));
         let vector_cache = data.inner.vector_cache.resolve().await.unwrap();
         let model = vector_cache.openai(config.into()).await.unwrap();
-        let work_dir = data.work_dir().read().await.into();
-
-        data.vectorise_folder(
-            &ExistingGraphFolder::try_from(work_dir, graph_name).unwrap(),
-            &template,
-            model,
-        )
-        .await
-        .unwrap();
+        data.vectorise_folder(graph_name, &template, model)
+            .await
+            .unwrap();
 
         let graph_with_vectors = data.get_graph_for_test(graph_name).await.unwrap();
         let mutable_graph = GqlMutableGraph::from(graph_with_vectors);

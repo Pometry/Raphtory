@@ -5,7 +5,6 @@ use crate::{
         graph::{timeindex::GqlTimeInput, vector_selection::GqlVectorSelection},
         resolve, QueryRoot, Template,
     },
-    paths::ExistingGraphFolder,
     rayon::blocking_compute,
 };
 use async_graphql::Context;
@@ -93,9 +92,7 @@ impl<'b> VectorQuery<'b> {
                 .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
                 .cache(ctx)
                 .await?;
-            let work_dir = data.work_dir().read().await.into();
-            let folder = ExistingGraphFolder::try_from(work_dir, &path)?;
-            data.vectorise_folder(&folder, &template, cached_model)
+            data.vectorise_folder(&path, &template, cached_model)
                 .await?;
             Ok(true)
         }
@@ -128,9 +125,7 @@ impl<'b> VectorQuery<'b> {
             .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
             .cache(ctx)
             .await?;
-        let work_dir = data.work_dir().read().await.into();
-        let folder = ExistingGraphFolder::try_from(work_dir, &path)?;
-        data.vectorise_missing_in_folder(&folder, &template, cached_model)
+        data.vectorise_missing_in_folder(&path, &template, cached_model)
             .await?;
         Ok(true)
     }

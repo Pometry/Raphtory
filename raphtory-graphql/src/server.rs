@@ -74,7 +74,7 @@ use url::ParseError;
 
 #[cfg(feature = "vectors")]
 use {
-    crate::{paths::ExistingGraphFolder, GQLError},
+    crate::{paths::ValidGraphPaths, GQLError},
     raphtory_vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
@@ -245,7 +245,7 @@ impl GraphServer {
         let model = vector_cache.openai(embeddings.into()).await?;
         for folder in self.data.get_all_graph_folders().await {
             self.data
-                .vectorise_folder(&folder, template, model.clone()) // TODO: avoid clone, just ask for a ref
+                .vectorise_folder(folder.local_path(), template, model.clone())
                 .await?;
         }
         Ok(())
@@ -265,8 +265,7 @@ impl GraphServer {
     ) -> Result<(), GQLError> {
         let vector = self.data.inner.vector_cache.resolve();
         let model = vector.await?.openai(embeddings.into()).await?;
-        let folder = ExistingGraphFolder::try_from(self.data.work_dir().read().await.into(), path)?;
-        self.data.vectorise_folder(&folder, template, model).await
+        self.data.vectorise_folder(path, template, model).await
     }
 
     /// Start the server on the default port and return a handle to it.
