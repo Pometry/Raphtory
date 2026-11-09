@@ -273,10 +273,10 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     match value {
         // A placeholder that reached evaluation was never substituted. Erroring here keeps that a
         // visible bug rather than a filter that quietly matches nothing.
-        Value::Var(name) => Err(GraphError::InvalidGqlFilter(format!(
+        Value::Var(name) => Err(GraphError::invalid_filter(format!(
             "unresolved variable '{name}' in filter"
         ))),
-        Value::Claim(name) => Err(GraphError::InvalidGqlFilter(format!(
+        Value::Claim(name) => Err(GraphError::invalid_filter(format!(
             "unresolved claim '{name}' in filter"
         ))),
         Value::U8(n) => Ok(Prop::U8(n)),
