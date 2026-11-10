@@ -162,7 +162,9 @@ impl GqlMutableGraph {
     pub async fn graph(
         &self,
         #[graphql(
-            desc = "Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type."
+            desc = "Optional override for graph semantics — `EVENT` treats every update \
+                    as a point-in-time event, `PERSISTENT` carries values forward until \
+                    overwritten or deleted. Defaults to the stored graph's native type."
         )]
         graph_type: Option<GqlGraphType>,
     ) -> GqlGraph {
