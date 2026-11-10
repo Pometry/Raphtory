@@ -184,8 +184,19 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         }
 
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
+        let segments = boxcar::Vec::with_capacity(*N);
+        for _ in (0..*N) {
+            segments.push_with(|segment_id| {
+                Arc::new(ES::new(
+                    segment_id,
+                    edge_meta.clone(),
+                    path.clone(),
+                    ext.clone(),
+                ))
+            });
+        }
         let empty = Self {
-            segments: boxcar::Vec::new(),
+            segments,
             layer_counter: GraphStats::new().into(),
             free_segments,
             path,
@@ -200,7 +211,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             || prop_mapper.num_fields() > 0
             || metadata_mapper.num_fields() > 0
         {
-            let segment = empty.get_or_create_segment(STATIC_GRAPH_LAYER_ID.0);
+            let segment = empty.get_or_create_segment(0);
             let mut head = segment.head_mut();
 
             for layer in layer_mapper.ids() {
@@ -208,7 +219,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             }
 
             if prop_mapper.num_fields() > 0 {
-                head.get_or_create_layer(LayerId(0))
+                head.get_or_create_layer(STATIC_GRAPH_LAYER_ID)
                     .properties_mut()
                     .set_has_properties()
             }

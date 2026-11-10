@@ -11,16 +11,19 @@ use crate::{
     recovery_ops::RecoveryOps,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
-use raphtory_api::core::{
-    entities::{
-        edges::edge_ref::EdgeRef,
-        properties::{
-            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
-            prop::{AsPropEntry, Prop, PropType, PropUnwrap},
+use raphtory_api::{
+    core::{
+        entities::{
+            edges::edge_ref::EdgeRef,
+            properties::{
+                meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
+                prop::{AsPropEntry, Prop, PropType, PropUnwrap},
+            },
+            GidType, LayerId,
         },
-        GidType, LayerId,
+        storage::dict_mapper::MaybeNew,
     },
-    storage::dict_mapper::MaybeNew,
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::{
     entities::{
@@ -40,7 +43,7 @@ use storage::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
-    segments::graph_prop::segment::MemGraphPropSegment,
+    segments::{graph_prop::segment::MemGraphPropSegment, node::segment::MemNodeSegment},
     transaction::TransactionGuard,
     wal::LSN,
     ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
@@ -665,9 +668,9 @@ impl GraphMutationOps for TemporalGraph {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), MutationError> {
+    ) -> Result<(MaybeNew<VID>, Option<ArcRwLockWriteGuard<MemNodeSegment>>), MutationError> {
         let vid = match self.gid_resolver.get(id) {
-            Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
+            Some(vid) => (MaybeNew::Existing(vid), None),
             None => {
                 let (seg, pos, new_locks) = self
                     .storage()
@@ -678,7 +681,6 @@ impl GraphMutationOps for TemporalGraph {
                 (MaybeNew::New(new_vid), new_locks)
             }
         };
-
         Ok(vid)
     }
 

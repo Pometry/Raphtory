@@ -184,6 +184,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         (0..count).map(|id| {
             self.get_segment(id)
                 .expect("segment should exist given count")
+                .deref()
         })
     }
 
@@ -284,9 +285,21 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
 
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
+        let segments = boxcar::Vec::new();
+        for _ in (0..*N) {
+            segments.push_with(|segment_id| {
+                Arc::new(NS::new(
+                    segment_id,
+                    node_meta.clone(),
+                    edge_meta.clone(),
+                    path.clone(),
+                    ext.clone(),
+                ))
+            });
+        }
 
         let empty = Self {
-            segments: boxcar::Vec::new(),
+            segments,
             stats: GraphStats::new().into(),
             type_index: Arc::new(type_index),
             free_segments,
@@ -304,6 +317,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             || prop_mapper.num_fields() > 0
             || metadata_mapper.num_fields() > 0
         {
+            // need to write a segment to ensure the metadata is preserved on reload
             let segment = empty.get_or_create_segment(0);
             let mut head = segment.head_mut();
 
@@ -353,7 +367,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let mut new_segments = Vec::new();
 
         while self.segments.count() < new_len {
-            self.push_new_segment(&mut new_segments);
+            new_segments.push(self.push_new_segment());
         }
 
         new_segments
@@ -366,7 +380,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Select a segment using `row` as a hint and reserve a row in it.
     ///
     /// Also returns the segments this created, write-locked before they were published.
-    pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS, MemNodeSegmentGuards) {
+    ///
+    /// Only use with `WriteLockedGraph`!
+    pub fn reserve_free_pos(
+        &self,
+        row: usize,
+    ) -> (usize, LocalPOS, Option<ArcRwLockWriteGuard<MemNodeSegment>>) {
         let slot_idx = row % *N;
         let maybe_free_page = {
             let segment_id = *self.free_segments[slot_idx].read_recursive();
@@ -374,7 +393,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
             page.and_then(|page| {
                 self.reserve_segment_row(page)
-                    .map(|pos| (page.segment_id(), LocalPOS(pos), Vec::new()))
+                    .map(|pos| (page.segment_id(), LocalPOS(pos), None))
             })
         };
 
@@ -383,14 +402,23 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         } else {
             // not lucky, go wait on your slot
             let mut slot = self.free_segments[slot_idx].write();
-            let mut new_segment_locks = Vec::new();
-            loop {
-                if let Some(page) = self.segments.get(*slot)
-                    && let Some(pos) = self.reserve_segment_row(page)
-                {
-                    return (page.segment_id(), LocalPOS(pos), new_segment_locks);
+            let segment = self
+                .get_segment(*slot)
+                .expect("slot should always point at a segment");
+            match self.reserve_segment_row(segment) {
+                Some(pos) => (*slot, LocalPOS(pos), None),
+                None => {
+                    let guard = self.push_new_segment();
+                    let segment_id = guard.segment_id();
+                    let segment = self
+                        .get_segment(segment_id)
+                        .expect("new segment should always point at a segment");
+                    let pos = self
+                        .reserve_segment_row(segment)
+                        .expect("new segment should not be full");
+                    *slot = segment_id;
+                    (segment_id, LocalPOS(pos), Some(guard))
                 }
-                *slot = self.push_new_segment(&mut new_segment_locks);
             }
         }
     }
@@ -410,23 +438,17 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let slot_idx = row % *N;
         // No point in multiple threads getting past here as they would just content on the writer lock
         let mut slot = self.free_segments[slot_idx].write();
-        let mut segment_id = *slot;
+        let segment_id = *slot;
 
         let writer = self.writer(segment_id);
         match self.reserve_segment_rows(writer.segment, num_rows) {
             None => {
-                // The current segment is full, drop its lock and push a new free segment
-                drop(writer);
+                // The current segment is full, push a new locked free segment before dropping the existing writer lock
 
-                let mut new_guards = vec![];
-                segment_id = self.push_new_segment(&mut new_guards);
-                *slot = segment_id;
+                let guard = self.push_new_segment();
+                *slot = guard.segment_id();
 
-                let writer = new_guards
-                    .into_iter()
-                    .find(|segment_guard| segment_guard.segment_id() == segment_id)
-                    .map(|segment_guard| self.arc_writer(segment_id, segment_guard))
-                    .expect("guard should exist for new segment");
+                let writer = self.arc_writer(guard);
 
                 let local_pos = self
                     .reserve_segment_rows(writer.segment, num_rows)
@@ -452,8 +474,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     /// Push a new segment; the segment is write-locked before it
     /// is published and its guard is pushed into `new_guards`.
-    fn push_new_segment(&self, new_guards: &mut MemNodeSegmentGuards) -> usize {
-        let segment_id = self.segments.push_with(|segment_id| {
+    fn push_new_segment(&self) -> ArcRwLockWriteGuard<MemNodeSegment> {
+        let mut guard = None;
+
+        self.segments.push_with(|segment_id| {
             let segment = Arc::new(NS::new(
                 segment_id,
                 self.node_meta.clone(),
@@ -461,13 +485,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 self.path.clone(),
                 self.ext.clone(),
             ));
-
-            new_guards.push(segment.head_mut_arc());
-
+            guard = Some(segment.head_mut_arc());
             segment
         });
 
-        segment_id
+        guard.expect("guard should be set in push")
     }
 
     pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
@@ -493,7 +515,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &'a self,
         segment_id: usize,
     ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
-        let segment = self.get_or_create_segment(segment_id);
+        let segment = self
+            .get_segment(segment_id)
+            .expect("segment for writer should exist");
         let head = segment.head_mut_arc();
         NodeWriter::new(segment, &self.stats, head)
     }
@@ -501,10 +525,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     #[inline(always)]
     pub fn arc_writer<'a>(
         &'a self,
-        segment_id: usize,
         head: ArcRwLockWriteGuard<MemNodeSegment>,
     ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
-        let segment = &self.segments[segment_id];
+        let segment = &self.segments[head.segment_id()];
         NodeWriter::new(segment, &self.stats, head)
     }
 
@@ -687,15 +710,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.get_or_create_segment(new_len - 1);
     }
 
-    pub fn get_segment(&self, segment_id: usize) -> Option<&NS> {
+    pub fn get_segment(&self, segment_id: usize) -> Option<&Arc<NS>> {
         self.segments
             .get(segment_id)
-            .map(|segment| segment.deref())
+            .map(|segment| segment)
             .or_else(|| {
                 let count = self.segments.count();
                 if segment_id < count {
                     // Another thread has allocated the segment, wait for it to be added.
-                    Some(self.wait_for_segment(segment_id).deref())
+                    Some(self.wait_for_segment(segment_id))
                 } else {
                     None
                 }

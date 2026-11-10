@@ -19,11 +19,12 @@ use raphtory_api::{
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
     inherit::Base,
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use storage::{
     pages::locked::nodes::MemNodeSegmentGuards, properties::props_meta_writer::PropsMetaWriter,
-    wal::LSN, Extension,
+    segments::node::segment::MemNodeSegment, wal::LSN, Extension,
 };
 
 /// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.
@@ -64,7 +65,7 @@ pub trait GraphMutationOps: Send + Sync {
     unsafe fn bulk_load_resolve_node(
         &self,
         id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), MutationError>;
+    ) -> Result<(MaybeNew<VID>, Option<ArcRwLockWriteGuard<MemNodeSegment>>), MutationError>;
     fn resolve_layer(&self, layer: Option<&str>) -> MaybeNew<LayerId>;
 
     fn read_event_id(&self) -> usize;
