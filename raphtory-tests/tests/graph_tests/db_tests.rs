@@ -98,16 +98,16 @@ fn test_empty_graph() {
 
         let test_time = 42;
         let result = graph.at(test_time);
-        assert!(result.start.is_some());
-        assert!(result.end.is_some());
+        assert!(result.start().is_some());
+        assert!(result.end().is_some());
 
         let result = graph.after(test_time);
-        assert!(result.start.is_some());
-        assert!(result.end.is_none());
+        assert!(result.start().is_some());
+        assert!(result.end().is_none());
 
         let result = graph.before(test_time);
-        assert!(result.start.is_none());
-        assert!(result.end.is_some());
+        assert!(result.start().is_none());
+        assert!(result.end().is_some());
 
         assert_eq!(
             graph.metadata_keys().collect::<Vec<_>>(),

@@ -9,6 +9,7 @@ use crate::{
     },
     paths::ValidGraphPaths,
     rayon::blocking_write,
+    GQLError,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -207,7 +208,7 @@ impl GqlMutableGraph {
         node_type: Option<String>,
         #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
-    ) -> Result<GqlMutableNode, GraphError> {
+    ) -> Result<GqlMutableNode, GQLError> {
         let self_clone = self.clone();
         let node = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
@@ -249,7 +250,7 @@ impl GqlMutableGraph {
         node_type: Option<String>,
         #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
-    ) -> Result<GqlMutableNode, GraphError> {
+    ) -> Result<GqlMutableNode, GQLError> {
         let self_clone = self.clone();
         let node = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
@@ -286,7 +287,7 @@ impl GqlMutableGraph {
             desc = "List of `NodeAddition` inputs, each specifying a node's name, optional type, layer, per-timestamp updates, and metadata."
         )]
         nodes: Vec<NodeAddition>,
-    ) -> Result<bool, BatchFailures> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
 
         let (succeeded, batch_failures) = blocking_write(move || {
@@ -334,7 +335,7 @@ impl GqlMutableGraph {
             );
         }
         if let Some(failures) = batch_failures {
-            Err(failures)
+            Err(failures.into())
         } else {
             Ok(true)
         }
@@ -362,7 +363,7 @@ impl GqlMutableGraph {
         >,
         #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
-    ) -> Result<GqlMutableEdge, GraphError> {
+    ) -> Result<GqlMutableEdge, GQLError> {
         let self_clone = self.clone();
         let edge = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
@@ -399,7 +400,7 @@ impl GqlMutableGraph {
             desc = "List of `EdgeAddition` inputs, each specifying an edge's `src`, `dst`, optional layer, per-timestamp updates, and metadata."
         )]
         edges: Vec<EdgeAddition>,
-    ) -> Result<bool, BatchFailures> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
 
         let (edge_pairs, failures) = blocking_write(move || {
@@ -445,7 +446,7 @@ impl GqlMutableGraph {
 
         match failures {
             None => Ok(true),
-            Some(failures) => Err(failures),
+            Some(failures) => Err(failures.into()),
         }
     }
 
@@ -460,7 +461,7 @@ impl GqlMutableGraph {
         #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
         #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
-    ) -> Result<GqlMutableEdge, GraphError> {
+    ) -> Result<GqlMutableEdge, GQLError> {
         let self_clone = self.clone();
         let edge = blocking_write(move || {
             let edge =
@@ -489,7 +490,7 @@ impl GqlMutableGraph {
         &self,
         #[graphql(desc = "Time of the update.")] t: GqlTimeInput,
         #[graphql(desc = "List of `{key, value}` pairs to set.")] properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone
@@ -511,7 +512,7 @@ impl GqlMutableGraph {
         #[graphql(desc = "List of `{key, value}` pairs to set as metadata.")] properties: Vec<
             GqlPropertyInput,
         >,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
@@ -531,7 +532,7 @@ impl GqlMutableGraph {
         #[graphql(desc = "List of `{key, value}` pairs to upsert.")] properties: Vec<
             GqlPropertyInput,
         >,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone
@@ -548,16 +549,16 @@ impl GqlMutableGraph {
 
     /// Persist any in-memory state for this graph to disk so other
     /// processes attaching a read-only handle observe up-to-date data.
-    pub async fn flush(&self) -> Result<bool, GraphError> {
+    pub async fn flush(&self) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_write(move || {
+        Ok(blocking_write(move || {
             let res = self_clone.graph.persist();
             if res.is_err() {
                 self_clone.graph.set_dirty(true);
             }
             res.map(|_| true)
         })
-        .await
+        .await?)
     }
 
     /// Build secondary indexes over node property values to speed up property
@@ -572,7 +573,7 @@ impl GqlMutableGraph {
         &self,
         props: Option<Vec<String>>,
         index_gid: Option<bool>,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let graph = self.graph.graph().clone();
         let index_gid = index_gid.unwrap_or(false);
         blocking_write(move || {
@@ -653,7 +654,7 @@ impl GqlMutableNode {
         #[graphql(desc = "List of `{key, value}` pairs to set as metadata.")] properties: Vec<
             GqlPropertyInput,
         >,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.node.add_metadata(as_properties(properties)?)?;
@@ -671,7 +672,7 @@ impl GqlMutableNode {
     pub async fn set_node_type(
         &self,
         #[graphql(desc = "Node-type name to assign.")] new_type: String,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.node.set_node_type(&new_type)?;
@@ -691,7 +692,7 @@ impl GqlMutableNode {
         #[graphql(desc = "List of `{key, value}` pairs to upsert.")] properties: Vec<
             GqlPropertyInput,
         >,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone
@@ -715,7 +716,7 @@ impl GqlMutableNode {
         properties: Option<Vec<GqlPropertyInput>>,
         #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.node.add_updates(
@@ -794,7 +795,7 @@ impl GqlMutableEdge {
             desc = "Optional layer name. If omitted, uses the layer the edge was originally added on (when called after `addEdge`)."
         )]
         layer: Option<String>,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone
@@ -826,7 +827,7 @@ impl GqlMutableEdge {
         #[graphql(desc = "Optional layer name; defaults to the inherited layer.")] layer: Option<
             String,
         >,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone
@@ -859,7 +860,7 @@ impl GqlMutableEdge {
         #[graphql(desc = "Optional layer name; defaults to the inherited layer.")] layer: Option<
             String,
         >,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone
@@ -892,7 +893,7 @@ impl GqlMutableEdge {
         #[graphql(desc = "Optional layer name; defaults to the inherited layer.")] layer: Option<
             String,
         >,
-    ) -> Result<bool, GraphError> {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.edge.add_updates(

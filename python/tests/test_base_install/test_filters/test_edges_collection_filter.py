@@ -47,6 +47,9 @@ VIEWS = TIME_VIEWS | {
     "valid",
 }
 NODE_KIND = {"node_prop", "node_name"}
+# Views that restrict nodes or edges rather than time or layers: they combine
+# with other views under `&` only.
+ENTITY_VIEWS = {"exclude_nodes", "subgraph", "subgraph_node_types", "valid"}
 
 
 def _init(graph):
@@ -126,6 +129,20 @@ def _has_view(a, b):
 
 def _ids(collection):
     return frozenset(e.id for e in collection)
+
+
+def _outside(graph, view):
+    """The edges that exist outside `view`, a chained time or layer view of `graph`: before
+    or after its window, or on a layer it leaves out."""
+    start, end = view.start.t, view.end.t
+    if start is None and end is None:
+        return _ids(graph.exclude_valid_layers(view.unique_layers).edges)
+    outside = frozenset()
+    if start is not None:
+        outside |= _ids(graph.before(start).edges)
+    if end is not None:
+        outside |= _ids(graph.after(end - 1).edges)
+    return outside
 
 
 def _view_references(graph):
@@ -388,12 +405,16 @@ def _combinations_follow_set_algebra(mixed):
                     )
                 )
         exists = _exists()
+        views = _view_references(graph)
         for a in atoms:
-            if a in VIEWS:
-                # `~` of a view is "exists in the graph `~` keeps", which has no graph
-                # yet; "does not exist in the view" is `~` of its `.exists()` test
-                with pytest.raises(Exception, match="exists"):
+            if a in ENTITY_VIEWS:
+                with pytest.raises(Exception, match="time and layer views"):
                     graph.edges[~atoms[a]]
+                cases.append((f"~{a}.exists()", ~exists[a], every - single[a]))
+            elif a in VIEWS:
+                # `~` of a view is "exists in the graph `~` keeps": outside the view.
+                # "Does not exist in the view" is `~` of its `.exists()` test.
+                cases.append((f"~{a}", ~atoms[a], _outside(graph, views[a])))
                 cases.append((f"~{a}.exists()", ~exists[a], every - single[a]))
             else:
                 cases.append((f"~{a}", ~atoms[a], negated[a]))
@@ -611,8 +632,8 @@ def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
     """On `edges[]` a view expression is an existence test, so `|` on it has its plain set
     meaning. On `filter()` there is no graph that is "layered or heavy", so the same filters
     are refused there, when applied. `~` of an expression with a view is "exists in the graph
-    `~` keeps", and there is no graph that is "not layered", so it is refused on both;
-    "not in the layer" is `~` of the `.exists()` test.
+    `~` keeps": for a view alone, the other layers, on both; beside a predicate there is no
+    such graph, so it is refused on both. "Not in the layer" is `~` of the `.exists()` test.
     """
 
     def check(graph):
@@ -634,11 +655,16 @@ def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
                 graph.filter(expr)
         not_in_layer = ~_exists()["layer"]
         assert _ids(graph.edges[not_in_layer]) == every - single["layer"]
-        for expr in (~atoms["layer"], ~(atoms["edge_prop"] & atoms["layer"])):
-            with pytest.raises(Exception, match="exists"):
-                graph.edges[expr]
-            with pytest.raises(Exception, match="view"):
-                graph.filter(expr)
+        # a→d is on "work" and on "friends": it exists outside the layer, so `~layer`
+        # keeps it where `~layer.exists()` does not
+        other_layers = _ids(graph.exclude_layer("work").edges)
+        assert _ids(graph.edges[~atoms["layer"]]) == other_layers
+        assert _ids(graph.filter(~atoms["layer"]).edges) == other_layers
+        mixed = ~(atoms["edge_prop"] & atoms["layer"])
+        with pytest.raises(Exception, match="exists"):
+            graph.edges[mixed]
+        with pytest.raises(Exception, match="view"):
+            graph.filter(mixed)
 
     return check
 

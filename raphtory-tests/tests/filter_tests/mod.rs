@@ -27,6 +27,7 @@ mod subgraph_tests;
 mod test_filters;
 mod test_layers;
 mod tests_node_type_filtered_subgraph;
+mod view_composition;
 mod views_test;
 
 /// The nodes a compiled node filter will actually visit.

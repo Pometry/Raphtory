@@ -4,6 +4,7 @@ use crate::{
         timeindex::{GqlEventTime, GqlTimeInput},
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::{Error, Name, Value as GqlValue};
 use bigdecimal::BigDecimal;
@@ -272,10 +273,10 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     match value {
         // A placeholder that reached evaluation was never substituted. Erroring here keeps that a
         // visible bug rather than a filter that quietly matches nothing.
-        Value::Var(name) => Err(GraphError::InvalidGqlFilter(format!(
+        Value::Var(name) => Err(GraphError::invalid_filter(format!(
             "unresolved variable '{name}' in filter"
         ))),
-        Value::Claim(name) => Err(GraphError::InvalidGqlFilter(format!(
+        Value::Claim(name) => Err(GraphError::invalid_filter(format!(
             "unresolved claim '{name}' in filter"
         ))),
         Value::U8(n) => Ok(Prop::U8(n)),
@@ -304,16 +305,8 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
                 .collect::<Result<PropMap, _>>()?;
             Ok(Prop::Map(Arc::new(prop_map)))
         }
-        Value::DTime(s) => {
-            let t = s.try_into_time().map_err(GraphError::from)?;
-            t.dt().map(Prop::DTime).map_err(GraphError::from)
-        }
-        Value::NDTime(s) => {
-            let t = s.try_into_time().map_err(GraphError::from)?;
-            t.dt()
-                .map(|dt| Prop::NDTime(dt.naive_utc()))
-                .map_err(GraphError::from)
-        }
+        Value::DTime(s) => Ok(Prop::DTime(s.try_into_time()?.dt()?)),
+        Value::NDTime(s) => Ok(Prop::NDTime(s.try_into_time()?.dt()?.naive_utc())),
         Value::Decimal(s) => {
             let bd = BigDecimal::from_str(&s).map_err(|e| GraphError::InvalidProperty {
                 reason: format!("Invalid Decimal: {e}"),
@@ -409,7 +402,7 @@ impl ScalarValue for GqlPropTypeOutput {
 /// object → Map). The single source of truth for JSON→`Prop` value semantics —
 /// the client's response decoder (`json_to_prop`) delegates here after
 /// converting `serde_json::Value` via `Value::from_json`.
-pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
+pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, GQLError> {
     match value {
         GqlValue::Number(n) => {
             if let Some(n) = n.as_i64() {
@@ -417,22 +410,28 @@ pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
             } else if let Some(n) = n.as_f64() {
                 Ok(Prop::F64(n))
             } else {
-                Err(Error::new("Unable to convert"))
+                Err(GraphError::InvalidProperty {
+                    reason: "Unable to convert".to_string(),
+                }
+                .into())
             }
         }
         GqlValue::Boolean(b) => Ok(Prop::Bool(b)),
         GqlValue::Object(obj) => Ok(obj
             .into_iter()
             .map(|(k, v)| gql_to_prop(v).map(|vv| (k.to_string(), vv)))
-            .collect::<Result<Vec<(String, Prop)>, Error>>()?
+            .collect::<Result<Vec<(String, Prop)>, _>>()?
             .into_prop_map()),
         GqlValue::String(s) => Ok(Prop::Str(s.into())),
         GqlValue::List(arr) => Ok(Prop::List(PropArray::try_from(
             arr.into_iter()
                 .map(gql_to_prop)
-                .collect::<Result<Vec<Prop>, Error>>()?,
+                .collect::<Result<Vec<Prop>, _>>()?,
         )?)),
-        _ => Err(Error::new("Unable to convert")),
+        _ => Err(GraphError::InvalidProperty {
+            reason: "Unable to convert".to_string(),
+        }
+        .into()),
     }
 }
 
