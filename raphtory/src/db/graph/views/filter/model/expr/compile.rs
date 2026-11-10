@@ -26,8 +26,8 @@ use crate::{
             view::{
                 diff,
                 internal::{
-                    DynGraphArc, GraphTimeSemanticsOps, GraphView, InternalLayerOps,
-                    IntoDynGraphArc, NodeList, TimeRanges,
+                    DynGraphArc, GraphTimeSemanticsOps, GraphView, InnerFilterOps,
+                    InternalLayerOps, IntoDynGraphArc, NodeList, TimeRanges,
                 },
                 GraphViewOps, LayerOps, TimeOps,
             },
@@ -54,7 +54,7 @@ use crate::{
                         string_shape, truthy, BinaryKernel, SetMembers, Shape, ShapeError,
                         UnaryKernel,
                     },
-                    filter_operator::{BinaryOp, UnaryOp},
+                    filter_operator::{BinaryOp, StringOp, UnaryOp},
                     node_expr::ops::{
                         AllEdgeOp, AllNodeOp, AllOfNodeOp, AnyEdgeOp, AnyNodeOp, AnyOfNodeOp,
                         AvgEdgeOp, AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp,
@@ -76,14 +76,20 @@ use crate::{
     errors::GraphError,
 };
 use raphtory_api::core::entities::{
-    properties::prop::{IntoProp, Prop, PropType},
+    properties::{
+        meta::NODE_ID_PROP_ID,
+        prop::{prop_hashable::HashableProp, IntoProp, Prop, PropType},
+    },
     GidRef, GidType, LayerIds,
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::graph::{NodePropPredicate, NodePropSemantics},
+};
 use std::{
+    collections::HashSet,
     fmt::Debug,
-    slice,
     sync::{Arc, LazyLock},
 };
 
@@ -160,9 +166,13 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
         false
     }
 
-    /// The nodes whose value of this term is one of `values`, when the graph
-    /// can name them without a scan; `None` when every node may match.
-    fn named_by(&self, _values: &[Prop], _graph: &DynGraphArc<'_>) -> Option<NodeList> {
+    /// The nodes that may satisfy `predicate`, when the graph can list them
+    /// without a scan; `None` when every node may match.
+    fn named_by(
+        &self,
+        _predicate: &NodePropPredicate,
+        _graph: &DynGraphArc<'_>,
+    ) -> Option<NodeList> {
         None
     }
 }
@@ -187,6 +197,98 @@ fn id_ref(id_type: GidType, value: &Prop) -> Option<GidRef<'_>> {
 /// shows: every view can hide one.
 fn narrows(views: &[ViewOp]) -> bool {
     !views.is_empty()
+}
+
+/// Candidates from the storage's property index, or `None` without one.
+/// Never exact: `and`, `any()` and `all()` pass the list on as their own.
+fn indexed_nodes(
+    graph: &DynGraphArc<'_>,
+    prop_id: usize,
+    metadata: bool,
+    predicate: &NodePropPredicate,
+    semantics: NodePropSemantics,
+) -> Option<NodeList> {
+    let candidates = graph
+        .core_graph()
+        .node_prop_candidates(prop_id, metadata, predicate, semantics)?;
+    // index candidates are ascending and deduplicated, as `from_sorted` requires
+    Some(NodeList::List {
+        elems: Index::from_sorted(candidates.vids, false),
+    })
+}
+
+/// Index candidates for a property or metadata test. Constants are cast to
+/// the column's type, and a lossy cast is not served. `Latest` is the latest
+/// over all time and layers, so histories, views, windows and layer filters
+/// use `Ever`.
+fn indexed_column(
+    graph: &DynGraphArc<'_>,
+    views: &[ViewOp],
+    name: &str,
+    metadata: bool,
+    history: bool,
+    predicate: &NodePropPredicate,
+) -> Option<NodeList> {
+    let (prop_id, dtype) = graph.node_meta().get_prop_id_and_type(name, metadata)?;
+    let convert = |value: &Prop| {
+        // float vs integer compares through f64 and can round; index keys are exact
+        if matches!(value, Prop::F32(_) | Prop::F64(_))
+            && !matches!(dtype, PropType::F32 | PropType::F64)
+        {
+            return None;
+        }
+        value
+            .clone()
+            .cast(dtype.clone())
+            .filter(|converted| converted.equals(value))
+    };
+    let (mut value, mut members) = (None, None);
+    let predicate = match *predicate {
+        NodePropPredicate::Eq(v) => NodePropPredicate::Eq(value.insert(convert(v)?)),
+        NodePropPredicate::Lt(v) => NodePropPredicate::Lt(value.insert(convert(v)?)),
+        NodePropPredicate::Le(v) => NodePropPredicate::Le(value.insert(convert(v)?)),
+        NodePropPredicate::Gt(v) => NodePropPredicate::Gt(value.insert(convert(v)?)),
+        NodePropPredicate::Ge(v) => NodePropPredicate::Ge(value.insert(convert(v)?)),
+        // a member that fails to convert can still match (1.0 vs 1, or a history), so not served
+        NodePropPredicate::In(set) => NodePropPredicate::In(
+            members.insert(
+                set.iter()
+                    .map(|member| convert(&member.0).map(HashableProp))
+                    .collect::<Option<HashSet<_>>>()?,
+            ),
+        ),
+        string_test if dtype == PropType::Str => string_test,
+        _ => return None,
+    };
+    let semantics =
+        if history || narrows(views) || graph.window_filtered() || graph.is_layer_filtered() {
+            NodePropSemantics::Ever
+        } else {
+            NodePropSemantics::Latest
+        };
+    indexed_nodes(graph, prop_id, metadata, &predicate, semantics)
+}
+
+/// The index predicate for `op`, when the index can serve it.
+fn cmp_predicate(op: BinaryOp, value: &Prop) -> Option<NodePropPredicate<'_>> {
+    Some(match op {
+        BinaryOp::Eq => NodePropPredicate::Eq(value),
+        BinaryOp::Lt => NodePropPredicate::Lt(value),
+        BinaryOp::Le => NodePropPredicate::Le(value),
+        BinaryOp::Gt => NodePropPredicate::Gt(value),
+        BinaryOp::Ge => NodePropPredicate::Ge(value),
+        BinaryOp::Ne => return None,
+    })
+}
+
+/// The index predicate for the string test `op`, when the index can serve it.
+fn str_predicate(op: StringOp, value: &str) -> Option<NodePropPredicate<'_>> {
+    match op {
+        StringOp::StartsWith => Some(NodePropPredicate::StartsWith(value)),
+        StringOp::EndsWith => Some(NodePropPredicate::EndsWith(value)),
+        StringOp::Contains => Some(NodePropPredicate::Contains(value)),
+        StringOp::NotContains | StringOp::FuzzySearch { .. } => None,
+    }
 }
 
 /// A node property read through `views`: the graph through the views, the
@@ -443,7 +545,43 @@ impl Leaf for NodeLeaf {
     /// string ids it is the id, on a graph with numeric ids it is parsed into
     /// one, and a string that is no number names no node. The list makes no
     /// claim to be exact, so the test still runs on every node in it.
-    fn named_by(&self, values: &[Prop], graph: &DynGraphArc<'_>) -> Option<NodeList> {
+    /// Property and metadata tests, and string tests on an id or name, ask the
+    /// property index instead.
+    fn named_by(&self, predicate: &NodePropPredicate, graph: &DynGraphArc<'_>) -> Option<NodeList> {
+        let values: Vec<&Prop> = match (self, *predicate) {
+            (
+                NodeLeaf::Property {
+                    views,
+                    name,
+                    temporal,
+                },
+                _,
+            ) => return indexed_column(graph, views, name, false, *temporal, predicate),
+            (NodeLeaf::Metadata { views, name }, _) => {
+                return indexed_column(graph, views, name, true, false, predicate)
+            }
+            // the id column holds the gid, which on a string-id graph is the name
+            (
+                NodeLeaf::Field {
+                    field: Field::Id | Field::Name,
+                    ..
+                },
+                NodePropPredicate::StartsWith(_)
+                | NodePropPredicate::EndsWith(_)
+                | NodePropPredicate::Contains(_),
+            ) => {
+                return indexed_nodes(
+                    graph,
+                    NODE_ID_PROP_ID,
+                    true,
+                    predicate,
+                    NodePropSemantics::Latest,
+                )
+            }
+            (_, NodePropPredicate::Eq(value)) => vec![value],
+            (_, NodePropPredicate::In(members)) => members.iter().map(|member| &member.0).collect(),
+            _ => return None,
+        };
         let id_type = graph.id_type()?;
         let ids = match self {
             NodeLeaf::Field {
@@ -1001,9 +1139,9 @@ impl<L: Leaf> Expr<L> {
             Expr::Agg(agg, inner) => inner.aggregate_op(*agg, graph)?,
             Expr::Cmp(op, lhs, rhs) => {
                 let domain = match (op, lhs.as_ref(), rhs.as_ref()) {
-                    (BinaryOp::Eq, Expr::Term(leaf), Expr::Const(value))
-                    | (BinaryOp::Eq, Expr::Const(value), Expr::Term(leaf)) => {
-                        leaf.named_by(slice::from_ref(value), &graph)
+                    (_, term, Expr::Const(value)) | (BinaryOp::Eq, Expr::Const(value), term) => {
+                        cmp_predicate(*op, value)
+                            .and_then(|predicate| term.named_by(&predicate, &graph))
                     }
                     _ => None,
                 };
@@ -1017,15 +1155,22 @@ impl<L: Leaf> Expr<L> {
                     domain.unwrap_or(NodeList::All),
                 )?
             }
-            Expr::Str(op, lhs, rhs) => Self::binary_test_op(
-                lhs,
-                rhs,
-                graph,
-                *op,
-                string_shape,
-                str_kernel,
-                NodeList::All,
-            )?,
+            Expr::Str(op, lhs, rhs) => {
+                let domain = match rhs.as_ref() {
+                    Expr::Const(Prop::Str(value)) => str_predicate(*op, value)
+                        .and_then(|predicate| lhs.named_by(&predicate, &graph)),
+                    _ => None,
+                };
+                Self::binary_test_op(
+                    lhs,
+                    rhs,
+                    graph,
+                    *op,
+                    string_shape,
+                    str_kernel,
+                    domain.unwrap_or(NodeList::All),
+                )?
+            }
             Expr::In {
                 expr,
                 values,
@@ -1033,13 +1178,15 @@ impl<L: Leaf> Expr<L> {
             } => {
                 let inner = expr.value_op(graph.clone())?;
                 let (out, shape, members) = set_shape(&expr.resolved_type(&inner), values);
-                let domain = match (expr.as_ref(), negated) {
-                    (Expr::Term(leaf), false) => leaf.named_by(&members, &graph),
-                    _ => None,
+                let set = SetMembers::new(members, *negated);
+                let domain = if *negated {
+                    None
+                } else {
+                    expr.named_by(&NodePropPredicate::In(&set.members), &graph)
                 };
                 L::Ops::unary(
                     inner,
-                    SetMembers::new(members, *negated),
+                    set,
                     set_kernel(shape),
                     out,
                     domain.unwrap_or(NodeList::All),
@@ -1062,6 +1209,18 @@ impl<L: Leaf> Expr<L> {
     /// Whether this expression is a term that reads a property's history.
     pub(crate) fn reads_history(&self) -> bool {
         matches!(self, Expr::Term(leaf) if leaf.reads_history())
+    }
+
+    /// The nodes that may satisfy `predicate`: a term's, or the last value of
+    /// its history.
+    fn named_by(&self, predicate: &NodePropPredicate, graph: &DynGraphArc<'_>) -> Option<NodeList> {
+        match self {
+            Expr::Term(leaf) => leaf.named_by(predicate, graph),
+            Expr::Agg(Agg::Last | Agg::Latest, inner) if inner.reads_history() => {
+                inner.named_by(predicate, graph)
+            }
+            _ => None,
+        }
     }
 
     /// The type of this expression compiled to `op`: the one known before the
