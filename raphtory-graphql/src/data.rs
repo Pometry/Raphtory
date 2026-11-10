@@ -522,11 +522,7 @@ impl Data {
         self.inner
             .cache
             .invalidate_with(&key, |old_graph| async {
-                // Wait until the graph is no longer in use by other threads.
-                if let Some(graph) = old_graph {
-                    let graph = graph.into_inner().await;
-                    drop(graph);
-                }
+                flush_graph(old_graph).await;
 
                 blocking_io(move || {
                     fs::remove_dir_all(graph_folder.root())?;
@@ -562,11 +558,7 @@ impl Data {
                 self.inner
                     .cache
                     .invalidate_with(g.local_path(), |old_graph| async {
-                        // Wait until the graph is no longer in use by other threads.
-                        if let Some(graph) = old_graph {
-                            let graph = graph.into_inner().await;
-                            drop(graph);
-                        }
+                        flush_graph(old_graph).await;
                     })
                     .await;
             }
