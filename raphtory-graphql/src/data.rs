@@ -732,7 +732,7 @@ impl Data {
         path: &str,
         version: u32,
     ) -> Result<(), GQLError> {
-        let work_dir: WorkDirGuard = self.inner.work_dir.write().await.into();
+        let work_dir: WorkDirGuard = self.inner.work_dir.read().await.into();
         let folder = ExistingGraphFolder::try_from(work_dir, path)?;
         let key = path.to_string();
         let path = path.to_string();
