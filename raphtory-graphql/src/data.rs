@@ -524,7 +524,8 @@ impl Data {
             .invalidate_with(&key, |old_graph| async {
                 // Wait until the graph is no longer in use by other threads.
                 if let Some(graph) = old_graph {
-                    graph.into_inner().await;
+                    let graph = graph.into_inner().await;
+                    drop(graph);
                 }
 
                 blocking_io(move || {
@@ -555,16 +556,22 @@ impl Data {
         let dirty_file = mark_dirty(&root).map_err(|err| {
             DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
         })?;
+
         for item in descendants {
             if let NamespacedItem::MetaGraph(g) = item {
                 self.inner
                     .cache
                     .invalidate_with(g.local_path(), |old_graph| async {
-                        flush_graph(old_graph).await;
+                        // Wait until the graph is no longer in use by other threads.
+                        if let Some(graph) = old_graph {
+                            let graph = graph.into_inner().await;
+                            drop(graph);
+                        }
                     })
                     .await;
             }
         }
+
         blocking_io(move || {
             fs::remove_dir_all(&root)?;
             fs::remove_file(dirty_file)?;
@@ -572,6 +579,7 @@ impl Data {
         })
         .await
         .map_err(|err| DeletionError::from_inner(path, err))?;
+
         Ok(())
     }
 
