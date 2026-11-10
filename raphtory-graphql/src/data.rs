@@ -522,7 +522,10 @@ impl Data {
         self.inner
             .cache
             .invalidate_with(&key, |old_graph| async {
-                flush_graph(old_graph).await;
+                // Wait until the graph is no longer in use by other threads.
+                if let Some(graph) = old_graph {
+                    graph.into_inner().await;
+                }
 
                 blocking_io(move || {
                     fs::remove_dir_all(graph_folder.root())?;
@@ -812,6 +815,7 @@ impl Data {
             },
             None => gwv.graph().clone(),
         };
+
         let raw = typed_graph.into_dynamic();
         let graph = if let GraphPermission::Read {
             filter: Some(ref f),
@@ -821,6 +825,9 @@ impl Data {
         } else {
             raw
         };
+
+        // NOTE: This drops the GraphWithVectors clone returned from the cache.
+        // As a result, it does not keep the graph pinned in the cache.
         Ok((gwv.folder().clone(), graph))
     }
 
