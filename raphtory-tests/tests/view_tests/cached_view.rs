@@ -6,13 +6,17 @@ use raphtory::{
         api::view::Filter,
         graph::{
             assertions::assert_graph_equal,
-            views::filter::model::{ExplodedEdgeFilter, PropertyExprFactory},
+            views::{
+                cached_view::CachedView,
+                filter::model::{ExplodedEdgeFilter, PropertyExprFactory},
+            },
         },
     },
     prelude::*,
 };
 use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_tests::test_storage;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn empty_graph() {
@@ -340,4 +344,34 @@ fn caching_agrees_with_node_window_and_exploded_filters() {
         &nodes.window(0, 6),
         "a node filter inside a window",
     );
+}
+
+#[test]
+fn a_build_cancelled_up_front_returns_nothing() {
+    let graph = filtered_fixture();
+    assert!(CachedView::new_with_cancel(graph, || true).is_none());
+}
+
+/// Cancelling partway, in the node pass or the edge pass, must give up rather than return a view
+/// built from part of the graph.
+#[test]
+fn a_build_cancelled_partway_returns_nothing() {
+    let graph = filtered_fixture();
+    let nodes = graph.count_nodes();
+    for after in [1, nodes / 2, nodes + 1, nodes + 3] {
+        let checks = AtomicUsize::new(0);
+        let cached = CachedView::new_with_cancel(graph.clone(), || {
+            checks.fetch_add(1, Ordering::Relaxed) >= after
+        });
+        assert!(cached.is_none(), "cancelled after {after} checks");
+    }
+}
+
+#[test]
+fn a_build_never_cancelled_matches_new() {
+    let graph = filtered_fixture();
+    let nodes = graph.filter(NodeFilter.property("x").lt(3i64)).unwrap();
+    let cached = CachedView::new_with_cancel(nodes.clone(), || false).unwrap();
+    assert_eq!(names(&cached), names(&nodes.cache_view()));
+    assert_eq!(edges(&cached), edges(&nodes.cache_view()));
 }

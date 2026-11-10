@@ -75,6 +75,15 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
+        Self::new_with_cancel(graph, || false).expect("never cancelled")
+    }
+
+    /// [`Self::new`], giving up with `None` once `cancel` returns true. `cancel` is checked for
+    /// every node and edge scanned, so it should be cheap (e.g. an atomic load).
+    pub fn new_with_cancel(graph: G, cancel: impl Fn() -> bool + Sync) -> Option<Self> {
+        if cancel() {
+            return None;
+        }
         // Slot 0 is the static layer, which `unique_layers` does not return.
         let mut layered_graphs = vec![graph.layers(Layer::None).ok()];
         for name in graph.unique_layers() {
@@ -90,9 +99,12 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
         let (global_nodes_mask, layered_node_masks) = graph
             .node_list()
             .nodes_par_iter(&storage)
-            .fold(
+            .try_fold(
                 || (RoaringTreemap::new(), empty()),
                 |(mut global, mut per_layer), vid| {
+                    if cancel() {
+                        return None;
+                    }
                     if let Some(node) = storage.try_core_node(vid) {
                         let (node, id) = (node.as_ref(), vid.as_u64());
                         if graph.filter_node(node) {
@@ -104,24 +116,27 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                             }
                         }
                     }
-                    (global, per_layer)
+                    Some((global, per_layer))
                 },
             )
-            .reduce(
+            .try_reduce(
                 || (RoaringTreemap::new(), empty()),
                 |(global, per_layer), (other_global, other_per_layer)| {
-                    (global | other_global, union(per_layer, other_per_layer))
+                    Some((global | other_global, union(per_layer, other_per_layer)))
                 },
-            );
+            )?;
 
         // Endpoints are checked against the node masks rather than the node filter for efficiency.
         let edges = graph.core_edges();
         let exploded = graph.internal_exploded_edge_filtered();
         let (layered_edge_masks, exploded_ids) = edges
             .par_iter(&LayerIds::All)
-            .fold(
+            .try_fold(
                 || (empty(), vec![Vec::new(); layered_graphs.len()]),
                 |(mut masks, mut exploded_ids), edge| {
+                    if cancel() {
+                        return None;
+                    }
                     let (src, dst) = (edge.src().as_u64(), edge.dst().as_u64());
                     for id in edge.layer_ids_iter(&LayerIds::All).map(|id| id.0) {
                         let Some(Some(layer_g)) = layered_graphs.get(id) else {
@@ -144,18 +159,21 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                             }
                         }
                     }
-                    (masks, exploded_ids)
+                    Some((masks, exploded_ids))
                 },
             )
-            .reduce(
+            .try_reduce(
                 || (empty(), vec![Vec::new(); layered_graphs.len()]),
                 |(masks, mut exploded_ids), (other_masks, other_exploded_ids)| {
                     for (ids, other) in exploded_ids.iter_mut().zip(other_exploded_ids) {
                         ids.extend(other);
                     }
-                    (union(masks, other_masks), exploded_ids)
+                    Some((union(masks, other_masks), exploded_ids))
                 },
-            );
+            )?;
+        if cancel() {
+            return None;
+        }
 
         // layer views reuse `node_list` (the global mask), so it must hold every layer's nodes
         debug_assert!(
@@ -178,11 +196,11 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
             })
             .collect();
 
-        Self {
+        Some(Self {
             graph,
             global_nodes_mask: Arc::new(global_nodes_mask),
             layered_mask,
-        }
+        })
     }
 }
 
