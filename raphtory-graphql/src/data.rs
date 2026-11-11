@@ -5,11 +5,11 @@ use crate::{
     auth::ContextValidation,
     auth_policy::{
         AuthorizationPolicy, DynGraphWithFolder, GraphPermission, GraphPin,
-        MaybeCachedFilteredRead, PermissionLevel,
+        MaybeCachedFilteredRead, MutationNotifier, PermissionLevel,
     },
     cache::GraphCache,
     config::{app_config::AppConfig, cache_config::CacheConfig},
-    graph::{GraphWithVectors, MutationListener},
+    graph::GraphWithVectors,
     model::{
         blocking_io,
         graph::{
@@ -48,7 +48,7 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     str::FromStr,
-    sync::{Arc, PoisonError, Weak},
+    sync::Arc,
 };
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::{debug, error, warn};
@@ -207,10 +207,6 @@ pub struct DataInner {
     pub(crate) graph_args: Args,
     pub(crate) read_only: ReadOnlyGraphs,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
-    /// So graphs loaded through the policy's `Data` in the probe schema's env (which has no
-    /// `auth_policy`) still notify it. Weak: the policy holds the probe `Data`, so an Arc would
-    /// create a reference cycle that never drops or flushes.
-    auth_policy: std::sync::RwLock<Option<Weak<dyn AuthorizationPolicy>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -356,7 +352,6 @@ impl Data {
                 graph_args,
                 read_only: ReadOnlyGraphs::from_config(cache_configs),
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
-                auth_policy: Default::default(),
             }),
             auth_policy: None,
         }
@@ -372,27 +367,18 @@ impl Data {
         WorkDirWriteGuard { guard }
     }
 
-    /// Handed to every graph this `Data` loads, so successful writes reach the policy.
-    fn mutation_listener(&self) -> MutationListener {
-        let policy = self
-            .inner
-            .auth_policy
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
-        MutationListener::new(policy.clone())
+    /// Handed to whatever writes to a graph, so successful writes reach the policy.
+    pub(crate) fn mutation_notifier(&self) -> MutationNotifier {
+        MutationNotifier::new(self.auth_policy.clone())
     }
 
     /// Report a successful whole-graph mutation (create, delete, replace, move, ...).
     fn notify_graph_mutated(&self) {
-        self.mutation_listener().notify();
+        self.mutation_notifier().notify();
     }
 
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
-        *self
-            .inner
-            .auth_policy
-            .write()
-            .unwrap_or_else(PoisonError::into_inner) = Some(Arc::downgrade(&policy));
+        self.cache.set_auth_policy(&policy);
         self.auth_policy = Some(policy)
     }
 
@@ -486,7 +472,6 @@ impl Data {
         let key = writeable_folder.local_path().to_owned();
         let args = self.graph_args.clone();
         let read_only = self.read_only.is_read_only(&key);
-        let listener = self.mutation_listener();
 
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
@@ -494,8 +479,7 @@ impl Data {
                 blocking_compute(move || {
                     let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, args)?;
                     let folder = writeable_folder.finish()?;
-                    let graph =
-                        GraphWithVectors::new(new_graph, None, folder.as_existing()?, listener);
+                    let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
                     Ok::<_, InsertionError>(if read_only {
                         graph.into_read_only()
@@ -692,16 +676,11 @@ impl Data {
         // exactly the vectors it had.
         let cloned_folder = folder.clone();
         let fallback = graph;
-        let listener = self.mutation_listener();
         self.cache
             .insert_or_replace_with(folder.local_path(), |old_graph| async {
                 let current = old_graph.unwrap_or(fallback);
-                let updated = GraphWithVectors::new(
-                    current.graph().clone(),
-                    Some(vectors),
-                    cloned_folder,
-                    listener,
-                );
+                let updated =
+                    GraphWithVectors::new(current.graph().clone(), Some(vectors), cloned_folder);
                 updated.set_dirty(current.is_dirty());
                 Ok::<_, GQLError>(updated)
             })
@@ -734,7 +713,6 @@ impl Data {
             #[cfg(feature = "vectors")]
             &cache,
             args,
-            self.mutation_listener(),
         )
         .await?;
         Ok(if self.read_only.is_read_only(folder.local_path()) {

@@ -7,6 +7,24 @@ use raphtory::db::{
     api::view::{DynamicGraph, IntoDynamic},
     graph::views::cached_view::CachedView,
 };
+use std::sync::Arc;
+
+/// Tells the authorization policy that graph data changed. Empty without a policy.
+#[derive(Clone, Default)]
+pub struct MutationNotifier(Option<Arc<dyn AuthorizationPolicy>>);
+
+impl MutationNotifier {
+    pub fn new(policy: Option<Arc<dyn AuthorizationPolicy>>) -> Self {
+        Self(policy)
+    }
+
+    /// Report a write that succeeded; failed writes leave the graph unchanged.
+    pub fn notify(&self) {
+        if let Some(policy) = &self.0 {
+            policy.on_graph_mutated();
+        }
+    }
+}
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.

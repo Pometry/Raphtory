@@ -1,4 +1,5 @@
 use crate::{
+    auth_policy::AuthorizationPolicy,
     data::{InsertionError, MutationErrorInner},
     graph::GraphWithVectors,
     paths::ValidGraphPaths,
@@ -8,11 +9,18 @@ use quick_cache::{
     sync::{Cache, EntryAction, EntryResult},
     DefaultHashBuilder, Lifecycle, UnitWeighter,
 };
-use std::future::Future;
-use tracing::{debug, error};
+use std::{
+    future::Future,
+    sync::{Arc, OnceLock, Weak},
+};
+use tracing::{debug, error, warn};
 
-#[derive(Default, Copy, Clone)]
-pub struct ArcPinned;
+/// Keeps graphs that are in use or unflushed, and tells the policy when one is evicted.
+// Weak: the policy holds the `DataInner` that owns this cache, so an Arc would be a cycle.
+#[derive(Default, Clone)]
+pub struct ArcPinned {
+    policy: Arc<OnceLock<Weak<dyn AuthorizationPolicy>>>,
+}
 
 fn flush_graph(val: GraphWithVectors) {
     if let Err(e) = val.persist() {
@@ -56,7 +64,9 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
             "Graph should be already flushed on eviction"
         );
         // Views the policy cached over this graph would otherwise keep its storage in memory.
-        graph.notify_evicted(&key);
+        if let Some(policy) = self.policy.get().and_then(Weak::upgrade) {
+            policy.on_graph_evicted(&key);
+        }
 
         debug!(
             "Graph {} removed from cache (clean)",
@@ -67,18 +77,27 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
 
 pub struct GraphCache {
     cache: Cache<String, GraphWithVectors, UnitWeighter, DefaultHashBuilder, ArcPinned>,
+    evictions: ArcPinned,
 }
 
 impl GraphCache {
     pub fn new(items_capacity: usize) -> Self {
+        let evictions = ArcPinned::default();
         let cache = Cache::with(
             items_capacity,
             items_capacity as u64,
             Default::default(),
             Default::default(),
-            Default::default(),
+            evictions.clone(),
         );
-        Self { cache }
+        Self { cache, evictions }
+    }
+
+    /// Report evictions to `policy` from now on. Only the first policy set is kept.
+    pub fn set_auth_policy(&self, policy: &Arc<dyn AuthorizationPolicy>) {
+        if self.evictions.policy.set(Arc::downgrade(policy)).is_err() {
+            warn!("an authorization policy is already receiving graph evictions; ignoring another");
+        }
     }
 
     /// Get item for key if it is cached
