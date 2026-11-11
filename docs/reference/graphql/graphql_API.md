@@ -2175,6 +2175,43 @@ Returns a count of collection objects.
 </tbody>
 </table>
 
+### DegreeBounds
+
+Bounds on the degree of a node, as returned by `approximateDegree`,
+`approximateInDegree` and `approximateOutDegree`. Equal bounds mean the
+degree is exact.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="degreebounds.lowerbound">lowerBound</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Lower bound on the degree.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="degreebounds.upperbound">upperBound</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Upper bound on the degree.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### Document
 
 Document in a vector graph
@@ -7855,6 +7892,65 @@ Returns the number edges with this node as the destination.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="node.approximatedegree">approximateDegree</strong></td>
+<td valign="top"><a href="#degreebounds">DegreeBounds</a>!</td>
+<td>
+
+Returns bounds on the number of unique counter parties for this node, counting them
+exactly only when that walks at most `threshold` adjacency entries. Otherwise the bounds
+are read from the node's adjacency sizes, ignoring any window or filter, so in a windowed
+or filtered view the lower bound drops to 0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="node.approximateoutdegree">approximateOutDegree</strong></td>
+<td valign="top"><a href="#degreebounds">DegreeBounds</a>!</td>
+<td>
+
+Returns bounds on the number of edges with this node as the source, counting them exactly
+only when that is cheap; see `approximateDegree`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="node.approximateindegree">approximateInDegree</strong></td>
+<td valign="top"><a href="#degreebounds">DegreeBounds</a>!</td>
+<td>
+
+Returns bounds on the number of edges with this node as the destination, counting them
+exactly only when that is cheap; see `approximateDegree`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="node.incomponent">inComponent</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
@@ -9172,6 +9268,60 @@ The in-degree (number of incoming edges) of every node, in collection order.
 <td>
 
 The out-degree (number of outgoing edges) of every node, in collection order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.approximatedegree">approximateDegree</strong></td>
+<td valign="top">[<a href="#degreebounds">DegreeBounds</a>!]!</td>
+<td>
+
+Bounds on the degree of every node, in collection order; see `Node.approximateDegree`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.approximateindegree">approximateInDegree</strong></td>
+<td valign="top">[<a href="#degreebounds">DegreeBounds</a>!]!</td>
+<td>
+
+Bounds on the in-degree of every node, in collection order; see `Node.approximateInDegree`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.approximateoutdegree">approximateOutDegree</strong></td>
+<td valign="top">[<a href="#degreebounds">DegreeBounds</a>!]!</td>
+<td>
+
+Bounds on the out-degree of every node, in collection order; see `Node.approximateOutDegree`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
 
 </td>
 </tr>
@@ -10539,6 +10689,60 @@ The in-degree (number of incoming edges) of every node in the path, in order.
 <td>
 
 The out-degree (number of outgoing edges) of every node in the path, in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.approximatedegree">approximateDegree</strong></td>
+<td valign="top">[<a href="#degreebounds">DegreeBounds</a>!]!</td>
+<td>
+
+Bounds on the degree of every node in the path, in order; see `Node.approximateDegree`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.approximateindegree">approximateInDegree</strong></td>
+<td valign="top">[<a href="#degreebounds">DegreeBounds</a>!]!</td>
+<td>
+
+Bounds on the in-degree of every node in the path, in order; see `Node.approximateInDegree`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.approximateoutdegree">approximateOutDegree</strong></td>
+<td valign="top">[<a href="#degreebounds">DegreeBounds</a>!]!</td>
+<td>
+
+Bounds on the out-degree of every node in the path, in order; see `Node.approximateOutDegree`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threshold</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
 
 </td>
 </tr>
