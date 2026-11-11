@@ -704,7 +704,6 @@ impl Data {
     ) -> Result<(), GQLError> {
         let graph_path = graph.graph_path().to_string();
         let new_version = graph.version()?;
-        let new_graph = graph.finish().await?;
 
         if set_active {
             let work_dir = self.inner.work_dir.read().await.into();
@@ -715,6 +714,11 @@ impl Data {
             self.inner
                 .cache
                 .insert_or_replace_with(&key, |old_graph| async move {
+                    let new_graph = graph
+                        .finish()
+                        .await
+                        .map_err(|e| InsertionError::from_graph_err(&graph_path, e))?;
+
                     // The active version should only be changed when there are no other
                     // references to the old graph and it is fully flushed to disk.
                     flush_graph(old_graph).await;
@@ -738,6 +742,8 @@ impl Data {
                     })
                 })
                 .await?;
+        } else {
+            graph.finish().await?;
         }
 
         Ok(())
