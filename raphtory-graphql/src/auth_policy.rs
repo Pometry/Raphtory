@@ -1,12 +1,31 @@
 use crate::{
     data::GqlGraphType, graph::GraphWithVectors, model::graph::filtering::GraphAccessFilter,
-    paths::UnlockedGraphFolder, rayon::blocking_cache,
+    paths::UnlockedGraphFolder,
+    rayon::{blocking_cache, CachingError},
 };
 use futures_util::future::BoxFuture;
-use raphtory::{
-    db::api::view::{DynamicGraph, IntoDynamic},
-    prelude::GraphViewOps,
+use raphtory::db::{
+    api::view::{DynamicGraph, IntoDynamic},
+    graph::views::cached_view::CachedView,
 };
+use std::sync::Arc;
+
+/// Tells the authorization policy that graph data changed. Empty without a policy.
+#[derive(Clone, Default)]
+pub struct MutationNotifier(Option<Arc<dyn AuthorizationPolicy>>);
+
+impl MutationNotifier {
+    pub fn new(policy: Option<Arc<dyn AuthorizationPolicy>>) -> Self {
+        Self(policy)
+    }
+
+    /// Report a write that succeeded; failed writes leave the graph unchanged.
+    pub fn notify(&self) {
+        if let Some(policy) = &self.0 {
+            policy.on_graph_mutated();
+        }
+    }
+}
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
@@ -131,10 +150,19 @@ impl DynGraphWithFolder {
         (self.folder, self.graph)
     }
 
-    pub async fn into_cached_view(self) -> Self {
+    /// Build a [`CachedView`] of this graph on the caching pool, giving up with `Ok(None)` once
+    /// `cancel` returns true, including while still queued behind other caching. See
+    /// [`CachedView::new_with_cancel`].
+    pub async fn into_cached_view_with_cancel(
+        self,
+        cancel: impl Fn() -> bool + Send + Sync + 'static,
+    ) -> Result<Option<Self>, CachingError> {
         let Self { folder, graph } = self;
-        let graph = blocking_cache(move || graph.cache_view().into_dynamic()).await;
-        Self { folder, graph }
+        let cached = blocking_cache(move || {
+            CachedView::new_with_cancel(graph, cancel).map(IntoDynamic::into_dynamic)
+        })
+        .await?;
+        Ok(cached.map(|graph| Self { folder, graph }))
     }
 }
 

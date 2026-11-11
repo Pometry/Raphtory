@@ -1,5 +1,4 @@
 use crate::{
-    auth_policy::AuthorizationPolicy,
     paths::{ExistingGraphFolder, UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_load,
 };
@@ -30,7 +29,7 @@ use std::{
     future::poll_fn,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Weak,
+        Arc,
     },
     task::Poll,
 };
@@ -62,34 +61,6 @@ pub struct GraphWithVectorsInner {
     pub folder: UnlockedGraphFolder,
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
-    /// See [`MutationListener`].
-    listener: MutationListener,
-}
-
-/// Tells the authorization policy when a graph changes or is evicted. Empty without a policy.
-// Weak: the policy holds the `DataInner` that is caching this graph, so an Arc back would create
-// a cycle.
-#[derive(Clone, Default)]
-pub struct MutationListener(Option<Weak<dyn AuthorizationPolicy>>);
-
-impl MutationListener {
-    pub fn new(policy: Option<Weak<dyn AuthorizationPolicy>>) -> Self {
-        Self(policy)
-    }
-
-    /// Report a mutation that succeeded; failed writes must not call this.
-    pub fn notify(&self) {
-        if let Some(policy) = self.0.as_ref().and_then(Weak::upgrade) {
-            policy.on_graph_mutated();
-        }
-    }
-
-    /// Notify the auth policy that a graph was evicted.
-    pub fn notify_evicted(&self, path: &str) {
-        if let Some(policy) = self.0.as_ref().and_then(Weak::upgrade) {
-            policy.on_graph_evicted(path);
-        }
-    }
 }
 
 impl GraphWithVectors {
@@ -97,7 +68,6 @@ impl GraphWithVectors {
         graph: MaterializedGraph,
         vectors: Option<GraphVectors>,
         folder: ExistingGraphFolder,
-        listener: MutationListener,
     ) -> Self {
         let inner = Arc::new(GraphWithVectorsInner {
             graph,
@@ -105,7 +75,6 @@ impl GraphWithVectors {
             folder: folder.unlock(),
             is_dirty: AtomicBool::new(false),
             is_flushing: AtomicBool::new(false),
-            listener,
         });
         Self { inner }
     }
@@ -180,16 +149,6 @@ impl GraphWithVectors {
         Arc::strong_count(&self.inner)
     }
 
-    /// See [`MutationListener::notify`].
-    pub fn notify_mutated(&self) {
-        self.inner.listener.notify();
-    }
-
-    /// See [`MutationListener::notify_evicted`].
-    pub fn notify_evicted(&self, path: &str) {
-        self.inner.listener.notify_evicted(path);
-    }
-
     /// Flush in-memory writes to the storage engine and rewrite the on-disk
     /// metadata sidecar, so cache-miss namespace listings report accurate
     /// counts. The dirty flag is cleared up front so a mutation racing the
@@ -248,7 +207,6 @@ impl GraphWithVectors {
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
         args: Args,
-        listener: MutationListener,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
@@ -287,7 +245,7 @@ impl GraphWithVectors {
 
         debug!("Graph loaded = {}", folder.local_path());
 
-        Ok(Self::new(graph, vectors, folder.clone(), listener))
+        Ok(Self::new(graph, vectors, folder.clone()))
     }
 }
 

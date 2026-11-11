@@ -2,6 +2,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 #[cfg(test)]
 use std::sync::Mutex;
 use std::{
+    any::Any,
     panic::{self, AssertUnwindSafe},
     sync::{Arc, LazyLock, OnceLock},
 };
@@ -112,19 +113,45 @@ static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 /// One caching operation at a time, as each already runs in parallel.
 static CACHING_PERMITS: LazyLock<Arc<Semaphore>> = LazyLock::new(|| Arc::new(Semaphore::new(1)));
 
+/// Why a caching job gave no result.
+#[derive(Debug, thiserror::Error)]
+pub enum CachingError {
+    #[error("caching panicked: {0}")]
+    Panicked(String),
+    #[error("the caching job was dropped before it ran")]
+    Dropped,
+    #[error("the caching queue is closed")]
+    Closed,
+}
+
 /// Queue `closure` behind any other caching operation and run it on the caching pool.
-pub async fn blocking_cache<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
+pub async fn blocking_cache<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
+    closure: F,
+) -> Result<R, CachingError> {
     let permit = CACHING_PERMITS
         .clone()
         .acquire_owned()
         .await
-        .expect("caching semaphore is never closed");
+        .map_err(|_| CachingError::Closed)?;
     let (send, recv) = oneshot::channel();
     CACHING_POOL.spawn(move || {
         let _permit = permit;
-        let _ = send.send(closure());
+        // a panic in a rayon job aborts the process, so it is handed back to the caller instead
+        let _ = send.send(panic::catch_unwind(AssertUnwindSafe(closure)));
     });
-    recv.await.expect("graph view caching panicked")
+    recv.await
+        .map_err(|_| CachingError::Dropped)?
+        .map_err(|panic| CachingError::Panicked(panic_message(panic.as_ref())))
+}
+
+fn panic_message(payload: &(dyn Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        message.to_string()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "a non-string panic payload".to_string()
+    }
 }
 
 /// Use a separate rayon threadpool to execute write tasks to avoid potential deadlocks
@@ -215,6 +242,16 @@ mod scheduler_tests {
         let job = tokio::spawn(blocking_compute(|| -> usize { panic!("boom") }));
         assert!(job.await.unwrap_err().is_panic());
         assert_eq!(blocking_compute(|| 1).await, 1);
+    }
+
+    #[tokio::test]
+    async fn a_caching_job_that_panics_returns_an_error_and_frees_its_permit() {
+        let _serial = TEST_SERIAL.lock();
+        let failed = blocking_cache(|| -> usize { panic!("boom") }).await;
+        assert!(matches!(failed, Err(CachingError::Panicked(message)) if message == "boom"));
+        // there is a single caching permit, so this only runs if the panic released it
+        let next = tokio::time::timeout(Duration::from_secs(10), blocking_cache(|| 1));
+        assert_eq!(next.await.expect("the permit was not released").unwrap(), 1);
     }
 
     #[tokio::test(flavor = "multi_thread")]

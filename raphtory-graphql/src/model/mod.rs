@@ -233,12 +233,8 @@ impl QueryRoot {
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<GqlMutableGraph, GQLError> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = data
-            .get_graph_with_write_permission(ctx, &path)
-            .await?
-            .into();
-
-        Ok(graph)
+        let graph = data.get_graph_with_write_permission(ctx, &path).await?;
+        Ok(GqlMutableGraph::new(graph, data.mutation_notifier()))
     }
 
     /// Returns all namespaces using recursive search
@@ -406,7 +402,7 @@ impl Mut {
             true,
             arced_schema.clone(),
         )?;
-        handle.notify_mutated();
+        data.mutation_notifier().notify();
         Ok(true)
     }
 
@@ -480,7 +476,7 @@ impl Mut {
             None,
             arced_schema.clone(),
         )?;
-        handle.notify_mutated();
+        data.mutation_notifier().notify();
         Ok(true)
     }
 
