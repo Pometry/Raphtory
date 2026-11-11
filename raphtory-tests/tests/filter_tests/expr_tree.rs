@@ -431,10 +431,11 @@ fn a_view_expression_restricts_the_whole_filter() {
     assert_eq!(edges(&g, &f), ["alice->bob"]);
     assert_eq!(f.to_string(), "VIEW(WINDOW(0..5) . LATEST)");
     assert!(error(&g, &FilterExpr::View(vec![])).contains("at least one view"));
-    // Under `or` or `not` a view has no graph to produce.
+    // Beside a predicate under `or` a view has no graph to produce.
     let or = FilterExpr::Or(vec![win.clone(), score_gt_4.clone()]);
     assert!(error(&g, &or).contains("view"));
-    assert!(error(&g, &FilterExpr::Not(Box::new(win.clone()))).contains("view"));
+    // Alone under `not` it is the times outside it: only bob's score at 7.
+    assert_eq!(nodes(&g, &FilterExpr::Not(Box::new(win.clone()))), ["bob"]);
     assert!(f.has_view() && !score_gt_4.has_view());
 }
 
@@ -498,8 +499,9 @@ fn a_view_expression_in_a_select_is_an_existence_test() {
 
 /// On a collection a view expression is a test like any other, so it takes `or`:
 /// "exists in the view". `not` of an expression with a view is "exists in the
-/// graph `not` keeps", which `graph.filter` refuses, so a collection refuses it
-/// too; "does not exist in the view" is spelled `.exists().not()`.
+/// graph `not` keeps": for a view alone, "exists outside the view". Where
+/// `graph.filter` refuses that graph, a view beside a predicate, a collection
+/// refuses it too. "Does not exist in the view" is spelled `.exists().not()`.
 #[test]
 fn a_view_under_or_or_not_is_a_test_on_a_collection() {
     fn selected<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<String> {
@@ -519,10 +521,19 @@ fn a_view_under_or_or_not_is_a_test_on_a_collection() {
         message
     }
     let g = graph();
-    // `not` of a view is refused on a collection as on the graph
+    // every node has an update outside [5, 8), on a collection as on the graph
     let outside = GraphFilter.window(5, 8).not();
-    refused(g.nodes().select(outside.clone()).map(|_| ()).unwrap_err());
-    assert!(error(&g, &outside).contains("view"));
+    let mut names: Vec<String> = g.nodes().select(outside.clone()).unwrap().name().collect();
+    names.sort();
+    assert_eq!(names, ["alice", "bob", "carol", "dave", "eve"]);
+    assert_eq!(nodes(&g, &outside), names);
+    // beside a predicate, `not` of a view is refused on a collection as on the graph
+    let mixed = FilterExpr::Not(Box::new(FilterExpr::And(vec![
+        FilterExpr::View(vec![window(5, 8)]),
+        node(cmp(BinaryOp::Gt, prop("score"), c(8.0))),
+    ])));
+    refused(g.nodes().select(mixed.clone()).map(|_| ()).unwrap_err());
+    assert!(error(&g, &mixed).contains("view"));
     // eve has nothing after 0, so she alone does not exist in [5, 8)
     let outside = NodeFilter.window(5, 8).exists().not();
     let mut names: Vec<String> = g.nodes().select(outside).unwrap().name().collect();
@@ -537,9 +548,12 @@ fn a_view_under_or_or_not_is_a_test_on_a_collection() {
     names.sort();
     assert_eq!(names, ["alice", "bob"]);
     assert!(error(&g, &either).contains("view"));
-    // the same on edges
+    // the same on edges: alice→bob has an update at 4 and carol→dave at 6
     let outside = GraphFilter.window(0, 3).not();
-    refused(g.edges().select(outside).map(|_| ()).unwrap_err());
+    assert_eq!(
+        selected(g.edges().select(outside).unwrap()),
+        ["alice->bob", "carol->dave"]
+    );
     // carol→dave is the one edge with nothing before 3
     let outside = EdgeFilter.window(0, 3).exists().not();
     assert_eq!(
@@ -673,6 +687,24 @@ fn before_and_at_agree_with_the_graph_views() {
     assert_eq!(
         applied(&g, typed(EdgeFilter.window(from_second_event, 3))),
         ["carol->dave"]
+    );
+
+    // so is an end bound that carries one.
+    let until_second_event = EventTime::start(2).set_event_id(1);
+    assert_eq!(edge_names(&g.window(0, until_second_event)), ["alice->bob"]);
+    assert_eq!(
+        edges(
+            &g,
+            &view(ViewOp::Window {
+                start: EventTime::start(0),
+                end: until_second_event,
+            }),
+        ),
+        ["alice->bob"]
+    );
+    assert_eq!(
+        applied(&g, typed(EdgeFilter.window(0, until_second_event))),
+        ["alice->bob"]
     );
 
     // `after(t)` excludes `t` and everything before it.
