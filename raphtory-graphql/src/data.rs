@@ -714,6 +714,8 @@ impl Data {
             self.inner
                 .cache
                 .insert_or_replace_with(&key, |old_graph| async move {
+                    // The old graph needs to stay pinned and read-locked until it is swapped out
+                    // from the cache, which means `finish` has to happen under the cache guard.
                     let new_graph = graph
                         .finish()
                         .await

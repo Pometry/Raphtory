@@ -84,11 +84,9 @@ pub struct Metadata {
     pub meta: GraphMetadata,
 
     /// The version of the source graph this graph was derived from.
-    /// Populated on a stage operation.
     pub src_version: Option<u32>,
 
     /// The event id of the source graph this graph was derived from.
-    /// Populated on a stage operation.
     pub src_event_id: Option<u64>,
 }
 
