@@ -1,6 +1,7 @@
 use crate::{
     data::GqlGraphType, graph::GraphWithVectors, model::graph::filtering::GraphAccessFilter,
-    paths::UnlockedGraphFolder, rayon::blocking_cache,
+    paths::UnlockedGraphFolder,
+    rayon::{blocking_cache, CachingError},
 };
 use futures_util::future::BoxFuture;
 use raphtory::db::{
@@ -149,24 +150,19 @@ impl DynGraphWithFolder {
         (self.folder, self.graph)
     }
 
-    pub async fn into_cached_view(self) -> Self {
-        self.into_cached_view_with_cancel(|| false)
-            .await
-            .expect("never cancelled")
-    }
-
-    /// [`Self::into_cached_view`], giving up with `None` once `cancel` returns true, including
-    /// while still queued behind other caching. See [`CachedView::new_with_cancel`].
+    /// Build a [`CachedView`] of this graph on the caching pool, giving up with `Ok(None)` once
+    /// `cancel` returns true, including while still queued behind other caching. See
+    /// [`CachedView::new_with_cancel`].
     pub async fn into_cached_view_with_cancel(
         self,
         cancel: impl Fn() -> bool + Send + Sync + 'static,
-    ) -> Option<Self> {
+    ) -> Result<Option<Self>, CachingError> {
         let Self { folder, graph } = self;
-        let graph = blocking_cache(move || {
+        let cached = blocking_cache(move || {
             CachedView::new_with_cancel(graph, cancel).map(IntoDynamic::into_dynamic)
         })
         .await?;
-        Some(Self { folder, graph })
+        Ok(cached.map(|graph| Self { folder, graph }))
     }
 }
 
