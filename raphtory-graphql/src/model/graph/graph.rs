@@ -338,17 +338,17 @@ impl GqlGraph {
     /// — i.e. when this graph was first saved to the server, not when its earliest
     /// event occurred. Use `earliestTime` for the latter.
     pub async fn created(&self) -> Result<i64> {
-        Ok(self.path.created_async().await?)
+        Ok(self.path.created().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
     pub async fn last_opened(&self) -> Result<i64> {
-        Ok(self.path.last_opened_async().await?)
+        Ok(self.path.last_opened().await?)
     }
 
     /// Returns the graph's last updated timestamp.
     pub async fn last_updated(&self) -> Result<i64> {
-        Ok(self.path.last_updated_async().await?)
+        Ok(self.path.last_updated().await?)
     }
 
     /// Returns the time entry of the earliest activity in the graph.

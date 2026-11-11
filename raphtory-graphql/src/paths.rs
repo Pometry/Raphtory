@@ -82,25 +82,25 @@ pub trait ValidGraphPaths {
         Ok(name)
     }
 
-    async fn created_async(&self) -> Result<i64, PathValidationError> {
+    async fn created(&self) -> Result<i64, PathValidationError> {
         let cloned = self.graph_folder().root().to_path_buf();
         self.with_internal_errors_async(blocking_io(move || cloned.created()))
             .await
     }
 
-    async fn last_opened_async(&self) -> Result<i64, PathValidationError> {
+    async fn last_opened(&self) -> Result<i64, PathValidationError> {
         let cloned = self.graph_folder().root().to_path_buf();
         self.with_internal_errors_async(blocking_io(move || cloned.last_opened()))
             .await
     }
 
-    async fn last_updated_async(&self) -> Result<i64, PathValidationError> {
+    async fn last_updated(&self) -> Result<i64, PathValidationError> {
         let cloned = self.graph_folder().root().to_path_buf();
         self.with_internal_errors_async(blocking_io(move || cloned.last_updated()))
             .await
     }
 
-    async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
+    async fn read_metadata(&self) -> Result<GraphMetadata, PathValidationError> {
         let folder = self.graph_folder().root().to_path_buf();
         blocking_compute(move || folder.read_graph_meta().map(|graph_meta| graph_meta.meta))
             .await
