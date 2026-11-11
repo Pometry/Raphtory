@@ -496,18 +496,6 @@ where
         self.graph
     }
 
-    pub fn lock_new_segments(&mut self) -> Result<(), StorageError> {
-        self.lock_new_segments_within(NEW_SEGMENT_LOCK_TIMEOUT)
-    }
-
-    pub fn lock_new_segments_within(&mut self, timeout: Duration) -> Result<(), StorageError> {
-        self.assert_all_nodes_locked();
-        self.graph
-            .storage
-            .edges()
-            .lock_new_segments(&mut self.edges, timeout)
-    }
-
     pub fn extend_nodes(&mut self, mut new_segments: MemNodeSegmentGuards) {
         let nodes = self.graph.storage.nodes();
 
@@ -557,7 +545,7 @@ where
 
     /// A node segment created without handing over its lock would let readers see its
     /// uninitialised nodes.
-    fn assert_all_nodes_locked(&self) {
+    pub fn assert_all_nodes_locked(&self) {
         assert_eq!(
             self.nodes.len(),
             self.graph.storage.nodes().num_segments(),
@@ -567,7 +555,7 @@ where
 
     /// An edge segment created without handing over its lock would let readers see its
     /// uninitialised edges.
-    fn assert_all_edges_locked(&self) {
+    pub fn assert_all_edges_locked(&self) {
         assert_eq!(
             self.edges.len(),
             self.graph.storage.edges().num_segments(),

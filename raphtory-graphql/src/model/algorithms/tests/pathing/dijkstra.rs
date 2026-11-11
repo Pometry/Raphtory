@@ -1,9 +1,8 @@
 use crate::test_support::setup_with_graphs;
 use async_graphql::Request;
-use itertools::Itertools;
 use raphtory::{
     db::api::view::MaterializedGraph,
-    prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS},
+    prelude::{AdditionOps, Graph, NO_PROPS},
 };
 use serde_json::json;
 use tempfile::tempdir;

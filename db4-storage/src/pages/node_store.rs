@@ -319,7 +319,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             || metadata_mapper.num_fields() > 0
         {
             // need to write a segment to ensure the metadata is preserved on reload
-            let segment = empty.get_or_create_segment(0);
+            let segment = empty.wait_for_segment(0); // always should have at least one segment
             let mut head = segment.head_mut();
 
             if prop_mapper.num_fields() > 0 {
@@ -402,17 +402,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         } else {
             // not lucky, go wait on your slot
             let mut slot = slot.write();
-            let segment = self
-                .get_segment(*slot)
-                .expect("slot should always point at a segment");
+            let segment = self.wait_for_segment(*slot);
             match self.reserve_segment_row(segment) {
                 Some(pos) => (*slot, LocalPOS(pos), None),
                 None => {
                     let guard = self.push_new_segment();
                     let segment_id = guard.segment_id();
-                    let segment = self
-                        .get_segment(segment_id)
-                        .expect("new segment should always point at a segment");
+                    let segment = self.wait_for_segment(segment_id);
                     let pos = self
                         .reserve_segment_row(segment)
                         .expect("new segment should not be full");
@@ -520,14 +516,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
     }
 
+    /// get a writer for an existing segment
     #[inline(always)]
     pub fn writer<'a>(
         &'a self,
         segment_id: usize,
     ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
-        let segment = self
-            .get_segment(segment_id)
-            .expect("segment for writer should exist");
+        let segment = self.wait_for_segment(segment_id);
         let head = segment.head_mut_arc();
         NodeWriter::new(segment, &self.stats, head)
     }
@@ -537,15 +532,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &'a self,
         head: ArcRwLockWriteGuard<MemNodeSegment>,
     ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
-        let segment = &self.segments[head.segment_id()];
+        let segment = self.wait_for_segment(head.segment_id());
         NodeWriter::new(segment, &self.stats, head)
     }
 
+    /// try to get a writer for an existing segment (None if the segment is read-locked currently)
     pub fn try_writer<'a>(
         &'a self,
         segment_id: usize,
     ) -> Option<NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS>> {
-        let segment = self.get_or_create_segment(segment_id);
+        let segment = self.wait_for_segment(segment_id);
         let head = segment.try_head_mut_arc()?;
         Some(NodeWriter::new(segment, &self.stats, head))
     }
@@ -722,10 +718,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         src_page.get_out_edge(src_pos, dst, layer_id, src_page.head())
     }
 
-    pub fn grow(&self, new_len: usize) {
-        self.get_or_create_segment(new_len - 1);
-    }
-
     pub fn get_segment(&self, segment_id: usize) -> Option<&Arc<NS>> {
         self.segments
             .get(segment_id)
@@ -741,50 +733,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             })
     }
 
-    fn wait_for_segment(&self, segment_id: usize) -> &Arc<NS> {
+    pub fn wait_for_segment(&self, segment_id: usize) -> &Arc<NS> {
         loop {
             if let Some(segment) = self.segments.get(segment_id) {
                 return segment;
             } else {
                 // Wait for the segment to be created.
                 std::thread::yield_now();
-            }
-        }
-    }
-
-    // TODO: Segments should always be locked before being published.
-    // This method should be changed to a lookup only and not create segments.
-    pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<NS> {
-        if let Some(segment) = self.segments.get(segment_id) {
-            return segment;
-        }
-
-        let count = self.segments.count();
-
-        if segment_id < count {
-            // Another thread has allocated the segment, wait for it to be added.
-            self.wait_for_segment(segment_id)
-        } else {
-            // we need to create the segment.
-            self.segments.reserve(segment_id + 1 - count);
-
-            // NOTE: This publishes segments without locking them first.
-            loop {
-                // Create consecutive segments until the required segment is created.
-                let new_segment_id = self.segments.push_with(|segment_id| {
-                    Arc::new(NS::new(
-                        segment_id,
-                        self.node_meta.clone(),
-                        self.edge_meta.clone(),
-                        self.path.clone(),
-                        self.ext.clone(),
-                    ))
-                });
-
-                // The segment has been created.
-                if segment_id <= new_segment_id {
-                    return self.wait_for_segment(segment_id);
-                }
             }
         }
     }

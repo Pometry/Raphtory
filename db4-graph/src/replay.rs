@@ -71,7 +71,7 @@ where
             .graph()
             .storage()
             .nodes()
-            .get_or_create_segment(src_segment_id);
+            .wait_for_segment(src_segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -123,7 +123,7 @@ where
             .graph()
             .storage()
             .nodes()
-            .get_or_create_segment(dst_segment_id);
+            .wait_for_segment(dst_segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -173,7 +173,7 @@ where
             .graph()
             .storage()
             .edges()
-            .get_or_create_segment(edge_segment_id);
+            .wait_for_segment(edge_segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -240,7 +240,7 @@ where
             .graph()
             .storage()
             .edges()
-            .get_or_create_segment(edge_segment_id);
+            .wait_for_segment(edge_segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -318,7 +318,7 @@ where
             .graph()
             .storage()
             .nodes()
-            .get_or_create_segment(src_segment_id);
+            .wait_for_segment(src_segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -367,7 +367,7 @@ where
             .graph()
             .storage()
             .nodes()
-            .get_or_create_segment(dst_segment_id);
+            .wait_for_segment(dst_segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -419,7 +419,7 @@ where
             .graph()
             .storage()
             .edges()
-            .get_or_create_segment(edge_segment_id);
+            .wait_for_segment(edge_segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -485,11 +485,7 @@ where
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
         self.resize_segments_to_vid(node_id);
 
-        let segment = self
-            .graph()
-            .storage()
-            .nodes()
-            .get_or_create_segment(segment_id);
+        let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -557,11 +553,7 @@ where
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
         self.resize_segments_to_vid(vid);
 
-        let segment = self
-            .graph()
-            .storage()
-            .nodes()
-            .get_or_create_segment(segment_id);
+        let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
 
         let immut_lsn = segment.immut_lsn();
 
@@ -603,11 +595,7 @@ where
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
         self.resize_segments_to_vid(vid);
 
-        let segment = self
-            .graph()
-            .storage()
-            .nodes()
-            .get_or_create_segment(segment_id);
+        let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
 
         let immut_lsn = segment.immut_lsn();
 

@@ -31,10 +31,7 @@ mod io_tests {
         build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index,
     };
     use std::sync::Arc;
-    use storage::{
-        api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-        error::{SegmentKind, StorageError},
-    };
+    use storage::api::nodes::NodeSegmentOps;
 
     fn build_df(
         chunk_size: usize,
@@ -1130,7 +1127,7 @@ mod io_tests {
 
         // Cannot write-lock new node segments until the bulk load is done.
         for segment_id in held..tg.storage().nodes().num_segments() {
-            let segment = tg.storage().nodes().get_or_create_segment(segment_id);
+            let segment = tg.storage().nodes().wait_for_segment(segment_id);
             assert!(segment
                 .try_head_mut_for(std::time::Duration::ZERO)
                 .is_none());
@@ -1155,7 +1152,7 @@ mod io_tests {
         let mut wlg = g.write_lock().unwrap();
         let tg = wlg.graph;
         let held = wlg.nodes.len();
-        tg.storage().nodes().grow(held + 1);
+        tg.storage().nodes().grow_locked(held + 1); // grow and drop the guard
 
         wlg.extend_nodes(vec![]);
     }
@@ -1175,7 +1172,8 @@ mod io_tests {
         tg.storage().edges().grow(held_edges + 2);
         assert_eq!(wlg.edges.len(), held_edges);
 
-        wlg.lock_new_segments().unwrap();
+        wlg.assert_all_nodes_locked();
+        wlg.assert_all_edges_locked();
 
         assert_eq!(wlg.nodes.len(), tg.storage().nodes().num_segments());
         assert_eq!(wlg.edges.len(), tg.storage().edges().num_segments());
@@ -1193,66 +1191,10 @@ mod io_tests {
 
         // nothing new: no-op
         wlg.resize_segments_to_vid(VID(0));
-        wlg.lock_new_segments().unwrap();
+        wlg.assert_all_nodes_locked();
+        wlg.assert_all_edges_locked();
         assert_eq!(wlg.nodes.len(), held_nodes + 3);
         assert_eq!(wlg.edges.len(), held_edges + 2);
-    }
-
-    #[test]
-    #[should_panic(expected = "without handing over their locks")]
-    fn test_lock_new_segments_panics_on_unlocked_node_segment() {
-        let g = small_pages_graph();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-
-        let mut wlg = g.write_lock().unwrap();
-        let tg = wlg.graph;
-        let held = wlg.nodes.len();
-        tg.storage().nodes().grow(held + 1);
-
-        let _ = wlg.lock_new_segments();
-    }
-
-    #[test]
-    fn test_lock_new_segments_times_out_on_held_edge_segment() {
-        let g = small_pages_graph();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-
-        let mut wlg = g.write_lock().unwrap();
-        let tg = wlg.graph;
-        let held_nodes = wlg.nodes.len();
-        let held_edges = wlg.edges.len();
-        tg.storage().edges().grow(held_edges + 1);
-
-        let reader = tg
-            .storage()
-            .edges()
-            .get_or_create_segment(held_edges)
-            .head();
-        let err = wlg
-            .lock_new_segments_within(std::time::Duration::from_millis(100))
-            .unwrap_err();
-        assert!(
-            matches!(
-                err,
-                StorageError::SegmentLockTimeout {
-                    kind: SegmentKind::Edge,
-                    segment_id,
-                } if segment_id == held_edges
-            ),
-            "{err:?}"
-        );
-        let message = err.to_string();
-        assert!(
-            message.contains("a reader or an unguarded writer"),
-            "{message}"
-        );
-        assert!(message.contains("partially applied"), "{message}");
-        assert_eq!(wlg.nodes.len(), held_nodes);
-        assert_eq!(wlg.edges.len(), held_edges);
-
-        drop(reader);
-        wlg.lock_new_segments().unwrap();
-        assert_eq!(wlg.edges.len(), held_edges + 1);
     }
 
     #[test]
