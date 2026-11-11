@@ -73,10 +73,7 @@ pub struct EdgeView<G> {
 }
 
 pub(crate) fn edge_valid_layer<G: BoxableGraphView>(graph: &G, e: EdgeRef) -> bool {
-    match e.layer() {
-        None => true,
-        Some(layer) => graph.layer_ids().contains(&layer),
-    }
+    EdgeAt::of(e).visible(graph)
 }
 
 impl<G> Static for EdgeView<G> {}
