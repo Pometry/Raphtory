@@ -347,6 +347,29 @@ fn caching_agrees_with_node_window_and_exploded_filters() {
 }
 
 #[test]
+fn caching_drops_edges_to_and_from_hidden_nodes() {
+    let graph = filtered_fixture();
+    for hidden in ["hidden_0", "hidden_1"] {
+        graph
+            .add_node(0, hidden, [("x", 100i64)], None, None)
+            .unwrap();
+    }
+    graph.add_edge(3, "hidden_0", "a", NO_PROPS, None).unwrap();
+    graph
+        .add_edge(3, "b", "hidden_1", NO_PROPS, Some("layer_a"))
+        .unwrap();
+    let nodes = graph.filter(NodeFilter.property("x").lt(3i64)).unwrap();
+    assert_caching_changes_nothing_in_any_layer(&nodes, "a node filter hiding edge endpoints");
+    let exploded = nodes
+        .filter(ExplodedEdgeFilter.property("w").gt(2i64))
+        .unwrap();
+    assert_caching_changes_nothing_in_any_layer(
+        &exploded,
+        "an exploded filter on hidden endpoints",
+    );
+}
+
+#[test]
 fn a_build_cancelled_up_front_returns_nothing() {
     let graph = filtered_fixture();
     assert!(CachedView::new_with_cancel(graph, || true).is_none());
