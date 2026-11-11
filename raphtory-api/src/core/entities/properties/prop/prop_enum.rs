@@ -1258,8 +1258,6 @@ pub fn list_array_from_props<P: Serialize + fmt::Debug + Clone>(
     Ok(arrays.first().unwrap().as_list::<i64>().clone())
 }
 
-/// `props` as one Arrow array of type `dt`, null where a value is `None`.
-
 pub fn struct_array_from_props<P: Serialize>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,

@@ -113,8 +113,8 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
     }
 
     /// On equal times the last piece in `tprops` order (layers, then pieces within a layer)
-    /// wins, as `max_by_key` keeps the last maximum; `at` takes the first. Backends' bulk
-    /// reads (`LockedNSSegment::last_prop_values`) follow this rule.
+    /// wins, as `max_by_key` keeps the last maximum; `at` takes the first. Bulk reads that
+    /// gather latest values straight from the columns must follow this rule.
     #[inline]
     fn last(&self) -> Option<(EventTime, Prop)> {
         self.tprops(self.prop_id)

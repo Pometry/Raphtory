@@ -7,8 +7,6 @@ use crate::{
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
 };
-use arrow_array::ArrayRef;
-use arrow_schema::DataType;
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{

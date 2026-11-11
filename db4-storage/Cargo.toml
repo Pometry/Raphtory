@@ -25,7 +25,6 @@ boxcar.workspace = true
 serde_json.workspace = true
 arrow-array.workspace = true
 arrow-schema.workspace = true
-arrow-select.workspace = true
 parquet.workspace = true
 rayon.workspace = true
 itertools.workspace = true

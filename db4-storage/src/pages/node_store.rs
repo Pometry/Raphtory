@@ -15,19 +15,10 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
 };
-use arrow_array::{Array, ArrayRef, new_empty_array};
-use arrow_schema::DataType;
-use arrow_select::{concat::concat, interleave::interleave};
 use parking_lot::RwLock;
 use raphtory_api::{
     ArcRwLockWriteGuard,
-    core::entities::{
-        GidType, LayerId,
-        properties::{
-            meta::{Meta, PropMapper},
-            prop::arrow_dtype_from_prop_type,
-        },
-    },
+    core::entities::{GidType, LayerId, properties::meta::Meta},
 };
 use raphtory_core::{
     entities::{EID, VID},
@@ -100,7 +91,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
     }
 
-    /// The latest value of each temporal property in `prop_ids`, over every layer, of each of
     pub fn len(&self) -> usize {
         self.storage.num_nodes()
     }
@@ -159,6 +149,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let (segment_id, pos) = self.storage.resolve_pos(vid);
         segment_id < self.segments.len() && pos.0 < self.segments[segment_id].num_nodes()
     }
+
     #[inline(always)]
     pub fn storage(&self) -> &NodeStorageInner<NS, EXT> {
         &self.storage
