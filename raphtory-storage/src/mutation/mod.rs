@@ -1,7 +1,6 @@
 use crate::{
     core_ops::CoreGraphOps, graph::graph::Immutable, mutation::addition_ops::InheritAdditionOps,
 };
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::entities::properties::prop::{InvalidBigDecimal, PropError},
     inherit::Base,
@@ -25,7 +24,7 @@ pub mod addition_ops;
 pub mod addition_ops_ext;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS<Extension>>;
-pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
+pub type EdgeWriterT<'a> = EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES<Extension>>;
 pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 
 #[derive(Error, Debug)]

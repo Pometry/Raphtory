@@ -1,24 +1,22 @@
 use parking_lot::{lock_api::ArcMutexGuard, Mutex, RawMutex, RwLockWriteGuard};
-use raphtory_api::core::{
-    entities::{
-        self,
-        properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
-        GidType,
+use raphtory_api::{
+    core::{
+        entities::{
+            self,
+            properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
+            GidType,
+        },
+        input::input_node::InputNode,
+        storage::timeindex::TimeIndexOps,
     },
-    input::input_node::InputNode,
-    storage::timeindex::TimeIndexOps,
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::EventTime,
 };
 use rayon::prelude::*;
-use std::{
-    ops::Deref,
-    path::Path,
-    sync::{atomic::AtomicUsize, Arc},
-    time::Duration,
-};
+use std::{ops::Deref, path::Path, sync::Arc, time::Duration};
 use storage::{
     api::{
         edges::EdgeSegmentOps,
@@ -31,7 +29,7 @@ use storage::{
     pages::{
         layer_counter::GraphStats,
         locked::{
-            edges::WriteLockedEdgeSegments,
+            edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
             nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
@@ -39,6 +37,7 @@ use storage::{
     },
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
+    segments::edge::segment::MemEdgeSegment,
     transaction::TransactionManager,
     Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
@@ -56,7 +55,6 @@ where
     // TODO: Move resolver inside storage?
     /// Stores mapping between logical to physical node IDs.
     pub gid_resolver: Arc<GIDResolver>,
-    pub round_robin_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
@@ -132,7 +130,6 @@ where
             gid_resolver,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
-            round_robin_counter: AtomicUsize::new(0),
             stage_lock: Arc::new(Mutex::new(())),
         })
     }
@@ -165,7 +162,6 @@ where
 
         Ok(Self {
             graph_dir: Some(graph_dir),
-            round_robin_counter: AtomicUsize::new(0),
             gid_resolver: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
@@ -512,7 +508,7 @@ where
             .lock_new_segments(&mut self.edges, timeout)
     }
 
-    pub fn extend_new(&mut self, mut new_segments: MemNodeSegmentGuards) {
+    pub fn extend_nodes(&mut self, mut new_segments: MemNodeSegmentGuards) {
         let nodes = self.graph.storage.nodes();
 
         // segments are pushed concurrently from several threads, so the ids arrive in any order
@@ -536,6 +532,29 @@ where
         self.assert_all_nodes_locked();
     }
 
+    pub fn extend_edges(&mut self, mut new_segments: Vec<ArcRwLockWriteGuard<MemEdgeSegment>>) {
+        let edges = self.graph.storage.edges();
+
+        // segments are pushed concurrently from several threads, so the ids arrive in any order
+        new_segments.sort_unstable_by_key(|segment| segment.segment_id());
+
+        for new_segment in new_segments {
+            let segment_id = new_segment.segment_id();
+            let segment = edges
+                .get_segment(segment_id)
+                .expect("locked segment must exist");
+
+            self.edges.push(LockedEdgeSegment::new(
+                segment_id,
+                edges.max_page_len(),
+                segment,
+                edges.stats(),
+                new_segment,
+            ));
+        }
+        self.assert_all_edges_locked();
+    }
+
     /// A node segment created without handing over its lock would let readers see its
     /// uninitialised nodes.
     fn assert_all_nodes_locked(&self) {
@@ -546,17 +565,27 @@ where
         );
     }
 
+    /// An edge segment created without handing over its lock would let readers see its
+    /// uninitialised edges.
+    fn assert_all_edges_locked(&self) {
+        assert_eq!(
+            self.edges.len(),
+            self.graph.storage.edges().num_segments(),
+            "edge segments were created during the bulk load without handing over their locks"
+        );
+    }
+
     pub fn resize_segments_to_vid(&mut self, vid: VID) {
         let nodes = self.graph.storage.nodes();
         let (segment_id, _) = nodes.resolve_pos(vid);
         let new_segments = nodes.grow_locked(segment_id + 1);
-        self.extend_new(new_segments);
+        self.extend_nodes(new_segments);
     }
 
-    pub fn resize_segments_to_eid(&mut self, eid: EID) -> Result<(), StorageError> {
+    pub fn resize_segments_to_eid(&mut self, eid: EID) {
         let (segment_id, _) = self.graph.storage.edges().resolve_pos(eid);
-        self.graph.storage().edges().grow(segment_id + 1);
-        self.lock_new_segments()
+        let new_segments = self.graph.storage().edges().grow(segment_id + 1);
+        self.extend_edges(new_segments)
     }
 
     pub fn edge_stats(&self) -> &Arc<GraphStats> {

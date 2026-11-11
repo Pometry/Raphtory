@@ -9,7 +9,6 @@ use crate::{
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     wal::LSN,
 };
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     ArcRwLockWriteGuard,
     core::{
@@ -36,7 +35,7 @@ pub struct EdgeWriteSession<
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > {
     node_writers: NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
-    edge_writer: EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>,
+    edge_writer: EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES>,
     graph: &'a GraphStore<NS, ES, GS, EXT>,
 }
 
@@ -50,7 +49,7 @@ impl<
 {
     pub fn new(
         node_writers: NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
-        edge_writer: EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>,
+        edge_writer: EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES>,
         graph: &'a GraphStore<NS, ES, GS, EXT>,
     ) -> Self {
         Self {

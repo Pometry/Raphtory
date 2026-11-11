@@ -304,7 +304,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             extract_secondary_index_col::<G>(secondary_index_index, graph, &df)?;
 
         // node resolution may have created new node segments
-        write_locked_graph.extend_new(new_segment_guards);
+        write_locked_graph.extend_nodes(new_segment_guards);
         let max_node_segment_len = write_locked_graph
             .graph()
             .storage()
@@ -328,30 +328,30 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         let arc_edges = write_locked_graph.graph().storage().edges().clone();
 
-        let next_edge_id = |row: usize| {
-            let (page, pos) = arc_edges.reserve_free_pos(row);
-            pos.as_eid(page, arc_edges.max_page_len())
-        };
-
         let max_edge_page_len = arc_edges.max_page_len();
+
+        let eids = edge_index.and_then(|edge_id_col| {
+            let eids = df.chunk[edge_id_col]
+                .as_primitive_opt::<UInt64Type>()?
+                .values()
+                .as_ref();
+            if let Some(max) = eids.par_iter().max() {
+                // allocate required segments up front
+                write_locked_graph.resize_segments_to_eid(EID(*max as usize));
+            }
+
+            Some(eids)
+        });
+
         let WriteLockedGraph {
             nodes, ref edges, ..
         } = &mut write_locked_graph;
 
-        let eids = edge_index.and_then(|edge_id_col| {
-            Some(
-                df.chunk[edge_id_col]
-                    .as_primitive_opt::<UInt64Type>()?
-                    .values()
-                    .as_ref(),
-            )
-        });
-
         // Generate all edge_ids + add outbound edges
-        nodes
+        let new_edge_segments: Vec<_> = nodes
             .par_iter_mut()
             .enumerate()
-            .for_each(|(segment_id, locked_page)| {
+            .map(|(segment_id, locked_page)| {
                 let src_rows = &src_rows_by_segment[segment_id];
                 let dst_rows = &dst_rows_by_segment[segment_id];
                 if src_rows.is_empty() && (!resolve_nodes || dst_rows.is_empty()) {
@@ -359,7 +359,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     if locked_page.segment().is_dirty() {
                         let _writer = locked_page.writer();
                     }
-                    return;
+                    return vec![];
                 }
 
                 // resolve_nodes=false
@@ -370,7 +370,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 }
 
                 if src_rows.is_empty() {
-                    return;
+                    return vec![];
                 }
 
                 let zip = izip!(
@@ -385,6 +385,14 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 );
 
                 if resolve_nodes {
+                    let mut new_edge_segments = vec![];
+                    let next_edge_id = |_| {
+                        let (page, pos, guard) = arc_edges.reserve_free_pos();
+                        if let Some(guard) = guard {
+                            new_edge_segments.push(guard);
+                        }
+                        pos.as_eid(page, arc_edges.max_page_len())
+                    };
                     add_and_resolve_outbound_edges(
                         &eids_exist,
                         &layer_eids_exist,
@@ -395,7 +403,10 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         locked_page,
                         delete,
                     );
-                } else if let Some(edge_ids) = eids {
+                    new_edge_segments
+                } else {
+                    let edge_ids =
+                        eids.expect("edge ids column required if resolving nodes is skipped");
                     add_and_resolve_outbound_edges(
                         &eids_exist,
                         &layer_eids_exist,
@@ -410,8 +421,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         locked_page,
                         delete,
                     );
+                    vec![]
                 }
-            });
+            })
+            .flatten()
+            .collect();
 
         write_locked_graph
             .nodes
@@ -445,9 +459,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             });
 
         // the node pass may have created new edge segments
-        write_locked_graph
-            .lock_new_segments()
-            .map_err(into_graph_err)?;
+        write_locked_graph.extend_edges(new_edge_segments);
         let edge_rows_by_segment = group_rows_by_eid_segment(
             &eid_col_resolved,
             max_edge_page_len,
@@ -753,7 +765,7 @@ fn add_and_resolve_outbound_edges<
     layer_eids_exist: &[AtomicBool],
     eid_col_shared: &&mut [AtomicUsize],
     zip: impl Iterator<Item = (usize, VID, VID, i64, usize, usize)>,
-    next_edge_id: impl Fn(usize) -> EID,
+    mut next_edge_id: impl FnMut(usize) -> EID,
     edges: &WriteLockedEdgeSegments<'_, ES>,
     locked_page: &mut WriteLockedNodeSegment<'_, NS>,
     delete: bool,

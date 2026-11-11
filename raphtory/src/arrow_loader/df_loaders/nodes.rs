@@ -282,7 +282,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             }
 
             // node resolution may have created new node segments
-            write_locked_graph.extend_new(new_segment_guards);
+            write_locked_graph.extend_nodes(new_segment_guards);
 
             let rows_by_segment = group_rows_by_vid_segment(
                 src_vids,
@@ -479,7 +479,7 @@ pub fn load_node_props_from_df<
         }
 
         // node resolution may have created new node segments
-        write_locked_graph.extend_new(new_segment_guards);
+        write_locked_graph.extend_nodes(new_segment_guards);
 
         if pre_resolved {
             let max_vid = node_col_resolved

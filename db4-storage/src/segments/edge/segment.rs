@@ -12,7 +12,7 @@ use crate::{
     wal::LSN,
 };
 use raphtory_api::{
-    ArcRwLockReadGuard,
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
     core::{
         entities::{
             LayerId, VID,
@@ -89,6 +89,10 @@ impl MemEdgeSegment {
             global_memory_tracker,
             lsn: 0,
         }
+    }
+
+    pub fn segment_id(&self) -> usize {
+        self.layers[0].segment_id()
     }
 
     pub fn increment_global_memory(&self, increment: usize) {
@@ -527,15 +531,19 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.segment.write()
     }
 
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemEdgeSegment> {
+        self.segment.write_arc()
+    }
+
     fn try_head_mut(&self) -> Option<parking_lot::RwLockWriteGuard<'_, MemEdgeSegment>> {
         self.segment.try_write()
     }
 
-    fn try_head_mut_for(
+    fn try_head_mut_arc_for(
         &self,
         timeout: std::time::Duration,
-    ) -> Option<parking_lot::RwLockWriteGuard<'_, MemEdgeSegment>> {
-        self.segment.try_write_for(timeout)
+    ) -> Option<ArcRwLockWriteGuard<MemEdgeSegment>> {
+        self.segment.try_write_arc_for(timeout)
     }
 
     fn set_dirty(&self, _dirty: bool) {}

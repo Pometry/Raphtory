@@ -1122,11 +1122,10 @@ mod io_tests {
 
         // keep reserving until a row lands in a new segment
         let mut new_segments = vec![];
-        let mut row = 0;
+
         while new_segments.is_empty() {
-            let (_, _, locked) = tg.storage().nodes().reserve_free_pos(row);
+            let (_, _, locked) = tg.storage().nodes().reserve_free_pos();
             new_segments.extend(locked);
-            row += 1;
         }
 
         // Cannot write-lock new node segments until the bulk load is done.
@@ -1137,7 +1136,7 @@ mod io_tests {
                 .is_none());
         }
 
-        wlg.extend_new(new_segments);
+        wlg.extend_nodes(new_segments);
         assert_eq!(wlg.nodes.len(), tg.storage().nodes().num_segments());
         for segment_id in 0..wlg.nodes.len() {
             assert_eq!(
@@ -1158,7 +1157,7 @@ mod io_tests {
         let held = wlg.nodes.len();
         tg.storage().nodes().grow(held + 1);
 
-        wlg.extend_new(vec![]);
+        wlg.extend_nodes(vec![]);
     }
 
     #[test]

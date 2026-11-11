@@ -32,14 +32,9 @@ use raphtory_core::{
     },
     storage::timeindex::EventTime,
 };
-use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError,
-    pages::{
-        locked::nodes::MemNodeSegmentGuards, node_page::writer::NodeWriters, resolve_pos,
-        session::EdgeWriteSession,
-    },
+    pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
@@ -353,10 +348,7 @@ impl GraphMutationOps for TemporalGraph {
                         )
                     }
                     MaybeInit::Init(init) => {
-                        let (pos, writer) = nodes.reserve_and_lock_segment(
-                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
-                            1,
-                        );
+                        let (pos, writer) = nodes.reserve_and_lock_segment(1, None);
                         let vid =
                             pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                         init.init(vid)?;
@@ -373,10 +365,7 @@ impl GraphMutationOps for TemporalGraph {
             }
             (MaybeInit::Init(src_init), Some(MaybeInit::Init(dst_init))) => {
                 // both new, put them in the same segment
-                let (pos, writer) = nodes.reserve_and_lock_segment(
-                    self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
-                    2,
-                );
+                let (pos, writer) = nodes.reserve_and_lock_segment(2, None);
                 let src_id = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                 let dst_id = LocalPOS(pos.0 + 1)
                     .as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
@@ -393,23 +382,19 @@ impl GraphMutationOps for TemporalGraph {
             }
             (MaybeInit::Init(src_init), Some(MaybeInit::VID(dst_id))) => {
                 let (dst_chunk, _) = nodes.resolve_pos(dst_id);
-                let mut dst_writer = nodes.writer(dst_chunk);
+                let dst_writer = nodes.writer(dst_chunk);
                 match nodes.reserve_segment_row(dst_writer.segment) {
                     None => {
-                        let (src_id, src_writer) = dst_writer.unlocked(|| {
-                            // existing segment is full, need to get a new one, unlock dst_writer
-                            // so that the segment can be evicted from the free segments
-                            let (src_pos, src_writer) = nodes.reserve_and_lock_segment(
-                                self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
-                                1,
-                            );
-                            let src_id = src_pos.as_vid(
-                                src_writer.segment.segment_id(),
-                                src_writer.writer.max_page_len(),
-                            );
-                            src_init.init(src_id)?;
-                            Ok::<_, StorageError>((src_id, src_writer))
-                        })?;
+                        // existing segment is full, need to get a new one, pass in the existing writer reference so we don't end up trying to block
+                        // on it when potentially evicting it from free segments
+                        let (src_pos, src_writer) =
+                            nodes.reserve_and_lock_segment(1, Some(&dst_writer));
+                        let src_id = src_pos.as_vid(
+                            src_writer.segment.segment_id(),
+                            src_writer.writer.max_page_len(),
+                        );
+                        src_init.init(src_id)?;
+
                         (
                             NodeWriters {
                                 src: src_writer,
@@ -438,23 +423,17 @@ impl GraphMutationOps for TemporalGraph {
             }
             (MaybeInit::VID(src_id), Some(MaybeInit::Init(dst_init))) => {
                 let (src_chunk, _) = nodes.resolve_pos(src_id);
-                let mut src_writer = nodes.writer(src_chunk);
+                let src_writer = nodes.writer(src_chunk);
                 match nodes.reserve_segment_row(src_writer.segment) {
                     None => {
-                        let (dst_id, dst_writer) = src_writer.unlocked(|| {
-                            // unlocked to make sure we can evict this segment from the free
-                            // segments to avoid deadlocking
-                            let (dst_pos, dst_writer) = nodes.reserve_and_lock_segment(
-                                self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
-                                1,
-                            );
-                            let dst_id = dst_pos.as_vid(
-                                dst_writer.segment.segment_id(),
-                                dst_writer.writer.max_page_len(),
-                            );
-                            dst_init.init(dst_id)?;
-                            Ok::<_, StorageError>((dst_id, dst_writer))
-                        })?;
+                        let (dst_pos, dst_writer) =
+                            nodes.reserve_and_lock_segment(1, Some(&src_writer));
+                        let dst_id = dst_pos.as_vid(
+                            dst_writer.segment.segment_id(),
+                            dst_writer.writer.max_page_len(),
+                        );
+                        dst_init.init(dst_id)?;
+
                         (
                             NodeWriters {
                                 src: src_writer,
@@ -614,10 +593,8 @@ impl GraphMutationOps for TemporalGraph {
             NodeRef::External(gid) => match self.gid_resolver.get_or_init(gid)? {
                 MaybeInit::VID(vid) => vid,
                 MaybeInit::Init(init) => {
-                    let (pos, mut writer) = self.storage().nodes().reserve_and_lock_segment(
-                        self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
-                        1,
-                    );
+                    let (pos, mut writer) =
+                        self.storage().nodes().reserve_and_lock_segment(1, None);
                     match node_type {
                         Some(node_type) => {
                             let node_type = self
@@ -672,10 +649,7 @@ impl GraphMutationOps for TemporalGraph {
         let vid = match self.gid_resolver.get(id) {
             Some(vid) => (MaybeNew::Existing(vid), None),
             None => {
-                let (seg, pos, new_locks) = self
-                    .storage()
-                    .nodes()
-                    .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
+                let (seg, pos, new_locks) = self.storage().nodes().reserve_free_pos();
                 let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
                 self.gid_resolver.set(id, new_vid)?;
                 (MaybeNew::New(new_vid), new_locks)

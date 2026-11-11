@@ -23,6 +23,7 @@ use std::{
 
 pub mod additions;
 pub mod edge;
+pub mod free_segment_slots;
 pub mod graph_prop;
 pub mod node;
 pub mod node_type_index;

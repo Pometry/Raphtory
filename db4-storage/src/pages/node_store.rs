@@ -13,7 +13,10 @@ use crate::{
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
-    segments::node::segment::MemNodeSegment,
+    segments::{
+        free_segment_slots::{FreeSegmentSlots, N},
+        node::segment::MemNodeSegment,
+    },
 };
 use parking_lot::RwLock;
 use raphtory_api::{
@@ -29,10 +32,8 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, LazyLock, atomic::AtomicU32},
+    sync::{Arc, atomic::AtomicU32},
 };
-
-pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 
 pub fn type_index_path(nodes_path: impl AsRef<Path>) -> PathBuf {
     nodes_path.as_ref().join("type_index")
@@ -48,7 +49,7 @@ where
     type_index: Arc<EXT::NTI>,
 
     /// Contains ids of segments that can accomodate new nodes.
-    free_segments: Box<[RwLock<usize>]>,
+    free_segments: FreeSegmentSlots,
 
     path: Option<PathBuf>,
     node_meta: Arc<Meta>,
@@ -284,9 +285,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             std::fs::create_dir_all(path)?;
         }
 
-        let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
+        let free_segments = FreeSegmentSlots::default();
         let segments = boxcar::Vec::new();
-        for _ in (0..*N) {
+        for _ in 0..free_segments.num_slots() {
             segments.push_with(|segment_id| {
                 Arc::new(NS::new(
                     segment_id,
@@ -384,11 +385,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Only use with `WriteLockedGraph`!
     pub fn reserve_free_pos(
         &self,
-        row: usize,
     ) -> (usize, LocalPOS, Option<ArcRwLockWriteGuard<MemNodeSegment>>) {
-        let slot_idx = row % *N;
+        let slot = self.free_segments.slot();
         let maybe_free_page = {
-            let segment_id = *self.free_segments[slot_idx].read_recursive();
+            let segment_id = *slot.read_recursive();
             let page = self.segments.get(segment_id);
 
             page.and_then(|page| {
@@ -401,7 +401,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             reserved_pos
         } else {
             // not lucky, go wait on your slot
-            let mut slot = self.free_segments[slot_idx].write();
+            let mut slot = slot.write();
             let segment = self
                 .get_segment(*slot)
                 .expect("slot should always point at a segment");
@@ -426,23 +426,32 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
     ///
-    /// # Deadlock Safety: do not hold any node segment locks when calling this function!
+    /// # Deadlock Safety: do not hold any node segment locks when calling this function other than the `existing_full_segment` guard passed in!
     pub fn reserve_and_lock_segment(
         &self,
-        row: usize,
         num_rows: u32,
+        existing_full_segment: Option<&NodeWriter<ArcRwLockWriteGuard<MemNodeSegment>, NS>>,
     ) -> (
         LocalPOS,
         NodeWriter<'_, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
     ) {
-        let slot_idx = row % *N;
         // No point in multiple threads getting past here as they would just content on the writer lock
-        let mut slot = self.free_segments[slot_idx].write();
+        let mut slot = self.free_segments.slot().write();
         let segment_id = *slot;
 
-        let writer = self.writer(segment_id);
-        match self.reserve_segment_rows(writer.segment, num_rows) {
-            None => {
+        let writer_and_row = match existing_full_segment {
+            Some(existing_writer) if existing_writer.segment.segment_id() == segment_id => {
+                // make sure we do not try to relock the already locked segment (it should always be full)
+                None
+            }
+            _ => {
+                let writer = self.writer(segment_id);
+                let row = self.reserve_segment_rows(writer.segment, num_rows);
+                Some((writer, row))
+            }
+        };
+        match writer_and_row {
+            None | Some((_, None)) => {
                 // The current segment is full, push a new locked free segment before dropping the existing writer lock
 
                 let guard = self.push_new_segment();
@@ -456,7 +465,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
                 (LocalPOS(local_pos), writer)
             }
-            Some(local_pos) => (LocalPOS(local_pos), writer),
+            Some((writer, Some(local_pos))) => (LocalPOS(local_pos), writer),
         }
     }
 
@@ -671,17 +680,23 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             })
             .collect::<Vec<_>>();
 
-        let mut next_free_segment = free_segments
-            .last()
-            .map(|segment| *(segment.read()))
-            .map(|last| last + 1)
-            .unwrap_or_else(|| segments.count());
-
-        free_segments.resize_with(*N, || {
-            let lock = RwLock::new(next_free_segment);
-            next_free_segment += 1;
-            lock
-        });
+        // ensure we have sufficiently many free segments (if the graph had more, keep all of them so
+        // they can fill up)
+        if free_segments.len() < *N {
+            free_segments.resize_with(*N, || {
+                let segment_id = segments.push_with(|segment_id| {
+                    Arc::new(NS::new(
+                        segment_id,
+                        node_meta.clone(),
+                        edge_meta.clone(),
+                        Some(path.to_path_buf()),
+                        ext.clone(),
+                    ))
+                });
+                let lock = RwLock::new(segment_id);
+                lock
+            });
+        }
 
         let stats = GraphStats::load(layer_counts, earliest, latest);
 

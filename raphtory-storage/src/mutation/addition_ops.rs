@@ -23,8 +23,8 @@ use raphtory_api::{
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use storage::{
-    pages::locked::nodes::MemNodeSegmentGuards, properties::props_meta_writer::PropsMetaWriter,
-    segments::node::segment::MemNodeSegment, wal::LSN, Extension,
+    properties::props_meta_writer::PropsMetaWriter, segments::node::segment::MemNodeSegment,
+    wal::LSN, Extension,
 };
 
 /// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.

@@ -1,7 +1,7 @@
 use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
-    ArcRwLockReadGuard,
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
     core::entities::{
         LayerId,
         edges::edge_ref::Dir,
@@ -74,9 +74,14 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemEdgeSegment>;
 
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemEdgeSegment>;
+
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
-    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
+    fn try_head_mut_arc_for(
+        &self,
+        timeout: Duration,
+    ) -> Option<ArcRwLockWriteGuard<MemEdgeSegment>>;
 
     fn set_dirty(&self, dirty: bool);
 
