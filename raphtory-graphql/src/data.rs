@@ -7,7 +7,6 @@ use crate::{
     config::{app_config::AppConfig, cache_config::CacheConfig},
     graph::GraphWithVectors,
     model::{
-        blocking_io,
         graph::{
             filter_expr_input::GqlFilter,
             filtering::{GraphAccessFilter, HiddenKeys},
@@ -21,7 +20,7 @@ use crate::{
         InternalPathValidationError, PathValidationError, UnlockedGraphFolder, ValidGraphPaths,
         ValidWriteableGraphFolder,
     },
-    rayon::blocking_compute,
+    rayon::{blocking_compute, blocking_io},
     GQLError,
 };
 use async_graphql::Context;

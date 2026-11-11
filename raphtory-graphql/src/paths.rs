@@ -3,8 +3,7 @@
 
 use crate::{
     data::{WorkDirGuard, WorkDirWriteGuard},
-    model::blocking_io,
-    rayon::blocking_compute,
+    rayon::{blocking_compute, blocking_io},
 };
 use futures_util::io;
 use raphtory::{

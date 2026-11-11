@@ -81,15 +81,6 @@ pub(crate) fn parse_json_schema(
         .map(Some)
 }
 
-/// a thin wrapper around spawn_blocking that unwraps the join handle
-pub(crate) async fn blocking_io<F, R>(f: F) -> R
-where
-    F: FnOnce() -> R + Send + 'static,
-    R: Send + 'static,
-{
-    tokio::task::spawn_blocking(f).await.unwrap()
-}
-
 /// Auto-grants Write on `path` for the creator's role after a graph is created.
 /// Returns an error if the grant fails so the caller can roll back the graph.
 /// No-op when there is no active auth policy; identity checks are delegated to the policy.
