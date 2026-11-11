@@ -609,13 +609,14 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         Ok(EdgeWriter::new(&self.layer_counter, page, writer))
     }
 
+    /// Get a free writer for inserting a new edge.
+    ///
+    /// Deadlock safety: Do not hold any edge writer locks when calling this function!
     pub fn get_free_writer<'a>(
         &'a self,
     ) -> EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES> {
         let mut slot = self.free_segments.slot().write();
-        let segment = self
-            .get_segment(*slot)
-            .expect("segment for slot should always exist");
+        let segment = self.wait_for_segment(*slot);
         let guard = segment.head_mut_arc();
         if segment.num_edges() < self.max_page_len() {
             EdgeWriter::new(&self.layer_counter, segment, guard)
@@ -627,6 +628,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         }
     }
 
+    /// reserve a free position, returns a guard if it creates a new segment
+    ///
+    /// Only use with `WriteLockedGraph` (bulk loading)!
     pub fn reserve_free_pos(
         &self,
     ) -> (usize, LocalPOS, Option<ArcRwLockWriteGuard<MemEdgeSegment>>) {
