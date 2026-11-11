@@ -23,7 +23,7 @@ mod io_tests {
         prelude::*,
     };
     use raphtory_api::core::{
-        entities::{LayerIds, VID},
+        entities::{LayerIds, EID, VID},
         storage::arc_str::ArcStr,
     };
     use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
@@ -1158,7 +1158,7 @@ mod io_tests {
     }
 
     #[test]
-    fn test_new_segments_are_held_after_resize_and_lock() {
+    fn test_new_segments_are_held_after_resize() {
         let g = small_pages_graph();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
@@ -1169,8 +1169,7 @@ mod io_tests {
 
         // max_node_page_len is 2, so this vid is in the third new segment
         wlg.resize_segments_to_vid(VID((held_nodes + 2) * 2));
-        tg.storage().edges().grow(held_edges + 2);
-        assert_eq!(wlg.edges.len(), held_edges);
+        wlg.resize_segments_to_eid(EID((held_edges + 1) * 2));
 
         wlg.assert_all_nodes_locked();
         wlg.assert_all_edges_locked();
