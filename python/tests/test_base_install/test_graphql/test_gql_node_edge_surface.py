@@ -416,9 +416,10 @@ def test_node_approximate_degrees():
         )
     )
 
-    # Columnar, in collection order. Degrees: A 3, B 1 ({A} on both sides),
-    # C 2 ({A} in, {D} out), D 1 (in only, so exact for free). A's neighbours
-    # are A, B and C, so theirs are the first three rows.
+    # Columnar, in collection order (sorted by name, as node order isn't
+    # guaranteed). Degrees: A 3, B 1 ({A} on both sides), C 2 ({A} in, {D}
+    # out), D 1 (in only, so exact for free). B's only neighbour is A, so its
+    # neighbours are A's row whatever the order.
     names = [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}]
     degree = [bounds(3, 5), bounds(1, 2), bounds(1, 2), bounds(1, 1)]
     in_degree = [bounds(2, 2), bounds(1, 1), bounds(1, 1), bounds(1, 1)]
@@ -427,12 +428,14 @@ def test_node_approximate_degrees():
     {
       graph(path: "g") {
         nodes {
-          list { name }
-          approximateDegree(threshold: 0) { lowerBound upperBound }
-          approximateInDegree(threshold: 0) { lowerBound upperBound }
-          approximateOutDegree(threshold: 0) { lowerBound upperBound }
+          sorted(sortBys: [{ name: true }]) {
+            list { name }
+            approximateDegree(threshold: 0) { lowerBound upperBound }
+            approximateInDegree(threshold: 0) { lowerBound upperBound }
+            approximateOutDegree(threshold: 0) { lowerBound upperBound }
+          }
         }
-        node(name: "A") {
+        node(name: "B") {
           neighbours {
             list { name }
             approximateDegree(threshold: 0) { lowerBound upperBound }
@@ -449,17 +452,19 @@ def test_node_approximate_degrees():
             {
                 "graph": {
                     "nodes": {
-                        "list": names,
-                        "approximateDegree": degree,
-                        "approximateInDegree": in_degree,
-                        "approximateOutDegree": out_degree,
+                        "sorted": {
+                            "list": names,
+                            "approximateDegree": degree,
+                            "approximateInDegree": in_degree,
+                            "approximateOutDegree": out_degree,
+                        }
                     },
                     "node": {
                         "neighbours": {
-                            "list": names[:3],
-                            "approximateDegree": degree[:3],
-                            "approximateInDegree": in_degree[:3],
-                            "approximateOutDegree": out_degree[:3],
+                            "list": names[:1],
+                            "approximateDegree": degree[:1],
+                            "approximateInDegree": in_degree[:1],
+                            "approximateOutDegree": out_degree[:1],
                         }
                     },
                 }
