@@ -101,118 +101,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     /// The latest value of each temporal property in `prop_ids`, over every layer, of each of
-    /// `nodes`: one array per property, aligned with `nodes`, of the property's declared Arrow
-    /// type (`Null` if it has none), null where a node has no value. Reads each segment's nodes
-    /// with one [`LockedNSSegment::last_prop_values`] call. Errors if a node is out of range.
-    pub fn last_prop_values(
-        &self,
-        prop_ids: &[usize],
-        nodes: &[VID],
-    ) -> Result<Vec<ArrayRef>, StorageError> {
-        let props = declared(self.storage.node_meta.temporal_prop_mapper(), prop_ids);
-        self.read_by_segment(&props, nodes, |segment, positions| {
-            segment.last_prop_values(&props, positions)
-        })
-    }
-
-    /// The value of each constant property in `prop_ids` in layer `layer_id` (the node type is
-    /// [`NODE_TYPE_PROP_ID`](raphtory_api::core::entities::properties::meta::NODE_TYPE_PROP_ID)
-    /// in layer 0) of each of `nodes`, as [`Self::last_prop_values`] returns them, read with one
-    /// [`LockedNSSegment::metadata_values`] call per segment.
-    pub fn metadata_values(
-        &self,
-        prop_ids: &[usize],
-        layer_id: LayerId,
-        nodes: &[VID],
-    ) -> Result<Vec<ArrayRef>, StorageError> {
-        let props = declared(self.storage.node_meta.metadata_mapper(), prop_ids);
-        self.read_by_segment(&props, nodes, |segment, positions| {
-            segment.metadata_values(&props, layer_id, positions)
-        })
-    }
-
-    /// `read` of each segment's part of `nodes`, put back in `nodes` order.
-    fn read_by_segment(
-        &self,
-        props: &[(usize, DataType)],
-        nodes: &[VID],
-        read: impl Fn(&NS::ArcLockedSegment, &[LocalPOS]) -> Result<Vec<ArrayRef>, StorageError>,
-    ) -> Result<Vec<ArrayRef>, StorageError> {
-        let segment_of = |node: VID| self.storage.resolve_pos(node);
-        let locked = |segment_id: usize, node: VID| {
-            self.segments.get(segment_id).ok_or_else(|| {
-                StorageError::GenericFailure(format!("node {node:?} is out of range"))
-            })
-        };
-        // Nodes already in segment order (as a scan yields them) are read in one pass, without
-        // sorting; a node out of order sends them all to the sorting path below.
-        let mut parts: Vec<Vec<ArrayRef>> = Vec::new();
-        let mut positions = Vec::new();
-        let mut current: Option<(usize, VID)> = None;
-        let mut grouped = true;
-        for &node in nodes {
-            let (segment_id, pos) = segment_of(node);
-            if let Some((id, first)) = current.filter(|&(id, _)| id != segment_id) {
-                if id > segment_id {
-                    grouped = false;
-                    break;
-                }
-                parts.push(read(locked(id, first)?, &positions)?);
-                positions.clear();
-                current = None;
-            }
-            current.get_or_insert((segment_id, node));
-            positions.push(pos);
-        }
-        if grouped {
-            if let Some((id, first)) = current {
-                parts.push(read(locked(id, first)?, &positions)?);
-            }
-            if parts.len() == 1 {
-                return Ok(parts.pop().unwrap());
-            }
-            return (props.iter().enumerate())
-                .map(|(column, (_, dtype))| {
-                    let arrays: Vec<&dyn Array> =
-                        parts.iter().map(|part| part[column].as_ref()).collect();
-                    Ok(match arrays.is_empty() {
-                        true => new_empty_array(dtype),
-                        false => concat(&arrays)?,
-                    })
-                })
-                .collect();
-        }
-        // (segment, position, place in `nodes`), grouped by segment in `nodes` order.
-        let mut order: Vec<(usize, LocalPOS, usize)> = (nodes.iter().enumerate())
-            .map(|(at, &node)| {
-                let (segment, pos) = self.storage.resolve_pos(node);
-                (segment, pos, at)
-            })
-            .collect();
-        order.sort_by_key(|&(segment, _, _)| segment);
-        parts.clear();
-        let mut at = vec![(0, 0); nodes.len()];
-        for group in order.chunk_by(|a, b| a.0 == b.0) {
-            let segment = locked(group[0].0, nodes[group[0].2])?;
-            positions.clear();
-            positions.extend(group.iter().map(|&(_, pos, _)| pos));
-            for (row, &(_, _, place)) in group.iter().enumerate() {
-                at[place] = (parts.len(), row);
-            }
-            parts.push(read(segment, &positions)?);
-        }
-        (props.iter().enumerate())
-            .map(|(column, (_, dtype))| {
-                let arrays: Vec<&dyn Array> =
-                    parts.iter().map(|part| part[column].as_ref()).collect();
-                Ok(match arrays.is_empty() {
-                    true => new_empty_array(dtype),
-                    false => interleave(&arrays, &at)?,
-                })
-            })
-            .collect()
-    }
-
     pub fn len(&self) -> usize {
         self.storage.num_nodes()
     }
@@ -270,6 +158,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     fn has_vid(&self, vid: VID) -> bool {
         let (segment_id, pos) = self.storage.resolve_pos(vid);
         segment_id < self.segments.len() && pos.0 < self.segments[segment_id].num_nodes()
+    }
+    #[inline(always)]
+    pub fn storage(&self) -> &NodeStorageInner<NS, EXT> {
+        &self.storage
+    }
+
+    #[inline(always)]
+    pub fn segments(&self) -> &[NS::ArcLockedSegment] {
+        &self.segments
     }
 }
 
@@ -917,17 +814,4 @@ pub fn increment_and_clamp(counter: &AtomicU32, increment: u32, limit: u32) -> O
             },
         )
         .ok()
-}
-
-/// Each of `prop_ids` with its declared Arrow type in `mapper` (`Null` if it has none).
-fn declared(mapper: &PropMapper, prop_ids: &[usize]) -> Vec<(usize, DataType)> {
-    (prop_ids.iter())
-        .map(|&id| {
-            let dtype = mapper.get_dtype(id);
-            (
-                id,
-                dtype.map_or(DataType::Null, |dtype| arrow_dtype_from_prop_type(&dtype)),
-            )
-        })
-        .collect()
 }
