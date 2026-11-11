@@ -1026,13 +1026,17 @@ fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
 #[cfg(test)]
 pub(crate) mod data_tests {
     use super::InsertionError;
-    use crate::{config::app_config::AppConfigBuilder, data::Data};
+    use crate::{config::app_config::AppConfigBuilder, data::Data, paths::ExistingGraphFolder};
     use itertools::Itertools;
     use raphtory::{
         db::api::view::{internal::InternalStorageOps, MaterializedGraph},
         prelude::*,
     };
     use raphtory_api::core::storage::graph_folder::GraphPaths;
+    #[cfg(feature = "vectors")]
+    use raphtory_vectors::{
+        custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
+    };
     use std::{collections::HashMap, fs, path::Path, time::Duration};
     use tokio::time::sleep;
 
@@ -1140,8 +1144,6 @@ pub(crate) mod data_tests {
     /// metadata sidecar so cache-miss namespace listings report true counts.
     #[tokio::test]
     async fn test_persist_refreshes_metadata_sidecar_counts() {
-        use crate::paths::ExistingGraphFolder;
-
         let tmp_work_dir = tempfile::tempdir().unwrap();
         let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
 
@@ -1182,8 +1184,6 @@ pub(crate) mod data_tests {
     /// regression guard now that eviction and explicit flush share `persist`.
     #[tokio::test]
     async fn test_eviction_persists_metadata_sidecar_counts() {
-        use crate::paths::ExistingGraphFolder;
-
         let tmp_work_dir = tempfile::tempdir().unwrap();
         let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
 
@@ -1223,11 +1223,6 @@ pub(crate) mod data_tests {
     #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_failed_vectorise_reports_and_keeps_the_index() {
-        use crate::paths::ExistingGraphFolder;
-        use raphtory_vectors::{
-            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
-        };
-
         fn fake_embedding(text: &str) -> Vec<f32> {
             vec![text.len() as f32, 1.0]
         }
@@ -1319,10 +1314,6 @@ pub(crate) mod data_tests {
     #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_vectorise_after_reading_a_reloaded_graph() {
-        use raphtory_vectors::{
-            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
-        };
-
         fn fake_embedding(text: &str) -> Vec<f32> {
             vec![text.len() as f32, 1.0]
         }
@@ -1405,10 +1396,6 @@ pub(crate) mod data_tests {
     #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_eviction_reloads_vectorised_graph() {
-        use raphtory_vectors::{
-            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
-        };
-
         fn fake_embedding(text: &str) -> Vec<f32> {
             vec![text.len() as f32, 1.0]
         }
