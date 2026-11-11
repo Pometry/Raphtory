@@ -14,6 +14,7 @@ use crate::{
             namespaced_item::NamespacedItem,
             GqlGraphType,
         },
+        stage::StagedGraph,
     },
     paths::{
         get_relative_path, mark_dirty, validate_path_for_namespace_create, ExistingGraphFolder,
@@ -696,23 +697,37 @@ impl Data {
             })
     }
 
-    /// Replace the graph at `path` in the cache with `new_graph`.
-    pub(crate) async fn replace_graph_in_cache(
+    pub(crate) async fn stage_finish(
         &self,
-        path: &str,
-        new_graph: MaterializedGraph,
+        graph: StagedGraph,
+        set_active: bool,
     ) -> Result<(), GQLError> {
-        let work_dir = self.inner.work_dir.read().await;
-        let folder = ExistingGraphFolder::try_from(work_dir.into(), path)?;
-        let key = path.to_string();
-        let read_only = self.inner.read_only.is_read_only(&key);
+        let graph_path = graph.graph_path().to_string();
+        let new_version = graph.version()?;
+        let new_graph = graph.finish().await?;
 
-        self.inner
-            .cache
-            .insert_or_replace_with(&key, |old_graph| async move {
-                flush_graph(old_graph).await;
+        if set_active {
+            let work_dir = self.inner.work_dir.read().await.into();
+            let folder = ExistingGraphFolder::try_from(work_dir, &graph_path)?;
+            let key = graph_path.clone();
+            let read_only = self.inner.read_only.is_read_only(&graph_path);
 
-                blocking_compute(move || {
+            self.inner
+                .cache
+                .insert_or_replace_with(&key, |old_graph| async move {
+                    // The active version should only be changed when there are no other
+                    // references to the old graph and it is fully flushed to disk.
+                    flush_graph(old_graph).await;
+
+                    let folder_clone = folder.clone();
+                    blocking_io(move || -> Result<(), GraphError> {
+                        Ok(folder_clone
+                            .graph_folder()
+                            .set_active_version(new_version)?)
+                    })
+                    .await
+                    .map_err(|e| InsertionError::from_graph_err(&graph_path, e))?;
+
                     let graph = GraphWithVectors::new(new_graph, None, folder);
                     graph.set_dirty(false);
 
@@ -722,9 +737,8 @@ impl Data {
                         graph
                     })
                 })
-                .await
-            })
-            .await?;
+                .await?;
+        }
 
         Ok(())
     }
@@ -734,7 +748,7 @@ impl Data {
         path: &str,
         version: u32,
     ) -> Result<(), GQLError> {
-        let work_dir: WorkDirGuard = self.inner.work_dir.read().await.into();
+        let work_dir = self.inner.work_dir.read().await.into();
         let folder = ExistingGraphFolder::try_from(work_dir, path)?;
         let key = path.to_string();
         let path = path.to_string();
@@ -746,8 +760,7 @@ impl Data {
 
                 let folder_clone = folder.clone();
                 blocking_io(move || -> Result<(), GraphError> {
-                    folder_clone.graph_folder().set_active_version(version)?;
-                    Ok(())
+                    Ok(folder_clone.graph_folder().set_active_version(version)?)
                 })
                 .await
                 .map_err(|e| InsertionError::from_graph_err(&path, e))?;

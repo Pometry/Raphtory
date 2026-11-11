@@ -1,6 +1,8 @@
 use crate::{
     data::{Data, ParquetPathError},
+    graph::GraphWithVectors,
     model::parse_json_schema,
+    paths::ValidGraphPaths,
     rayon::blocking_write,
     GQLError,
 };
@@ -255,26 +257,15 @@ impl GqlStagedGraph {
             .ok_or(GqlStageError::AlreadyFinished)?;
 
         if self.load_failed.load(Ordering::Relaxed) {
-            blocking_write(move || graph.discard())
-                .await
-                .map_err(GqlStageError::Graph)?;
+            graph.discard().await.map_err(GqlStageError::Graph)?;
 
             return Err(GqlStageError::DiscardedAfterLoadFailure)?;
         }
 
-        let graph_path = self.graph_path.clone();
         let set_active = self.set_active_on_finish;
         let data = ctx.data_unchecked::<Data>().clone();
 
-        let materialized_graph = blocking_write(move || graph.finish(set_active))
-            .await
-            .map_err(GqlStageError::Graph)?;
-
-        if set_active {
-            data.replace_graph_in_cache(&graph_path, materialized_graph)
-                .await
-                .map_err(GqlStageError::Cache)?;
-        }
+        data.stage_finish(graph, set_active).await?;
 
         Ok(true)
     }
@@ -287,22 +278,23 @@ impl GqlStagedGraph {
         set_active_on_finish: bool,
     ) -> Result<Self> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = data
+        let source = data
             .get_graph_with_write_permission(ctx, &graph_path)
             .await?;
 
-        if graph.graph().disk_storage_path().is_none() {
+        if source.graph().disk_storage_path().is_none() {
             return Err(GqlStageError::NotDiskBacked)?;
         }
 
         let graph = blocking_write(move || -> Result<_, GqlStageError> {
-            let materialized = graph.graph().clone();
-            let graph = match materialized {
-                MaterializedGraph::EventGraph(g) => StagedGraph::Event(g.stage()?),
-                MaterializedGraph::PersistentGraph(g) => StagedGraph::Persistent(g.stage()?),
+            let stage = match source.graph() {
+                MaterializedGraph::EventGraph(g) => MaterializedStage::Event(g.stage()?),
+                MaterializedGraph::PersistentGraph(g) => MaterializedStage::Persistent(g.stage()?),
             };
 
-            Ok(Arc::new(Mutex::new(Some(graph))))
+            let staged_graph = StagedGraph { source, stage };
+
+            Ok(Arc::new(Mutex::new(Some(staged_graph))))
         })
         .await?;
 
@@ -315,41 +307,67 @@ impl GqlStagedGraph {
     }
 }
 
-enum StagedGraph {
+pub(crate) struct StagedGraph {
+    /// Cache pin for the graph being staged.
+    source: GraphWithVectors,
+    stage: MaterializedStage,
+}
+
+enum MaterializedStage {
     Event(Stage<Graph>),
     Persistent(Stage<PersistentGraph>),
 }
 
 impl StagedGraph {
-    fn version(&self) -> Result<u32, GraphError> {
-        match self {
-            StagedGraph::Event(stage) => stage.graph().version(),
-            StagedGraph::Persistent(stage) => stage.graph().version(),
+    pub(crate) fn graph_path(&self) -> &str {
+        self.source.folder().local_path()
+    }
+
+    pub(crate) fn version(&self) -> Result<u32, GraphError> {
+        match &self.stage {
+            MaterializedStage::Event(stage) => stage.graph().version(),
+            MaterializedStage::Persistent(stage) => stage.graph().version(),
         }
     }
 
-    fn finish(self, set_active: bool) -> Result<MaterializedGraph, GraphError> {
-        match self {
-            StagedGraph::Event(stage) => {
-                Ok(MaterializedGraph::EventGraph(stage.finish(set_active)?))
+    // Finalize the snapshot without promoting it to the active version.
+    pub(crate) async fn finish(self) -> Result<MaterializedGraph, GraphError> {
+        blocking_write(move || {
+            // NOTE: We are dropping the source here and decrementing the pin count.
+            let Self { stage, .. } = self;
+            let set_active = false; // Don't promote to active version.
+
+            match stage {
+                MaterializedStage::Event(stage) => {
+                    Ok(MaterializedGraph::EventGraph(stage.finish(set_active)?))
+                }
+                MaterializedStage::Persistent(stage) => Ok(MaterializedGraph::PersistentGraph(
+                    stage.finish(set_active)?,
+                )),
             }
-            StagedGraph::Persistent(stage) => Ok(MaterializedGraph::PersistentGraph(
-                stage.finish(set_active)?,
-            )),
-        }
+        })
+        .await
     }
 
-    fn discard(self) -> Result<(), GraphError> {
-        match self {
-            StagedGraph::Event(stage) => Ok(stage.discard()?),
-            StagedGraph::Persistent(stage) => Ok(stage.discard()?),
-        }
+    pub(crate) async fn discard(self) -> Result<(), GraphError> {
+        blocking_write(move || {
+            // NOTE: We are dropping the source here and decrementing the pin count.
+            let Self { stage, .. } = self;
+
+            match stage {
+                MaterializedStage::Event(stage) => stage.discard()?,
+                MaterializedStage::Persistent(stage) => stage.discard()?,
+            }
+
+            Ok(())
+        })
+        .await
     }
 
     fn materialized_graph(&self) -> MaterializedGraph {
-        match self {
-            StagedGraph::Event(stage) => MaterializedGraph::EventGraph(stage.graph().clone()),
-            StagedGraph::Persistent(stage) => {
+        match &self.stage {
+            MaterializedStage::Event(stage) => MaterializedGraph::EventGraph(stage.graph().clone()),
+            MaterializedStage::Persistent(stage) => {
                 MaterializedGraph::PersistentGraph(stage.graph().clone())
             }
         }
