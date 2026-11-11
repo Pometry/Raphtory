@@ -435,9 +435,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         LocalPOS,
         NodeWriter<'_, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
     ) {
-        // No point in multiple threads getting past here as they would just content on the writer lock
-        let mut slot = self.free_segments.slot().write();
-        let segment_id = *slot;
+        let slot = self.free_segments.slot();
+        let segment_id = *slot.read_recursive();
 
         let writer_and_row = match existing_full_segment {
             Some(existing_writer) if existing_writer.segment.segment_id() == segment_id => {
@@ -455,7 +454,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 // The current segment is full, push a new locked free segment before dropping the existing writer lock
 
                 let guard = self.push_new_segment();
-                *slot = guard.segment_id();
+
+                // deadlock safety: we hold the writer for the existing segment (either acquired above or passed in)
+                *slot.write() = guard.segment_id();
 
                 let writer = self.arc_writer(guard);
 
