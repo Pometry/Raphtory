@@ -470,6 +470,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
         let mutable_graph = self.graph.mutable()?;
+        let transaction_manager = mutable_graph.transaction_manager()?;
         let vid = self.node;
         let mut writer = mutable_graph.atomic_add_node(NodeRef::Internal(vid), None)?;
         if !writer.can_set_type() {
@@ -482,7 +483,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             return Ok(());
         }
 
-        let transaction_manager = mutable_graph.transaction_manager()?;
         let wal = mutable_graph.wal()?;
         let transaction_id = transaction_manager.begin_transaction();
 
