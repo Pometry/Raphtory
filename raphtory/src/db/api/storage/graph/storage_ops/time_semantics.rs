@@ -1,7 +1,7 @@
 use super::GraphStorage;
 use crate::{
     core::storage::timeindex::TimeIndexOps,
-    db::api::view::internal::{GraphTimeSemanticsOps, TimeSemantics},
+    db::api::view::internal::{GraphTimeSemanticsOps, TimeRanges, TimeSemantics},
     prelude::Prop,
 };
 use raphtory_api::{
@@ -40,6 +40,10 @@ impl GraphTimeSemanticsOps for GraphStorage {
 
     fn view_end(&self) -> Option<EventTime> {
         None
+    }
+
+    fn view_ranges(&self) -> TimeRanges {
+        TimeRanges::all()
     }
 
     #[inline]

@@ -2,7 +2,12 @@ use crate::{
     db::api::view::BoxedIter,
     python::types::repr::{iterator_repr, Repr},
 };
-use pyo3::{prelude::*, types::PyAnyMethods, Borrowed};
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    types::{PyAnyMethods, PyString},
+    Borrowed,
+};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -163,6 +168,10 @@ where
     type Error = PyErr;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        // A str is iterable, so it would otherwise be split into its characters.
+        if obj.is_instance_of::<PyString>() {
+            return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
+        }
         let mut v = FromIterable(Vec::new());
         for item in obj.try_iter()? {
             v.0.push(item?.extract::<T>().map_err(Into::into)?);

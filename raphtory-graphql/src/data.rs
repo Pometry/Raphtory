@@ -643,11 +643,7 @@ impl Data {
         Fut: std::future::Future<Output = Result<VectorisedGraph<MaterializedGraph>, GraphError>>,
     {
         let graph = self.get_graph_unchecked(path).await?;
-        let vectors_path = graph
-            .folder()
-            .graph_folder()
-            .vectors_path()
-            .map_err(GraphError::from)?;
+        let vectors_path = graph.folder().graph_folder().vectors_path()?;
 
         // The indexing itself runs with no cache guard held: it embeds the whole graph, and holding
         // the entry would block every read of this graph for the duration. Readers keep being served
@@ -816,7 +812,7 @@ impl Data {
         path: &str,
         perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
+    ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
         let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
@@ -858,7 +854,7 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
+    ) -> Result<Option<(UnlockedGraphFolder, DynamicGraph)>, GQLError> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
             Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
                 Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
@@ -878,7 +874,7 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
+    ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         let perm = refine(ctx, &self.auth_policy, path, perm).await?;
         self.load_and_filter(path, perm, graph_type).await
@@ -892,13 +888,13 @@ impl Data {
         &self,
         ctx: &Context<'_>,
         path: &str,
-    ) -> async_graphql::Result<GraphWithVectors> {
+    ) -> Result<GraphWithVectors, GQLError> {
         let res = require_at_least_read(ctx, &self.auth_policy, path)?;
         if res.level() < PermissionLevel::Read {
             return Err(PermissionError::GraphUnfilteredReadRequired {
                 graph: path.to_string(),
             }
-            .into_gql_error());
+            .into());
         }
         let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
@@ -909,7 +905,7 @@ impl Data {
         &self,
         ctx: &Context<'_>,
         path: &str,
-    ) -> async_graphql::Result<GraphWithVectors> {
+    ) -> Result<GraphWithVectors, GQLError> {
         require_graph_write(ctx, &self.auth_policy, path)?;
         let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
@@ -923,7 +919,7 @@ impl Data {
         &self,
         ctx: &Context<'_>,
         path: &str,
-    ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
+    ) -> Result<Option<GqlVectorisedGraph>, GQLError> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
@@ -963,10 +959,31 @@ pub enum AccessFilterError {
     Load(GQLError),
 }
 
-async fn apply_access_filter(
+fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
+    let hp = filter.hidden_properties.as_ref();
+    let hm = filter.hidden_metadata.as_ref();
+    fn collect(
+        keys: Option<&HiddenKeys>,
+        pick: fn(&HiddenKeys) -> Option<&Vec<String>>,
+    ) -> std::collections::HashSet<String> {
+        keys.and_then(pick)
+            .map(|v| v.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+    PropertyRedaction {
+        node_hidden_props: collect(hp, |h| h.node.as_ref()),
+        node_hidden_meta: collect(hm, |h| h.node.as_ref()),
+        edge_hidden_props: collect(hp, |h| h.edge.as_ref()),
+        edge_hidden_meta: collect(hm, |h| h.edge.as_ref()),
+        graph_hidden_props: collect(hp, |h| h.graph.as_ref()),
+        graph_hidden_meta: collect(hm, |h| h.graph.as_ref()),
+    }
+}
+
+pub(crate) async fn apply_access_filter(
     graph: DynamicGraph,
     f: &GraphAccessFilter,
-) -> async_graphql::Result<DynamicGraph> {
+) -> Result<DynamicGraph, GQLError> {
     let graph = if let Some(row_filter) = f.filter.clone() {
         blocking_compute(move || {
             graph
@@ -976,14 +993,12 @@ async fn apply_access_filter(
                     // The stage is logged with the engine's own message; the caller only learns that
                     // the grant is at fault, never what the filter said.
                     match e {
-                        GraphError::InvalidGqlFilter(_) | GraphError::InvalidFilter(_) => {
+                        GraphError::InvalidFilter(_) => {
                             error!(error = %e, "access filter conversion failed")
                         }
                         _ => error!(error = %e, "access filter application failed"),
                     }
-                    async_graphql::Error::new(
-                        "access filter could not be applied; the grant is misconfigured",
-                    )
+                    GQLError::AccessFilterMisconfigured
                 })
         })
         .await?
@@ -992,34 +1007,10 @@ async fn apply_access_filter(
     };
 
     let redaction = build_redaction(f);
-
     if redaction.has_restrictions() {
         Ok(graph.exclude_properties(&redaction).into_dynamic())
     } else {
         Ok(graph)
-    }
-}
-
-fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
-    let hp = filter.hidden_properties.as_ref();
-    let hm = filter.hidden_metadata.as_ref();
-
-    fn collect(
-        keys: Option<&HiddenKeys>,
-        pick: fn(&HiddenKeys) -> Option<&Vec<String>>,
-    ) -> std::collections::HashSet<String> {
-        keys.and_then(pick)
-            .map(|v| v.iter().cloned().collect())
-            .unwrap_or_default()
-    }
-
-    PropertyRedaction {
-        node_hidden_props: collect(hp, |h| h.node.as_ref()),
-        node_hidden_meta: collect(hm, |h| h.node.as_ref()),
-        edge_hidden_props: collect(hp, |h| h.edge.as_ref()),
-        edge_hidden_meta: collect(hm, |h| h.edge.as_ref()),
-        graph_hidden_props: collect(hp, |h| h.graph.as_ref()),
-        graph_hidden_meta: collect(hm, |h| h.graph.as_ref()),
     }
 }
 

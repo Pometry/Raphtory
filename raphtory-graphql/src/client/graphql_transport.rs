@@ -2674,7 +2674,7 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
 
 fn json_to_prop(v: JsonValue) -> Result<Prop, ClientError> {
     let gql = GqlValue::from_json(v).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
-    gql_to_prop(gql).map_err(|e| ClientError::InvalidResponse(e.message))
+    gql_to_prop(gql).map_err(|e| ClientError::InvalidResponse(e.to_string()))
 }
 
 /// Type-directed decode of an untagged JSON property value: the server-declared

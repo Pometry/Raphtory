@@ -28,33 +28,24 @@ use std::{
 };
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum GqlStageError {
+pub enum GqlStageError {
     #[error("Stage already finished")]
     AlreadyFinished,
-
     #[error("Staging requires a disk-backed graph")]
     NotDiskBacked,
-
     #[error("Skipped because an earlier load in this stage failed")]
     SkippedAfterPriorFailure,
-
     #[error("Stage discarded because a load failed")]
     DiscardedAfterLoadFailure,
-
     #[error(transparent)]
     ParquetPath(#[from] ParquetPathError),
-
     #[error(transparent)]
     Graph(#[from] GraphError),
-
-    #[error(transparent)]
-    Cache(#[from] GQLError),
 }
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "StagedGraph")]
 pub struct GqlStagedGraph {
-    graph_path: String,
     graph: Arc<Mutex<Option<StagedGraph>>>,
     load_failed: Arc<AtomicBool>,
     set_active_on_finish: bool,
@@ -62,7 +53,7 @@ pub struct GqlStagedGraph {
 
 #[ResolvedObjectFields]
 impl GqlStagedGraph {
-    pub async fn version(&self) -> Result<u32> {
+    pub async fn version(&self) -> Result<u32, GQLError> {
         let guard = self.graph.lock();
         let graph = guard.as_ref().ok_or(GqlStageError::AlreadyFinished)?;
 
@@ -99,7 +90,7 @@ impl GqlStagedGraph {
             desc = "The node layer column name in a dataframe. Cannot be used in combination with layer."
         )]
         layer_col: Option<String>,
-    ) -> Result<bool> {
+    ) -> Result<bool, GQLError> {
         if self.load_failed.load(Ordering::Relaxed) {
             return Err(GqlStageError::SkippedAfterPriorFailure)?;
         }
@@ -186,7 +177,7 @@ impl GqlStagedGraph {
             desc = "The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None."
         )]
         layer_col: Option<String>,
-    ) -> Result<bool> {
+    ) -> Result<bool, GQLError> {
         if self.load_failed.load(Ordering::Relaxed) {
             return Err(GqlStageError::SkippedAfterPriorFailure)?;
         }
@@ -249,7 +240,7 @@ impl GqlStagedGraph {
 
     /// Promote the staged snapshot and reload the graph in the server cache.
     /// If any load in this stage failed, the stage is discarded instead.
-    pub async fn finish(&self, ctx: &Context<'_>) -> Result<bool> {
+    pub async fn finish(&self, ctx: &Context<'_>) -> Result<bool, GQLError> {
         let graph = self
             .graph
             .lock()
@@ -276,7 +267,7 @@ impl GqlStagedGraph {
         ctx: &Context<'_>,
         graph_path: String,
         set_active_on_finish: bool,
-    ) -> Result<Self> {
+    ) -> Result<Self, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let source = data
             .get_graph_with_write_permission(ctx, &graph_path)
@@ -301,7 +292,6 @@ impl GqlStagedGraph {
         Ok(Self {
             graph,
             load_failed: Arc::new(AtomicBool::new(false)),
-            graph_path,
             set_active_on_finish,
         })
     }

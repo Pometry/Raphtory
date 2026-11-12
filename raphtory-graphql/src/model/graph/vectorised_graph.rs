@@ -6,6 +6,7 @@ use crate::{
         resolve, QueryRoot, Template,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{
@@ -80,7 +81,7 @@ impl<'b> VectorQuery<'b> {
         nodes: Option<Template>,
         #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
         edges: Option<Template>,
-    ) -> async_graphql::Result<bool> {
+    ) -> Result<bool, GQLError> {
         {
             ctx.require_jwt_write_access()?;
             let data = ctx.data_unchecked::<Data>();
@@ -114,7 +115,7 @@ impl<'b> VectorQuery<'b> {
         nodes: Option<Template>,
         #[graphql(desc = "Edge-document template; must match the one the index was built with.")]
         edges: Option<Template>,
-    ) -> async_graphql::Result<bool> {
+    ) -> Result<bool, GQLError> {
         ctx.require_jwt_write_access()?;
         let data = ctx.data_unchecked::<Data>();
         let template = DocumentTemplate {
@@ -136,7 +137,7 @@ impl<'b> VectorQuery<'b> {
     async fn vectorised_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
-    ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
+    ) -> Result<Option<GqlVectorisedGraph>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         data.get_vectors_with_read_permission(ctx, path).await
     }
@@ -179,7 +180,7 @@ impl GqlVectorisedGraph {
     /// Rebuild (or incrementally update) the on-disk vector indexes for nodes
     /// and edges so subsequent similarity searches hit the fresh embeddings.
     /// Safe to call repeatedly; returns true on success.
-    pub async fn optimize_index(&self) -> GraphResult<bool> {
+    pub async fn optimize_index(&self) -> Result<bool, GQLError> {
         self.0.optimize_index().await?;
         Ok(true)
     }
@@ -200,7 +201,7 @@ impl GqlVectorisedGraph {
             desc = "Optional `{start, end}` to restrict matches to entities active in that interval."
         )]
         window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
+    ) -> Result<GqlVectorSelection, GQLError> {
         let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
@@ -220,7 +221,7 @@ impl GqlVectorisedGraph {
             desc = "Optional `{start, end}` to restrict matches to nodes active in that interval."
         )]
         window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
+    ) -> Result<GqlVectorSelection, GQLError> {
         let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
@@ -239,7 +240,7 @@ impl GqlVectorisedGraph {
             desc = "Optional `{start, end}` to restrict matches to edges active in that interval."
         )]
         window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
+    ) -> Result<GqlVectorSelection, GQLError> {
         let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();

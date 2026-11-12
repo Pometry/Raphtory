@@ -2,7 +2,7 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-    auth_policy::{AuthPolicyError, AuthorizationPolicy},
+    auth_policy::AuthorizationPolicy,
     data::{Data, WorkDirGuard},
     model::graph::{
         collection::GqlCollection,
@@ -16,6 +16,7 @@ use crate::{
     paths::{get_relative_path, ExistingGraphFolder, PathValidationError, ValidPath},
     permissions::PermissionError,
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
@@ -216,7 +217,7 @@ fn is_graph_visible(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     g: &MetaGraph,
-) -> Result<bool, AuthPolicyError> {
+) -> Result<bool, PermissionError> {
     let Some(policy) = policy.as_ref() else {
         return Ok(true);
     };
@@ -252,7 +253,7 @@ impl Namespace {
         #[graphql(desc = "Sort keys applied in order, before paging.")] sort: Option<
             Vec<MetaGraphSort>,
         >,
-    ) -> Result<GqlCollection<MetaGraph>> {
+    ) -> Result<GqlCollection<MetaGraph>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
@@ -293,7 +294,7 @@ impl Namespace {
     ///
     /// Computed here so a listing can show a folder's recency without the client
     /// walking every graph in every folder it displays.
-    async fn last_updated(&self, ctx: &Context<'_>) -> Result<Option<i64>> {
+    async fn last_updated(&self, ctx: &Context<'_>) -> Result<Option<i64>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
@@ -339,7 +340,7 @@ impl Namespace {
             NamespaceFilter,
         >,
         #[graphql(desc = "Ordering applied before paging.")] sort: Option<NamespaceSort>,
-    ) -> Result<GqlCollection<Namespace>> {
+    ) -> Result<GqlCollection<Namespace>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let namespaces = blocking_compute(move || {
@@ -382,7 +383,7 @@ impl Namespace {
         #[graphql(desc = "Sort keys for the graphs, applied in order before paging.")] sort: Option<
             Vec<MetaGraphSort>,
         >,
-    ) -> Result<GqlCollection<NamespacedItem>> {
+    ) -> Result<GqlCollection<NamespacedItem>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let all_items =

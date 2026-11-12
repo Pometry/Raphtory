@@ -8,10 +8,34 @@ pub use crate::{
     server::GraphServer,
 };
 
-use crate::{data::InsertionError, paths::PathValidationError};
+#[cfg(feature = "rdf")]
+use crate::sparql::SparqlError;
+use crate::{
+    auth::AuthError,
+    auth_policy::AuthPolicyError,
+    data::{DeletionError, InsertionError, ParquetPathError},
+    model::{
+        graph::mutable_graph::BatchFailures,
+        stage::GqlStageError,
+    },
+    paths::PathValidationError,
+    permissions::{gql_error_with_code, PermissionError, CODE_ACCESS_DENIED},
+};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
-use raphtory::errors::GraphError;
+use raphtory::{
+    algorithms::dynamics::temporal::epidemics::SeedError, db::api::storage::storage::StorageError,
+    errors::GraphError,
+};
+use raphtory_api::core::{
+    entities::properties::prop::PropTypeError, storage::graph_folder::GraphFolderError,
+    utils::time::ParseTimeError,
+};
+#[cfg(feature = "rdf")]
+use raphtory_rdf::RdfError;
+#[cfg(feature = "vectors")]
+use raphtory_vectors::errors::VectorError;
 use std::sync::Arc;
+use tracing::error;
 
 pub mod auth;
 pub mod auth_policy;
@@ -50,13 +74,129 @@ pub enum GQLError {
     #[error(transparent)]
     Insertion(#[from] InsertionError),
     #[error(transparent)]
-    Arc(#[from] Arc<Self>),
+    Deletion(#[from] DeletionError),
+    #[error(transparent)]
+    ParquetPath(#[from] ParquetPathError),
+    #[error(transparent)]
+    BatchFailures(#[from] BatchFailures),
+    #[error(transparent)]
+    Stage(#[from] GqlStageError),
+    #[error(transparent)]
+    Permission(#[from] PermissionError),
+    #[error(transparent)]
+    Auth(#[from] AuthError),
+    #[cfg(feature = "rdf")]
+    #[error(transparent)]
+    Sparql(#[from] SparqlError),
+    /// A namespace listing's filter or sort is malformed.
+    #[error("Invalid filter: {0}")]
+    InvalidFilter(String),
+    /// A grant's row filter failed to apply; what the filter said is logged, not shown.
+    #[error("access filter could not be applied; the grant is misconfigured")]
+    AccessFilterMisconfigured,
+    /// A server-side I/O failure; never shown to the client.
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Arc(Arc<Self>),
+}
+
+impl GQLError {
+    /// An error about the server rather than the request: its text may name server internals.
+    fn is_internal(&self) -> bool {
+        match self {
+            GQLError::Io(_) => true,
+            GQLError::Arc(inner) => inner.is_internal(),
+            GQLError::GraphError(_)
+            | GQLError::Validation(_)
+            | GQLError::Insertion(_)
+            | GQLError::Deletion(_)
+            | GQLError::ParquetPath(_)
+            | GQLError::BatchFailures(_)
+            | GQLError::Stage(_)
+            | GQLError::Permission(_)
+            | GQLError::Auth(_)
+            | GQLError::InvalidFilter(_)
+            | GQLError::AccessFilterMisconfigured => false,
+            #[cfg(feature = "rdf")]
+            GQLError::Sparql(_) => false,
+        }
+    }
+}
+
+/// A policy fault is logged where it becomes a denial, and answered like one.
+impl From<AuthPolicyError> for GQLError {
+    fn from(error: AuthPolicyError) -> Self {
+        PermissionError::from(error).into()
+    }
+}
+
+/// What a client is told about an error: its own message, with the `code` a denial carries,
+/// unless the error is about the server, which is logged and answered generically.
+impl From<GQLError> for async_graphql::Error {
+    fn from(error: GQLError) -> Self {
+        match error {
+            GQLError::Permission(error) => error.into_gql_error(),
+            GQLError::Auth(error @ (AuthError::RequireRead | AuthError::RequireWrite)) => {
+                gql_error_with_code(error.to_string(), CODE_ACCESS_DENIED)
+            }
+            #[cfg(feature = "rdf")]
+            GQLError::Sparql(error) => match error.code() {
+                Some(code) => gql_error_with_code(error.to_string(), code),
+                None => async_graphql::Error::new_with_source(error),
+            },
+            error if error.is_internal() => {
+                error!(error = %error, "internal error while serving a request");
+                async_graphql::Error::new("Internal server error")
+            }
+            error => async_graphql::Error::new_with_source(error),
+        }
+    }
+}
+
+/// Errors the graph layer reports through [`GraphError`], spelled out one by one so that
+/// none can reach the client by another route than the one [`GQLError`] gives it.
+impl From<ParseTimeError> for GQLError {
+    fn from(error: ParseTimeError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<PropTypeError> for GQLError {
+    fn from(error: PropTypeError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<SeedError> for GQLError {
+    fn from(error: SeedError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<StorageError> for GQLError {
+    fn from(error: StorageError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<GraphFolderError> for GQLError {
+    fn from(error: GraphFolderError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+#[cfg(feature = "rdf")]
+impl From<RdfError> for GQLError {
+    fn from(error: RdfError) -> Self {
+        SparqlError::from(error).into()
+    }
 }
 
 #[cfg(feature = "vectors")]
-impl From<raphtory_vectors::errors::VectorError> for GQLError {
-    fn from(error: raphtory_vectors::errors::VectorError) -> Self {
-        GQLError::GraphError(error.into())
+impl From<VectorError> for GQLError {
+    fn from(error: VectorError) -> Self {
+        GraphError::from(error).into()
     }
 }
 
@@ -67,6 +207,7 @@ mod graphql_test {
         auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
         config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
+        permissions::PermissionError,
         model::App,
         test_support::{
             assert_is_namespace_dir, run_query, run_query_as_user, setup_with_graphs,
@@ -2429,15 +2570,14 @@ mod graphql_test {
                 r#"query { root { graphs { list { path } } } }"#,
             )
             .await;
-            assert!(
-                !res.errors.is_empty(),
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
                 "a fault must fail the listing, got {:?}",
                 res.data,
-            );
-            assert!(
-                res.errors[0].message.contains("test fault"),
-                "the fault, not a denial, must surface: {}",
-                res.errors[0].message,
             );
         }
     }
@@ -2497,11 +2637,11 @@ mod graphql_test {
         }
     }
 
-    /// The write gate reports a fault as an error carrying the fault's message, not as a
-    /// permission denial: a caller refused because the server is broken should not be told
-    /// they lack access.
+    /// The write gate answers a fault as the read gate does: one generic policy error, with the
+    /// fault's own message kept in the log. A caller refused because the server is broken is
+    /// told neither that they lack access nor what broke.
     #[tokio::test]
-    async fn test_policy_fault_on_write_gate_reports_the_fault() {
+    async fn test_policy_fault_on_write_gate_is_generic() {
         let work_dir = TempDir::new().unwrap();
         {
             let g = Graph::new();
@@ -2514,33 +2654,105 @@ mod graphql_test {
                 r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
             )
             .await;
-            assert!(!res.errors.is_empty(), "expected error, got {:?}", res.data);
-            assert!(
-                res.errors[0].message.contains("test fault"),
-                "the fault, not a denial, must surface: {}",
-                res.errors[0].message,
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
             );
         }
     }
 
+    /// A permission error that reaches the client through `?` keeps its machine-readable
+    /// code, so a client can tell a policy fault from a denial without reading the message.
     #[tokio::test]
-    async fn test_delete_namespace_empty() {
+    async fn test_policy_fault_through_question_mark_keeps_its_code() {
         let work_dir = TempDir::new().unwrap();
         {
-            let setup = setup_with_graphs(&[], work_dir.path()).await;
-
-            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
-            assert_eq!(res.errors, vec![]);
-            assert!(work_dir.path().join("ns").is_dir());
-
-            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
-            assert_eq!(res.errors, vec![]);
+            let g: MaterializedGraph = Graph::new().into();
+            let policy = Arc::new(FakePolicy::default().with_fault("team"));
+            let setup = setup_with_policy(&[("team/g", g)], work_dir.path(), policy).await;
+            let res =
+                run_query_as_user(&setup.schema, r#"query { namespaces { list { path } } }"#).await;
+            let errors = serde_json::to_value(&res.errors).unwrap();
+            let seen: Vec<_> = errors
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| (e["message"].clone(), e["extensions"]["code"].clone()))
+                .collect();
             assert_eq!(
-                res.data.into_json().unwrap(),
-                json!({ "deleteNamespace": true }),
+                seen,
+                vec![(
+                    json!(PermissionError::AuthPolicyError.to_string()),
+                    json!(crate::permissions::CODE_AUTH_ERROR),
+                )],
             );
-            assert!(!work_dir.path().join("ns").exists());
-            assert_is_namespace_dir(work_dir.path());
+        }
+    }
+
+    /// The namespace write gate answers a fault with the generic policy error, never with
+    /// the fault's own message.
+    #[tokio::test]
+    async fn test_policy_fault_on_namespace_write_gate_is_generic() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let policy = Arc::new(FakePolicy::default().with_fault(""));
+            let setup = setup_with_policy(&[], work_dir.path(), policy).await;
+            let res = run_query_as_user(
+                &setup.schema,
+                r#"mutation { newGraph(path: "g", graphType: EVENT) }"#,
+            )
+            .await;
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
+            );
+        }
+    }
+
+    /// A caller with no grant on the graph is answered on a write exactly as on a read:
+    /// the graph is missing unless they can already see its namespace, in which case
+    /// the denial may name it.
+    #[tokio::test]
+    async fn test_write_without_a_grant_is_hidden_like_a_read() {
+        let hidden_dir = TempDir::new().unwrap();
+        let visible_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let write = r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#;
+
+            let hidden = Arc::new(FakePolicy::default());
+            let setup = setup_with_policy(&[("g", g.clone())], hidden_dir.path(), hidden).await;
+            let res = run_query_as_user(&setup.schema, write).await;
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::GraphNotFound.to_string().as_str()],
+            );
+
+            let namespace_visible =
+                Arc::new(FakePolicy::default().with_namespace("", NamespacePermission::Read));
+            let setup = setup_with_policy(&[("g", g)], visible_dir.path(), namespace_visible).await;
+            let res = run_query_as_user(&setup.schema, write).await;
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::GraphAccessDenied {
+                    graph: "g".to_string()
+                }
+                .to_string()
+                .as_str()],
+            );
         }
     }
 

@@ -177,6 +177,10 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.view_end())
     }
 
+    fn view_ranges(&self) -> TimeRanges {
+        TimeRanges::all()
+    }
+
     fn earliest_time_global(&self) -> Option<i64> {
         for_all!(self, g => g.earliest_time_global())
     }

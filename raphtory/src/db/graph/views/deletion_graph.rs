@@ -340,6 +340,10 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.view_end()
     }
 
+    fn view_ranges(&self) -> TimeRanges {
+        TimeRanges::all()
+    }
+
     fn earliest_time_global(&self) -> Option<i64> {
         self.0.earliest_time_global()
     }

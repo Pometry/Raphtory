@@ -9,31 +9,29 @@ use self::{
     config::{CODE_RESULTS_TOO_LARGE, CODE_TIMEOUT},
     jobs::RdfJobs,
 };
-use crate::{
-    config::concurrency_config::ConcurrencyConfig, permissions::gql_error_with_code,
-    rayon::blocking_compute,
-};
-use async_graphql::Error as GqlError;
+use crate::{config::concurrency_config::ConcurrencyConfig, rayon::blocking_compute, GQLError};
 use raphtory_rdf::{shacl::ShaclLimit, RdfError};
 use thiserror::Error;
 use tracing::error;
 
 #[derive(Debug, Error)]
-pub(crate) enum SparqlError {
+pub enum SparqlError {
     #[error("{}{}", .0, limit_setting(.0))]
     Query(#[from] RdfError),
+    // oxigraph 0.5 expands RDF/XML DOCTYPE entities and aborts on deeply nested JSON-LD
+    #[error("validateShacl reads shapes in TURTLE or N_TRIPLES only")]
+    ShapesFormat,
 }
 
 impl SparqlError {
-    fn into_gql_error(self) -> GqlError {
-        match &self {
-            Self::Query(RdfError::ResultsTooLarge { .. }) => {
-                gql_error_with_code(self, CODE_RESULTS_TOO_LARGE)
-            }
+    /// The `extensions.code` of a limit the query hit, so a client can tell it from a bad query.
+    pub(crate) fn code(&self) -> Option<&'static str> {
+        match self {
+            Self::Query(RdfError::ResultsTooLarge { .. }) => Some(CODE_RESULTS_TOO_LARGE),
             Self::Query(
                 RdfError::Timeout { .. } | RdfError::ShaclLimit(ShaclLimit::TimedOut { .. }),
-            ) => gql_error_with_code(self, CODE_TIMEOUT),
-            Self::Query(_) => self.into(),
+            ) => Some(CODE_TIMEOUT),
+            Self::Query(_) | Self::ShapesFormat => None,
         }
     }
 }
@@ -55,7 +53,7 @@ pub(crate) async fn run_limited<T: Send + 'static>(
     config: Option<&ConcurrencyConfig>,
     jobs: Option<&RdfJobs>,
     f: impl FnOnce(&ConcurrencyConfig) -> Result<T, RdfError> + Send + 'static,
-) -> Result<Option<T>, GqlError> {
+) -> Result<Option<T>, GQLError> {
     let config = config.cloned().unwrap_or_default();
     let permit = RdfJobs::permit(jobs).await;
     // moved into the job: a dropped request must not free the slot while the job still runs
@@ -71,6 +69,6 @@ pub(crate) async fn run_limited<T: Send + 'static>(
             error!(error = %message, "SPARQL query panicked");
             Ok(None)
         }
-        Err(error) => Err(SparqlError::from(error).into_gql_error()),
+        Err(error) => Err(SparqlError::from(error).into()),
     }
 }
