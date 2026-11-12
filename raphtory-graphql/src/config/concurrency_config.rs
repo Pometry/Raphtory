@@ -120,6 +120,12 @@ pub struct ConcurrencyConfig {
     /// Threads that cache filtered graph views in the background. `None` = 4 with more than 6
     /// cores, otherwise cores / 2.
     pub caching_threads: Option<usize>,
+
+    /// Maximum compute jobs (query resolvers, algorithms, ...) on the compute pool at once; more
+    /// wait for a slot. Bounds how deep jobs can nest on a compute thread's stack, which with
+    /// enough concurrent queries otherwise overflows it. `None` = twice the compute threads,
+    /// between 8 and 64.
+    pub max_concurrent_compute: Option<usize>,
 }
 
 impl Default for ConcurrencyConfig {
@@ -147,6 +153,7 @@ impl Default for ConcurrencyConfig {
             max_shacl_validation_ms: Some(DEFAULT_MAX_SHACL_VALIDATION_MS),
             max_concurrent_loads: None,
             caching_threads: None,
+            max_concurrent_compute: None,
         }
     }
 }

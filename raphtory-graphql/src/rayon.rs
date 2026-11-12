@@ -16,6 +16,9 @@ pub struct PoolSettings {
     pub max_concurrent_loads: Option<usize>,
     /// Threads caching filtered graph views. `None` = 4 with more than 6 cores, else cores / 2.
     pub caching_threads: Option<usize>,
+    /// Max compute jobs handed to the compute pool at once; bounds how deep jobs can nest on a
+    /// worker's stack. `None` = twice the compute threads, between 8 and 64.
+    pub max_concurrent_compute: Option<usize>,
 }
 
 static SETTINGS: OnceLock<PoolSettings> = OnceLock::new();
@@ -63,10 +66,47 @@ pub static EVICT_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// Query work on the compute pool.
+/// How many compute jobs may be on the compute pool at once.
+fn compute_permits() -> usize {
+    settings()
+        .max_concurrent_compute
+        .unwrap_or_else(|| (2 * COMPUTE_POOL.current_num_threads()).clamp(8, 64))
+        .max(1)
+}
+
+/// A worker that blocks in `join` (any parallel iterator does) runs whatever job is queued on
+/// the pool, including a whole other request, on top of its own stack, and that one can block
+/// and take another in turn. With an unbounded backlog the nesting is unbounded too: under
+/// load, 215 requests nested on one 16MB `RAP-compute` stack and overflowed it, which kills the
+/// process with a bare SIGSEGV (no Rust overflow message, as Python owns the signal handlers).
+/// Only jobs holding a permit are ever on the pool, so a worker can nest at most that many.
+static COMPUTE_PERMITS: LazyLock<Arc<Semaphore>> =
+    LazyLock::new(|| Arc::new(Semaphore::new(compute_permits())));
+
+/// Query work on the compute pool. Waits for a compute permit first, see [`COMPUTE_PERMITS`].
 pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
     closure: F,
 ) -> R {
+    let permit = COMPUTE_PERMITS
+        .clone()
+        .acquire_owned()
+        .await
+        .expect("compute semaphore is never closed");
+    spawn_compute(move || {
+        let _permit = permit;
+        closure()
+    })
+    .await
+}
+
+/// A no-op round trip through the compute pool, for the health check. It skips the permit, as
+/// it is meant to show whether the pool itself is still running jobs, and an empty job cannot
+/// nest anything on the worker that picks it up.
+pub async fn probe_compute() {
+    spawn_compute(|| {}).await
+}
+
+async fn spawn_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
     let (send, recv) = oneshot::channel();
     COMPUTE_POOL.spawn(move || {
         // a panic in a rayon job aborts the process, so it resumes in the caller instead
@@ -242,6 +282,47 @@ mod scheduler_tests {
         let job = tokio::spawn(blocking_compute(|| -> usize { panic!("boom") }));
         assert!(job.await.unwrap_err().is_panic());
         assert_eq!(blocking_compute(|| 1).await, 1);
+    }
+
+    /// A worker blocked in `join` runs whatever job is queued, including a whole other request,
+    /// on top of its own stack. Unbounded, enough concurrent requests overflow the stack (seen in
+    /// the GraphQL bench: 215 `degree_centrality` requests nested on one `RAP-compute` thread).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn compute_jobs_do_not_nest_beyond_the_cap() {
+        use rayon::prelude::*;
+        use std::{
+            cell::Cell,
+            sync::atomic::{AtomicUsize, Ordering},
+        };
+        let _serial = TEST_SERIAL.lock();
+        thread_local!(static DEPTH: Cell<usize> = const { Cell::new(0) });
+        static PEAK: AtomicUsize = AtomicUsize::new(0);
+        let cap = compute_permits();
+        // nesting grows with the backlog, so flood the pool well past the cap
+        let jobs: Vec<_> = (0..32 * cap)
+            .map(|_| {
+                tokio::spawn(blocking_compute(|| {
+                    let depth = DEPTH.with(|d| {
+                        d.set(d.get() + 1);
+                        d.get()
+                    });
+                    PEAK.fetch_max(depth, Ordering::SeqCst);
+                    // blocks this worker in `join`, where it can pick up other queued jobs
+                    (0..64)
+                        .into_par_iter()
+                        .for_each(|_| std::thread::sleep(Duration::from_millis(1)));
+                    DEPTH.with(|d| d.set(d.get() - 1));
+                }))
+            })
+            .collect();
+        for job in jobs {
+            job.await.unwrap();
+        }
+        let peak = PEAK.load(Ordering::SeqCst);
+        assert!(
+            peak <= cap,
+            "{peak} compute jobs nested on one worker, more than the {cap} allowed at once"
+        );
     }
 
     #[tokio::test]
