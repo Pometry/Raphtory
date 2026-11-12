@@ -66,6 +66,19 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
         if page == self.id { Some(pos) } else { None }
     }
 
+    pub fn resolver(&self) -> impl Fn(EID) -> Option<LocalPOS> + use<ES> {
+        let max_page_len = self.max_page_len;
+        let segment_id = self.id;
+        move |eid| {
+            let (segment, pos) = resolve_pos(eid, max_page_len);
+            if segment == segment_id {
+                Some(pos)
+            } else {
+                None
+            }
+        }
+    }
+
     pub fn ensure_layer(&mut self, layer_id: LayerId) {
         self.head.get_or_create_layer(layer_id);
     }

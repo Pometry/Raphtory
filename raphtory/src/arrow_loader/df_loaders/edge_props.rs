@@ -29,6 +29,7 @@ use raphtory_core::entities::VID;
 use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use rayon::prelude::*;
 use std::{
+    cell::LazyCell,
     collections::HashMap,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -303,9 +304,10 @@ fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, &'a usize)>,
 ) {
     let mut c_props = Vec::new();
-    let mut writer = shard.writer();
+    let resolver = shard.resolver();
+    let mut writer = LazyCell::new(|| shard.writer());
     for (row, (src, dst, eid, layer)) in zip.enumerate() {
-        if let Some(eid_pos) = writer.resolve_pos(*eid) {
+        if let Some(eid_pos) = resolver(*eid) {
             c_props.clear();
             c_props.extend(metadata_cols.iter_row(row));
             c_props.extend(

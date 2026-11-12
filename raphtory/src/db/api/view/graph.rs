@@ -492,22 +492,24 @@ pub fn materialize_impl(
 
                     // don't pass node layer ids because the graph may be filtered/windowed,
                     // and any missing layer would introduce gaps in the layer mappers
-                    load_nodes_from_df(
-                        df_view,
-                        TIME_COL,
-                        Some(SECONDARY_INDEX_COL),
-                        NODE_GID_COL,
-                        &node_t_props_refs,
-                        &[],
-                        None,
-                        None,
-                        Some(TYPE_COL),
-                        &materialized,
-                        true,
-                        None,
-                        Some(LAYER_COL),
-                        None,
-                    )
+                    LOAD_POOL.install(|| {
+                        load_nodes_from_df(
+                            df_view,
+                            TIME_COL,
+                            Some(SECONDARY_INDEX_COL),
+                            NODE_GID_COL,
+                            &node_t_props_refs,
+                            &[],
+                            None,
+                            None,
+                            Some(TYPE_COL),
+                            &materialized,
+                            true,
+                            None,
+                            Some(LAYER_COL),
+                            None,
+                        )
+                    })
                 }
                 RecordBatchKind::EdgesT => {
                     let edge_t_props = df_columns_except(

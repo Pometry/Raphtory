@@ -34,6 +34,7 @@ use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use rayon::prelude::*;
 use std::{
+    cell::LazyCell,
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -674,10 +675,12 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
 ) {
     let mut t_props = vec![];
     let mut c_props = vec![];
-    let mut writer = shard.bulk_writer();
+
+    let segment_resolver = shard.resolver();
+    let mut writer = LazyCell::new(|| shard.bulk_writer());
 
     for (row, src, dst, time, secondary_index, eid, layer, exists) in zip {
-        if let Some(eid_pos) = writer.resolve_pos(eid) {
+        if let Some(eid_pos) = segment_resolver(eid) {
             let t = EventTime(time, secondary_index);
 
             t_props.clear();
@@ -714,7 +717,8 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (usize, VID, VID, EID, i64, usize, usize, bool, bool)>,
     delete: bool,
 ) {
-    let mut writer = shard.bulk_writer();
+    let resolver = shard.resolver();
+    let mut writer = LazyCell::new(|| shard.bulk_writer());
     for (
         _row,
         src,
@@ -727,7 +731,7 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
         edge_exists_in_static_graph,
     ) in zip
     {
-        if let Some(dst_pos) = writer.resolve_pos(dst) {
+        if let Some(dst_pos) = resolver(dst) {
             let t = EventTime(time, secondary_index);
 
             if !edge_exists_in_static_graph {
@@ -770,9 +774,10 @@ fn add_and_resolve_outbound_edges<
     locked_page: &mut WriteLockedNodeSegment<'_, NS>,
     delete: bool,
 ) {
-    let mut writer = locked_page.bulk_writer();
+    let resolver = locked_page.resolver();
+    let mut writer = LazyCell::new(|| locked_page.bulk_writer());
     for (row, src, dst, time, secondary_index, layer) in zip {
-        if let Some(src_pos) = writer.resolve_pos(src) {
+        if let Some(src_pos) = resolver(src) {
             let t = EventTime(time, secondary_index);
 
             // find the original EID in the static graph if it exists
@@ -834,9 +839,10 @@ pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[(GidRef<'_>, VID)],
     locked_page: &mut WriteLockedNodeSegment<'_, NS>,
 ) {
-    let mut writer = locked_page.bulk_writer();
+    let resolver = locked_page.resolver();
+    let mut writer = LazyCell::new(|| locked_page.bulk_writer());
     for (src_gid, vid) in gid_str_cache.iter() {
-        if let Some(src_pos) = writer.resolve_pos(*vid) {
+        if let Some(src_pos) = resolver(*vid) {
             writer.store_node_id(src_pos, (*src_gid).into());
         }
     }
