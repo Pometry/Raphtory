@@ -3,26 +3,26 @@
 
 use crate::{
     auth::Roles,
-    auth_policy::{AuthorizationPolicy},
+    auth_policy::AuthorizationPolicy,
     data::Data,
+    model::{
+        graph::{
+            collection::GqlCollection,
+            graph::GqlGraph,
+            meta_graph::MetaGraph,
+            mutable_graph::GqlMutableGraph,
+            namespace::{is_namespace_visible, Namespace},
+            namespaced_item::NamespacedItem,
+            node_id::GqlNodeId,
+            GqlGraphType,
+        },
+        stage::GqlStagedGraph,
+    },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
     permissions::{parent_namespace, require_graph_write, require_namespace_write},
     rayon::{blocking_compute, blocking_write},
     url_encode::{url_decode_graph_at, url_encode_graph},
     GQLError,
-};
-use crate::model::{
-    graph::{
-        collection::GqlCollection,
-        graph::GqlGraph,
-        meta_graph::MetaGraph,
-        mutable_graph::GqlMutableGraph,
-        namespace::{is_namespace_visible, Namespace},
-        namespaced_item::NamespacedItem,
-        node_id::GqlNodeId,
-        GqlGraphType,
-    },
-    stage::GqlStagedGraph,
 };
 use async_graphql::{dynamic::SchemaBuilder, Context};
 use dynamic_graphql::{

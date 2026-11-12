@@ -14,10 +14,7 @@ use crate::{
     auth::AuthError,
     auth_policy::AuthPolicyError,
     data::{DeletionError, InsertionError, ParquetPathError},
-    model::{
-        graph::mutable_graph::BatchFailures,
-        stage::GqlStageError,
-    },
+    model::{graph::mutable_graph::BatchFailures, stage::GqlStageError},
     paths::PathValidationError,
     permissions::{gql_error_with_code, PermissionError, CODE_ACCESS_DENIED},
 };
@@ -207,8 +204,8 @@ mod graphql_test {
         auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
         config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
-        permissions::PermissionError,
         model::App,
+        permissions::PermissionError,
         test_support::{
             assert_is_namespace_dir, run_query, run_query_as_user, setup_with_graphs,
             setup_with_policy,
