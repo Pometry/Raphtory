@@ -1,5 +1,7 @@
 use crate::{
-    data::GqlGraphType, graph::GraphWithVectors, model::graph::filtering::GraphAccessFilter,
+    data::GqlGraphType,
+    graph::GraphWithVectors,
+    model::graph::filtering::GraphAccessFilter,
     paths::UnlockedGraphFolder,
     rayon::{blocking_cache, CachingError},
 };
