@@ -82,7 +82,7 @@ where
     pub async fn list(&self, ctx: &Context<'_>) -> Result<Vec<T>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.items.to_vec()).await)
+        Ok(blocking_compute(move || self_clone.items.to_vec()).await?)
     }
 
     /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
@@ -112,7 +112,7 @@ where
                 .cloned()
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Returns a count of collection objects.

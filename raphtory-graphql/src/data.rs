@@ -97,6 +97,8 @@ pub enum InsertionError {
     PathValidation(#[from] PathValidationError),
     #[error("Failed to insert graph {graph}: {error}")]
     GraphError { graph: String, error: GraphError },
+    #[error(transparent)]
+    Compute(#[from] crate::rayon::ComputeError),
 }
 
 impl InsertionError {
@@ -326,7 +328,8 @@ impl Deref for Data {
 async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
     if let Some(old_graph) = old_graph {
         let inner = old_graph.into_inner().await;
-        blocking_compute(move || {
+        // best effort: a failed flush is logged below, a failed job where it is caught
+        let _ = blocking_compute(move || {
             if let Err(e) = inner.graph.flush() {
                 error!(
                     "Failed to flush old graph {} before replacing: {e}",
@@ -448,6 +451,7 @@ impl Data {
         let filter = filter.clone();
         blocking_compute(move || compile_row_filter(graph, filter).map(|_| ()))
             .await
+            .map_err(|error| AccessFilterError::Load(error.into()))?
             .map_err(AccessFilterError::DoesNotApply)
     }
 
@@ -487,7 +491,7 @@ impl Data {
                         graph
                     })
                 })
-                .await
+                .await?
             })
             .await?;
         self.notify_graph_mutated();
@@ -1003,7 +1007,7 @@ async fn apply_graph_filter(
     graph: DynamicGraph,
     row_filter: GqlFilter,
 ) -> Result<DynamicGraph, GQLError> {
-    blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
+    blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await?
 }
 
 fn apply_row_filter_sync(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GQLError> {

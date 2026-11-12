@@ -720,7 +720,7 @@ pub(crate) async fn sort_graphs(
         graphs.extend(keyed.into_iter().map(|(_, graph)| graph));
         graphs
     })
-    .await;
+    .await?;
     Ok(graphs)
 }
 

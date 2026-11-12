@@ -70,9 +70,9 @@ impl GqlEdge {
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
-    ) -> GqlEdge {
+    ) -> Result<GqlEdge, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.valid_layers(names).into()).await
+        Ok(blocking_compute(move || self_clone.ee.valid_layers(names).into()).await?)
     }
 
     /// Returns a view of Edge containing all layers except the excluded list of names.
@@ -81,9 +81,9 @@ impl GqlEdge {
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
-    ) -> GqlEdge {
+    ) -> Result<GqlEdge, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.exclude_valid_layers(names).into()).await
+        Ok(blocking_compute(move || self_clone.ee.exclude_valid_layers(names).into()).await?)
     }
 
     /// Returns a view of Edge containing the specified layer.
@@ -251,9 +251,9 @@ impl GqlEdge {
     /// deletion, or anything in between). Differs from `earliestTime` in that
     /// `earliestTime` reports when the edge is first *valid*; `firstUpdate` reports
     /// when its history actually begins.
-    pub async fn first_update(&self) -> GqlEventTime {
+    pub async fn first_update(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().earliest_time().into()).await
+        Ok(blocking_compute(move || self_clone.ee.history().earliest_time().into()).await?)
     }
 
     /// Returns the latest time of an edge.
@@ -265,9 +265,9 @@ impl GqlEdge {
     /// deletion, or anything in between). Differs from `latestTime` in that
     /// `latestTime` reports when the edge is last *valid*; `lastUpdate` reports
     /// when its history actually ends.
-    pub async fn last_update(&self) -> GqlEventTime {
+    pub async fn last_update(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().latest_time().into()).await
+        Ok(blocking_compute(move || self_clone.ee.history().latest_time().into()).await?)
     }
 
     /// Returns the time of an exploded edge. Errors on an unexploded edge.
@@ -286,15 +286,15 @@ impl GqlEdge {
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    pub async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.window_size().map(|s| s as i64)).await
+        Ok(blocking_compute(move || self_clone.ee.window_size().map(|s| s as i64)).await?)
     }
 
     /// Check if a layer with the given name is present in this view.
-    pub async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.has_layer(name)).await
+        Ok(blocking_compute(move || self_clone.ee.has_layer(name)).await?)
     }
 
     /// Returns the source node of the edge.
@@ -369,18 +369,18 @@ impl GqlEdge {
     ///
     /// Returns:
     ///     History:
-    pub async fn history(&self) -> GqlHistory {
+    pub async fn history(&self) -> Result<GqlHistory, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().into()).await
+        Ok(blocking_compute(move || self_clone.ee.history().into()).await?)
     }
 
     /// Returns a history object with time entries for an edge's deletion times.
     ///
     /// Returns:
     ///     History:
-    pub async fn deletions(&self) -> GqlHistory {
+    pub async fn deletions(&self) -> Result<GqlHistory, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.deletions().into()).await
+        Ok(blocking_compute(move || self_clone.ee.deletions().into()).await?)
     }
 
     /// Checks if the edge is currently valid and exists at the current time.
@@ -425,7 +425,7 @@ impl GqlEdge {
             let filtered = self_clone.ee.filter(expr)?;
             Ok(self_clone.update(filtered.into_dynamic()))
         })
-        .await
+        .await?
     }
 
     /// Pin this edge to a single event — the exploded instance recorded at
@@ -479,7 +479,7 @@ impl GqlEdge {
                 }
             }
         })
-        .await?)
+        .await??)
     }
 
     /// Pin this edge to a single layer-exploded instance by layer name — the
@@ -508,7 +508,7 @@ impl GqlEdge {
                 }
             }
         })
-        .await?)
+        .await??)
     }
 }
 

@@ -123,8 +123,8 @@ pub struct ConcurrencyConfig {
 
     /// Maximum compute jobs (query resolvers, algorithms, ...) on the compute pool at once; more
     /// wait for a slot. Bounds how deep jobs can nest on a compute thread's stack, which with
-    /// enough concurrent queries otherwise overflows it. `None` = twice the compute threads,
-    /// between 8 and 64.
+    /// enough concurrent queries otherwise overflows it. `None` = 8 times the compute
+    /// threads, between 32 and 256.
     pub max_concurrent_compute: Option<usize>,
 }
 

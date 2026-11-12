@@ -137,7 +137,8 @@ impl GraphCache {
             .await;
 
         if let EntryResult::Replaced(_guard, graph) = res {
-            blocking_compute(move || flush_graph(graph)).await;
+            // best effort, like the flush itself: a failed job is logged where it is caught
+            let _ = blocking_compute(move || flush_graph(graph)).await;
         }
     }
 

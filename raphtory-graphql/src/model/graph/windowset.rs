@@ -10,6 +10,7 @@ use crate::{
     },
     paths::UnlockedGraphFolder,
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{
@@ -96,9 +97,9 @@ impl GqlWindowSet<DynamicGraph> {
 impl<T: WindowItem> GqlWindowSet<T> {
     /// Number of windows in this set. Materialising all windows is expensive for
     /// large graphs — prefer `page` over `list` when iterating.
-    pub async fn count(&self) -> usize {
+    pub async fn count(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ws.clone().count()).await
+        Ok(blocking_compute(move || self_clone.ws.clone().count()).await?)
     }
 
     /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -129,7 +130,7 @@ impl<T: WindowItem> GqlWindowSet<T> {
                 .map(|w| T::to_gql(w, &self_clone.ctx))
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Materialise every window as a list. Rejected by the server when bulk list
@@ -144,7 +145,7 @@ impl<T: WindowItem> GqlWindowSet<T> {
                 .map(|w| T::to_gql(w, &self_clone.ctx))
                 .collect()
         })
-        .await)
+        .await?)
     }
 }
 

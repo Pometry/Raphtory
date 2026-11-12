@@ -61,24 +61,27 @@ impl GqlPathFromNode {
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await?)
     }
 
     /// Return a view of PathFromNode restricted to the default layer.
-    pub async fn default_layer(&self) -> Self {
+    pub async fn default_layer(&self) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await?)
     }
 
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names))).await
+        Ok(
+            blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names)))
+                .await?,
+        )
     }
 
     /// Return a view of PathFromNode containing the layer specified layer, errors if the layer does not exist.
@@ -173,9 +176,9 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the latest time.
-    pub async fn snapshot_latest(&self) -> Self {
+    pub async fn snapshot_latest(&self) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await?)
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the specified time.
@@ -187,9 +190,9 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events at the latest time.
-    pub async fn latest(&self) -> Self {
+    pub async fn latest(&self) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.nn.latest())).await?)
     }
 
     /// Create a view of the PathFromNode including all events before the specified end (exclusive).
@@ -230,9 +233,12 @@ impl GqlPathFromNode {
     pub async fn type_filter(
         &self,
         #[graphql(desc = "Node types to keep.")] node_types: Vec<String>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
+        Ok(
+            blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types)))
+                .await?,
+        )
     }
 
     ////////////////////////
@@ -250,21 +256,21 @@ impl GqlPathFromNode {
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    pub async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+        Ok(blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await?)
     }
 
     /// Check if a layer with the given name is present in this view.
-    pub async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.has_layer(name)).await
+        Ok(blocking_compute(move || self_clone.nn.has_layer(name)).await?)
     }
 
     /// Returns a single history object combining the time entries of all nodes reachable from the source in this view.
-    pub async fn combined_history(&self) -> GqlHistory {
+    pub async fn combined_history(&self) -> Result<GqlHistory, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.combined_history().into()).await
+        Ok(blocking_compute(move || self_clone.nn.combined_history().into()).await?)
     }
 
     ///////////////////
@@ -277,7 +283,7 @@ impl GqlPathFromNode {
         // same list guard as `list`/`ids`.
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.nn.degree().collect()).await)
+        Ok(blocking_compute(move || self_clone.nn.degree().collect()).await?)
     }
 
     /// The in-degree (number of incoming edges) of every node in the path, in order.
@@ -286,7 +292,7 @@ impl GqlPathFromNode {
         // same list guard as `list`/`ids`.
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.nn.in_degree().collect()).await)
+        Ok(blocking_compute(move || self_clone.nn.in_degree().collect()).await?)
     }
 
     /// The out-degree (number of outgoing edges) of every node in the path, in order.
@@ -295,7 +301,7 @@ impl GqlPathFromNode {
         // same list guard as `list`/`ids`.
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.nn.out_degree().collect()).await)
+        Ok(blocking_compute(move || self_clone.nn.out_degree().collect()).await?)
     }
 
     /// The number of edge updates incident to every node in the path, in order.
@@ -304,7 +310,7 @@ impl GqlPathFromNode {
         // same list guard as `list`/`ids`.
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.nn.edge_history_count().collect()).await)
+        Ok(blocking_compute(move || self_clone.nn.edge_history_count().collect()).await?)
     }
 
     /////////////////
@@ -316,9 +322,9 @@ impl GqlPathFromNode {
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
     /// `properties.keys()`.
-    pub async fn property_keys(&self) -> Vec<String> {
+    pub async fn property_keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             {
                 let mut it = self_clone.nn.properties();
                 it
@@ -327,15 +333,15 @@ impl GqlPathFromNode {
             .map(|p| p.keys().map(|k| k.to_string()).collect())
             .unwrap_or_default()
         })
-        .await
+        .await?)
     }
 
     /// The metadata keys this collection reports: the first member's registry
     /// view, or an empty list when there are no members. Mirrors the local
     /// collection `metadata.keys()`.
-    pub async fn metadata_keys(&self) -> Vec<String> {
+    pub async fn metadata_keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             {
                 let mut it = self_clone.nn.metadata();
                 it
@@ -344,12 +350,12 @@ impl GqlPathFromNode {
             .map(|p| p.keys().map(|k| k.to_string()).collect())
             .unwrap_or_default()
         })
-        .await
+        .await?)
     }
 
-    pub async fn count(&self) -> usize {
+    pub async fn count(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.len()).await
+        Ok(blocking_compute(move || self_clone.nn.len()).await?)
     }
 
     /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -374,7 +380,7 @@ impl GqlPathFromNode {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone.iter().skip(start).take(limit).collect()
         })
-        .await)
+        .await?)
     }
 
     /// Materialise every neighbour node in the path. Rejected by the server when
@@ -382,7 +388,7 @@ impl GqlPathFromNode {
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.iter().collect()).await)
+        Ok(blocking_compute(move || self_clone.iter().collect()).await?)
     }
 
     /// Every neighbour node's id (name) as a flat list of strings. Rejected by the
@@ -390,7 +396,7 @@ impl GqlPathFromNode {
     pub async fn ids(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<String>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.nn.name().collect()).await)
+        Ok(blocking_compute(move || self_clone.nn.name().collect()).await?)
     }
 
     /// Narrow the neighbour set to nodes matching `expr`. The filter sticks to
@@ -419,7 +425,7 @@ impl GqlPathFromNode {
             let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
-        .await
+        .await?
     }
 
     /// Narrow the neighbour set to nodes matching `expr`, but only at this hop
@@ -449,7 +455,7 @@ impl GqlPathFromNode {
             let filtered = self_clone.nn.select(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
-        .await
+        .await?
     }
 
     /////////////////////
@@ -467,7 +473,7 @@ impl GqlPathFromNode {
     ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -484,7 +490,7 @@ impl GqlPathFromNode {
     ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -501,7 +507,7 @@ impl GqlPathFromNode {
     ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))

@@ -68,18 +68,21 @@ impl GqlEdges {
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await?)
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
+        Ok(
+            blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names)))
+                .await?,
+        )
     }
 
     /// Returns a collection containing edges belonging to the specified layer.
@@ -174,10 +177,10 @@ impl GqlEdges {
     }
 
     /// View showing only the latest state of each edge (equivalent to `at(latestTime)`).
-    pub async fn latest(&self) -> Self {
+    pub async fn latest(&self) -> Result<Self, GQLError> {
         let e = self.ee.clone();
-        let latest = blocking_compute(move || e.latest()).await;
-        self.update(latest)
+        let latest = blocking_compute(move || e.latest()).await?;
+        Ok(self.update(latest))
     }
 
     /// Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
@@ -260,7 +263,7 @@ impl GqlEdges {
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(self_clone.update(self_clone.ee.sorted(&sort_bys)))
         })
-        .await
+        .await?
     }
 
     ////////////////////////
@@ -278,15 +281,15 @@ impl GqlEdges {
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    pub async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.window_size().map(|s| s as i64)).await
+        Ok(blocking_compute(move || self_clone.ee.window_size().map(|s| s as i64)).await?)
     }
 
     /// Check if a layer with the given name is present in this view.
-    pub async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.has_layer(name)).await
+        Ok(blocking_compute(move || self_clone.ee.has_layer(name)).await?)
     }
 
     /////////////////////
@@ -321,9 +324,9 @@ impl GqlEdges {
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
     /// `properties.keys()`.
-    pub async fn property_keys(&self) -> Vec<String> {
+    pub async fn property_keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             {
                 let mut it = self_clone.ee.properties();
                 it
@@ -332,15 +335,15 @@ impl GqlEdges {
             .map(|p| p.keys().map(|k| k.to_string()).collect())
             .unwrap_or_default()
         })
-        .await
+        .await?)
     }
 
     /// The metadata keys this collection reports: the first member's registry
     /// view, or an empty list when there are no members. Mirrors the local
     /// collection `metadata.keys()`.
-    pub async fn metadata_keys(&self) -> Vec<String> {
+    pub async fn metadata_keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             {
                 let mut it = self_clone.ee.metadata();
                 it
@@ -349,13 +352,13 @@ impl GqlEdges {
             .map(|p| p.keys().map(|k| k.to_string()).collect())
             .unwrap_or_default()
         })
-        .await
+        .await?)
     }
 
     /// The number of items in the collection.
-    pub async fn count(&self) -> usize {
+    pub async fn count(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.len()).await
+        Ok(blocking_compute(move || self_clone.ee.len()).await?)
     }
 
     /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -380,14 +383,14 @@ impl GqlEdges {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone.iter().skip(start).take(limit).collect()
         })
-        .await)
+        .await?)
     }
 
     /// Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdge>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.iter().collect()).await)
+        Ok(blocking_compute(move || self_clone.iter().collect()).await?)
     }
 
     /// Keep every edge in the collection and scope what is reached through them
@@ -417,7 +420,7 @@ impl GqlEdges {
             let filtered = self_clone.ee.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
-        .await
+        .await?
     }
 
     /// Narrow the collection to edges matching `expr`, but only at this step —
@@ -450,6 +453,6 @@ impl GqlEdges {
             let filtered = self_clone.ee.select(expr)?;
             Ok(self_clone.update(filtered))
         })
-        .await
+        .await?
     }
 }

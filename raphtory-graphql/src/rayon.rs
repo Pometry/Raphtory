@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, LazyLock, OnceLock},
 };
 use tokio::sync::{oneshot, Semaphore};
-use tracing::warn;
+use tracing::{error, warn};
 
 /// Process-global: set once by the first server, shared by every later one.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -17,7 +17,7 @@ pub struct PoolSettings {
     /// Threads caching filtered graph views. `None` = 4 with more than 6 cores, else cores / 2.
     pub caching_threads: Option<usize>,
     /// Max compute jobs handed to the compute pool at once; bounds how deep jobs can nest on a
-    /// worker's stack. `None` = twice the compute threads, between 8 and 64.
+    /// worker's stack. `None` = 8 times the compute threads, between 32 and 256.
     pub max_concurrent_compute: Option<usize>,
 }
 
@@ -48,9 +48,14 @@ pub static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
+/// Stack of a compute thread. Jobs nest on it (see [`COMPUTE_PERMITS`]), at roughly 80KB a
+/// request in the overflow seen in CI, so this leaves room for [`compute_permits`] of them. It is
+/// address space reserved per thread; only the pages a thread actually touches use memory.
+const COMPUTE_STACK_SIZE: usize = 64 * 1024 * 1024;
+
 pub static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(COMPUTE_STACK_SIZE)
         .num_threads(cores().max(2))
         .thread_name(|t| format!("RAP-compute-{t}"))
         .build()
@@ -66,11 +71,12 @@ pub static EVICT_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// How many compute jobs may be on the compute pool at once.
+/// How many compute jobs may be on the compute pool at once. Generous, so short queries rarely
+/// wait behind long ones, while still bounding the nesting (see [`COMPUTE_PERMITS`]).
 fn compute_permits() -> usize {
     settings()
         .max_concurrent_compute
-        .unwrap_or_else(|| (2 * COMPUTE_POOL.current_num_threads()).clamp(8, 64))
+        .unwrap_or_else(|| (8 * COMPUTE_POOL.current_num_threads()).clamp(32, 256))
         .max(1)
 }
 
@@ -83,15 +89,28 @@ fn compute_permits() -> usize {
 static COMPUTE_PERMITS: LazyLock<Arc<Semaphore>> =
     LazyLock::new(|| Arc::new(Semaphore::new(compute_permits())));
 
+/// Why a compute job gave no result. What a client sees is only this text: the panic message
+/// is logged where it is caught, as it can name server internals.
+#[derive(Debug, thiserror::Error)]
+pub enum ComputeError {
+    #[error("the computation failed")]
+    Panicked(String),
+    #[error("the compute job was dropped before it ran")]
+    Dropped,
+    #[error("the compute queue is closed")]
+    Closed,
+}
+
 /// Query work on the compute pool. Waits for a compute permit first, see [`COMPUTE_PERMITS`].
+/// A panic in `closure` comes back as [`ComputeError::Panicked`], and is logged.
 pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
     closure: F,
-) -> R {
+) -> Result<R, ComputeError> {
     let permit = COMPUTE_PERMITS
         .clone()
         .acquire_owned()
         .await
-        .expect("compute semaphore is never closed");
+        .map_err(|_| ComputeError::Closed)?;
     spawn_compute(move || {
         let _permit = permit;
         closure()
@@ -102,19 +121,25 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
 /// A no-op round trip through the compute pool, for the health check. It skips the permit, as
 /// it is meant to show whether the pool itself is still running jobs, and an empty job cannot
 /// nest anything on the worker that picks it up.
-pub async fn probe_compute() {
+pub async fn probe_compute() -> Result<(), ComputeError> {
     spawn_compute(|| {}).await
 }
 
-async fn spawn_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
+async fn spawn_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
+    closure: F,
+) -> Result<R, ComputeError> {
     let (send, recv) = oneshot::channel();
     COMPUTE_POOL.spawn(move || {
-        // a panic in a rayon job aborts the process, so it resumes in the caller instead
+        // a panic in a rayon job aborts the process, so it is handed back to the caller instead
         let _ = send.send(panic::catch_unwind(AssertUnwindSafe(closure)));
     });
     recv.await
-        .expect("the compute job was dropped before it ran")
-        .unwrap_or_else(|panic| panic::resume_unwind(panic))
+        .map_err(|_| ComputeError::Dropped)?
+        .map_err(|panic| {
+            let message = panic_message(panic.as_ref());
+            error!(panic = %message, "a compute job panicked");
+            ComputeError::Panicked(message)
+        })
 }
 
 static LOAD_PERMITS: LazyLock<Semaphore> = LazyLock::new(|| {
@@ -278,10 +303,18 @@ mod scheduler_tests {
     use std::time::Duration;
 
     #[tokio::test]
-    async fn a_compute_job_that_panics_fails_its_caller() {
-        let job = tokio::spawn(blocking_compute(|| -> usize { panic!("boom") }));
-        assert!(job.await.unwrap_err().is_panic());
-        assert_eq!(blocking_compute(|| 1).await, 1);
+    async fn a_compute_job_that_panics_returns_an_error_and_the_pool_keeps_going() {
+        let failed = blocking_compute(|| -> usize { panic!("boom") }).await;
+        assert!(matches!(failed, Err(ComputeError::Panicked(message)) if message == "boom"));
+        assert_eq!(blocking_compute(|| 1).await.unwrap(), 1);
+    }
+
+    #[test]
+    fn a_failed_compute_job_reaches_the_client_as_an_internal_error() {
+        let error = async_graphql::Error::from(ComputeError::Panicked("secret detail".into()));
+        assert_eq!(error.message, "Internal server error");
+        let error = async_graphql::Error::from(crate::GQLError::from(ComputeError::Dropped));
+        assert_eq!(error.message, "Internal server error");
     }
 
     /// A worker blocked in `join` runs whatever job is queued, including a whole other request,
@@ -316,7 +349,7 @@ mod scheduler_tests {
             })
             .collect();
         for job in jobs {
-            job.await.unwrap();
+            job.await.unwrap().unwrap();
         }
         let peak = PEAK.load(Ordering::SeqCst);
         assert!(

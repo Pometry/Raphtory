@@ -3,6 +3,7 @@ use crate::{
         get_node_type, merge_schemas, property_schema::PropertySchema, SchemaAggregate,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -54,9 +55,9 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     }
 
     /// Returns the list of property schemas for edges connecting these types of nodes
-    pub async fn properties(&self) -> Vec<PropertySchema> {
+    pub async fn properties(&self) -> Result<Vec<PropertySchema>, GQLError> {
         let cloned = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let schema: SchemaAggregate = cloned
                 .edges()
                 .map(collect_edge_property_schema)
@@ -64,12 +65,12 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
                 .unwrap_or_default();
             schema.into_iter().map(|prop| prop.into()).collect_vec()
         })
-        .await
+        .await?)
     }
     /// Returns the list of metadata schemas for edges connecting these types of nodes
-    pub async fn metadata(&self) -> Vec<PropertySchema> {
+    pub async fn metadata(&self) -> Result<Vec<PropertySchema>, GQLError> {
         let cloned = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let schema: SchemaAggregate = cloned
                 .edges()
                 .map(collect_edge_metadata_schema)
@@ -77,7 +78,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
                 .unwrap_or_default();
             schema.into_iter().map(|prop| prop.into()).collect_vec()
         })
-        .await
+        .await?)
     }
 }
 

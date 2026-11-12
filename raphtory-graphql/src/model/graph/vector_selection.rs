@@ -2,10 +2,61 @@ use super::{
     document::GqlDocument, edge::GqlEdge, node::GqlNode, node_id::GqlNodeId,
     vectorised_graph::VectorisedGraphWindow,
 };
-use crate::{model::graph::vectorised_graph::IntoWindowTuple, rayon::blocking_compute, GQLError};
+use crate::{
+    model::graph::vectorised_graph::IntoWindowTuple,
+    rayon::{blocking_compute, ComputeError},
+    GQLError,
+};
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
+use futures_util::{future::BoxFuture, FutureExt};
 use raphtory::{db::api::view::MaterializedGraph, errors::GraphResult};
-use raphtory_vectors::{vector_selection::VectorSelection, Embedding};
+use raphtory_vectors::{
+    vector_selection::{QueryPair, VectorSelection},
+    Embedding, VectorsQuery,
+};
+use std::sync::{Arc, Mutex, PoisonError};
+
+/// [`blocking_compute`] as the executor raphtory-vectors runs graph access on, which wants the
+/// plain result back. A failed job (logged where it was caught) finds no matches, which ends
+/// the expansion, and is kept to be returned by [`ComputeExecutor::finish`].
+#[derive(Clone, Default)]
+struct ComputeExecutor(Arc<Mutex<Option<ComputeError>>>);
+
+impl ComputeExecutor {
+    fn executor(
+        &self,
+    ) -> impl Fn(Box<dyn FnOnce() -> QueryPair + Send + 'static>) -> BoxFuture<'static, QueryPair>
+           + Send
+           + Sync
+           + Clone
+           + 'static {
+        let failure = self.0.clone();
+        move |job| {
+            let failure = failure.clone();
+            async move {
+                blocking_compute(job).await.unwrap_or_else(|error| {
+                    failure
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .get_or_insert(error);
+                    (
+                        VectorsQuery::resolved(Ok(vec![])),
+                        VectorsQuery::resolved(Ok(vec![])),
+                    )
+                })
+            }
+            .boxed()
+        }
+    }
+
+    /// The first job that failed, if any did.
+    fn finish(self) -> Result<(), ComputeError> {
+        match self.0.lock().unwrap_or_else(PoisonError::into_inner).take() {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
+    }
+}
 
 #[derive(InputObject)]
 pub struct InputEdge {
@@ -90,14 +141,14 @@ impl GqlVectorSelection {
             desc = "Optional `{start, end}` to restrict expansion to entities active in that interval."
         )]
         window: Option<VectorisedGraphWindow>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             selection.expand(hops, window);
             selection.into()
         })
-        .await
+        .await?)
     }
 
     /// Iteratively expand the selection by similarity to a natural-language
@@ -116,9 +167,11 @@ impl GqlVectorSelection {
         let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
+        let compute = ComputeExecutor::default();
         selection
-            .expand_entities_by_similarity(&vector, limit, window, blocking_compute)
+            .expand_entities_by_similarity(&vector, limit, window, compute.executor())
             .await?;
+        compute.finish()?;
         Ok(selection.into())
     }
 
@@ -136,9 +189,11 @@ impl GqlVectorSelection {
         let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
+        let compute = ComputeExecutor::default();
         selection
-            .expand_nodes_by_similarity(&vector, limit, window, blocking_compute)
+            .expand_nodes_by_similarity(&vector, limit, window, compute.executor())
             .await?;
+        compute.finish()?;
         Ok(selection.into())
     }
 
@@ -156,9 +211,11 @@ impl GqlVectorSelection {
         let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
+        let compute = ComputeExecutor::default();
         selection
-            .expand_edges_by_similarity(&vector, limit, window, blocking_compute)
+            .expand_edges_by_similarity(&vector, limit, window, compute.executor())
             .await?;
+        compute.finish()?;
         Ok(selection.into())
     }
 }

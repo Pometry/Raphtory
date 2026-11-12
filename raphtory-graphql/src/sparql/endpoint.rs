@@ -80,6 +80,9 @@ enum EndpointError {
     // also a graph the caller cannot read, so the two are indistinguishable
     #[error(transparent)]
     GraphNotFound(PathValidationError),
+    /// Logged where it was caught; the client only sees that the computation failed.
+    #[error(transparent)]
+    Compute(#[from] crate::rayon::ComputeError),
     #[error("the SPARQL endpoint answers GET and POST requests")]
     MethodNotAllowed,
 }
@@ -97,6 +100,7 @@ impl ResponseError for EndpointError {
             Self::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
             Self::GraphNotFound(_) => StatusCode::NOT_FOUND,
             Self::MethodNotAllowed => StatusCode::METHOD_NOT_ALLOWED,
+            Self::Compute(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -223,6 +227,7 @@ impl<E: Executor> SparqlEndpoint<E> {
             QueryOutline::parse(&parsed, &options)
         })
         .await
+        .map_err(EndpointError::from)?
         .map_err(|error| EndpointError::Query(error.into()))?;
         let Accept(accept) = Accept::from_request_without_body(&req).await?;
         let (format, media_type) =

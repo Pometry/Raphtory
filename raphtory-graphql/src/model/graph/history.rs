@@ -4,6 +4,7 @@ use crate::{
         timeindex::{dt_format_str_is_valid, GqlEventTime},
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::{Context, Error};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -42,22 +43,22 @@ impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for GqlHistory {
 #[ResolvedObjectFields]
 impl GqlHistory {
     /// Get the earliest time entry associated with this history or None if the history is empty.
-    pub async fn earliest_time(&self) -> GqlEventTime {
+    pub async fn earliest_time(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history.earliest_time().into()).await
+        Ok(blocking_compute(move || self_clone.history.earliest_time().into()).await?)
     }
 
     /// Get the latest time entry associated with this history or None if the history is empty.
-    pub async fn latest_time(&self) -> GqlEventTime {
+    pub async fn latest_time(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history.latest_time().into()).await
+        Ok(blocking_compute(move || self_clone.history.latest_time().into()).await?)
     }
 
     /// List all time entries present in this history.
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEventTime>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.history.iter().map(|t| t.into()).collect()).await)
+        Ok(blocking_compute(move || self_clone.history.iter().map(|t| t.into()).collect()).await?)
     }
 
     /// List all time entries present in this history in reverse order.
@@ -66,7 +67,7 @@ impl GqlHistory {
         let self_clone = self.clone();
         Ok(
             blocking_compute(move || self_clone.history.iter_rev().map(|t| t.into()).collect())
-                .await,
+                .await?,
         )
     }
 
@@ -98,7 +99,7 @@ impl GqlHistory {
                 .map(|t| t.into())
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Fetch one page of EventTime entries with a number of items up to a specified limit,
@@ -129,50 +130,54 @@ impl GqlHistory {
                 .map(|t| t.into())
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Returns True if the history is empty.
-    pub async fn is_empty(&self) -> bool {
+    pub async fn is_empty(&self) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history.is_empty()).await
+        Ok(blocking_compute(move || self_clone.history.is_empty()).await?)
     }
 
     /// Returns a new history with the iteration order of the entries reversed.
-    pub async fn reverse(&self) -> GqlHistory {
+    pub async fn reverse(&self) -> Result<GqlHistory, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history.reverse().into()).await
+        Ok(blocking_compute(move || self_clone.history.reverse().into()).await?)
     }
 
     /// Get the number of entries contained in the history.
-    pub async fn count(&self) -> u64 {
+    pub async fn count(&self) -> Result<u64, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history.len() as u64).await
+        Ok(blocking_compute(move || self_clone.history.len() as u64).await?)
     }
 
     /// Whether an entry equal to the given time is present. With `eventId`,
     /// an entry must match both the timestamp and the event id; without it,
     /// any entry at the timestamp matches.
-    pub async fn contains(&self, timestamp: i64, event_id: Option<usize>) -> bool {
+    pub async fn contains(
+        &self,
+        timestamp: i64,
+        event_id: Option<usize>,
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || match event_id {
+        Ok(blocking_compute(move || match event_id {
             Some(event_id) => self_clone
                 .history
                 .iter()
                 .any(|x| x == EventTime::new(timestamp, event_id)),
             None => self_clone.history.iter().any(|x| x == timestamp),
         })
-        .await
+        .await?)
     }
 
     /// Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
     /// instead of EventTime entries.
-    pub async fn timestamps(&self) -> GqlHistoryTimestamp {
+    pub async fn timestamps(&self) -> Result<GqlHistoryTimestamp, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || GqlHistoryTimestamp {
+        Ok(blocking_compute(move || GqlHistoryTimestamp {
             history_t: HistoryTimestamp::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
         })
-        .await
+        .await?)
     }
 
     /// Returns a HistoryDateTime object which accesses datetimes instead of EventTime entries.
@@ -185,35 +190,35 @@ impl GqlHistory {
             desc = "Optional format string for the rendered datetime. Uses `%`-style specifiers — for example `%Y-%m-%d` for `2024-01-15`, `%Y-%m-%d %H:%M:%S` for `2024-01-15 10:30:00`, or `%H:%M` for `10:30`. Defaults to RFC 3339 (e.g. `2024-01-15T10:30:45.123+00:00`) when omitted."
         )]
         format_string: Option<String>,
-    ) -> GqlHistoryDateTime {
+    ) -> Result<GqlHistoryDateTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || GqlHistoryDateTime {
+        Ok(blocking_compute(move || GqlHistoryDateTime {
             history_dt: HistoryDateTime::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
             format_string,
         })
-        .await
+        .await?)
     }
 
     /// Returns a HistoryEventId object which accesses event ids of EventTime entries.
     /// They are used for ordering within the same timestamp.
-    pub async fn event_id(&self) -> GqlHistoryEventId {
+    pub async fn event_id(&self) -> Result<GqlHistoryEventId, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || GqlHistoryEventId {
+        Ok(blocking_compute(move || GqlHistoryEventId {
             history_s: HistoryEventId::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
         })
-        .await
+        .await?)
     }
 
     /// Inter-event gap analysis for this history. The returned `Intervals`
     /// object exposes each gap (in milliseconds) between consecutive events,
     /// plus summary statistics — `min` / `max` / `mean` / `median` — and
     /// paginated access via `list` / `listRev` / `page` / `pageRev`.
-    pub async fn intervals(&self) -> GqlIntervals {
+    pub async fn intervals(&self) -> Result<GqlIntervals, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || GqlIntervals {
+        Ok(blocking_compute(move || GqlIntervals {
             intervals: Intervals::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
         })
-        .await
+        .await?)
     }
 }
 
@@ -227,29 +232,29 @@ pub struct GqlHistoryTimestamp {
 #[ResolvedObjectFields]
 impl GqlHistoryTimestamp {
     /// Get the number of timestamps (one per entry).
-    pub async fn count(&self) -> u64 {
+    pub async fn count(&self) -> Result<u64, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history_t.iter().count() as u64).await
+        Ok(blocking_compute(move || self_clone.history_t.iter().count() as u64).await?)
     }
 
     /// Whether the given value is present among the timestamps.
-    pub async fn contains(&self, value: i64) -> bool {
+    pub async fn contains(&self, value: i64) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history_t.iter().any(|v| v == value)).await
+        Ok(blocking_compute(move || self_clone.history_t.iter().any(|v| v == value)).await?)
     }
 
     /// List all timestamps.
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.history_t.collect()).await)
+        Ok(blocking_compute(move || self_clone.history_t.collect()).await?)
     }
 
     /// List all timestamps in reverse order.
     pub async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.history_t.collect_rev()).await)
+        Ok(blocking_compute(move || self_clone.history_t.collect_rev()).await?)
     }
 
     /// Fetch one page of timestamps with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -279,7 +284,7 @@ impl GqlHistoryTimestamp {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Fetch one page of timestamps in reverse order with a number of items up to a specified limit,
@@ -309,7 +314,7 @@ impl GqlHistoryTimestamp {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await?)
     }
 }
 
@@ -359,7 +364,7 @@ impl GqlHistoryDateTime {
                 })
                 .collect()
         })
-        .await
+        .await?
     }
 
     /// List all datetimes formatted as strings in reverse chronological order.
@@ -398,7 +403,7 @@ impl GqlHistoryDateTime {
                 })
                 .collect()
         })
-        .await
+        .await?
     }
 
     /// Fetch one page of datetimes formatted as string with a number of items up to a specified limit,
@@ -452,7 +457,7 @@ impl GqlHistoryDateTime {
                 .take(limit)
                 .collect()
         })
-        .await
+        .await?
     }
 
     /// Fetch one page of datetimes formatted as string in reverse chronological order with a number of items up to a specified limit,
@@ -506,7 +511,7 @@ impl GqlHistoryDateTime {
                 .take(limit)
                 .collect()
         })
-        .await
+        .await?
     }
 }
 
@@ -520,15 +525,18 @@ pub struct GqlHistoryEventId {
 #[ResolvedObjectFields]
 impl GqlHistoryEventId {
     /// Get the number of event ids (one per entry).
-    pub async fn count(&self) -> u64 {
+    pub async fn count(&self) -> Result<u64, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history_s.iter().count() as u64).await
+        Ok(blocking_compute(move || self_clone.history_s.iter().count() as u64).await?)
     }
 
     /// Whether the given value is present among the event ids.
-    pub async fn contains(&self, value: u64) -> bool {
+    pub async fn contains(&self, value: u64) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history_s.iter().any(|v| v as u64 == value)).await
+        Ok(
+            blocking_compute(move || self_clone.history_s.iter().any(|v| v as u64 == value))
+                .await?,
+        )
     }
 
     /// List event ids.
@@ -542,7 +550,7 @@ impl GqlHistoryEventId {
                 .map(|s: usize| s as u64)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// List event ids in reverse order.
@@ -556,7 +564,7 @@ impl GqlHistoryEventId {
                 .map(|s: usize| s as u64)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Fetch one page of event ids with a number of items up to a specified limit,
@@ -587,7 +595,7 @@ impl GqlHistoryEventId {
                 .map(|s: usize| s as u64)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Fetch one page of event ids in reverse chronological order with a number of items up to a specified limit,
@@ -618,7 +626,7 @@ impl GqlHistoryEventId {
                 .map(|s: usize| s as u64)
                 .collect()
         })
-        .await)
+        .await?)
     }
 }
 
@@ -633,29 +641,29 @@ pub struct GqlIntervals {
 impl GqlIntervals {
     /// Get the number of intervals (one per consecutive pair of entries,
     /// so one less than the history's count; zero for an empty history).
-    pub async fn count(&self) -> u64 {
+    pub async fn count(&self) -> Result<u64, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.intervals.iter().count() as u64).await
+        Ok(blocking_compute(move || self_clone.intervals.iter().count() as u64).await?)
     }
 
     /// Whether the given value is present among the intervals.
-    pub async fn contains(&self, value: i64) -> bool {
+    pub async fn contains(&self, value: i64) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.intervals.iter().any(|v| v == value)).await
+        Ok(blocking_compute(move || self_clone.intervals.iter().any(|v| v == value)).await?)
     }
 
     /// List time intervals between consecutive timestamps in milliseconds.
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.intervals.collect()).await)
+        Ok(blocking_compute(move || self_clone.intervals.collect()).await?)
     }
 
     /// List millisecond time intervals between consecutive timestamps in reverse order.
     pub async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.intervals.collect_rev()).await)
+        Ok(blocking_compute(move || self_clone.intervals.collect_rev()).await?)
     }
 
     /// Fetch one page of intervals between consecutive timestamps with a number of items up to a specified limit,
@@ -685,7 +693,7 @@ impl GqlIntervals {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Fetch one page of intervals between consecutive timestamps in reverse order with a number of items up to a specified limit,
@@ -715,30 +723,30 @@ impl GqlIntervals {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Compute the mean interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
-    pub async fn mean(&self) -> Option<f64> {
+    pub async fn mean(&self) -> Result<Option<f64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.intervals.mean()).await
+        Ok(blocking_compute(move || self_clone.intervals.mean()).await?)
     }
 
     /// Compute the median interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
-    pub async fn median(&self) -> Option<i64> {
+    pub async fn median(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.intervals.median()).await
+        Ok(blocking_compute(move || self_clone.intervals.median()).await?)
     }
 
     /// Compute the maximum interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
-    pub async fn max(&self) -> Option<i64> {
+    pub async fn max(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.intervals.max()).await
+        Ok(blocking_compute(move || self_clone.intervals.max()).await?)
     }
 
     /// Compute the minimum interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
-    pub async fn min(&self) -> Option<i64> {
+    pub async fn min(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.intervals.min()).await
+        Ok(blocking_compute(move || self_clone.intervals.min()).await?)
     }
 }

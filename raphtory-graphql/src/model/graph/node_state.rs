@@ -7,6 +7,7 @@ use crate::{
         property::GqlPropertyOutputVal,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result, SimpleObject, Union};
@@ -326,7 +327,7 @@ impl GqlNodeState {
                 })
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// All rows of the node state keyed by node, without the column names: the `values` of each row are
@@ -349,16 +350,16 @@ impl GqlNodeState {
                 })
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
     pub async fn get(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
-    ) -> Option<Vec<GqlNodeStateEntry>> {
+    ) -> Result<Option<Vec<GqlNodeStateEntry>>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let row = self_clone.node_state.get_by_node(node)?;
             let transformed = self_clone.node_state.convert(row);
             Some(
@@ -371,7 +372,7 @@ impl GqlNodeState {
                     .collect(),
             )
         })
-        .await
+        .await?)
     }
 
     /// Minimum `(node, value)` of a column. Null if the column does not exist, is empty,
@@ -379,16 +380,16 @@ impl GqlNodeState {
     pub async fn min(
         &self,
         #[graphql(desc = "Column name.")] column: String,
-    ) -> Option<GqlNodeStateItem> {
+    ) -> Result<Option<GqlNodeStateItem>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone.check_comparable(&column)?;
             let item = self_clone
                 .node_state
                 .min_item_by(column_cmp(&column, true))?;
             self_clone.item_from_row(&column, item)
         })
-        .await
+        .await?)
     }
 
     /// Maximum `(node, value)` of a column. Null if the column does not exist, is empty,
@@ -396,16 +397,16 @@ impl GqlNodeState {
     pub async fn max(
         &self,
         #[graphql(desc = "Column name.")] column: String,
-    ) -> Option<GqlNodeStateItem> {
+    ) -> Result<Option<GqlNodeStateItem>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone.check_comparable(&column)?;
             let item = self_clone
                 .node_state
                 .max_item_by(column_cmp(&column, false))?;
             self_clone.item_from_row(&column, item)
         })
-        .await
+        .await?)
     }
 
     /// Sum of a column's values, skipping empty cells. Null if the column does not exist, is empty,
@@ -413,9 +414,9 @@ impl GqlNodeState {
     pub async fn sum(
         &self,
         #[graphql(desc = "Column name.")] column: String,
-    ) -> Option<GqlPropertyOutputVal> {
+    ) -> Result<Option<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let mut values = self_clone.column_value_iter(&column)?;
             let mut acc = values.next()?;
             if !acc.dtype().has_add() {
@@ -426,7 +427,7 @@ impl GqlNodeState {
             }
             Some(GqlPropertyOutputVal(acc))
         })
-        .await
+        .await?)
     }
 
     /// Mean of a column's values as a float, skipping empty cells. Null if the column does not exist,
@@ -434,9 +435,9 @@ impl GqlNodeState {
     pub async fn mean(
         &self,
         #[graphql(desc = "Column name.")] column: String,
-    ) -> Option<GqlPropertyOutputVal> {
+    ) -> Result<Option<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let mut values = self_clone.column_value_iter(&column)?;
             let mut sum = values.next()?.as_f64()?;
             let mut count = 1usize;
@@ -446,7 +447,7 @@ impl GqlNodeState {
             }
             Some(GqlPropertyOutputVal(Prop::F64(sum / count as f64)))
         })
-        .await
+        .await?)
     }
 
     /// Median `(node, value)` of a column (upper median on even lengths). Null if the column
@@ -454,16 +455,16 @@ impl GqlNodeState {
     pub async fn median(
         &self,
         #[graphql(desc = "Column name.")] column: String,
-    ) -> Option<GqlNodeStateItem> {
+    ) -> Result<Option<GqlNodeStateItem>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone.check_comparable(&column)?;
             let item = self_clone
                 .node_state
                 .median_item_by(column_cmp(&column, true))?;
             self_clone.item_from_row(&column, item)
         })
-        .await
+        .await?)
     }
 
     /// Returns the `k` rows with the largest values in a column. Empty cells rank
@@ -473,9 +474,9 @@ impl GqlNodeState {
         &self,
         #[graphql(desc = "Column name.")] column: String,
         #[graphql(desc = "Number of rows to return.")] k: usize,
-    ) -> Option<GqlNodeState> {
+    ) -> Result<Option<GqlNodeState>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone.check_comparable(&column)?;
             Some(GqlNodeState {
                 node_state: self_clone
@@ -483,7 +484,7 @@ impl GqlNodeState {
                     .top_k_by(column_cmp(&column, false), k),
             })
         })
-        .await
+        .await?)
     }
 
     /// Returns the `k` rows with the smallest values in a column. Empty cells rank
@@ -493,9 +494,9 @@ impl GqlNodeState {
         &self,
         #[graphql(desc = "Column name.")] column: String,
         #[graphql(desc = "Number of rows to return.")] k: usize,
-    ) -> Option<GqlNodeState> {
+    ) -> Result<Option<GqlNodeState>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone.check_comparable(&column)?;
             Some(GqlNodeState {
                 node_state: self_clone
@@ -503,7 +504,7 @@ impl GqlNodeState {
                     .bottom_k_by(column_cmp(&column, true), k),
             })
         })
-        .await
+        .await?)
     }
 
     /// Returns a view of this node state with the rows sorted by a column's values,
@@ -516,9 +517,9 @@ impl GqlNodeState {
         #[graphql(desc = "Sort in descending order instead. Defaults to false.")] reverse: Option<
             bool,
         >,
-    ) -> Option<GqlNodeState> {
+    ) -> Result<Option<GqlNodeState>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone.check_comparable(&column)?;
             let cmp = column_cmp(&column, true);
             let node_state = if reverse.unwrap_or(false) {
@@ -530,7 +531,7 @@ impl GqlNodeState {
             };
             Some(GqlNodeState { node_state })
         })
-        .await
+        .await?)
     }
 
     /// Groups the nodes by their value in a column. Nodes with an empty cell form
@@ -538,9 +539,9 @@ impl GqlNodeState {
     pub async fn group_by(
         &self,
         #[graphql(desc = "Column name.")] column: String,
-    ) -> Option<Vec<GqlNodeStateGroup>> {
+    ) -> Result<Option<Vec<GqlNodeStateGroup>>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             if !self_clone.is_prop_column(&column) {
                 return None;
             }
@@ -557,7 +558,7 @@ impl GqlNodeState {
                     .collect(),
             )
         })
-        .await
+        .await?)
     }
 
     /// Returns one page of this node state as a node state of its own, so that
@@ -583,16 +584,16 @@ impl GqlNodeState {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone.slice(start, limit)
         })
-        .await)
+        .await?)
     }
 
     /// Returns a view of this node state with the rows sorted by node id.
-    pub async fn sort_by_id(&self) -> GqlNodeState {
+    pub async fn sort_by_id(&self) -> Result<GqlNodeState, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || GqlNodeState {
+        Ok(blocking_compute(move || GqlNodeState {
             node_state: self_clone.node_state.sort_by_id(),
         })
-        .await
+        .await?)
     }
 
     /// The columns of the node state, one per output field of the algorithm.
@@ -624,7 +625,7 @@ impl GqlNodeState {
                 .map(|(name, values)| GqlNodeStateColumn { name, values })
                 .collect()
         })
-        .await)
+        .await?)
     }
 }
 

@@ -94,6 +94,10 @@ pub enum GQLError {
     /// A server-side I/O failure; never shown to the client.
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    /// A compute job that panicked or never ran; the panic is logged where it was caught, and
+    /// never shown to the client.
+    #[error(transparent)]
+    Compute(#[from] crate::rayon::ComputeError),
     #[error(transparent)]
     Arc(Arc<Self>),
 }
@@ -102,7 +106,7 @@ impl GQLError {
     /// An error about the server rather than the request: its text may name server internals.
     fn is_internal(&self) -> bool {
         match self {
-            GQLError::Io(_) => true,
+            GQLError::Io(_) | GQLError::Compute(_) => true,
             GQLError::Arc(inner) => inner.is_internal(),
             GQLError::GraphError(_)
             | GQLError::Validation(_)
@@ -124,6 +128,13 @@ impl GQLError {
 impl From<AuthPolicyError> for GQLError {
     fn from(error: AuthPolicyError) -> Self {
         PermissionError::from(error).into()
+    }
+}
+
+/// For resolvers returning `async_graphql::Result`: a failed compute job is an internal error.
+impl From<crate::rayon::ComputeError> for async_graphql::Error {
+    fn from(error: crate::rayon::ComputeError) -> Self {
+        GQLError::from(error).into()
     }
 }
 
