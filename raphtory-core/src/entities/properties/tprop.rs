@@ -32,6 +32,16 @@ impl<'a> TPropCell<'a> {
         }
     }
 
+    /// The time and column row of the latest update holding a value, what [`TPropOps::last`]
+    /// reads.
+    pub fn last_row(&self) -> Option<(EventTime, usize)> {
+        let log = self.log?;
+        self.t_cell?.iter().rev().find_map(|(t, row)| {
+            let row = (*row)?;
+            log.get_ref(row).map(|_| (*t, row))
+        })
+    }
+
     fn iter_window_inner(
         self,
         r: Range<EventTime>,
@@ -54,10 +64,8 @@ impl<'a> TPropCell<'a> {
 
 impl<'a> TPropOps<'a> for TPropCell<'a> {
     fn last(&self) -> Option<(EventTime, Prop)> {
-        self.t_cell?
-            .iter()
-            .rev()
-            .find_map(|(t, pos)| self.log?.get(pos.as_ref().copied()?).map(|prop| (*t, prop)))
+        let (t, row) = self.last_row()?;
+        Some((t, self.log?.get(row)?))
     }
 
     fn last_window(&self, w: Range<EventTime>) -> Option<(EventTime, Prop)> {
