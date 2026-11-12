@@ -25,14 +25,12 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: python-release-with-debug-minimal
+          shared-key: python-release-minimal
       - name: Install maturin
         run: pip install maturin==1.9.4
-      # release-with-debug: optimised as release (so the numbers are comparable) but with debuginfo,
-      # so a core dump collected below has symbols, line numbers and locals
       - name: Build raphtory
         run: |
-          make install-minimal-python-debug
+          make install-minimal-python
       - name: Set up pnpm
         uses: pnpm/action-setup@v6.0.9
         with:
