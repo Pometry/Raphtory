@@ -166,8 +166,7 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
         false
     }
 
-    /// The nodes that may satisfy `predicate`, when the graph can list them
-    /// without a scan; `None` when every node may match.
+    /// The nodes that may satisfy `predicate`, or `None` to scan every node.
     fn named_by(
         &self,
         _predicate: &NodePropPredicate,
@@ -199,8 +198,8 @@ fn narrows(views: &[ViewOp]) -> bool {
     !views.is_empty()
 }
 
-/// Candidates from the storage's property index, or `None` without one.
-/// Never exact: `and`, `any()` and `all()` pass the list on as their own.
+/// Candidates from the storage's property index, never marked exact, or
+/// `None` without an index.
 fn indexed_nodes(
     graph: &DynGraphArc<'_>,
     prop_id: usize,
@@ -211,16 +210,15 @@ fn indexed_nodes(
     let candidates = graph
         .core_graph()
         .node_prop_candidates(prop_id, metadata, predicate, semantics)?;
-    // index candidates are ascending and deduplicated, as `from_sorted` requires
+    // candidates are sorted and deduplicated
     Some(NodeList::List {
         elems: Index::from_sorted(candidates.vids, false),
     })
 }
 
-/// Index candidates for a property or metadata test. Constants are cast to
-/// the column's type, and a lossy cast is not served. `Latest` is the latest
-/// over all time and layers, so histories, views, windows and layer filters
-/// use `Ever`.
+/// Index candidates for a property or metadata test, with constants cast to
+/// the column's type. Histories, views, windows and layer filters use `Ever`,
+/// the rest `Latest`.
 fn indexed_column(
     graph: &DynGraphArc<'_>,
     views: &[ViewOp],
@@ -230,14 +228,12 @@ fn indexed_column(
     predicate: &NodePropPredicate,
 ) -> Option<NodeList> {
     let (prop_id, dtype) = graph.node_meta().get_prop_id_and_type(name, metadata)?;
-    // `last()` of a list-valued history is each update's last element, which
-    // the history need not hold. A list index must revisit this: keyed on whole
-    // lists it can serve `latest()`, keyed on elements it can serve `last()`
+    // history reads of list-valued columns are not served
     if history && matches!(dtype, PropType::List(_)) {
         return None;
     }
-    // the constant in the column's type; a float meets an integer column
-    // through f64, exact below 2^53, so it is rounded to the bound `round` keeps
+    // the constant in the column's type; a float on an integer column is
+    // rounded by `round` first, and is not served from 2^53 up
     let convert = |value: &Prop, round: fn(f64) -> f64| {
         let value = match (value.as_f64_lossless(), &dtype) {
             (None, _) | (Some(_), PropType::F32 | PropType::F64) => value.clone(),
@@ -268,8 +264,7 @@ fn indexed_column(
         NodePropPredicate::Le(v) => NodePropPredicate::Le(value.insert(convert(v, f64::floor)?)),
         NodePropPredicate::Gt(v) => NodePropPredicate::Gt(value.insert(convert(v, f64::floor)?)),
         NodePropPredicate::Ge(v) => NodePropPredicate::Ge(value.insert(convert(v, f64::ceil)?)),
-        // a member that fails to convert can still match (a float past 2^53, or a
-        // whole history), so not served
+        // a member that fails to convert leaves the set unserved
         NodePropPredicate::In(set) => NodePropPredicate::In(
             members.insert(
                 set.iter()
@@ -289,7 +284,7 @@ fn indexed_column(
     indexed_nodes(graph, prop_id, metadata, &predicate, semantics)
 }
 
-/// The index predicate for `op`, when the index can serve it.
+/// The index predicate for `op`, or `None` for `!=`.
 fn cmp_predicate(op: BinaryOp, value: &Prop) -> Option<NodePropPredicate<'_>> {
     Some(match op {
         BinaryOp::Eq => NodePropPredicate::Eq(value),
@@ -301,7 +296,7 @@ fn cmp_predicate(op: BinaryOp, value: &Prop) -> Option<NodePropPredicate<'_>> {
     })
 }
 
-/// The index predicate for the string test `op`, when the index can serve it.
+/// The index predicate for the string test `op`, if it has one.
 fn str_predicate(op: StringOp, value: &str) -> Option<NodePropPredicate<'_>> {
     match op {
         StringOp::StartsWith => Some(NodePropPredicate::StartsWith(value)),
@@ -566,7 +561,7 @@ impl Leaf for NodeLeaf {
     /// one, and a string that is no number names no node. The list makes no
     /// claim to be exact, so the test still runs on every node in it.
     /// Property and metadata tests, and string tests on an id or name, ask the
-    /// property index instead.
+    /// property index.
     fn named_by(&self, predicate: &NodePropPredicate, graph: &DynGraphArc<'_>) -> Option<NodeList> {
         let values: Vec<&Prop> = match (self, *predicate) {
             (
@@ -580,7 +575,7 @@ impl Leaf for NodeLeaf {
             (NodeLeaf::Metadata { views, name }, _) => {
                 return indexed_column(graph, views, name, true, false, predicate)
             }
-            // the id column holds the gid, which on a string-id graph is the name
+            // string tests on an id or name search the gid column
             (
                 NodeLeaf::Field {
                     field: Field::Id | Field::Name,
@@ -1236,7 +1231,6 @@ impl<L: Leaf> Expr<L> {
     fn named_by(&self, predicate: &NodePropPredicate, graph: &DynGraphArc<'_>) -> Option<NodeList> {
         match self {
             Expr::Term(leaf) => leaf.named_by(predicate, graph),
-            // `last()` is the latest update only on a history of scalars;
             // `indexed_column` refuses list-valued histories
             Expr::Agg(Agg::Last | Agg::Latest, inner) if inner.reads_history() => {
                 inner.named_by(predicate, graph)
