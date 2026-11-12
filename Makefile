@@ -168,6 +168,14 @@ install-python: build-wheel
 install-minimal-python: build-minimal-wheel
 	pip install target/wheels/*.whl
 
+# Optimised like release but with full debuginfo, so a core dump from a crashed server can be
+# read with symbols, line numbers and locals (used by the GraphQL bench in CI).
+build-minimal-wheel-debug:
+	cd python && maturin build --profile release-with-debug --no-default-features
+
+install-minimal-python-debug: build-minimal-wheel-debug
+	pip install target/wheels/*.whl
+
 build-python:
 	cd python && maturin develop -r --extras=dev
 
