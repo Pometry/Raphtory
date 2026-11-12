@@ -945,6 +945,9 @@ fn require_at_least_read(
 
 /// Gives the policy an asynchronous pass at an already-granted permission before its filter is
 /// applied (see [`AuthorizationPolicy::refine_permission`]). A no-op without a policy.
+///
+/// A denial comes back as a [`GQLError::Permission`]. A read the policy allowed but could not
+/// prepare comes back as the error preparing it raised, as it would from [`Data::load_refined`].
 async fn refine(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
@@ -956,12 +959,15 @@ async fn refine(
         Some(policy) => policy
             .refine_permission(ctx, path, graph_type, perm)
             .await
-            .map_err(|msg| {
-                error!(
-                    graph = path,
-                    "Authpolicy failure when refining permissions: {msg}"
-                );
-                PermissionError::AuthPolicyError.into()
+            .map_err(|e| match e.into_read_error() {
+                Ok(read) => read,
+                Err(msg) => {
+                    error!(
+                        graph = path,
+                        "Authpolicy failure when refining permissions: {msg}"
+                    );
+                    PermissionError::AuthPolicyError.into()
+                }
             }),
         // No policy: whatever the permission carried is what gets applied.
         None => Ok(MaybeCachedFilteredRead::Filter(match perm {
@@ -1150,7 +1156,9 @@ impl Data {
             Ok(perm) => match refine(ctx, &self.auth_policy, path, graph_type, perm).await {
                 Ok(refined) => self.load_refined(path, refined, graph_type).await.map(Some),
                 // Refinement denied access — hide the graph, as with any other read denial.
-                Err(_) => Ok(None),
+                Err(GQLError::Permission(_)) => Ok(None),
+                // The read was allowed but could not be prepared, as `load_refined` reports it.
+                Err(e) => Err(e),
             },
             Err(_) => Ok(None),
         }

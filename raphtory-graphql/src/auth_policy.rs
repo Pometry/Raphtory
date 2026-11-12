@@ -4,6 +4,7 @@ use crate::{
     model::graph::filtering::GraphAccessFilter,
     paths::UnlockedGraphFolder,
     rayon::{blocking_cache, CachingError},
+    GQLError,
 };
 use futures_util::future::BoxFuture;
 use raphtory::db::{
@@ -32,17 +33,42 @@ impl MutationNotifier {
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
 #[derive(Debug)]
-pub struct AuthPolicyError(pub String);
+pub struct AuthPolicyError {
+    message: String,
+    /// Set when the policy allowed the read but preparing it failed.
+    read: Option<GQLError>,
+}
 
 impl AuthPolicyError {
     pub fn new(msg: impl Into<String>) -> Self {
-        Self(msg.into())
+        Self {
+            message: msg.into(),
+            read: None,
+        }
+    }
+
+    /// The policy allowed the read, but preparing it failed: its filter could not be applied, or
+    /// the graph could not be loaded. Answered as `error`, exactly as if the read path had
+    /// prepared it, rather than hidden like a denial.
+    pub fn read_failed(error: GQLError) -> Self {
+        Self {
+            message: error.to_string(),
+            read: Some(error),
+        }
+    }
+
+    /// The read error from [`Self::read_failed`], or `self` back if this is a denial.
+    pub fn into_read_error(self) -> Result<GQLError, Self> {
+        match self.read {
+            Some(error) => Ok(error),
+            None => Err(self),
+        }
     }
 }
 
 impl std::fmt::Display for AuthPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(&self.message)
     }
 }
 
