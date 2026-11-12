@@ -2,8 +2,8 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-    auth_policy::{AuthPolicyError, AuthorizationPolicy},
-    data::{get_relative_path, Data, WorkDirGuard},
+    auth_policy::AuthorizationPolicy,
+    data::{get_relative_path, Data, PermissionError, WorkDirGuard},
     model::graph::{
         collection::GqlCollection,
         meta_graph::MetaGraph,
@@ -15,6 +15,7 @@ use crate::{
     },
     paths::{ExistingGraphFolder, PathValidationError, ValidPath},
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
@@ -215,7 +216,7 @@ fn is_graph_visible(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     g: &MetaGraph,
-) -> Result<bool, AuthPolicyError> {
+) -> Result<bool, PermissionError> {
     let Some(policy) = policy.as_ref() else {
         return Ok(true);
     };
@@ -227,14 +228,12 @@ fn is_graph_visible(
 pub(crate) fn is_namespace_visible(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    n: &Namespace,
-) -> Result<bool, AuthPolicyError> {
+    n: &str,
+) -> Result<bool, PermissionError> {
     let Some(policy) = policy.as_ref() else {
         return Ok(true);
     };
-    Ok(policy
-        .namespace_permissions(ctx, &n.relative_path)?
-        .is_some())
+    Ok(policy.namespace_permissions(ctx, n)?.is_some())
 }
 
 #[ResolvedObjectFields]
@@ -253,7 +252,7 @@ impl Namespace {
         #[graphql(desc = "Sort keys applied in order, before paging.")] sort: Option<
             Vec<MetaGraphSort>,
         >,
-    ) -> Result<GqlCollection<MetaGraph>> {
+    ) -> Result<GqlCollection<MetaGraph>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
@@ -294,7 +293,7 @@ impl Namespace {
     ///
     /// Computed here so a listing can show a folder's recency without the client
     /// walking every graph in every folder it displays.
-    async fn last_updated(&self, ctx: &Context<'_>) -> Result<Option<i64>> {
+    async fn last_updated(&self, ctx: &Context<'_>) -> Result<Option<i64>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
@@ -340,7 +339,7 @@ impl Namespace {
             NamespaceFilter,
         >,
         #[graphql(desc = "Ordering applied before paging.")] sort: Option<NamespaceSort>,
-    ) -> Result<GqlCollection<Namespace>> {
+    ) -> Result<GqlCollection<Namespace>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let namespaces = blocking_compute(move || {
@@ -361,7 +360,7 @@ impl Namespace {
         .await;
         let mut visible = Vec::new();
         for n in namespaces {
-            if is_namespace_visible(ctx, &data.auth_policy, &n)? {
+            if is_namespace_visible(ctx, &data.auth_policy, &n.relative_path)? {
                 visible.push(n);
             }
         }
@@ -383,7 +382,7 @@ impl Namespace {
         #[graphql(desc = "Sort keys for the graphs, applied in order before paging.")] sort: Option<
             Vec<MetaGraphSort>,
         >,
-    ) -> Result<GqlCollection<NamespacedItem>> {
+    ) -> Result<GqlCollection<NamespacedItem>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let all_items =
@@ -392,7 +391,9 @@ impl Namespace {
         for item in all_items {
             let keep = match &item {
                 NamespacedItem::MetaGraph(g) => is_graph_visible(ctx, &data.auth_policy, g)?,
-                NamespacedItem::Namespace(n) => is_namespace_visible(ctx, &data.auth_policy, n)?,
+                NamespacedItem::Namespace(n) => {
+                    is_namespace_visible(ctx, &data.auth_policy, &n.relative_path)?
+                }
             };
             if keep {
                 visible.push(item);

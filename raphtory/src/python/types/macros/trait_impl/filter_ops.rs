@@ -8,11 +8,19 @@
 //!
 //! Paths are `$crate`-qualified so the macro expands correctly regardless of
 //! what the call site happens to import.
+#[macro_export]
 macro_rules! impl_filter_ops {
     ($obj:ident<$base_type:ty>, $field:ident, $name:literal) => {
         #[pyo3::pymethods]
         impl $obj {
-            /// Return a filtered view that only includes nodes and edges that satisfy the filter
+            /// Return a view with the filter applied.
+            ///
+            /// On a graph the view only includes the nodes and edges that satisfy the
+            /// filter. On a node, an edge or a collection every member stays, and the
+            /// filter scopes what is reached through them: their neighbours, endpoints,
+            /// edges, degrees and properties all see the filtered graph, and so does
+            /// every later traversal. To keep only the members that satisfy the filter,
+            /// index the collection with it instead: `nodes[expr]` or `edges[expr]`.
             ///
             /// Arguments:
             ///     filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.

@@ -8,10 +8,33 @@ pub use crate::{
     server::GraphServer,
 };
 
-use crate::{data::InsertionError, paths::PathValidationError};
+#[cfg(feature = "rdf")]
+use crate::sparql::SparqlError;
+use crate::{
+    auth::AuthError,
+    auth_policy::AuthPolicyError,
+    data::{
+        gql_error_with_code, DeletionError, InsertionError, ParquetPathError, PermissionError,
+        CODE_ACCESS_DENIED,
+    },
+    model::graph::mutable_graph::BatchFailures,
+    paths::PathValidationError,
+};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
-use raphtory::errors::GraphError;
+use raphtory::{
+    algorithms::dynamics::temporal::epidemics::SeedError, db::api::storage::storage::StorageError,
+    errors::GraphError,
+};
+use raphtory_api::core::{
+    entities::properties::prop::PropTypeError, storage::graph_folder::GraphFolderError,
+    utils::time::ParseTimeError,
+};
+#[cfg(feature = "rdf")]
+use raphtory_rdf::RdfError;
+#[cfg(feature = "vectors")]
+use raphtory_vectors::errors::VectorError;
 use std::sync::Arc;
+use tracing::error;
 
 pub mod auth;
 pub mod auth_policy;
@@ -28,6 +51,8 @@ mod paths;
 pub mod rayon;
 mod routes;
 pub mod server;
+#[cfg(feature = "rdf")]
+mod sparql;
 pub mod url_encode;
 
 #[cfg(all(feature = "python", not(doctest)))]
@@ -47,13 +72,126 @@ pub enum GQLError {
     #[error(transparent)]
     Insertion(#[from] InsertionError),
     #[error(transparent)]
-    Arc(#[from] Arc<Self>),
+    Deletion(#[from] DeletionError),
+    #[error(transparent)]
+    ParquetPath(#[from] ParquetPathError),
+    #[error(transparent)]
+    BatchFailures(#[from] BatchFailures),
+    #[error(transparent)]
+    Permission(#[from] PermissionError),
+    #[error(transparent)]
+    Auth(#[from] AuthError),
+    #[cfg(feature = "rdf")]
+    #[error(transparent)]
+    Sparql(#[from] SparqlError),
+    /// A namespace listing's filter or sort is malformed.
+    #[error("Invalid filter: {0}")]
+    InvalidFilter(String),
+    /// A grant's row filter failed to apply; what the filter said is logged, not shown.
+    #[error("access filter could not be applied; the grant is misconfigured")]
+    AccessFilterMisconfigured,
+    /// A server-side I/O failure; never shown to the client.
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Arc(Arc<Self>),
+}
+
+impl GQLError {
+    /// An error about the server rather than the request: its text may name server internals.
+    fn is_internal(&self) -> bool {
+        match self {
+            GQLError::Io(_) => true,
+            GQLError::Arc(inner) => inner.is_internal(),
+            GQLError::GraphError(_)
+            | GQLError::Validation(_)
+            | GQLError::Insertion(_)
+            | GQLError::Deletion(_)
+            | GQLError::ParquetPath(_)
+            | GQLError::BatchFailures(_)
+            | GQLError::Permission(_)
+            | GQLError::Auth(_)
+            | GQLError::InvalidFilter(_)
+            | GQLError::AccessFilterMisconfigured => false,
+            #[cfg(feature = "rdf")]
+            GQLError::Sparql(_) => false,
+        }
+    }
+}
+
+/// A policy fault is logged where it becomes a denial, and answered like one.
+impl From<AuthPolicyError> for GQLError {
+    fn from(error: AuthPolicyError) -> Self {
+        PermissionError::from(error).into()
+    }
+}
+
+/// What a client is told about an error: its own message, with the `code` a denial carries,
+/// unless the error is about the server, which is logged and answered generically.
+impl From<GQLError> for async_graphql::Error {
+    fn from(error: GQLError) -> Self {
+        match error {
+            GQLError::Permission(error) => error.into_gql_error(),
+            GQLError::Auth(error @ (AuthError::RequireRead | AuthError::RequireWrite)) => {
+                gql_error_with_code(error.to_string(), CODE_ACCESS_DENIED)
+            }
+            #[cfg(feature = "rdf")]
+            GQLError::Sparql(error) => match error.code() {
+                Some(code) => gql_error_with_code(error.to_string(), code),
+                None => async_graphql::Error::new_with_source(error),
+            },
+            error if error.is_internal() => {
+                error!(error = %error, "internal error while serving a request");
+                async_graphql::Error::new("Internal server error")
+            }
+            error => async_graphql::Error::new_with_source(error),
+        }
+    }
+}
+
+/// Errors the graph layer reports through [`GraphError`], spelled out one by one so that
+/// none can reach the client by another route than the one [`GQLError`] gives it.
+impl From<ParseTimeError> for GQLError {
+    fn from(error: ParseTimeError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<PropTypeError> for GQLError {
+    fn from(error: PropTypeError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<SeedError> for GQLError {
+    fn from(error: SeedError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<StorageError> for GQLError {
+    fn from(error: StorageError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+impl From<GraphFolderError> for GQLError {
+    fn from(error: GraphFolderError) -> Self {
+        GraphError::from(error).into()
+    }
+}
+
+#[cfg(feature = "rdf")]
+impl From<RdfError> for GQLError {
+    fn from(error: RdfError) -> Self {
+        SparqlError::from(error).into()
+    }
 }
 
 #[cfg(feature = "vectors")]
-impl From<raphtory_vectors::errors::VectorError> for GQLError {
-    fn from(error: raphtory_vectors::errors::VectorError) -> Self {
-        GQLError::GraphError(error.into())
+impl From<VectorError> for GQLError {
+    fn from(error: VectorError) -> Self {
+        GraphError::from(error).into()
     }
 }
 
@@ -63,10 +201,10 @@ mod graphql_test {
         auth::Access,
         auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
         config::app_config::AppConfig,
-        data::{data_tests::save_graphs_to_work_dir, Data},
+        data::{data_tests::save_graphs_to_work_dir, Data, PermissionError},
         model::App,
         test_support::{
-            assert_is_namespace_dir, run_mutation, run_mutation_as_user, setup_with_graphs,
+            assert_is_namespace_dir, run_query, run_query_as_user, setup_with_graphs,
             setup_with_policy,
         },
         url_encode::{url_decode_graph_at, url_encode_graph},
@@ -2131,7 +2269,7 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res = run_mutation(
+            let res = run_query(
                 &setup.schema,
                 r#"mutation { createNamespace(path: "foo") }"#,
             )
@@ -2172,7 +2310,7 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res = run_mutation(
+            let res = run_query(
                 &setup.schema,
                 r#"mutation { createNamespace(path: "a/b/c") }"#,
             )
@@ -2211,8 +2349,7 @@ mod graphql_test {
             let g: MaterializedGraph = g.into();
             let setup = setup_with_graphs(&[("g", g)], work_dir.path()).await;
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "g") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "g") }"#).await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
 
             assert!(setup.data.get_graph_for_test("g").await.is_ok());
@@ -2225,12 +2362,10 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
             assert_eq!(res.errors, vec![]);
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             assert!(
                 res.errors[0].message.contains("Namespace"),
@@ -2258,7 +2393,7 @@ mod graphql_test {
                     r#"mutation {{ createNamespace(path: "{}") }}"#,
                     path.replace('"', r#"\""#),
                 );
-                let res = run_mutation(&setup.schema, &query).await;
+                let res = run_query(&setup.schema, &query).await;
                 assert!(
                     !res.errors.is_empty(),
                     "expected error for path {:?}, got {:?}",
@@ -2286,7 +2421,7 @@ mod graphql_test {
                 Arc::new(FakePolicy::default().with_namespace("", NamespacePermission::Read));
             let setup = setup_with_policy(&[], work_dir.path(), policy).await;
 
-            let res = run_mutation_as_user(
+            let res = run_query_as_user(
                 &setup.schema,
                 r#"mutation { createNamespace(path: "foo") }"#,
             )
@@ -2329,7 +2464,7 @@ mod graphql_test {
                 policy,
             )
             .await;
-            let res = run_mutation_as_user(
+            let res = run_query_as_user(
                 &setup.schema,
                 r#"query { root { graphs { list { path } } } }"#,
             )
@@ -2349,20 +2484,19 @@ mod graphql_test {
                     .with_fault("g_bad"),
             );
             let setup = setup_with_policy(&[], work_dir.path(), policy).await;
-            let res = run_mutation_as_user(
+            let res = run_query_as_user(
                 &setup.schema,
                 r#"query { root { graphs { list { path } } } }"#,
             )
             .await;
-            assert!(
-                !res.errors.is_empty(),
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
                 "a fault must fail the listing, got {:?}",
                 res.data,
-            );
-            assert!(
-                res.errors[0].message.contains("test fault"),
-                "the fault, not a denial, must surface: {}",
-                res.errors[0].message,
             );
         }
     }
@@ -2380,7 +2514,7 @@ mod graphql_test {
             let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"query { graph(path: "g") { path } }"#).await;
+                run_query_as_user(&setup.schema, r#"query { graph(path: "g") { path } }"#).await;
             assert_eq!(
                 res.errors,
                 vec![],
@@ -2390,11 +2524,43 @@ mod graphql_test {
         }
     }
 
-    /// The write gate reports a fault as an error carrying the fault's message, not as a
-    /// permission denial: a caller refused because the server is broken should not be told
-    /// they lack access.
     #[tokio::test]
-    async fn test_policy_fault_on_write_gate_reports_the_fault() {
+    async fn test_policy_fault_on_namespace_lookup_stays_hidden() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_fault("namespace")
+                    .with_fault("not_namespace"),
+            );
+            let setup = setup_with_policy(&[("namespace/g", g)], work_dir.path(), policy).await;
+
+            let res = run_query_as_user(
+                &setup.schema,
+                r#"query { namespace(path: "namespace") { path } }"#,
+            )
+            .await;
+            assert_eq!(res.errors.len(), 1);
+            assert!(!res.errors[0].message.contains("test fault resolving"));
+
+            // missing namespace with faulty policy shows the same error
+            let res = run_query_as_user(
+                &setup.schema,
+                r#"query { namespace(path: "not_namespace") { path } }"#,
+            )
+            .await;
+            assert_eq!(res.errors.len(), 1);
+            assert!(!res.errors[0].message.contains("test fault resolving"));
+        }
+    }
+
+    /// The write gate answers a fault as the read gate does: one generic policy error, with the
+    /// fault's own message kept in the log. A caller refused because the server is broken is
+    /// told neither that they lack access nor what broke.
+    #[tokio::test]
+    async fn test_policy_fault_on_write_gate_is_generic() {
         let work_dir = TempDir::new().unwrap();
         {
             let g = Graph::new();
@@ -2402,40 +2568,110 @@ mod graphql_test {
             let policy = Arc::new(FakePolicy::default().with_fault("g"));
             let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
 
-            let res = run_mutation_as_user(
+            let res = run_query_as_user(
                 &setup.schema,
                 r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
             )
             .await;
-            assert!(!res.errors.is_empty(), "expected error, got {:?}", res.data);
-            assert!(
-                res.errors[0].message.contains("test fault"),
-                "the fault, not a denial, must surface: {}",
-                res.errors[0].message,
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
             );
         }
     }
 
+    /// A permission error that reaches the client through `?` keeps its machine-readable
+    /// code, so a client can tell a policy fault from a denial without reading the message.
     #[tokio::test]
-    async fn test_delete_namespace_empty() {
+    async fn test_policy_fault_through_question_mark_keeps_its_code() {
         let work_dir = TempDir::new().unwrap();
         {
-            let setup = setup_with_graphs(&[], work_dir.path()).await;
-
+            let g: MaterializedGraph = Graph::new().into();
+            let policy = Arc::new(FakePolicy::default().with_fault("team"));
+            let setup = setup_with_policy(&[("team/g", g)], work_dir.path(), policy).await;
             let res =
-                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
-            assert_eq!(res.errors, vec![]);
-            assert!(work_dir.path().join("ns").is_dir());
-
-            let res =
-                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
-            assert_eq!(res.errors, vec![]);
+                run_query_as_user(&setup.schema, r#"query { namespaces { list { path } } }"#).await;
+            let errors = serde_json::to_value(&res.errors).unwrap();
+            let seen: Vec<_> = errors
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| (e["message"].clone(), e["extensions"]["code"].clone()))
+                .collect();
             assert_eq!(
-                res.data.into_json().unwrap(),
-                json!({ "deleteNamespace": true }),
+                seen,
+                vec![(
+                    json!(PermissionError::AuthPolicyError.to_string()),
+                    json!(crate::data::CODE_AUTH_ERROR),
+                )],
             );
-            assert!(!work_dir.path().join("ns").exists());
-            assert_is_namespace_dir(work_dir.path());
+        }
+    }
+
+    /// The namespace write gate answers a fault with the generic policy error, never with
+    /// the fault's own message.
+    #[tokio::test]
+    async fn test_policy_fault_on_namespace_write_gate_is_generic() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let policy = Arc::new(FakePolicy::default().with_fault(""));
+            let setup = setup_with_policy(&[], work_dir.path(), policy).await;
+            let res = run_query_as_user(
+                &setup.schema,
+                r#"mutation { newGraph(path: "g", graphType: EVENT) }"#,
+            )
+            .await;
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::AuthPolicyError.to_string().as_str()],
+            );
+        }
+    }
+
+    /// A caller with no grant on the graph is answered on a write exactly as on a read:
+    /// the graph is missing unless they can already see its namespace, in which case
+    /// the denial may name it.
+    #[tokio::test]
+    async fn test_write_without_a_grant_is_hidden_like_a_read() {
+        let hidden_dir = TempDir::new().unwrap();
+        let visible_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let write = r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#;
+
+            let hidden = Arc::new(FakePolicy::default());
+            let setup = setup_with_policy(&[("g", g.clone())], hidden_dir.path(), hidden).await;
+            let res = run_query_as_user(&setup.schema, write).await;
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::GraphNotFound.to_string().as_str()],
+            );
+
+            let namespace_visible =
+                Arc::new(FakePolicy::default().with_namespace("", NamespacePermission::Read));
+            let setup = setup_with_policy(&[("g", g)], visible_dir.path(), namespace_visible).await;
+            let res = run_query_as_user(&setup.schema, write).await;
+            assert_eq!(
+                res.errors
+                    .iter()
+                    .map(|e| e.message.as_str())
+                    .collect::<Vec<_>>(),
+                vec![PermissionError::GraphAccessDenied {
+                    graph: "g".to_string()
+                }
+                .to_string()
+                .as_str()],
+            );
         }
     }
 
@@ -2452,7 +2688,7 @@ mod graphql_test {
             let setup =
                 setup_with_graphs(&[("ns/g1", g1), ("ns/sub/g2", g2)], work_dir.path()).await;
 
-            let res = run_mutation(
+            let res = run_query(
                 &setup.schema,
                 r#"mutation { createNamespace(path: "ns/empty") }"#,
             )
@@ -2460,8 +2696,7 @@ mod graphql_test {
             assert_eq!(res.errors, vec![]);
             assert!(work_dir.path().join("ns/empty").is_dir());
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
             assert_eq!(res.errors, vec![]);
             assert_eq!(
                 res.data.into_json().unwrap(),
@@ -2485,8 +2720,7 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "") }"#).await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
         }
     }
@@ -2497,7 +2731,7 @@ mod graphql_test {
         {
             let setup = setup_with_graphs(&[], work_dir.path()).await;
 
-            let res = run_mutation(
+            let res = run_query(
                 &setup.schema,
                 r#"mutation { deleteNamespace(path: "noexist") }"#,
             )
@@ -2528,7 +2762,7 @@ mod graphql_test {
                 setup_with_policy(&[("ns/g1", g1), ("ns/g2", g2)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             // Substring is from `require_graph_write` in raphtory-graphql/src/model/mod.rs.
@@ -2563,7 +2797,7 @@ mod graphql_test {
             let setup = setup_with_policy(&[("ns/g", g)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             assert!(
@@ -2596,7 +2830,7 @@ mod graphql_test {
             let setup = setup_with_policy(&[("ns/g", g)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             assert!(
@@ -2630,7 +2864,7 @@ mod graphql_test {
             let setup = setup_with_policy(&[("ns/sub/g", g)], work_dir.path(), policy).await;
 
             let res =
-                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                run_query_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
                     .await;
             assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
             assert!(
@@ -2659,8 +2893,7 @@ mod graphql_test {
             setup.data.get_graph_for_test("ns/g").await.unwrap();
             assert!(setup.data.get_cached_graph("ns/g").await.is_some());
 
-            let res =
-                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+            let res = run_query(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
             assert_eq!(res.errors, vec![]);
             assert_eq!(
                 res.data.into_json().unwrap(),
@@ -2775,7 +3008,7 @@ mod graphql_test {
             }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(res.errors, vec![], "loadNodes mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"loadNodes": true}));
 
@@ -2867,7 +3100,7 @@ mod graphql_test {
             }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(res.errors, vec![], "loadEdges mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"loadEdges": true}));
 
@@ -2962,7 +3195,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(
             res.errors,
             vec![],
@@ -2997,7 +3230,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert!(
             !res.errors.is_empty(),
             "path within the work dir should be rejected"
@@ -3038,7 +3271,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert!(
             !res.errors.is_empty(),
             "path outside allowlist should be rejected"
@@ -3080,7 +3313,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert!(
             !res.errors.is_empty(),
             "empty allowlist should deny any path"
@@ -3158,7 +3391,7 @@ mod graphql_test {
             }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(
             res.errors,
             vec![],
@@ -3215,7 +3448,7 @@ mod graphql_test {
             r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
-        let res = run_mutation(&schema, &mutation).await;
+        let res = run_query(&schema, &mutation).await;
         assert_eq!(
             res.errors,
             vec![],
@@ -3237,7 +3470,7 @@ mod graphql_test {
             .unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
-        let res = run_mutation(&schema, r#"mutation { flush(graphPath: "g") }"#).await;
+        let res = run_query(&schema, r#"mutation { flush(graphPath: "g") }"#).await;
         assert_eq!(res.errors, vec![], "flush mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"flush": true}));
     }
@@ -3250,14 +3483,14 @@ mod graphql_test {
     /// this reported 0/0.
     #[tokio::test]
     async fn test_namespace_listing_counts_after_flush() {
-        use crate::test_support::{run_mutation, setup_with_graphs};
+        use crate::test_support::{run_query, setup_with_graphs};
 
         let work_dir = tempdir().unwrap();
 
         let session = setup_with_graphs(&[], work_dir.path()).await;
 
         // Graph lives inside the `people` namespace so we can list it below.
-        let created = run_mutation(
+        let created = run_query(
             &session.schema,
             r#"mutation { newGraph(path: "people/g", graphType: EVENT) }"#,
         )
@@ -3266,7 +3499,7 @@ mod graphql_test {
 
         // `updateGraph` is a side-effecting field on the query root.
         // `addEdge` implicitly creates both endpoints: 2 nodes, 1 edge.
-        let written = run_mutation(
+        let written = run_query(
             &session.schema,
             r#"query { updateGraph(path: "people/g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
         )
@@ -3274,7 +3507,7 @@ mod graphql_test {
         assert_eq!(written.errors, vec![], "addEdge errored");
 
         // Separate request so `flush` is ordered after the writes.
-        let flushed = run_mutation(
+        let flushed = run_query(
             &session.schema,
             r#"query { updateGraph(path: "people/g") { flush } }"#,
         )
@@ -3711,7 +3944,7 @@ mod graphql_test {
             mutation {
                 createSubgraph(newPath: "sg", parentPath: "g", nodes: [1], overwrite: false)
             }"#;
-        let res = run_mutation(&setup.schema, query).await;
+        let res = run_query(&setup.schema, query).await;
         assert_eq!(res.errors, vec![], "{:?}", res.errors);
     }
 }

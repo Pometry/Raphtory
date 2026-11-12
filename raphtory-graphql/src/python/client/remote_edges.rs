@@ -72,10 +72,10 @@ impl PyRemoteEdges {
         PyRemoteEdges::new(self.edges.sorted(inner))
     }
 
-    /// Filter this collection by a filter expression. **The filter
-    /// propagates**: it applies to the current collection's membership *and*
-    /// to downstream traversals from the matching edges. For a
-    /// narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
+    /// Filter this collection by a filter expression. Every edge stays in the
+    /// collection; the filter scopes what is reached through them and carries
+    /// through later traversals. To keep only the matching edges, use
+    /// `.select(...)`. Lazy — no RPC.
     ///
     /// Arguments:
     ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.

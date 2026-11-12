@@ -17,8 +17,9 @@ use crate::{
         },
         schema::graph_schema::GraphSchema,
     },
-    paths::{PathValidationError, UnlockedGraphFolder, ValidGraphPaths},
+    paths::{UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
@@ -35,7 +36,6 @@ use raphtory::{
         },
         graph::node::NodeView,
     },
-    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
@@ -49,7 +49,7 @@ use std::{collections::HashSet, convert::Into};
 #[graphql(name = "Graph")]
 pub struct GqlGraph {
     path: UnlockedGraphFolder,
-    graph: DynamicGraph,
+    pub(crate) graph: DynamicGraph,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -207,7 +207,7 @@ impl GqlGraph {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlGraphWindowSet, GraphError> {
+    ) -> Result<GqlGraphWindowSet, GQLError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if let Some(unit) = alignment_unit {
@@ -235,7 +235,7 @@ impl GqlGraph {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlGraphWindowSet, GraphError> {
+    ) -> Result<GqlGraphWindowSet, GQLError> {
         let step = step.try_into_interval()?;
         let ws = if let Some(unit) = alignment_unit {
             self.graph.expanding_aligned(step, unit.into())?
@@ -334,39 +334,39 @@ impl GqlGraph {
     /// Filesystem creation timestamp (epoch millis) of the graph's on-disk folder
     /// — i.e. when this graph was first saved to the server, not when its earliest
     /// event occurred. Use `earliestTime` for the latter.
-    pub async fn created(&self) -> Result<i64> {
+    pub async fn created(&self) -> Result<i64, GQLError> {
         Ok(self.path.created_async().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
-    pub async fn last_opened(&self) -> Result<i64> {
+    pub async fn last_opened(&self) -> Result<i64, GQLError> {
         Ok(self.path.last_opened_async().await?)
     }
 
     /// Returns the graph's last updated timestamp.
-    pub async fn last_updated(&self) -> Result<i64> {
+    pub async fn last_updated(&self) -> Result<i64, GQLError> {
         Ok(self.path.last_updated_async().await?)
     }
 
     /// Returns the time entry of the earliest activity in the graph.
-    pub async fn earliest_time(&self) -> Result<GqlEventTime> {
+    pub async fn earliest_time(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.graph.earliest_time().into()).await)
     }
 
     /// Returns the time entry of the latest activity in the graph.
-    pub async fn latest_time(&self) -> Result<GqlEventTime> {
+    pub async fn latest_time(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.graph.latest_time().into()).await)
     }
 
     /// Returns the start time of the window. Errors if there is no window.
-    pub async fn start(&self) -> Result<GqlEventTime> {
+    pub async fn start(&self) -> Result<GqlEventTime, GQLError> {
         Ok(self.graph.start().into())
     }
 
     /// Returns the end time of the window. Errors if there is no window.
-    pub async fn end(&self) -> Result<GqlEventTime> {
+    pub async fn end(&self) -> Result<GqlEventTime, GQLError> {
         Ok(self.graph.end().into())
     }
 
@@ -392,7 +392,7 @@ impl GqlGraph {
             desc = "If false, edge events with a timestamp `< 0` are skipped when computing the minimum. Defaults to true."
         )]
         include_negative: Option<bool>,
-    ) -> Result<GqlEventTime> {
+    ) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -419,7 +419,7 @@ impl GqlGraph {
             desc = "If false, edge events with a timestamp `< 0` are skipped when computing the maximum. Defaults to true."
         )]
         include_negative: Option<bool>,
-    ) -> Result<GqlEventTime> {
+    ) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -474,7 +474,7 @@ impl GqlGraph {
     pub async fn has_node(
         &self,
         #[graphql(desc = "Node id to look up.")] name: GqlNodeId,
-    ) -> Result<bool> {
+    ) -> Result<bool, GQLError> {
         Ok(self.graph.has_node(name))
     }
 
@@ -488,7 +488,7 @@ impl GqlGraph {
             desc = "Optional; if provided, only checks whether the edge exists on this layer. If null or omitted, any layer counts."
         )]
         layer: Option<String>,
-    ) -> Result<bool> {
+    ) -> Result<bool, GQLError> {
         Ok(match layer {
             Some(name) => self
                 .graph
@@ -508,7 +508,7 @@ impl GqlGraph {
     pub async fn node(
         &self,
         #[graphql(desc = "Node id.")] name: GqlNodeId,
-    ) -> Result<Option<GqlNode>> {
+    ) -> Result<Option<GqlNode>, GQLError> {
         Ok(self.graph.node(name).map(|node| node.into()))
     }
 
@@ -519,7 +519,7 @@ impl GqlGraph {
             desc = "Optional filter expression made of node predicates, graph views, or and/or/not combinations (and is an intersection). Expressions that test edges are rejected. If omitted, every node in the view is returned."
         )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlNodes> {
+    ) -> Result<GqlNodes, GQLError> {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
@@ -536,7 +536,7 @@ impl GqlGraph {
         &self,
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
         #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
-    ) -> Result<Option<GqlEdge>> {
+    ) -> Result<Option<GqlEdge>, GQLError> {
         Ok(self.graph.edge(src, dst).map(|e| e.into()))
     }
 
@@ -547,7 +547,7 @@ impl GqlGraph {
             desc = "Optional filter expression made of edge predicates (including src/dst terms), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned."
         )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlEdges> {
+    ) -> Result<GqlEdges, GQLError> {
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
@@ -563,12 +563,12 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns the properties of the graph.
-    pub async fn properties(&self) -> Result<GqlProperties> {
+    pub async fn properties(&self) -> Result<GqlProperties, GQLError> {
         Ok(self.graph.properties().into())
     }
 
     /// Returns the metadata of the graph.
-    pub async fn metadata(&self) -> Result<GqlMetadata> {
+    pub async fn metadata(&self) -> Result<GqlMetadata, GQLError> {
         Ok(self.graph.metadata().into())
     }
 
@@ -580,8 +580,8 @@ impl GqlGraph {
     //if someone write non-utf characters as a filename
 
     /// Returns the graph name.
-    pub async fn name(&self) -> Result<String, PathValidationError> {
-        self.path.get_graph_name()
+    pub async fn name(&self) -> Result<String, GQLError> {
+        Ok(self.path.get_graph_name()?)
     }
 
     /// Returns path of graph.
@@ -599,7 +599,7 @@ impl GqlGraph {
     }
 
     /// Returns the graph schema.
-    pub async fn schema(&self) -> Result<GraphSchema> {
+    pub async fn schema(&self) -> Result<GraphSchema, GQLError> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
     }
@@ -617,7 +617,7 @@ impl GqlGraph {
             desc = "Node ids whose common neighbours you want. Returns an empty list if `selectedNodes` is empty or any id does not exist."
         )]
         selected_nodes: Vec<GqlNodeId>,
-    ) -> Result<Vec<GqlNode>> {
+    ) -> Result<Vec<GqlNode>, GQLError> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             if selected_nodes.is_empty() {
@@ -670,7 +670,7 @@ impl GqlGraph {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Destination graph path relative to the root namespace.")] path: String,
-    ) -> Result<bool> {
+    ) -> Result<bool, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let other_g = data
             .get_graph_with_write_permission(ctx, path.as_ref())
@@ -691,10 +691,10 @@ impl GqlGraph {
     pub async fn filter(
         &self,
         #[graphql(
-            desc = "Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. A `view` cannot appear under `or` or `not`. If omitted, applies the identity filter."
+            desc = "Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. Views alone combine under `or` and `not` into one view; a `view` beside a predicate cannot appear under `or` or `not`. If omitted, applies the identity filter."
         )]
         expr: Option<GqlFilter>,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let Some(expr) = expr else {

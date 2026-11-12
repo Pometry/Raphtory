@@ -9,7 +9,7 @@ use crate::{
 use rand::{
     distr::{Bernoulli, Distribution},
     seq::IteratorRandom,
-    Rng,
+    Rng, RngExt,
 };
 use rand_distr::Exp;
 use raphtory_api::core::{
@@ -131,7 +131,7 @@ impl IntoSeeds for Number {
                 .nodes()
                 .iter()
                 .map(|node| node.node)
-                .choose_multiple(rng, num_seeds))
+                .sample(rng, num_seeds))
         }
     }
 }
