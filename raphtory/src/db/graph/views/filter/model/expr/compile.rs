@@ -230,30 +230,49 @@ fn indexed_column(
     predicate: &NodePropPredicate,
 ) -> Option<NodeList> {
     let (prop_id, dtype) = graph.node_meta().get_prop_id_and_type(name, metadata)?;
-    let convert = |value: &Prop| {
-        // float vs integer compares through f64 and can round; index keys are exact
-        if matches!(value, Prop::F32(_) | Prop::F64(_))
-            && !matches!(dtype, PropType::F32 | PropType::F64)
-        {
-            return None;
-        }
+    // `last()` of a list-valued history is each update's last element, which
+    // the history need not hold
+    if history && matches!(dtype, PropType::List(_)) {
+        return None;
+    }
+    // the constant in the column's type; a float meets an integer column
+    // through f64, exact below 2^53, so it is rounded to the bound `round` keeps
+    let convert = |value: &Prop, round: fn(f64) -> f64| {
+        let value = match (value.as_f64_lossless(), &dtype) {
+            (None, _) | (Some(_), PropType::F32 | PropType::F64) => value.clone(),
+            (
+                Some(float),
+                PropType::U8
+                | PropType::U16
+                | PropType::U32
+                | PropType::U64
+                | PropType::I32
+                | PropType::I64,
+            ) => {
+                let bound = round(float);
+                (bound.abs() < 2f64.powi(53)).then_some(Prop::F64(bound))?
+            }
+            _ => return None,
+        };
         value
             .clone()
             .cast(dtype.clone())
-            .filter(|converted| converted.equals(value))
+            .filter(|converted| converted.equals(&value))
     };
+    let exact: fn(f64) -> f64 = |float| float;
     let (mut value, mut members) = (None, None);
     let predicate = match *predicate {
-        NodePropPredicate::Eq(v) => NodePropPredicate::Eq(value.insert(convert(v)?)),
-        NodePropPredicate::Lt(v) => NodePropPredicate::Lt(value.insert(convert(v)?)),
-        NodePropPredicate::Le(v) => NodePropPredicate::Le(value.insert(convert(v)?)),
-        NodePropPredicate::Gt(v) => NodePropPredicate::Gt(value.insert(convert(v)?)),
-        NodePropPredicate::Ge(v) => NodePropPredicate::Ge(value.insert(convert(v)?)),
-        // a member that fails to convert can still match (1.0 vs 1, or a history), so not served
+        NodePropPredicate::Eq(v) => NodePropPredicate::Eq(value.insert(convert(v, exact)?)),
+        NodePropPredicate::Lt(v) => NodePropPredicate::Lt(value.insert(convert(v, f64::ceil)?)),
+        NodePropPredicate::Le(v) => NodePropPredicate::Le(value.insert(convert(v, f64::floor)?)),
+        NodePropPredicate::Gt(v) => NodePropPredicate::Gt(value.insert(convert(v, f64::floor)?)),
+        NodePropPredicate::Ge(v) => NodePropPredicate::Ge(value.insert(convert(v, f64::ceil)?)),
+        // a member that fails to convert can still match (a float past 2^53, or a
+        // whole history), so not served
         NodePropPredicate::In(set) => NodePropPredicate::In(
             members.insert(
                 set.iter()
-                    .map(|member| convert(&member.0).map(HashableProp))
+                    .map(|member| convert(&member.0, exact).map(HashableProp))
                     .collect::<Option<HashSet<_>>>()?,
             ),
         ),
