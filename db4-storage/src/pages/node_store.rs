@@ -149,6 +149,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let (segment_id, pos) = self.storage.resolve_pos(vid);
         segment_id < self.segments.len() && pos.0 < self.segments[segment_id].num_nodes()
     }
+
+    #[inline(always)]
+    pub fn storage(&self) -> &NodeStorageInner<NS, EXT> {
+        &self.storage
+    }
+
+    #[inline(always)]
+    pub fn segments(&self) -> &[NS::ArcLockedSegment] {
+        &self.segments
+    }
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
