@@ -231,7 +231,8 @@ fn indexed_column(
 ) -> Option<NodeList> {
     let (prop_id, dtype) = graph.node_meta().get_prop_id_and_type(name, metadata)?;
     // `last()` of a list-valued history is each update's last element, which
-    // the history need not hold
+    // the history need not hold. A list index must revisit this: keyed on whole
+    // lists it can serve `latest()`, keyed on elements it can serve `last()`
     if history && matches!(dtype, PropType::List(_)) {
         return None;
     }
@@ -1230,11 +1231,13 @@ impl<L: Leaf> Expr<L> {
         matches!(self, Expr::Term(leaf) if leaf.reads_history())
     }
 
-    /// The nodes that may satisfy `predicate`: a term's, or the last value of
-    /// its history.
+    /// The nodes that may satisfy `predicate`: a term's, or the latest update
+    /// of its history.
     fn named_by(&self, predicate: &NodePropPredicate, graph: &DynGraphArc<'_>) -> Option<NodeList> {
         match self {
             Expr::Term(leaf) => leaf.named_by(predicate, graph),
+            // `last()` is the latest update only on a history of scalars;
+            // `indexed_column` refuses list-valued histories
             Expr::Agg(Agg::Last | Agg::Latest, inner) if inner.reads_history() => {
                 inner.named_by(predicate, graph)
             }
