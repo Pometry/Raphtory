@@ -183,8 +183,6 @@ where
 
             // Insert prop ids into edge meta.
             unify_types(edge_meta, &props, true)?;
-            // Replay marks presence while holding segment locks. This is only safe because it runs
-            // before any locked graph exists.
             edge_meta
                 .temporal_prop_mapper()
                 .mark_props_in_layer(layer_id, props.iter().map(|(_, id, _)| *id));

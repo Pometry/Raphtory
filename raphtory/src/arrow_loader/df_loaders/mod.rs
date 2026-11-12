@@ -211,7 +211,14 @@ pub(crate) fn load_graph_props_from_df<
             })?;
         // the rows below write with ids resolved here, without going through validation
         mark_chunk_prop_presence(
-            graph.graph_props_meta(),
+            &mut graph
+                .graph_props_meta()
+                .temporal_prop_mapper()
+                .write_locked_layer_presence(),
+            &mut graph
+                .graph_props_meta()
+                .metadata_mapper()
+                .write_locked_layer_presence(),
             None,
             &[MemGraphPropSegment::DEFAULT_LAYER],
             &prop_cols,

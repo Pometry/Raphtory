@@ -163,6 +163,10 @@ impl LockedDictMapper<'_> {
         self.map.get(name).copied()
     }
 
+    pub fn get_name(&self, prop_id: usize) -> Option<&ArcStr> {
+        self.reverse_map.get(prop_id)
+    }
+
     pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
         &self.map
     }

@@ -186,6 +186,14 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         // held for the whole load
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        let mut prop_presence = graph
+            .node_meta()
+            .temporal_prop_mapper()
+            .write_locked_layer_presence();
+        let mut meta_presence = graph
+            .node_meta()
+            .metadata_mapper()
+            .write_locked_layer_presence();
         let node_stats = write_locked_graph.node_stats().clone();
         let max_node_segment_len = write_locked_graph
             .graph()
@@ -239,7 +247,8 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             // mark this chunk's (layer, prop) presence once
             mark_chunk_prop_presence(
-                graph.node_meta(),
+                &mut prop_presence,
+                &mut meta_presence,
                 layer_col_resolved.as_deref(),
                 &distinct_layers,
                 &prop_cols,
@@ -417,6 +426,10 @@ pub fn load_node_props_from_df<
 
     // held for the whole load
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+    let mut meta_presence = graph
+        .node_meta()
+        .metadata_mapper()
+        .write_locked_layer_presence();
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -446,7 +459,7 @@ pub fn load_node_props_from_df<
 
         // mark this chunk's (layer, prop) presence once
         mark_chunk_metadata_presence(
-            graph.node_meta(),
+            &mut meta_presence,
             layer_col_resolved.as_deref(),
             &distinct_layers,
             &metadata_cols,

@@ -3,7 +3,7 @@ use arrow::array::{Array, ArrayRef};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::{Meta, WriteLockedLayerPresence},
+            meta::WriteLockedLayerPresence,
             prop::{
                 data_type_as_prop_type,
                 prop_col::{lift_property_col, PropCol},
@@ -125,7 +125,8 @@ impl PropCols {
 /// are appended. Loaders call this while holding the graph's write lock, which keeps
 /// out locked graphs (the only long-held presence read locks) so marking never waits on one.
 pub fn mark_chunk_prop_presence(
-    node_or_edge_meta: &Meta,
+    prop_presence: &mut WriteLockedLayerPresence,
+    meta_presence: &mut WriteLockedLayerPresence,
     layer_per_row: Option<&[usize]>,
     distinct_layers: &[LayerId],
     t_props: &PropCols,
@@ -133,16 +134,10 @@ pub fn mark_chunk_prop_presence(
     shared_metadata_ids: &[usize],
 ) {
     if !t_props.prop_ids().is_empty() {
-        t_props.mark_layer_prop_pairs(
-            layer_per_row,
-            distinct_layers,
-            &mut node_or_edge_meta
-                .temporal_prop_mapper()
-                .write_locked_layer_presence(),
-        );
+        t_props.mark_layer_prop_pairs(layer_per_row, distinct_layers, prop_presence);
     }
     mark_chunk_metadata_presence(
-        node_or_edge_meta,
+        meta_presence,
         layer_per_row,
         distinct_layers,
         metadata,
@@ -152,7 +147,7 @@ pub fn mark_chunk_prop_presence(
 
 /// As [`mark_chunk_prop_presence`], for a chunk that only writes metadata.
 pub fn mark_chunk_metadata_presence(
-    node_or_edge_meta: &Meta,
+    meta_presence: &mut WriteLockedLayerPresence,
     layer_per_row: Option<&[usize]>,
     distinct_layers: &[LayerId],
     metadata: &PropCols,
@@ -161,17 +156,13 @@ pub fn mark_chunk_metadata_presence(
     if metadata.prop_ids().is_empty() && shared_metadata_ids.is_empty() {
         return;
     }
-
-    let mut meta_presence = node_or_edge_meta
-        .metadata_mapper()
-        .write_locked_layer_presence();
     // shared metadata is on every row, so it is present in every layer here
     for &layer in distinct_layers {
         for &id in shared_metadata_ids.iter() {
             meta_presence.mark(layer, id);
         }
     }
-    metadata.mark_layer_prop_pairs(layer_per_row, distinct_layers, &mut meta_presence);
+    metadata.mark_layer_prop_pairs(layer_per_row, distinct_layers, meta_presence);
 }
 
 pub fn combine_properties_arrow<E>(

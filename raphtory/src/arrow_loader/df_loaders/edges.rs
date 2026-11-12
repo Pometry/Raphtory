@@ -229,6 +229,14 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
     // held for the whole load
     let mut write_locked_graph = graph.write_lock()?;
+    let mut prop_presence = graph
+        .edge_meta()
+        .temporal_prop_mapper()
+        .write_locked_layer_presence();
+    let mut meta_presence = graph
+        .edge_meta()
+        .metadata_mapper()
+        .write_locked_layer_presence();
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -264,7 +272,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         // mark this chunk's per-layer property presence once
         mark_chunk_prop_presence(
-            graph.edge_meta(),
+            &mut prop_presence,
+            &mut meta_presence,
             Some(&layer_col_resolved),
             &distinct,
             &prop_cols,

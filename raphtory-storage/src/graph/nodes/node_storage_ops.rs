@@ -55,15 +55,6 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a>;
 
-    fn temporal_prop_iter(
-        self,
-        layer_ids: &'a LayerIds,
-        prop_id: usize,
-    ) -> impl Iterator<Item = (LayerId, storage::NodeTProps<'a>)> + 'a {
-        self.layer_ids_iter(layer_ids)
-            .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
-    }
-
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a>;
 
     /// Number of layers in the underlying storage for this node.
@@ -72,20 +63,14 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     /// Iterate over `NodeTProps` for each layer specified by `layer_ids`, always
     /// including `STATIC_GRAPH_LAYER_ID` (the layer for nodes added without an
     /// explicit layer name). Unlayered nodes must be visible in every view.
-    /// Skips layers where `has_prop` is false, i.e. the presence bitset says `prop_id`
-    /// was never written there.
-    fn tprop_iter_layers<F>(
+    fn tprop_iter_layers(
         self,
         layer_ids: &LayerIds,
         prop_id: usize,
-        layer_has_prop: F,
-    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + use<'a, Self, F>
-    where
-        F: Fn(LayerId) -> bool + Send + Sync + 'a,
+    ) -> impl Iterator<Item = (LayerId, storage::NodeTProps<'a>)> + Send + Sync + use<'a, Self>
     {
         layer_ids_with_static(self.num_layers(), layer_ids)
-            .filter(move |&id| layer_has_prop(id))
-            .map(move |id| self.temporal_prop_layer(id, prop_id))
+            .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
     fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;

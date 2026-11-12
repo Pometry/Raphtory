@@ -548,6 +548,12 @@ fn presence_has(presence: &[Vec<bool>], layer_id: LayerId, prop_id: usize) -> bo
         .is_some_and(|row| row.get(prop_id).copied().unwrap_or(false))
 }
 
+fn presence_any_has(presence: &[Vec<bool>], prop_id: usize) -> bool {
+    presence
+        .iter()
+        .any(|layer| layer.get(prop_id).copied().unwrap_or(false))
+}
+
 #[inline]
 fn ensure_and_set(presence: &mut Vec<Vec<bool>>, layer_idx: usize, prop_id: usize) -> bool {
     if presence.len() <= layer_idx {
@@ -588,14 +594,6 @@ impl WriteLockedLayerPresence {
         ensure_and_set(&mut self.presence, layer_id.0, prop_id)
     }
 
-    /// Mark a whole set of `(layer, prop)` pairs at once, taking the write lock once for
-    /// the entire set. Used in bulk loading.
-    pub fn mark_prop_layer_pairs(&mut self, pairs: impl IntoIterator<Item = (LayerId, usize)>) {
-        for (layer, prop_id) in pairs {
-            ensure_and_set(&mut self.presence, layer.0, prop_id);
-        }
-    }
-
     pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
         presence_has(&self.presence, layer_id, prop_id)
     }
@@ -609,6 +607,10 @@ impl ReadLockedLayerPresence {
     #[inline]
     pub fn has(&self, layer_id: LayerId, prop_id: usize) -> bool {
         presence_has(&self.0, layer_id, prop_id)
+    }
+
+    pub fn any_layer_has(&self, prop_id: usize) -> bool {
+        presence_any_has(&self.0, prop_id)
     }
 }
 
@@ -815,8 +817,16 @@ impl<'a> LockedPropMapper<'a> {
         self.dict_mapper.get_id(prop)
     }
 
-    pub fn get_dtype(&'a self, prop_id: usize) -> Option<&'a PropType> {
+    pub fn get_dtype(&self, prop_id: usize) -> Option<&PropType> {
         self.d_types.get(prop_id)
+    }
+
+    pub fn get_name(&self, prop_id: usize) -> Option<&ArcStr> {
+        self.dict_mapper.get_name(prop_id)
+    }
+
+    pub fn get_name_and_dtype(&self, prop_id: usize) -> Option<(&ArcStr, &PropType)> {
+        self.get_name(prop_id).zip(self.get_dtype(prop_id))
     }
 
     /// Fast check for property type without unifying the types

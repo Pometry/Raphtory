@@ -1,7 +1,7 @@
 use crate::{
     model::schema::{
-        collect_variants, property_schema::PropertySchema, DEFAULT_NODE_TYPE,
-        MAX_DETAILED_SCHEMA_ENTITIES, MAX_NODE_VARIANTS,
+        collect_no_variants, collect_variants, property_schema::PropertySchema,
+        visible_ids_any_layer, DEFAULT_NODE_TYPE, MAX_DETAILED_SCHEMA_ENTITIES, MAX_VARIANTS,
     },
     rayon::blocking_compute,
 };
@@ -16,7 +16,7 @@ use raphtory::{
     },
     prelude::*,
 };
-use raphtory_api::core::entities::{properties::meta::PropMapper, LayerIds};
+use raphtory_api::core::entities::LayerIds;
 use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Describes nodes of a specific type in a graph — its property keys and
@@ -78,59 +78,37 @@ impl NodeSchema {
         NodeFilteredGraph::new(self.graph.clone(), filter)
     }
 
-    /// Keys this view may report: visible here and marked in the per-layer presence bitset.
-    ///
-    /// Materialized graphs `deep_clone` the `PropMapper`, so prop names/ids can
-    /// leak in from the source graph. The presence bitset is not cloned, so it is
-    /// what tells us whether the property has values in *this* graph.
-    fn reportable(mapper: &PropMapper, visible: ahash::HashSet<usize>) -> impl Fn(usize) -> bool {
-        let present = mapper.props_in_any_layer();
-        move |id| visible.contains(&id) && present.get(id) == Some(&true)
-    }
-
-    /// Keys and types only, no value scan - for graphs too big to sample.
-    fn keys_and_types(mapper: &PropMapper, keep: impl Fn(usize) -> bool) -> Vec<PropertySchema> {
-        mapper
-            .locked()
-            .iter_ids_and_types()
-            .filter(|(id, _, _)| keep(*id))
-            .map(|(_, name, dtype)| PropertySchema::new(name.to_string(), dtype.clone(), vec![]))
-            .collect()
-    }
-
     fn properties_inner(&self) -> Vec<PropertySchema> {
         let mapper = self.graph.node_meta().temporal_prop_mapper();
-        let keep = Self::reportable(
-            mapper,
-            self.graph.node_visible_temporal_prop_ids().collect(),
-        );
+        let visible = visible_ids_any_layer(self.graph.node_visible_temporal_prop_ids(), mapper);
 
         if self.graph.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
-            Self::keys_and_types(mapper, keep)
+            collect_no_variants(mapper, &visible)
         } else {
             // one pass over this type's nodes
             collect_variants(
                 self.nodes_of_type().nodes().properties().into_iter_values(),
                 mapper,
-                MAX_NODE_VARIANTS,
-                keep,
+                MAX_VARIANTS,
+                &visible,
             )
         }
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
         let mapper = self.graph.node_meta().metadata_mapper();
-        let keep = Self::reportable(mapper, self.graph.node_visible_metadata_ids().collect());
+        let visible = visible_ids_any_layer(self.graph.node_visible_metadata_ids(), mapper);
 
         if self.graph.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
-            return Self::keys_and_types(mapper, keep);
+            collect_no_variants(mapper, &visible)
+        } else {
+            collect_variants(
+                self.nodes_of_type().nodes().metadata().into_iter_values(),
+                mapper,
+                MAX_VARIANTS,
+                &visible,
+            )
         }
-        collect_variants(
-            self.nodes_of_type().nodes().metadata().into_iter_values(),
-            mapper,
-            MAX_NODE_VARIANTS,
-            keep,
-        )
     }
 }
 
