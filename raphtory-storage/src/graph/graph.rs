@@ -10,7 +10,10 @@ use crate::graph::{
 use db4_graph::TemporalGraph;
 use itertools::Either;
 use raphtory_api::core::{
-    entities::{properties::meta::{LayerPresenceRef, Meta}, LayerId, LayerIds, LayerVariants, EID, VID},
+    entities::{
+        properties::meta::{LayerPresenceRef, Meta},
+        LayerId, LayerIds, LayerVariants, EID, VID,
+    },
     storage::graph_folder::{
         src_version as graph_src_version, version as graph_version, GraphFolder, GraphFolderError,
         GraphPaths,
