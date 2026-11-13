@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794588378667,
+  "lastUpdate": 1794596802228,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "RDF Benchmark": [
@@ -14639,6 +14639,1470 @@ window.BENCHMARK_DATA = {
             "name": "export/instant/to_rdf@10523",
             "value": 29882152380,
             "range": "± 40300413",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d0f45b83770af13064edc49867eb4a06cb5e753e",
+          "message": "Build(deps): bump pnpm/action-setup from 6.0.9 to 6.1.1 (#2888)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Ben Steer <ben.steer@pometry.com>",
+          "timestamp": "2026-11-13T18:07:24Z",
+          "tree_id": "8d5cca8ed4e6c2b5aee3435201b862d16ae90393",
+          "url": "https://github.com/Pometry/Raphtory/commit/d0f45b83770af13064edc49867eb4a06cb5e753e"
+        },
+        "date": 1794596796037,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "rdf_load/N-Triples_200k",
+            "value": 541440658,
+            "range": "± 3848781",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "rdf_load/Turtle_200k",
+            "value": 697227717,
+            "range": "± 5988301",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q01/raphtory",
+            "value": 1656992,
+            "range": "± 64508",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q01/store",
+            "value": 903619,
+            "range": "± 28814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q02/raphtory",
+            "value": 8160545,
+            "range": "± 152052",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q02/store",
+            "value": 3488086,
+            "range": "± 165164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q03/raphtory",
+            "value": 5956136,
+            "range": "± 435354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q03/store",
+            "value": 3843842,
+            "range": "± 141721",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q04/raphtory",
+            "value": 3392610,
+            "range": "± 77760",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q04/store",
+            "value": 2205185,
+            "range": "± 37412",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q05/raphtory",
+            "value": 74255689,
+            "range": "± 1404222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q05/store",
+            "value": 17209009,
+            "range": "± 184146",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q07/raphtory",
+            "value": 7496294,
+            "range": "± 233443",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q07/store",
+            "value": 3487443,
+            "range": "± 168204",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q08/raphtory",
+            "value": 5887948,
+            "range": "± 449312",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q08/store",
+            "value": 2983373,
+            "range": "± 187278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q09/raphtory",
+            "value": 515773,
+            "range": "± 8988",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q09/store",
+            "value": 170149,
+            "range": "± 6144",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q10/raphtory",
+            "value": 4338291,
+            "range": "± 99461",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q10/store",
+            "value": 1710102,
+            "range": "± 35056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q11/raphtory",
+            "value": 621785,
+            "range": "± 21986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q11/store",
+            "value": 251263,
+            "range": "± 4249",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q12/raphtory",
+            "value": 1914168,
+            "range": "± 51839",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_explore/Q12/store",
+            "value": 1345937,
+            "range": "± 30615",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/000/raphtory",
+            "value": 6957014,
+            "range": "± 258264",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/000/store",
+            "value": 2146144,
+            "range": "± 74269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/001/raphtory",
+            "value": 6702572,
+            "range": "± 284255",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/001/store",
+            "value": 2019798,
+            "range": "± 74333",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/002/raphtory",
+            "value": 624627181,
+            "range": "± 10380820",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/002/store",
+            "value": 240288594,
+            "range": "± 11079097",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/003/raphtory",
+            "value": 657100738,
+            "range": "± 35031774",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/003/store",
+            "value": 191621348,
+            "range": "± 1053506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/004/raphtory",
+            "value": 710044774,
+            "range": "± 21832262",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/004/store",
+            "value": 191368650,
+            "range": "± 1266243",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/005/raphtory",
+            "value": 113203632,
+            "range": "± 802067",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/005/store",
+            "value": 56059267,
+            "range": "± 647999",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/006/raphtory",
+            "value": 1055416890,
+            "range": "± 4607359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/006/store",
+            "value": 362139548,
+            "range": "± 9203824",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/007/raphtory",
+            "value": 1760952001,
+            "range": "± 22593574",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/007/store",
+            "value": 637349351,
+            "range": "± 48944263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/008/raphtory",
+            "value": 1390298,
+            "range": "± 11943",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/008/store",
+            "value": 1037237,
+            "range": "± 9931",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/009/raphtory",
+            "value": 1377093,
+            "range": "± 46653",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/009/store",
+            "value": 350541,
+            "range": "± 2076",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/010/raphtory",
+            "value": 6995906,
+            "range": "± 400104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/010/store",
+            "value": 2003733,
+            "range": "± 302231",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/011/raphtory",
+            "value": 261447696,
+            "range": "± 1345883",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/011/store",
+            "value": 202436859,
+            "range": "± 1864060",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/012/raphtory",
+            "value": 686698481,
+            "range": "± 18793478",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/012/store",
+            "value": 266806962,
+            "range": "± 8887825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/013/raphtory",
+            "value": 771641743,
+            "range": "± 50394446",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/013/store",
+            "value": 298575230,
+            "range": "± 14148707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/014/raphtory",
+            "value": 115582933,
+            "range": "± 2244268",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/014/store",
+            "value": 54023947,
+            "range": "± 2071494",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/015/raphtory",
+            "value": 115566810,
+            "range": "± 933081",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/015/store",
+            "value": 53642744,
+            "range": "± 828322",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/016/raphtory",
+            "value": 1120534810,
+            "range": "± 21674960",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/016/store",
+            "value": 369704319,
+            "range": "± 32850816",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/017/raphtory",
+            "value": 1093509085,
+            "range": "± 9704684",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/017/store",
+            "value": 453390122,
+            "range": "± 29945462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/018/raphtory",
+            "value": 1823997736,
+            "range": "± 10037605",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/018/store",
+            "value": 674166856,
+            "range": "± 71029637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/019/raphtory",
+            "value": 1781316565,
+            "range": "± 25354742",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/019/store",
+            "value": 693869142,
+            "range": "± 8217759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/020/raphtory",
+            "value": 244865417,
+            "range": "± 3532873",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/020/store",
+            "value": 153361137,
+            "range": "± 2757995",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/021/raphtory",
+            "value": 159746086,
+            "range": "± 895469",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/021/store",
+            "value": 52814927,
+            "range": "± 506881",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/022/raphtory",
+            "value": 426301266,
+            "range": "± 20988157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/022/store",
+            "value": 259682919,
+            "range": "± 1759402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/023/raphtory",
+            "value": 250927185,
+            "range": "± 1192807",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/023/store",
+            "value": 82943804,
+            "range": "± 631792",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/024/raphtory",
+            "value": 85963506,
+            "range": "± 1725557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/024/store",
+            "value": 51171611,
+            "range": "± 2268926",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/025/raphtory",
+            "value": 86718099,
+            "range": "± 1158426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/025/store",
+            "value": 49337037,
+            "range": "± 1265066",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/026/raphtory",
+            "value": 1013647928,
+            "range": "± 13671368",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/026/store",
+            "value": 412713944,
+            "range": "± 4794447",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/027/raphtory",
+            "value": 1012702220,
+            "range": "± 1523539",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/027/store",
+            "value": 417790270,
+            "range": "± 14310791",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/028/raphtory",
+            "value": 886243084,
+            "range": "± 89586455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/028/store",
+            "value": 406551242,
+            "range": "± 35451614",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/029/raphtory",
+            "value": 158296074,
+            "range": "± 1374005",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/029/store",
+            "value": 120670591,
+            "range": "± 2356111",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/030/raphtory",
+            "value": 3311481,
+            "range": "± 34378",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/030/store",
+            "value": 1234998,
+            "range": "± 21455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/031/raphtory",
+            "value": 256223188,
+            "range": "± 850640",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/031/store",
+            "value": 198072356,
+            "range": "± 1266747",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/032/raphtory",
+            "value": 684671754,
+            "range": "± 6299758",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/032/store",
+            "value": 231698753,
+            "range": "± 7597552",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/033/raphtory",
+            "value": 324095235,
+            "range": "± 824737",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/033/store",
+            "value": 194209356,
+            "range": "± 2421969",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/034/raphtory",
+            "value": 111984988,
+            "range": "± 1531757",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/034/store",
+            "value": 52918828,
+            "range": "± 592902",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/035/raphtory",
+            "value": 113650572,
+            "range": "± 784926",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/035/store",
+            "value": 48471372,
+            "range": "± 983167",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/036/raphtory",
+            "value": 1105361007,
+            "range": "± 9209633",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/036/store",
+            "value": 365666031,
+            "range": "± 11107725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/037/raphtory",
+            "value": 1136382403,
+            "range": "± 13424303",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/037/store",
+            "value": 352322397,
+            "range": "± 14292565",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/038/raphtory",
+            "value": 1823356689,
+            "range": "± 7772246",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/038/store",
+            "value": 657298737,
+            "range": "± 106917398",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/039/raphtory",
+            "value": 594018515266,
+            "range": "± 26227187239",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/039/store",
+            "value": 598503843770,
+            "range": "± 5942392618",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/040/raphtory",
+            "value": 291017158,
+            "range": "± 2104097",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/040/store",
+            "value": 84241106,
+            "range": "± 317749",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/041/raphtory",
+            "value": 1102194824,
+            "range": "± 19101814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/041/store",
+            "value": 348671504,
+            "range": "± 11584088",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/042/raphtory",
+            "value": 216660088,
+            "range": "± 1288519",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/042/store",
+            "value": 74294241,
+            "range": "± 919239",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/043/raphtory",
+            "value": 900506016,
+            "range": "± 9550406",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/043/store",
+            "value": 293868399,
+            "range": "± 3430674",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/044/raphtory",
+            "value": 649651104,
+            "range": "± 910774",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/044/store",
+            "value": 225741025,
+            "range": "± 1616421",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/045/raphtory",
+            "value": 3181918,
+            "range": "± 63232",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/045/store",
+            "value": 1944752,
+            "range": "± 30783",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/046/raphtory",
+            "value": 279687322,
+            "range": "± 2498596",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/046/store",
+            "value": 175282155,
+            "range": "± 1466097",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/047/raphtory",
+            "value": 83505596,
+            "range": "± 647314",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/047/store",
+            "value": 23203581,
+            "range": "± 1477984",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/048/raphtory",
+            "value": 331082750,
+            "range": "± 3419722",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/048/store",
+            "value": 135732967,
+            "range": "± 988589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/049/raphtory",
+            "value": 350352773,
+            "range": "± 5599786",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/049/store",
+            "value": 142722208,
+            "range": "± 6095548",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/050/raphtory",
+            "value": 432624999,
+            "range": "± 3998283",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/050/store",
+            "value": 182715935,
+            "range": "± 2620080",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/051/raphtory",
+            "value": 81575252,
+            "range": "± 833322",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/051/store",
+            "value": 22502254,
+            "range": "± 301462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/052/raphtory",
+            "value": 187368491,
+            "range": "± 2488932",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/052/store",
+            "value": 25812144,
+            "range": "± 617377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/053/raphtory",
+            "value": 194398945,
+            "range": "± 8101562",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/053/store",
+            "value": 25906920,
+            "range": "± 249660",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/054/raphtory",
+            "value": 194749395,
+            "range": "± 3147121",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/054/store",
+            "value": 26073252,
+            "range": "± 577975",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/055/raphtory",
+            "value": 189463253,
+            "range": "± 4735458",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/055/store",
+            "value": 27087167,
+            "range": "± 199972",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/056/raphtory",
+            "value": 44640960,
+            "range": "± 230620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/056/store",
+            "value": 11061478,
+            "range": "± 1344756",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/057/raphtory",
+            "value": 157915076,
+            "range": "± 765896",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/057/store",
+            "value": 32250171,
+            "range": "± 215396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/058/raphtory",
+            "value": 159991476,
+            "range": "± 1027283",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/058/store",
+            "value": 32561558,
+            "range": "± 383205",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/059/raphtory",
+            "value": 692499890,
+            "range": "± 7158897",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/059/store",
+            "value": 144718602,
+            "range": "± 2302585",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/060/raphtory",
+            "value": 85081349,
+            "range": "± 565145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/060/store",
+            "value": 25325418,
+            "range": "± 344780",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/061/raphtory",
+            "value": 93829397,
+            "range": "± 509046",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/061/store",
+            "value": 29435005,
+            "range": "± 837295",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/062/raphtory",
+            "value": 365069576,
+            "range": "± 2095949",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/062/store",
+            "value": 143222989,
+            "range": "± 2106519",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/063/raphtory",
+            "value": 2049606,
+            "range": "± 32449",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/063/store",
+            "value": 454159,
+            "range": "± 6099",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/064/raphtory",
+            "value": 43443,
+            "range": "± 2441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/064/store",
+            "value": 24646,
+            "range": "± 382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/065/raphtory",
+            "value": 311548999,
+            "range": "± 3616278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/065/store",
+            "value": 119096231,
+            "range": "± 787718",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/066/raphtory",
+            "value": 311096581,
+            "range": "± 3135188",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/066/store",
+            "value": 118986985,
+            "range": "± 1837210",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/067/raphtory",
+            "value": 36848545,
+            "range": "± 240585",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/067/store",
+            "value": 5194591,
+            "range": "± 88121",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/068/raphtory",
+            "value": 37334021,
+            "range": "± 344335",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/068/store",
+            "value": 5071093,
+            "range": "± 154239",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/069/raphtory",
+            "value": 38267915,
+            "range": "± 582119",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/069/store",
+            "value": 5575632,
+            "range": "± 168643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/070/raphtory",
+            "value": 37265402,
+            "range": "± 317428",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/070/store",
+            "value": 5012336,
+            "range": "± 71346",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/071/raphtory",
+            "value": 37435851,
+            "range": "± 1257329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/071/store",
+            "value": 5039153,
+            "range": "± 121679",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/072/raphtory",
+            "value": 37456885,
+            "range": "± 476190",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/072/store",
+            "value": 5078038,
+            "range": "± 120097",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/073/raphtory",
+            "value": 38188434,
+            "range": "± 520401",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/073/store",
+            "value": 5245262,
+            "range": "± 44037",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/074/raphtory",
+            "value": 39031436,
+            "range": "± 214068",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/074/store",
+            "value": 5926394,
+            "range": "± 146860",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/075/raphtory",
+            "value": 37928355,
+            "range": "± 546726",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/075/store",
+            "value": 6150203,
+            "range": "± 178625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/076/raphtory",
+            "value": 38077695,
+            "range": "± 974206",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/076/store",
+            "value": 5713544,
+            "range": "± 182986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/077/raphtory",
+            "value": 39272248,
+            "range": "± 428906",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/077/store",
+            "value": 6233509,
+            "range": "± 545965",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/078/raphtory",
+            "value": 37342,
+            "range": "± 250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/078/store",
+            "value": 15239,
+            "range": "± 84",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/079/raphtory",
+            "value": 2386067,
+            "range": "± 109517",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/079/store",
+            "value": 1312768,
+            "range": "± 70536",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/080/raphtory",
+            "value": 299429670,
+            "range": "± 6163668",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/080/store",
+            "value": 164644531,
+            "range": "± 1495626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/081/raphtory",
+            "value": 469821785,
+            "range": "± 6484651",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/081/store",
+            "value": 228426281,
+            "range": "± 2310208",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/082/raphtory",
+            "value": 464108341,
+            "range": "± 2917927",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/082/store",
+            "value": 227823401,
+            "range": "± 4474340",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/083/raphtory",
+            "value": 207414761,
+            "range": "± 6542000",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/083/store",
+            "value": 27833290,
+            "range": "± 211938",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/084/raphtory",
+            "value": 211537076,
+            "range": "± 6086625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/084/store",
+            "value": 28368425,
+            "range": "± 276434",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/085/raphtory",
+            "value": 213247495,
+            "range": "± 11339440",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/085/store",
+            "value": 28185214,
+            "range": "± 358647",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/086/raphtory",
+            "value": 221259753,
+            "range": "± 6816563",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/086/store",
+            "value": 25526228,
+            "range": "± 1626162",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/087/raphtory",
+            "value": 220899231,
+            "range": "± 4073724",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/087/store",
+            "value": 28551964,
+            "range": "± 939055",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/088/raphtory",
+            "value": 295346637,
+            "range": "± 6711993",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/088/store",
+            "value": 30634399,
+            "range": "± 143932",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/089/raphtory",
+            "value": 216156903,
+            "range": "± 8942519",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/089/store",
+            "value": 28021525,
+            "range": "± 114282",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/090/raphtory",
+            "value": 222123711,
+            "range": "± 6378820",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/090/store",
+            "value": 30767670,
+            "range": "± 430403",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/091/raphtory",
+            "value": 221923519,
+            "range": "± 7769309",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/091/store",
+            "value": 29925489,
+            "range": "± 676630",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/092/raphtory",
+            "value": 217547140,
+            "range": "± 10663431",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/092/store",
+            "value": 28177539,
+            "range": "± 1713582",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/093/raphtory",
+            "value": 338106518,
+            "range": "± 6026044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/093/store",
+            "value": 122623878,
+            "range": "± 1651617",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/094/raphtory",
+            "value": 350021610,
+            "range": "± 600275",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/094/store",
+            "value": 126784684,
+            "range": "± 1591896",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/095/raphtory",
+            "value": 174040713,
+            "range": "± 4026941",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/095/store",
+            "value": 33947981,
+            "range": "± 637332",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/096/raphtory",
+            "value": 419822152,
+            "range": "± 10085496",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/096/store",
+            "value": 58871066,
+            "range": "± 491822",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/097/raphtory",
+            "value": 413487852,
+            "range": "± 16363252",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/097/store",
+            "value": 59084692,
+            "range": "± 242028",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/098/raphtory",
+            "value": 399226573,
+            "range": "± 19030198",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/098/store",
+            "value": 58931346,
+            "range": "± 164175",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/099/raphtory",
+            "value": 1630301342,
+            "range": "± 7818620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/099/store",
+            "value": 339725492,
+            "range": "± 2977364",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/100/raphtory",
+            "value": 1791491908,
+            "range": "± 59232928",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/100/store",
+            "value": 382951720,
+            "range": "± 9061308",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/101/raphtory",
+            "value": 1707168166,
+            "range": "± 2917546",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/101/store",
+            "value": 361749245,
+            "range": "± 1782621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/102/raphtory",
+            "value": 1800277241,
+            "range": "± 23676515",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/102/store",
+            "value": 437235717,
+            "range": "± 22886632",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/103/raphtory",
+            "value": 4184272582,
+            "range": "± 199039157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/103/store",
+            "value": 603688547,
+            "range": "± 11573972",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/104/raphtory",
+            "value": 2390829178,
+            "range": "± 16871416",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bsbm5000_sparqloscope/104/store",
+            "value": 539588231,
+            "range": "± 13170655",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ingest/instant",
+            "value": 1685033888,
+            "range": "± 53370803",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "mat_p/instant/sparql_snapshot@10523",
+            "value": 15833197,
+            "range": "± 386148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ver_p/instant/sparql_values_5_versions",
+            "value": 75974630,
+            "range": "± 729340",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "mat_po/instant/sparql_snapshot@10523",
+            "value": 1113157,
+            "range": "± 6096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ver_po/instant/sparql_values_5_versions",
+            "value": 747954,
+            "range": "± 2237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "export/instant/to_rdf@10523",
+            "value": 25179179300,
+            "range": "± 26901253",
             "unit": "ns/iter"
           }
         ]
