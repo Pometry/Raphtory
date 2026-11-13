@@ -1078,13 +1078,6 @@ def build_to_df():
     edge_df = g.edges.to_df(explode=True, include_property_history=True)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode_no_hist.json")
 
-    node_df = g.nodes.to_df()
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_all.json")
-    node_df = g.nodes.to_df(include_property_history=False)
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_hist.json")
-    node_df = g.nodes.to_df(convert_datetime=False)
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_datetime.json")
-
 
 def jsonify_df(df):
     """
@@ -1167,17 +1160,82 @@ def test_to_df():
         ),
     )
 
-    compare_df(
-        g.nodes.to_df(include_property_history=False),
-        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_hist.json"),
+
+def build_node_update_graph():
+    g = Graph()
+    g.add_node(1, "a", properties={"x": 1}, node_type="server")
+    g.add_node(2, "a", properties={"y": "up"})
+    g.add_node(3, "b")
+    g.add_node(4, "b", properties={"x": 7}, layer="maintenance")
+    return g
+
+
+def node_rows(df):
+    """The rows of a node update DataFrame without event ids, with empty cells as None, sorted by node and time."""
+    df = df.drop(columns="rap_secondary_index")
+    rows = [
+        tuple(None if pd.isna(v) else v for v in row)
+        for row in df.itertuples(index=False)
+    ]
+    return sorted(rows, key=lambda row: (row[0], row[2]))
+
+
+def test_nodes_to_df():
+    df = build_node_update_graph().nodes.to_df()
+
+    assert list(df.columns) == [
+        "rap_node_gid",
+        "rap_node_type",
+        "rap_time",
+        "rap_secondary_index",
+        "rap_layer",
+        "x",
+        "y",
+    ]
+    assert node_rows(df) == [
+        ("a", "server", 1, None, 1, None),
+        ("a", "server", 2, None, None, "up"),
+        ("b", None, 3, None, None, None),
+        ("b", None, 4, "maintenance", 7, None),
+    ]
+    event_ids = df["rap_secondary_index"]
+    assert event_ids.notna().all() and event_ids.is_unique
+    # an integer property keeps its type even though some updates leave it empty
+    assert str(df["x"].dtype) == "int64[pyarrow]"
+
+
+def test_nodes_to_df_convert_datetime():
+    df = build_node_update_graph().nodes.to_df(convert_datetime=True)
+
+    assert str(df["rap_time"].dtype) == "timestamp[ms, tz=UTC][pyarrow]"
+    assert sorted(df["rap_time"]) == [
+        datetime(1970, 1, 1, microsecond=t * 1000, tzinfo=utc) for t in [1, 2, 3, 4]
+    ]
+
+
+def test_nodes_to_df_follows_the_view():
+    g = build_node_update_graph()
+
+    df = g.window(2, 4).nodes.to_df()
+    assert sorted(zip(df["rap_node_gid"], df["rap_time"])) == [("a", 2), ("b", 3)]
+
+    df = g.nodes.type_filter(["server"]).to_df()
+    assert set(df["rap_node_gid"]) == {"a"}
+
+
+def test_nodes_to_df_round_trip():
+    g = build_node_update_graph()
+    df = g.nodes.to_df()
+
+    g2 = Graph()
+    g2.load_nodes(
+        df,
+        time="rap_time",
+        id="rap_node_gid",
+        event_id="rap_secondary_index",
+        layer_col="rap_layer",
+        node_type_col="rap_node_type",
+        properties=["x", "y"],
     )
 
-    compare_df(
-        g.nodes.to_df(include_property_history=True),
-        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_explode.json"),
-    )
-
-    compare_df(
-        g.nodes.to_df(convert_datetime=False, include_property_history=True),
-        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_datetime.json"),
-    )
+    assert node_rows(g2.nodes.to_df()) == node_rows(df)

@@ -12,6 +12,7 @@ use crate::{
     },
     errors::GraphError,
     parquet_encoder::{
+        derive_schema,
         model::{ParquetCNode, ParquetTNode},
         run_encode_indexed, RecordBatchSink, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
         ROW_GROUP_SIZE, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
@@ -26,14 +27,18 @@ use raphtory_core::entities::VID;
 use raphtory_storage::graph::nodes::nodes_ref::NodesStorageEntry;
 use rayon::prelude::*;
 
-pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
-    g: &'a G,
+/// Splits `node_list` into chunks of node ids for parallel encoding. Chunk ids follow the order of
+/// the list, so output gathered per chunk can be put back in order.
+///
+/// A node is kept when `keep` returns true. `keep` is skipped for lists already known to hold only
+/// kept nodes: `all_trusted` covers a list of every node, `list_trusted` an explicit list.
+pub(crate) fn get_node_ids_par_iter<'a>(
     node_list: &'a List<VID>,
-    list_trusted: bool,
     nodes_locked: &'a NodesStorageEntry,
-) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = NodeView<'a, &'a G>> + 'a)> {
-    let filtered = g.filtered();
-
+    all_trusted: bool,
+    list_trusted: bool,
+    keep: impl Fn(VID) -> bool + Send + Sync + Copy + 'a,
+) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = VID> + 'a)> {
     match node_list {
         // TODO: use the node type index instead of scanning every row group
         List::All
@@ -46,14 +51,7 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
                 .map(move |(chunk, vids)| {
                     (
                         chunk,
-                        Either::Left(vids.filter_map(move |vid| {
-                            let node = g.core_node(vid);
-                            if !filtered || g.filter_node(node.as_ref()) {
-                                Some(NodeView::new_internal(g, vid))
-                            } else {
-                                None
-                            }
-                        })),
+                        Either::Left(vids.filter(move |&vid| all_trusted || keep(vid))),
                     )
                 }),
         ),
@@ -70,19 +68,50 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
                 .map(move |(c_id, chunk)| {
                     (
                         c_id,
-                        Either::Right(chunk.into_iter().filter_map(move |vid| {
-                            let node = g.core_node(*vid);
-                            if list_trusted || g.filter_node(node.as_ref()) {
-                                Some(NodeView::new_internal(g, *vid))
-                            } else {
-                                None
-                            }
-                        })),
+                        Either::Right(
+                            chunk
+                                .into_iter()
+                                .copied()
+                                .filter(move |&vid| list_trusted || keep(vid)),
+                        ),
                     )
                 });
             Either::Right(iter)
         }
     }
+}
+
+pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
+    g: &'a G,
+    node_list: &'a List<VID>,
+    list_trusted: bool,
+    nodes_locked: &'a NodesStorageEntry,
+) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = NodeView<'a, &'a G>> + 'a)> {
+    let keep = move |vid| g.filter_node(g.core_node(vid).as_ref());
+    get_node_ids_par_iter(node_list, nodes_locked, !g.filtered(), list_trusted, keep)
+        .map(move |(chunk, vids)| (chunk, vids.map(move |vid| NodeView::new_internal(g, vid))))
+}
+
+/// The columns every node update row starts with; one column per temporal property follows.
+pub(crate) fn node_tprop_fixed_fields(id_type: &DataType) -> Vec<Field> {
+    vec![
+        Field::new(NODE_GID_COL, id_type.clone(), false),
+        Field::new(NODE_VID_COL, DataType::UInt64, false),
+        Field::new(TYPE_COL, DataType::Utf8, true),
+        Field::new(TIME_COL, DataType::Int64, false),
+        Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
+        Field::new(LAYER_COL, DataType::Utf8, true),
+        Field::new(LAYER_ID_COL, DataType::UInt64, false),
+    ]
+}
+
+/// The schema of the batches [`encode_node_rows`] produces for `g`.
+pub(crate) fn node_tprop_schema<G: GraphView>(g: &G) -> Result<SchemaRef, GraphError> {
+    derive_schema(
+        g.node_meta().temporal_prop_mapper(),
+        g.id_type(),
+        node_tprop_fixed_fields,
+    )
 }
 
 pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
@@ -92,22 +121,30 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
     let (node_list, list_trusted) = g.trusted_node_list();
+    encode_node_rows(
+        g,
+        get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
+        sink_factory_fn,
+    )
+}
+
+/// Encodes one row per update of the given nodes, as seen through `g`.
+pub(crate) fn encode_node_rows<'a, G, I, S>(
+    g: &'a G,
+    nodes: impl ParallelIterator<Item = (usize, I)>,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
+) -> Result<(), GraphError>
+where
+    G: GraphView,
+    I: Iterator<Item = NodeView<'a, &'a G>>,
+    S: RecordBatchSink,
+{
     run_encode_indexed(
         g,
         g.node_meta().temporal_prop_mapper(),
-        get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
+        nodes,
         sink_factory_fn,
-        |id_type| {
-            vec![
-                Field::new(NODE_GID_COL, id_type.clone(), false),
-                Field::new(NODE_VID_COL, DataType::UInt64, false),
-                Field::new(TYPE_COL, DataType::Utf8, true),
-                Field::new(TIME_COL, DataType::Int64, false),
-                Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(LAYER_COL, DataType::Utf8, true),
-                Field::new(LAYER_ID_COL, DataType::UInt64, false),
-            ]
-        },
+        node_tprop_fixed_fields,
         |nodes, g, decoder, sink| {
             let cols = g.node_meta().temporal_prop_mapper().all_keys();
             let cols = &cols;

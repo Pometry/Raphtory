@@ -24,7 +24,10 @@ mod graph;
 
 pub(crate) use edges::{encode_edge_cprop, encode_edge_deletions, encode_edge_tprop};
 pub(crate) use graph::{encode_graph_cprop, encode_graph_tprop};
-pub(crate) use nodes::{encode_nodes_cprop, encode_nodes_tprop};
+pub(crate) use nodes::{
+    encode_node_rows, encode_nodes_cprop, encode_nodes_tprop, get_node_ids_par_iter,
+    node_tprop_fixed_fields, node_tprop_schema,
+};
 
 const ROW_GROUP_SIZE: usize = 100_000;
 pub const NODE_GID_COL: &str = "rap_node_gid";

@@ -32,6 +32,7 @@ use crate::{
         },
     },
     errors::GraphError,
+    export::node_updates,
     prelude::PropertiesOps,
     python::{
         filter::filter_expr::PyFilterExpr,
@@ -49,23 +50,19 @@ use pyo3::{
     exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, pyclass, pymethods, types::PyDict,
     Borrowed, IntoPyObjectExt, Py, PyAny, PyResult, Python,
 };
+use pyo3_arrow::PyTable;
 use python::{
     types::repr::{iterator_repr, Repr},
-    utils::{
-        export::{create_row, extract_properties, get_column_names_from_props},
-        PyGenericIterator,
-    },
+    utils::PyGenericIterator,
 };
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::{arc_str::ArcStr, timeindex::AsTime},
+        storage::arc_str::ArcStr,
         utils::hashing::calculate_hash,
     },
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
-use raphtory_storage::core_ops::CoreGraphOps;
-use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -728,77 +725,31 @@ impl PyNodes {
         self.nodes.out_degree()
     }
 
-    /// Converts the graph's nodes into a Pandas DataFrame.
+    /// Converts the nodes' updates into a pandas DataFrame, with one row per update.
     ///
-    /// This method will create a DataFrame with the following columns:
-    /// - "name": The name of the node.
-    /// - "properties": The properties of the node.
-    /// - "update_history": The update history of the node.
+    /// The DataFrame has the following columns:
+    /// - "rap_node_gid": the id of the node, an integer or a string depending on the graph.
+    /// - "rap_node_type": the type of the node.
+    /// - "rap_time": the time of the update, in milliseconds since the epoch.
+    /// - "rap_secondary_index": the event id of the update, which orders updates made at the same time.
+    /// - "rap_layer": the node layer of the update, empty for the default layer.
+    ///
+    /// These are followed by one column per temporal property. A cell is empty when the update did
+    /// not set that property. Node metadata is not included. Columns use pyarrow-backed dtypes, so
+    /// integer columns with empty cells keep their type.
     ///
     /// Args:
-    ///     include_property_history (bool): A boolean, if set to `True`, the history of each property is included, if `False`, only the latest value is shown. Defaults to False.
-    ///     convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
+    ///     convert_datetime (bool): If True, the "rap_time" column holds UTC datetimes instead of milliseconds. Defaults to False.
     ///
     /// Returns:
-    ///     DataFrame: the view of the node data as a pandas Dataframe.
-    #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
-    pub fn to_df(
-        &self,
-        include_property_history: bool,
-        convert_datetime: bool,
-    ) -> PyResult<Py<PyAny>> {
-        let mut column_names = vec![String::from("name"), String::from("type")];
-        let meta = self.nodes.graph().node_meta();
-        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
-
-        let node_tuples: Vec<_> = self
-            .nodes
-            .collect()
-            .into_par_iter()
-            .flat_map(|item| {
-                let mut properties_map: HashMap<String, Prop> = HashMap::new();
-                let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
-                extract_properties(
-                    include_property_history,
-                    convert_datetime,
-                    false,
-                    &column_names,
-                    &is_prop_both_temp_and_const,
-                    &item.properties(),
-                    &item.metadata(),
-                    &mut properties_map,
-                    &mut prop_time_dict,
-                    item.start().map(|t| t.t()).unwrap_or(0),
-                );
-
-                let row_header: Vec<Prop> = vec![
-                    Prop::from(item.name()),
-                    Prop::from(item.node_type().unwrap_or_else(|| ArcStr::from(""))),
-                ];
-
-                let start_point = 2;
-                let history = item.history().t().collect();
-
-                create_row(
-                    convert_datetime,
-                    false,
-                    &column_names,
-                    properties_map,
-                    prop_time_dict,
-                    row_header,
-                    start_point,
-                    history,
-                )
-            })
-            .collect();
-
-        Python::attach(|py| {
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("columns", column_names.clone())?;
-            let pandas = PyModule::import(py, "pandas")?;
-            let df_data = pandas.call_method("DataFrame", (node_tuples,), Some(&kwargs))?;
-            Ok(df_data.unbind())
-        })
+    ///     DataFrame: the node updates as a pandas DataFrame.
+    #[pyo3(signature = (convert_datetime = false))]
+    pub fn to_df(&self, py: Python<'_>, convert_datetime: bool) -> PyResult<Py<PyAny>> {
+        let table = py.detach(|| node_updates(&self.nodes, convert_datetime))?;
+        let table = PyTable::try_new(table.batches, table.schema)?.into_pyarrow(py)?;
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("types_mapper", py.import("pandas")?.getattr("ArrowDtype")?)?;
+        Ok(table.call_method("to_pandas", (), Some(&kwargs))?.unbind())
     }
 
     /// Filter nodes by node type.

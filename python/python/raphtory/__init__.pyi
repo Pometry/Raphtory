@@ -3217,23 +3217,26 @@ class Nodes(object):
             OptionalEventTime: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
-    def to_df(
-        self, include_property_history: bool = False, convert_datetime: bool = False
-    ) -> DataFrame:
+    def to_df(self, convert_datetime: bool = False) -> DataFrame:
         """
-        Converts the graph's nodes into a Pandas DataFrame.
+        Converts the nodes' updates into a pandas DataFrame, with one row per update.
 
-        This method will create a DataFrame with the following columns:
-        - "name": The name of the node.
-        - "properties": The properties of the node.
-        - "update_history": The update history of the node.
+        The DataFrame has the following columns:
+        - "rap_node_gid": the id of the node, an integer or a string depending on the graph.
+        - "rap_node_type": the type of the node.
+        - "rap_time": the time of the update, in milliseconds since the epoch.
+        - "rap_secondary_index": the event id of the update, which orders updates made at the same time.
+        - "rap_layer": the node layer of the update, empty for the default layer.
+
+        These are followed by one column per temporal property. A cell is empty when the update did
+        not set that property. Node metadata is not included. Columns use pyarrow-backed dtypes, so
+        integer columns with empty cells keep their type.
 
         Args:
-            include_property_history (bool): A boolean, if set to `True`, the history of each property is included, if `False`, only the latest value is shown. Defaults to False.
-            convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
+            convert_datetime (bool): If True, the "rap_time" column holds UTC datetimes instead of milliseconds. Defaults to False.
 
         Returns:
-            DataFrame: the view of the node data as a pandas Dataframe.
+            DataFrame: the node updates as a pandas DataFrame.
         """
 
     def type_filter(self, node_types: list[str]) -> Nodes:
