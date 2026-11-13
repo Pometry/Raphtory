@@ -21,6 +21,8 @@ use raphtory::{
 use raphtory_api::core::utils::time::IntoTime;
 
 /// A nested collection of edges anchored to a source collection — the result of collection-level traversals like `nodes.edges`, `inEdges`, or `outEdges`. Each source node yields its own list of incident edges, so results are shaped as a list of per-source edge collections. Supports the usual view transforms (window, layer, filter, ...).
+///
+/// Layer and time transforms (`layer`, `window`, `at`, `before`, ...) do not remove edges from the collection: every edge is still returned, but its properties and history only reflect the selected layers or time range. To narrow the set itself, apply the transform to the graph before selecting `edges`, or use `filter`.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NestedEdges")]
 pub struct GqlNestedEdges {
@@ -56,12 +58,12 @@ impl GqlNestedEdges {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Returns a collection containing only edges in the default edge layer.
+    /// Returns a view of the edges restricted to the default edge layer.
     pub async fn default_layer(&self) -> Self {
         self.update(self.edges.default_layer())
     }
 
-    /// Returns a collection containing only edges belonging to the listed layers.
+    /// Returns a view of the edges restricted to the listed layers.
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -70,7 +72,7 @@ impl GqlNestedEdges {
         blocking_compute(move || self_clone.update(self_clone.edges.valid_layers(names))).await
     }
 
-    /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
+    /// Returns a view of the edges restricted to all layers except the excluded ones.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -80,12 +82,12 @@ impl GqlNestedEdges {
             .await
     }
 
-    /// Returns a collection containing edges belonging to the specified layer.
+    /// Returns a view of the edges restricted to the specified layer.
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.edges.valid_layers(name))
     }
 
-    /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
+    /// Returns a view of the edges restricted to all layers except the excluded one.
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -278,6 +280,8 @@ impl GqlNestedEdges {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
     /// will be returned. Each entry is the per-source list of incident edges.
+    ///
+    /// Order is unspecified (not insertion order).
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -312,6 +316,8 @@ impl GqlNestedEdges {
     /// `list { list { src { name } dst { name } } }` to reach the per-source
     /// edges. Rejected by the server when bulk list endpoints are disabled; use
     /// `page` for paginated access instead.
+    ///
+    /// Order is unspecified (not insertion order).
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdges>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();

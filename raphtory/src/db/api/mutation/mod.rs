@@ -24,7 +24,13 @@ pub fn time_from_input<G: InternalAdditionOps<Error: Into<GraphError>>, T: TryIn
 
     Ok(match input_time {
         InputTime::Simple(t) => EventTime::new(t, session.next_event_id().map_err(into_graph_err)?),
-        InputTime::Indexed(t, secondary_index) => EventTime::new(t, secondary_index),
+        InputTime::Indexed(t, secondary_index) => {
+            let _ = session
+                .set_max_event_id(secondary_index)
+                .map_err(into_graph_err)?;
+
+            EventTime::new(t, secondary_index)
+        }
     })
 }
 

@@ -3954,3 +3954,34 @@ fn count_temporal_edges_counts_distinct_updates_not_replays() {
     assert_eq!(h.count_temporal_edges(), 2);
     assert_eq!(exploded(&h), 2);
 }
+
+#[test]
+fn implicit_event_id_follows_explicit_event_id() {
+    let g = Graph::new();
+    g.add_edge((1, 5), 0, 1, [("p", 1i64)], None).unwrap();
+    g.add_edge(1, 0, 1, [("p", 2i64)], None).unwrap();
+
+    let edge = g.edge(0, 1).unwrap();
+    assert_eq!(edge.explode().into_iter().count(), 2);
+    let mut values: Vec<_> = edge
+        .properties()
+        .temporal()
+        .get("p")
+        .unwrap()
+        .values()
+        .collect();
+    values.sort_by_key(|p| p.to_string());
+    assert_eq!(values, vec![Prop::I64(1), Prop::I64(2)]);
+}
+
+#[test]
+fn edge_delete_with_explicit_event_id_does_not_tie_with_next_implicit_id() {
+    let g = Graph::new();
+    g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+    g.edge(0, 1).unwrap().delete((5, 1), None).unwrap();
+    g.add_edge(5, 0, 1, NO_PROPS, None).unwrap();
+
+    let latest = g.edge(0, 1).unwrap().history().collect().pop().unwrap();
+    assert_eq!(latest.t(), 5);
+    assert_ne!(latest.i(), 1);
+}
