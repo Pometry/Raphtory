@@ -1,19 +1,21 @@
 use crate::{
     core::entities::LayerIds,
-    db::api::{
-        properties::internal::{
-            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+    db::{
+        api::{
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
+            state::Index,
+            view::internal::{
+                EdgeList, EdgeTimeSemanticsOps, FilterOps, GraphView, Immutable,
+                InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
+                InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+                InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+                InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, Static,
+            },
         },
-        state::Index,
-        view::internal::{
-            EdgeList, EdgeTimeSemanticsOps, FilterOps, GraphView, Immutable,
-            InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
-            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-            InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
-            InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, Static,
-        },
+        graph::views::layer_graph::LayeredGraph,
     },
-    db::graph::views::layer_graph::LayeredGraph,
     prelude::GraphViewOps,
     storage::core_ops::InheritCoreGraphOps,
 };
