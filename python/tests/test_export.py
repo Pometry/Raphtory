@@ -1,5 +1,6 @@
 from raphtory import Graph
 import pandas as pd
+import pyarrow as pa
 import json
 from pathlib import Path
 import numpy as np
@@ -1213,6 +1214,15 @@ def test_nodes_to_df_convert_datetime():
     ]
 
 
+def test_nodes_to_arrow_convert_datetime():
+    table = build_node_update_graph().nodes.to_arrow(convert_datetime=True)
+
+    assert table.schema.field("rap_time").type == pa.timestamp("ms", tz="UTC")
+    assert table.to_pandas(types_mapper=pd.ArrowDtype).equals(
+        build_node_update_graph().nodes.to_df(convert_datetime=True)
+    )
+
+
 def test_nodes_to_df_follows_the_view():
     g = build_node_update_graph()
 
@@ -1223,13 +1233,11 @@ def test_nodes_to_df_follows_the_view():
     assert set(df["rap_node_gid"]) == {"a"}
 
 
-def test_nodes_to_df_round_trip():
-    g = build_node_update_graph()
-    df = g.nodes.to_df()
-
-    g2 = Graph()
-    g2.load_nodes(
-        df,
+def load_node_updates(data):
+    """A graph built from a node update table, as returned by `to_df` or `to_arrow`."""
+    g = Graph()
+    g.load_nodes(
+        data,
         time="rap_time",
         id="rap_node_gid",
         event_id="rap_secondary_index",
@@ -1237,5 +1245,25 @@ def test_nodes_to_df_round_trip():
         node_type_col="rap_node_type",
         properties=["x", "y"],
     )
+    return g
 
-    assert node_rows(g2.nodes.to_df()) == node_rows(df)
+
+def test_nodes_to_df_round_trip():
+    df = build_node_update_graph().nodes.to_df()
+
+    assert node_rows(load_node_updates(df).nodes.to_df()) == node_rows(df)
+
+
+def test_nodes_to_arrow():
+    g = build_node_update_graph()
+    table = g.nodes.to_arrow()
+
+    assert isinstance(table, pa.Table)
+    assert table.schema.names == list(g.nodes.to_df().columns)
+    assert table.schema.field("rap_time").type == pa.int64()
+    assert table.schema.field("x").type == pa.int64()
+    assert table.to_pandas(types_mapper=pd.ArrowDtype).equals(g.nodes.to_df())
+    # the table loads back into a graph without going through pandas
+    assert node_rows(load_node_updates(table).nodes.to_df()) == node_rows(
+        g.nodes.to_df()
+    )

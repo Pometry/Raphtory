@@ -434,6 +434,18 @@ pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }
 
+impl PyNodes {
+    /// The node update table of these nodes as a pyarrow Table.
+    fn node_updates_table<'py>(
+        &self,
+        py: Python<'py>,
+        convert_datetime: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let table = py.detach(|| node_updates(&self.nodes, convert_datetime))?;
+        Ok(PyTable::try_new(table.batches, table.schema)?.into_pyarrow(py)?)
+    }
+}
+
 impl<'py> FromPyObject<'_, 'py> for Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
     type Error = PyErr;
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
@@ -745,11 +757,36 @@ impl PyNodes {
     ///     DataFrame: the node updates as a pandas DataFrame.
     #[pyo3(signature = (convert_datetime = false))]
     pub fn to_df(&self, py: Python<'_>, convert_datetime: bool) -> PyResult<Py<PyAny>> {
-        let table = py.detach(|| node_updates(&self.nodes, convert_datetime))?;
-        let table = PyTable::try_new(table.batches, table.schema)?.into_pyarrow(py)?;
+        let table = self.node_updates_table(py, convert_datetime)?;
         let kwargs = PyDict::new(py);
         kwargs.set_item("types_mapper", py.import("pandas")?.getattr("ArrowDtype")?)?;
         Ok(table.call_method("to_pandas", (), Some(&kwargs))?.unbind())
+    }
+
+    /// Converts the nodes' updates into a pyarrow Table, with one row per update.
+    ///
+    /// The Table has the following columns:
+    /// - "rap_node_gid": the id of the node, an integer or a string depending on the graph.
+    /// - "rap_node_type": the type of the node.
+    /// - "rap_time": the time of the update, in milliseconds since the epoch.
+    /// - "rap_secondary_index": the event id of the update, which orders updates made at the same time.
+    /// - "rap_layer": the node layer of the update, empty for the default layer.
+    ///
+    /// These are followed by one column per temporal property. A cell is empty when the update did
+    /// not set that property. Node metadata is not included.
+    ///
+    /// Args:
+    ///     convert_datetime (bool): If True, the "rap_time" column holds UTC datetimes instead of milliseconds. Defaults to False.
+    ///
+    /// Returns:
+    ///     pyarrow.Table: the node updates as a pyarrow Table.
+    #[pyo3(signature = (convert_datetime = false))]
+    pub fn to_arrow<'py>(
+        &self,
+        py: Python<'py>,
+        convert_datetime: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.node_updates_table(py, convert_datetime)
     }
 
     /// Filter nodes by node type.

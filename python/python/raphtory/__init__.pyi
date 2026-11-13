@@ -3217,6 +3217,27 @@ class Nodes(object):
             OptionalEventTime: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
+    def to_arrow(self, convert_datetime: bool = False) -> pyarrow.Table:
+        """
+        Converts the nodes' updates into a pyarrow Table, with one row per update.
+
+        The Table has the following columns:
+        - "rap_node_gid": the id of the node, an integer or a string depending on the graph.
+        - "rap_node_type": the type of the node.
+        - "rap_time": the time of the update, in milliseconds since the epoch.
+        - "rap_secondary_index": the event id of the update, which orders updates made at the same time.
+        - "rap_layer": the node layer of the update, empty for the default layer.
+
+        These are followed by one column per temporal property. A cell is empty when the update did
+        not set that property. Node metadata is not included.
+
+        Args:
+            convert_datetime (bool): If True, the "rap_time" column holds UTC datetimes instead of milliseconds. Defaults to False.
+
+        Returns:
+            pyarrow.Table: the node updates as a pyarrow Table.
+        """
+
     def to_df(self, convert_datetime: bool = False) -> DataFrame:
         """
         Converts the nodes' updates into a pandas DataFrame, with one row per update.
