@@ -2,7 +2,7 @@ use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps, LockedESegment},
-    error::{SegmentKind, StorageError},
+    error::StorageError,
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
@@ -10,13 +10,19 @@ use crate::{
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
-    segments::edge::segment::MemEdgeSegment,
+    segments::{
+        edge::segment::MemEdgeSegment,
+        free_segment_slots::{FreeSegmentSlots, N},
+    },
 };
 use either::Either;
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{
-    EID, LayerId, VID,
-    properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::entities::{
+        EID, LayerId, VID,
+        properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
+    },
 };
 use raphtory_core::{
     entities::{ELID, LayerIds, edges::edge_ref::EdgeRef},
@@ -27,17 +33,14 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, LazyLock},
-    time::Duration,
+    sync::Arc,
 };
-
-pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 
 #[derive(Debug)]
 pub struct EdgeStorageInner<ES, EXT> {
     segments: boxcar::Vec<Arc<ES>>,
     layer_counter: Arc<GraphStats>,
-    free_segments: Box<[RwLock<usize>]>,
+    free_segments: FreeSegmentSlots,
     path: Option<PathBuf>,
     prop_meta: Arc<Meta>,
     ext: EXT,
@@ -183,9 +186,20 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             std::fs::create_dir_all(path)?;
         }
 
-        let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
+        let free_segments = FreeSegmentSlots::default();
+        let segments = boxcar::Vec::with_capacity(free_segments.num_slots());
+        for _ in 0..free_segments.num_slots() {
+            segments.push_with(|segment_id| {
+                Arc::new(ES::new(
+                    segment_id,
+                    edge_meta.clone(),
+                    path.clone(),
+                    ext.clone(),
+                ))
+            });
+        }
         let empty = Self {
-            segments: boxcar::Vec::new(),
+            segments,
             layer_counter: GraphStats::new().into(),
             free_segments,
             path,
@@ -200,7 +214,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             || prop_mapper.num_fields() > 0
             || metadata_mapper.num_fields() > 0
         {
-            let segment = empty.get_or_create_segment(STATIC_GRAPH_LAYER_ID.0);
+            let segment = empty
+                .get_segment(0)
+                .expect("should always have at least one segment");
             let mut head = segment.head_mut();
 
             for layer in layer_mapper.ids() {
@@ -208,7 +224,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             }
 
             if prop_mapper.num_fields() > 0 {
-                head.get_or_create_layer(LayerId(0))
+                head.get_or_create_layer(STATIC_GRAPH_LAYER_ID)
                     .properties_mut()
                     .set_has_properties()
             }
@@ -338,17 +354,19 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             })
             .collect::<Vec<_>>();
 
-        let mut next_free_segment = free_segments
-            .last()
-            .map(|segment| *(segment.read()))
-            .map(|last| last + 1)
-            .unwrap_or_else(|| segments.count());
-
-        free_segments.resize_with(*N, || {
-            let lock = RwLock::new(next_free_segment);
-            next_free_segment += 1;
-            lock
-        });
+        if free_segments.len() < *N {
+            free_segments.resize_with(*N, || {
+                let segment_id = segments.push_with(|segment_id| {
+                    Arc::new(ES::new(
+                        segment_id,
+                        meta.clone(),
+                        Some(path.to_path_buf()),
+                        ext.clone(),
+                    ))
+                });
+                RwLock::new(segment_id)
+            });
+        }
 
         let mut layer_counts = vec![];
 
@@ -388,30 +406,41 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         })
     }
 
-    pub fn grow(&self, size: usize) {
-        self.get_or_create_segment(size - 1);
+    /// Grow segments, will create too many segments when called concurrently with other operations
+    /// that might create segments!
+    pub fn grow(&self, size: usize) -> Vec<ArcRwLockWriteGuard<MemEdgeSegment>> {
+        let num_new_segments = size.saturating_sub(self.segments.count());
+        let mut new_segments = Vec::with_capacity(num_new_segments);
+        for _ in 0..num_new_segments {
+            new_segments.push(self.push_new_segment())
+        }
+        new_segments
     }
 
-    pub fn push_new_segment(&self) -> usize {
-        let segment_id = self.segments.push_with(|segment_id| {
-            Arc::new(ES::new(
+    pub fn push_new_segment(&self) -> ArcRwLockWriteGuard<MemEdgeSegment> {
+        let mut guard = None;
+        self.segments.push_with(|segment_id| {
+            let segment = Arc::new(ES::new(
                 segment_id,
                 self.prop_meta.clone(),
                 self.path.clone(),
                 self.ext.clone(),
-            ))
+            ));
+            let head = segment.head_mut_arc();
+            guard = Some(head);
+            segment
         });
-
-        segment_id
+        guard.expect("guard should be created in push")
     }
 
     pub fn increment_edge_segment_count(&self, eid: EID) {
         let (segment_id, _) = resolve_pos(eid, self.max_page_len());
-        let segment = self.get_or_create_segment(segment_id);
+        let segment = self.wait_for_segment(segment_id); // segment for EID must already exist
         segment.increment_num_edges();
     }
 
-    fn wait_for_segment(&self, segment_id: usize) -> &Arc<ES> {
+    /// wait for an already created segment to be visible and return it
+    pub fn wait_for_segment(&self, segment_id: usize) -> &Arc<ES> {
         loop {
             if let Some(segment) = self.segments.get(segment_id) {
                 return segment;
@@ -422,34 +451,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         }
     }
 
-    pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<ES> {
-        if let Some(segment) = self.segments.get(segment_id) {
-            return segment;
-        }
-
-        let count = self.segments.count();
-
-        if segment_id < count {
-            // Something has allocated the segment, wait for it to be added.
-            self.wait_for_segment(segment_id)
+    pub fn get_segment(&self, segment_id: usize) -> Option<&Arc<ES>> {
+        if segment_id < self.segments.count() {
+            Some(self.wait_for_segment(segment_id))
         } else {
-            // We need to create the segment.
-            self.segments.reserve(segment_id + 1 - count);
-
-            loop {
-                let new_segment_id = self.segments.push_with(|segment_id| {
-                    Arc::new(ES::new(
-                        segment_id,
-                        self.prop_meta.clone(),
-                        self.path.clone(),
-                        self.ext.clone(),
-                    ))
-                });
-
-                if segment_id <= new_segment_id {
-                    return self.wait_for_segment(segment_id);
-                }
-            }
+            None
         }
     }
 
@@ -468,7 +474,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                         self.max_page_len(),
                         page.as_ref(),
                         &self.layer_counter,
-                        page.head_mut(),
+                        page.head_mut_arc(),
                     )
                 })
                 .collect(),
@@ -477,32 +483,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
     pub fn is_dirty(&self) -> bool {
         self.segments.iter().any(|(_, segment)| segment.is_dirty())
-    }
-
-    /// Write-lock the segments created since `pages` was taken and append them,
-    /// keeping the locks `pages` already holds.
-    pub fn lock_new_segments<'a>(
-        &'a self,
-        pages: &mut WriteLockedEdgeSegments<'a, ES>,
-        timeout: Duration,
-    ) -> Result<(), StorageError> {
-        for segment_id in pages.len()..self.segments.count() {
-            let page = self.get_or_create_segment(segment_id);
-            let lock = page
-                .try_head_mut_for(timeout)
-                .ok_or(StorageError::SegmentLockTimeout {
-                    kind: SegmentKind::Edge,
-                    segment_id,
-                })?;
-            pages.push(LockedEdgeSegment::new(
-                segment_id,
-                self.max_page_len(),
-                page.as_ref(),
-                &self.layer_counter,
-                lock,
-            ));
-        }
-        Ok(())
     }
 
     /// Retrieve the segment for an edge given its EID
@@ -559,10 +539,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     pub fn get_writer<'a>(
         &'a self,
         e_id: EID,
-    ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
+    ) -> EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES> {
         let (chunk, _) = resolve_pos(e_id, self.max_page_len());
-        let page = self.get_or_create_segment(chunk);
-        EdgeWriter::new(&self.layer_counter, page, page.head_mut())
+        let page = self.wait_for_segment(chunk); // segment for EID must already exist
+        EdgeWriter::new(&self.layer_counter, page, page.head_mut_arc())
     }
 
     pub fn try_get_writer<'a>(
@@ -570,83 +550,71 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         e_id: EID,
     ) -> Result<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>, StorageError> {
         let (segment_id, _) = resolve_pos(e_id, self.max_page_len());
-        let page = self.get_or_create_segment(segment_id);
+        let page = self.wait_for_segment(segment_id); // segment for EID must already exist
         let writer = page.head_mut();
         Ok(EdgeWriter::new(&self.layer_counter, page, writer))
     }
 
+    /// Get a free writer for inserting a new edge.
+    ///
+    /// Deadlock safety: Do not hold any edge writer locks when calling this function!
     pub fn get_free_writer<'a>(
         &'a self,
-    ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
-        // optimistic first try to get a free page 3 times
-        let num_edges = self.num_edges();
-        let slot_idx = num_edges % *N;
-        let maybe_free_segment = self.free_segments[slot_idx..]
-            .iter()
-            .cycle()
-            .take(3)
-            .filter_map(|lock| lock.try_read())
-            .filter_map(|segment_id| {
-                let page = self.segments.get(*segment_id)?;
-                let guard = page.try_head_mut()?;
-                if page.num_edges() < self.max_page_len() {
-                    Some((page, guard))
-                } else {
-                    None
-                }
-            })
-            .next();
-
-        if let Some((edge_page, writer)) = maybe_free_segment {
-            EdgeWriter::new(&self.layer_counter, edge_page, writer)
+    ) -> EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES> {
+        let mut slot = self.free_segments.slot().write();
+        let segment = self.wait_for_segment(*slot);
+        let guard = segment.head_mut_arc();
+        if segment.num_edges() < self.max_page_len() {
+            EdgeWriter::new(&self.layer_counter, segment, guard)
         } else {
-            // not lucky, go wait on your slot
-            loop {
-                let mut slot = self.free_segments[slot_idx].write();
-                match self.segments.get(*slot).map(|page| (page, page.head_mut())) {
-                    Some((edge_segment, writer))
-                        if edge_segment.num_edges() < self.max_page_len() =>
-                    {
-                        return EdgeWriter::new(&self.layer_counter, edge_segment, writer);
-                    }
-                    _ => {
-                        *slot = self.push_new_segment();
-                    }
-                }
-            }
+            //existing segment is full and needs to be replaced
+            let new_guard = self.push_new_segment();
+            let segment = self.wait_for_segment(new_guard.segment_id());
+            *slot = new_guard.segment_id();
+            EdgeWriter::new(&self.layer_counter, segment, new_guard)
         }
     }
 
-    pub fn reserve_new_eid(&self, row: usize) -> EID {
-        let (segment_id, local_pos) = self.reserve_free_pos(row);
-        local_pos.as_eid(segment_id, self.max_page_len())
-    }
+    /// reserve a free position, returns a guard if it creates a new segment
+    ///
+    /// Only use with `WriteLockedGraph` (bulk loading)!
+    pub fn reserve_free_pos(
+        &self,
+    ) -> (usize, LocalPOS, Option<ArcRwLockWriteGuard<MemEdgeSegment>>) {
+        let slot = self.free_segments.slot();
+        let segment_id = *slot.read_recursive();
+        let segment = self.wait_for_segment(segment_id);
+        match self.reserve_page_row(segment) {
+            Some(pos) => (segment_id, LocalPOS(pos), None),
+            None => {
+                // segment was full, might need to replace it
+                let mut slot_guard = slot.write();
+                let current_segment_id = *slot_guard;
+                let maybe_row = if segment_id == current_segment_id {
+                    // segment is unchanged
+                    None
+                } else {
+                    // segment was already updated, try again
+                    let current_segment = self.wait_for_segment(*slot_guard);
+                    self.reserve_page_row(current_segment)
+                };
 
-    pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
-        let slot_idx = row % *N;
-        let maybe_free_segment = {
-            let lock_slot = self.free_segments[slot_idx].read_recursive();
-            let segment_id = *lock_slot;
-            let segment = self.segments.get(segment_id);
-
-            segment.and_then(|segment| {
-                self.reserve_page_row(segment)
-                    .map(|pos| (segment.segment_id(), LocalPOS(pos)))
-            })
-        };
-
-        if let Some(reserved_pos) = maybe_free_segment {
-            reserved_pos
-        } else {
-            // not lucky, go wait on your slot
-            let mut slot = self.free_segments[slot_idx].write();
-            loop {
-                if let Some(segment) = self.segments.get(*slot)
-                    && let Some(pos) = self.reserve_page_row(segment)
-                {
-                    return (segment.segment_id(), LocalPOS(pos));
+                match maybe_row {
+                    Some(pos) => {
+                        // another thread already replaced the segment while we were waiting on the slot
+                        (current_segment_id, LocalPOS(pos), None)
+                    }
+                    None => {
+                        // segment is still full, we need to replace it
+                        let guard = self.push_new_segment();
+                        *slot_guard = guard.segment_id();
+                        let segment = self.wait_for_segment(guard.segment_id());
+                        let pos = self
+                            .reserve_page_row(segment)
+                            .expect("new segment should not be full");
+                        (guard.segment_id(), LocalPOS(pos), Some(guard))
+                    }
                 }
-                *slot = self.push_new_segment();
             }
         }
     }

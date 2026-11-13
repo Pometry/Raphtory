@@ -4,7 +4,7 @@ pub(crate) use crate::db::api::{
     view::internal::{filtered_node::FilteredNodeStorageOps, FilterOps, FilterState, GraphView},
 };
 use raphtory_api::core::{
-    entities::{properties::prop::PropType, GID, VID},
+    entities::{properties::prop::PropType, LayerIds, GID, VID},
     storage::arc_str::ArcStr,
     Direction,
 };
@@ -197,3 +197,101 @@ impl<G: GraphView> ArrowNodeOp for Degree<G> {
 }
 
 impl<G: GraphView + 'static> IntoDynNodeOp for Degree<G> {}
+
+/// Bounds on the degree of a node. `lower == upper` means the degree is exact.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DegreeBounds {
+    pub lower: usize,
+    pub upper: usize,
+}
+
+impl DegreeBounds {
+    fn exact(degree: usize) -> Self {
+        DegreeBounds {
+            lower: degree,
+            upper: degree,
+        }
+    }
+}
+
+/// The op behind `NodeViewOps::degree_bounds` and co.
+#[derive(Debug, Clone)]
+pub struct DegreeBoundsOp<G> {
+    pub(crate) dir: Direction,
+    pub(crate) view: G,
+    pub(crate) threshold: usize,
+}
+
+impl<G: GraphView> NodeOp for DegreeBoundsOp<G> {
+    type Output = DegreeBounds;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.view.node_list()
+    }
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> DegreeBounds {
+        let node = storage.core_node(node);
+        let layer_ids = self.view.layer_ids();
+        let unfiltered = matches!(self.view.filter_state(), FilterState::Neither);
+        let mut bounds = unfiltered_degree_bounds(&node, layer_ids, self.dir);
+        if !unfiltered {
+            // A window or filter only ever drops neighbours, so the unfiltered upper bound still
+            // holds, but without checking the edges any of them may have been dropped.
+            bounds.lower = 0;
+        }
+        // `bounds.upper` is also the number of adjacency entries an exact count walks.
+        if bounds.lower == bounds.upper || bounds.upper > self.threshold {
+            bounds
+        } else if unfiltered {
+            DegreeBounds::exact(node.degree(layer_ids, self.dir))
+        } else {
+            DegreeBounds::exact(
+                node.filtered_neighbours_iter(&self.view, layer_ids, self.dir)
+                    .count(),
+            )
+        }
+    }
+}
+
+impl<G: GraphView> ArrowNodeOp for DegreeBoundsOp<G> {
+    type ArrowOutput = DegreeBounds;
+}
+
+impl<G: GraphView + 'static> IntoDynNodeOp for DegreeBoundsOp<G> {}
+
+/// Bounds on the degree of `node` across `layer_ids`, ignoring any window or filter. Only reads
+/// adjacency sizes, so it costs O(1) per layer.
+fn unfiltered_degree_bounds<'a, N: NodeStorageOps<'a>>(
+    node: N,
+    layer_ids: &LayerIds,
+    dir: Direction,
+) -> DegreeBounds {
+    // Bounds on the degree of `node` in a single layer (or in all of them), from its O(1) in/out
+    // adjacency sizes.
+    let layer_bounds = |layer: &LayerIds| match dir {
+        Direction::OUT | Direction::IN => DegreeBounds::exact(node.degree(layer, dir)),
+        Direction::BOTH => {
+            // Merging the in and out neighbours to dedup them is the expensive part of `degree`,
+            // so this only says the overlap is somewhere between none and all of the smaller side.
+            let out = node.degree(layer, Direction::OUT);
+            let inb = node.degree(layer, Direction::IN);
+            DegreeBounds {
+                lower: out.max(inb),
+                upper: out + inb,
+            }
+        }
+    };
+    match layer_ids {
+        LayerIds::Multiple(ids) => ids.iter().fold(DegreeBounds::exact(0), |bounds, id| {
+            let layer = layer_bounds(&LayerIds::One(id));
+            // A neighbour can be in several layers: the biggest layer is a lower bound on the
+            // degree and the sum over layers an upper one.
+            DegreeBounds {
+                lower: bounds.lower.max(layer.lower),
+                upper: bounds.upper + layer.upper,
+            }
+        }),
+        // `All` reads the adjacency every layer feeds into, and `None` has no neighbours.
+        _ => layer_bounds(layer_ids),
+    }
+}

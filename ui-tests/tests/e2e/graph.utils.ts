@@ -380,6 +380,10 @@ export async function saveAs(page: Page, newName: string) {
     await page.getByText('Save as ...').click();
     await page.getByLabel('New Graph Name').fill(newName);
     await page.getByRole('button', { name: 'Confirm' }).click();
+    await expect(page).toHaveURL(
+        (url) => decodeURIComponent(url.pathname).endsWith(`/graph/${newName}`),
+        { timeout: 15000 },
+    );
     await waitForLayoutToFinish(page);
 }
 
