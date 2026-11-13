@@ -192,6 +192,9 @@ impl AppConfigBuilder {
         if let Some(max_recursive_depth) = server_args.max_recursive_depth {
             builder.with_max_recursive_depth(Some(max_recursive_depth));
         }
+        if let Some(max_nesting_depth) = server_args.max_nesting_depth {
+            builder.with_max_nesting_depth(Some(max_nesting_depth));
+        }
         if let Some(max_directives_per_field) = server_args.max_directives_per_field {
             builder.with_max_directives_per_field(Some(max_directives_per_field));
         }
@@ -500,6 +503,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            SchemaConfigFieldName::MaxNestingDepth => {
+                                self.with_max_nesting_depth(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                             SchemaConfigFieldName::MaxDirectivesPerField => {
                                 self.with_max_directives_per_field(
                                     Deserialize::deserialize(value)
@@ -776,6 +785,11 @@ impl AppConfigBuilder {
 
     pub fn with_max_recursive_depth(&mut self, max_recursive_depth: Option<usize>) -> &mut Self {
         self.config.schema.max_recursive_depth = max_recursive_depth;
+        self
+    }
+
+    pub fn with_max_nesting_depth(&mut self, max_nesting_depth: Option<usize>) -> &mut Self {
+        self.config.schema.max_nesting_depth = max_nesting_depth;
         self
     }
 

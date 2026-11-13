@@ -5,9 +5,11 @@ use crate::{
     config::{
         app_config::{AppConfig, AppConfigBuilder},
         auth_config::PublicKeyError,
+        schema_config::DEFAULT_MAX_NESTING_DEPTH,
     },
     data::Data,
     model::App,
+    nesting_depth::NestingDepthLimit,
     observability::open_telemetry::OpenTelemetry,
     plugin::schema::RegisterPlugin,
     rayon::{configure_pools, PoolSettings},
@@ -375,6 +377,11 @@ impl GraphServer {
         for inject in &self.schema_data {
             schema_builder = inject(schema_builder);
         }
+        schema_builder = schema_builder.extension(NestingDepthLimit(
+            schema_cfg
+                .max_nesting_depth
+                .unwrap_or(DEFAULT_MAX_NESTING_DEPTH),
+        ));
         schema_builder = schema_builder.extension(MutationAuth);
         if let Some(depth) = schema_cfg.max_query_depth {
             schema_builder = schema_builder.limit_depth(depth);
