@@ -354,6 +354,7 @@ pub fn materialize_impl(
     // Preserve property mappers from the source graph so that
     // windowed views expose the same prop mappings even for keys with no
     // values inside the window.
+    // `deep_clone` doesn't copy the per-layer property presence bitset because filters can hide properties/layers.
     node_meta.set_metadata_mapper(graph.node_meta().metadata_mapper().deep_clone());
     node_meta.set_temporal_prop_mapper(graph.node_meta().temporal_prop_mapper().deep_clone());
     edge_meta.set_metadata_mapper(graph.edge_meta().metadata_mapper().deep_clone());
@@ -491,22 +492,24 @@ pub fn materialize_impl(
 
                     // don't pass node layer ids because the graph may be filtered/windowed,
                     // and any missing layer would introduce gaps in the layer mappers
-                    load_nodes_from_df(
-                        df_view,
-                        TIME_COL,
-                        Some(SECONDARY_INDEX_COL),
-                        NODE_GID_COL,
-                        &node_t_props_refs,
-                        &[],
-                        None,
-                        None,
-                        Some(TYPE_COL),
-                        &materialized,
-                        true,
-                        None,
-                        Some(LAYER_COL),
-                        None,
-                    )
+                    LOAD_POOL.install(|| {
+                        load_nodes_from_df(
+                            df_view,
+                            TIME_COL,
+                            Some(SECONDARY_INDEX_COL),
+                            NODE_GID_COL,
+                            &node_t_props_refs,
+                            &[],
+                            None,
+                            None,
+                            Some(TYPE_COL),
+                            &materialized,
+                            true,
+                            None,
+                            Some(LAYER_COL),
+                            None,
+                        )
+                    })
                 }
                 RecordBatchKind::EdgesT => {
                     let edge_t_props = df_columns_except(

@@ -23,21 +23,15 @@ mod io_tests {
         prelude::*,
     };
     use raphtory_api::core::{
-        entities::{LayerIds, VID},
+        entities::{LayerIds, EID, VID},
         storage::arc_str::ArcStr,
     };
-    use raphtory_storage::{
-        core_ops::CoreGraphOps,
-        mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
-    };
+    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
     use raphtory_tests::utils::{
         build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index,
     };
     use std::sync::Arc;
-    use storage::{
-        api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-        error::{SegmentKind, StorageError},
-    };
+    use storage::api::nodes::NodeSegmentOps;
 
     fn build_df(
         chunk_size: usize,
@@ -668,13 +662,10 @@ mod io_tests {
         assert_graph_equal(&g, &g2);
 
         // Both graphs should have the same event_id / secondary_index
-        assert_eq!(
-            g.write_session().unwrap().read_event_id().unwrap(),
-            g2.write_session().unwrap().read_event_id().unwrap(),
-        );
+        assert_eq!(g.read_event_id(), g2.read_event_id(),);
 
         assert_eq!(
-            g.write_session().unwrap().read_event_id().unwrap(),
+            g.read_event_id(),
             10 // max secondary index in edges
         );
     }
@@ -734,12 +725,12 @@ mod io_tests {
 
             // Both graphs should have the same event_id / secondary_index
             assert_eq!(
-                g.write_session().unwrap().read_event_id().unwrap(),
-                g2.write_session().unwrap().read_event_id().unwrap(),
+                g.read_event_id(),
+                g2.read_event_id(),
             );
 
             assert_eq!(
-                g.write_session().unwrap().read_event_id().unwrap(),
+                g.read_event_id(),
                 max_secondary_index
             );
         })
@@ -834,13 +825,10 @@ mod io_tests {
         assert_graph_equal(&g, &g2);
 
         // Both graphs should have the same event_id / secondary_index
-        assert_eq!(
-            g.write_session().unwrap().read_event_id().unwrap(),
-            g2.write_session().unwrap().read_event_id().unwrap(),
-        );
+        assert_eq!(g.read_event_id(), g2.read_event_id(),);
 
         assert_eq!(
-            g.write_session().unwrap().read_event_id().unwrap(),
+            g.read_event_id(),
             10 // max secondary index in nodes
         );
 
@@ -1131,22 +1119,21 @@ mod io_tests {
 
         // keep reserving until a row lands in a new segment
         let mut new_segments = vec![];
-        let mut row = 0;
+
         while new_segments.is_empty() {
-            let (_, _, locked) = tg.storage().nodes().reserve_free_pos(row);
+            let (_, _, locked) = tg.storage().nodes().reserve_free_pos();
             new_segments.extend(locked);
-            row += 1;
         }
 
         // Cannot write-lock new node segments until the bulk load is done.
         for segment_id in held..tg.storage().nodes().num_segments() {
-            let segment = tg.storage().nodes().get_or_create_segment(segment_id);
+            let segment = tg.storage().nodes().wait_for_segment(segment_id);
             assert!(segment
                 .try_head_mut_for(std::time::Duration::ZERO)
                 .is_none());
         }
 
-        wlg.extend_new(new_segments);
+        wlg.extend_nodes(new_segments);
         assert_eq!(wlg.nodes.len(), tg.storage().nodes().num_segments());
         for segment_id in 0..wlg.nodes.len() {
             assert_eq!(
@@ -1165,13 +1152,13 @@ mod io_tests {
         let mut wlg = g.write_lock().unwrap();
         let tg = wlg.graph;
         let held = wlg.nodes.len();
-        tg.storage().nodes().grow(held + 1);
+        tg.storage().nodes().grow_locked(held + 1); // grow and drop the guard
 
-        wlg.extend_new(vec![]);
+        wlg.extend_nodes(vec![]);
     }
 
     #[test]
-    fn test_new_segments_are_held_after_resize_and_lock() {
+    fn test_new_segments_are_held_after_resize() {
         let g = small_pages_graph();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
@@ -1182,10 +1169,10 @@ mod io_tests {
 
         // max_node_page_len is 2, so this vid is in the third new segment
         wlg.resize_segments_to_vid(VID((held_nodes + 2) * 2));
-        tg.storage().edges().grow(held_edges + 2);
-        assert_eq!(wlg.edges.len(), held_edges);
+        wlg.resize_segments_to_eid(EID((held_edges + 1) * 2));
 
-        wlg.lock_new_segments().unwrap();
+        wlg.assert_all_nodes_locked();
+        wlg.assert_all_edges_locked();
 
         assert_eq!(wlg.nodes.len(), tg.storage().nodes().num_segments());
         assert_eq!(wlg.edges.len(), tg.storage().edges().num_segments());
@@ -1203,66 +1190,10 @@ mod io_tests {
 
         // nothing new: no-op
         wlg.resize_segments_to_vid(VID(0));
-        wlg.lock_new_segments().unwrap();
+        wlg.assert_all_nodes_locked();
+        wlg.assert_all_edges_locked();
         assert_eq!(wlg.nodes.len(), held_nodes + 3);
         assert_eq!(wlg.edges.len(), held_edges + 2);
-    }
-
-    #[test]
-    #[should_panic(expected = "without handing over their locks")]
-    fn test_lock_new_segments_panics_on_unlocked_node_segment() {
-        let g = small_pages_graph();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-
-        let mut wlg = g.write_lock().unwrap();
-        let tg = wlg.graph;
-        let held = wlg.nodes.len();
-        tg.storage().nodes().grow(held + 1);
-
-        let _ = wlg.lock_new_segments();
-    }
-
-    #[test]
-    fn test_lock_new_segments_times_out_on_held_edge_segment() {
-        let g = small_pages_graph();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-
-        let mut wlg = g.write_lock().unwrap();
-        let tg = wlg.graph;
-        let held_nodes = wlg.nodes.len();
-        let held_edges = wlg.edges.len();
-        tg.storage().edges().grow(held_edges + 1);
-
-        let reader = tg
-            .storage()
-            .edges()
-            .get_or_create_segment(held_edges)
-            .head();
-        let err = wlg
-            .lock_new_segments_within(std::time::Duration::from_millis(100))
-            .unwrap_err();
-        assert!(
-            matches!(
-                err,
-                StorageError::SegmentLockTimeout {
-                    kind: SegmentKind::Edge,
-                    segment_id,
-                } if segment_id == held_edges
-            ),
-            "{err:?}"
-        );
-        let message = err.to_string();
-        assert!(
-            message.contains("a reader or an unguarded writer"),
-            "{message}"
-        );
-        assert!(message.contains("partially applied"), "{message}");
-        assert_eq!(wlg.nodes.len(), held_nodes);
-        assert_eq!(wlg.edges.len(), held_edges);
-
-        drop(reader);
-        wlg.lock_new_segments().unwrap();
-        assert_eq!(wlg.edges.len(), held_edges + 1);
     }
 
     #[test]

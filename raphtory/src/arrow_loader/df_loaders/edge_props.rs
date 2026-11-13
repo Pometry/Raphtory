@@ -19,16 +19,17 @@ use crate::{
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
-use db4_graph::WriteLockedGraph;
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use itertools::izip;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::entities::{properties::prop::AsPropRef, LayerId, EID},
 };
 use raphtory_core::entities::VID;
-use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use rayon::prelude::*;
 use std::{
+    cell::LazyCell,
     collections::HashMap,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -56,6 +57,8 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
         return Ok(());
     }
 
+    let graph = graph.mutable()?;
+
     let ColumnNames {
         src,
         dst,
@@ -74,12 +77,13 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
     let layer_id_index = layer_id_col.and_then(|name| df_view.get_index_opt(name));
     let layer_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
 
-    let session = graph.write_session().map_err(into_graph_err)?;
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-        session
+        graph
             .resolve_edge_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
+    // resolved outside the chunk's columns, marked separately below
+    let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
     #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading edges metadata".to_string(), df_view.num_rows)?;
@@ -90,12 +94,16 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
 
     // held for the whole load
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+    let mut meta_presence = graph
+        .edge_meta()
+        .metadata_mapper()
+        .write_locked_layer_presence();
 
     for chunk in df_view.chunks {
         let df = chunk?;
         let metadata_cols =
             combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
+                graph
                     .resolve_edge_property(key, dtype, true)
                     .map_err(into_graph_err)
             })?;
@@ -115,7 +123,17 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
                     .map(|array| array.values().as_ref())
             })
             .transpose()?;
-        let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
+        let (layer_col_resolved, distinct_layers) =
+            layer.resolve_layer(layer_id_values, graph, false)?;
+
+        // mark this chunk's (layer, prop) presence once
+        mark_chunk_metadata_presence(
+            &mut meta_presence,
+            Some(&layer_col_resolved),
+            &distinct_layers,
+            &metadata_cols,
+            &shared_metadata_ids,
+        );
 
         // Metadata can only be attached to an edge that exists, so its endpoints must exist too:
         // look the ids up, never create them. Resolving the whole chunk before taking the write
@@ -144,10 +162,6 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
             add_and_resolve_outbound_edges(&eid_col_shared, locked_page, zip)?;
             Ok::<_, GraphError>(())
         })?;
-
-        write_locked_graph
-            .lock_new_segments()
-            .map_err(into_graph_err)?;
 
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
             let zip = izip!(
@@ -222,8 +236,8 @@ pub fn load_edges_metadata_from_df_prefetch<
 /// graph; the first that is not fails the load with `GraphError::NodeMissingError`, naming it.
 /// Without it the columns hold VIDs written by our own parquet encoder and are used as they are.
 #[allow(clippy::too_many_arguments)]
-fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
-    graph: &G,
+fn lookup_node_vids<'a: 'c, 'b: 'c, 'c>(
+    graph: &TemporalGraph,
     src_index: usize,
     dst_index: usize,
     src_col_resolved: &'a mut Vec<VID>,
@@ -244,7 +258,7 @@ fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
                 .zip_eq(resolved.par_iter_mut())
                 .try_for_each(|(gid, vid)| {
                     *vid = graph
-                        .internalise_node(gid.as_node_ref())
+                        .resolve_node_ref(gid.as_node_ref())
                         .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?;
                     Ok::<(), GraphError>(())
                 })?;
@@ -294,9 +308,10 @@ fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, &'a usize)>,
 ) {
     let mut c_props = Vec::new();
-    let mut writer = shard.writer();
+    let resolver = shard.resolver();
+    let mut writer = LazyCell::new(|| shard.writer());
     for (row, (src, dst, eid, layer)) in zip.enumerate() {
-        if let Some(eid_pos) = writer.resolve_pos(*eid) {
+        if let Some(eid_pos) = resolver(*eid) {
             c_props.clear();
             c_props.extend(metadata_cols.iter_row(row));
             c_props.extend(

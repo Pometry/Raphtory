@@ -6,7 +6,7 @@ use raphtory::{
     db::graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
     prelude::*,
 };
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use raphtory_tests::{
     test_storage,
     utils::{build_graph, build_graph_strat},
@@ -140,7 +140,7 @@ fn nodes_without_updates_are_filtered() {
     let g = Graph::new();
     g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
     let expected = Graph::new();
-    expected.resolve_layer(None).unwrap();
+    expected.mutable().unwrap().resolve_layer(None);
     let subgraph = g.subgraph([0]);
     assert_graph_equal(&subgraph, &expected);
 }
@@ -182,6 +182,6 @@ fn test_subgraph_only_deletion() {
     g.delete_edge(0, 0, 1, None).unwrap();
     let sg = g.subgraph([0]);
     let expected = PersistentGraph::new();
-    expected.resolve_layer(None).unwrap();
+    expected.mutable().unwrap().resolve_layer(None);
     assert_graph_equal(&sg, &expected);
 }

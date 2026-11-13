@@ -21,11 +21,6 @@ def sort_lists_in_structure(key_main, obj):
                     (sort_lists_in_structure(None, item) for item in obj),
                     key=lambda x: x["typeName"],
                 )
-            if key_main == "edges":
-                return sorted(
-                    (sort_lists_in_structure(None, item) for item in obj),
-                    key=lambda x: (x["srcType"], x["dstType"]),
-                )
             if key_main == "properties":
                 return sorted(
                     (sort_lists_in_structure(None, item) for item in obj),
@@ -66,19 +61,15 @@ def test_node_edge_properties_schema():
             schema {
               layers {
                 name
-                edges {
-                  srcType
-                  dstType
-                  properties {
-                    key
-                    propertyType
-                    variants
-                  }
-                  metadata {
-                    key
-                    propertyType
-                    variants
-                  }
+                properties {
+                  key
+                  propertyType
+                  variants
+                }
+                metadata {
+                  key
+                  propertyType
+                  variants
                 }
               }
               nodes {
@@ -92,7 +83,7 @@ def test_node_edge_properties_schema():
                   key
                   propertyType
                   variants
-                }                
+                }
               }
             }
           }
@@ -105,135 +96,92 @@ def test_node_edge_properties_schema():
                     "layers": [
                         {
                             "name": "0",
-                            "edges": [
+                            "properties": [
                                 {
-                                    "srcType": "a",
-                                    "dstType": "None",
-                                    "properties": [
-                                        {
-                                            "key": "prop1",
-                                            "propertyType": "I64",
-                                            "variants": ["1"],
-                                        },
-                                        {
-                                            "key": "prop3",
-                                            "propertyType": "Str",
-                                            "variants": ["test"],
-                                        },
-                                    ],
-                                    "metadata": [
-                                        {
-                                            "key": "static",
-                                            "propertyType": "Str",
-                                            "variants": ["test"],
-                                        },
-                                    ],
+                                    "key": "prop1",
+                                    "propertyType": "I64",
+                                    "variants": ["1"],
                                 },
                                 {
-                                    "srcType": "None",
-                                    "dstType": "b",
-                                    "properties": [
-                                        {
-                                            "key": "prop1",
-                                            "propertyType": "I64",
-                                            "variants": ["1"],
-                                        },
-                                        {
-                                            "key": "prop2",
-                                            "propertyType": "F64",
-                                            "variants": ["9.8"],
-                                        },
-                                    ],
-                                    "metadata": [],
+                                    "key": "prop2",
+                                    "propertyType": "F64",
+                                    "variants": ["9.8"],
+                                },
+                                {
+                                    "key": "prop3",
+                                    "propertyType": "Str",
+                                    "variants": ["test"],
+                                },
+                            ],
+                            "metadata": [
+                                {
+                                    "key": "static",
+                                    "propertyType": "Str",
+                                    "variants": ["test"],
                                 },
                             ],
                         },
                         {
                             "name": "1",
-                            "edges": [
+                            "properties": [
                                 {
-                                    "srcType": "b",
-                                    "dstType": "b",
-                                    "properties": [
-                                        {
-                                            "key": "prop4",
-                                            "propertyType": "I64",
-                                            "variants": ["1"],
-                                        },
-                                        {
-                                            "key": "prop5",
-                                            "propertyType": "F64",
-                                            "variants": ["9.8"],
-                                        },
-                                        {
-                                            "key": "prop6",
-                                            "propertyType": "Map{ data: Str }",
-                                            "variants": ['{"data": "map"}'],
-                                        },
-                                    ],
-                                    "metadata": [],
+                                    "key": "prop1",
+                                    "propertyType": "I64",
+                                    "variants": ["1"],
                                 },
                                 {
-                                    "srcType": "b",
-                                    "dstType": "None",
-                                    "properties": [
-                                        {
-                                            "key": "prop1",
-                                            "propertyType": "I64",
-                                            "variants": ["1"],
-                                        },
-                                        {
-                                            "key": "propArray",
-                                            "propertyType": "List<I64>",
-                                            "variants": ["[1, 2, 3]"],
-                                        },
-                                        {
-                                            "key": "prop2",
-                                            "propertyType": "F64",
-                                            "variants": ["9.8"],
-                                        },
-                                    ],
-                                    "metadata": [],
+                                    "key": "prop2",
+                                    "propertyType": "F64",
+                                    "variants": ["9.8"],
+                                },
+                                {
+                                    "key": "prop4",
+                                    "propertyType": "I64",
+                                    "variants": ["1"],
+                                },
+                                {
+                                    "key": "prop5",
+                                    "propertyType": "F64",
+                                    "variants": ["9.8"],
+                                },
+                                {
+                                    "key": "prop6",
+                                    "propertyType": "Map{ data: Str }",
+                                    "variants": ['{"data": "map"}'],
+                                },
+                                {
+                                    "key": "propArray",
+                                    "propertyType": "List<I64>",
+                                    "variants": ["[1, 2, 3]"],
                                 },
                             ],
+                            "metadata": [],
                         },
                         {
                             "name": "2",
-                            "edges": [
+                            "properties": [
                                 {
-                                    "srcType": "None",
-                                    "dstType": "None",
-                                    "properties": [
-                                        {
-                                            "key": "prop1",
-                                            "propertyType": "I64",
-                                            "variants": ["1"],
-                                        },
-                                        {
-                                            "key": "prop2",
-                                            "propertyType": "F64",
-                                            "variants": ["9.8"],
-                                        },
-                                        {
-                                            "key": "prop3",
-                                            "propertyType": "Str",
-                                            "variants": ["test"],
-                                        },
-                                    ],
-                                    "metadata": [],
-                                }
+                                    "key": "prop1",
+                                    "propertyType": "I64",
+                                    "variants": ["1"],
+                                },
+                                {
+                                    "key": "prop2",
+                                    "propertyType": "F64",
+                                    "variants": ["9.8"],
+                                },
+                                {
+                                    "key": "prop3",
+                                    "propertyType": "Str",
+                                    "variants": ["test"],
+                                },
                             ],
+                            "metadata": [],
                         },
                         {
                             "name": "3",
-                            "edges": [
-                                {
-                                    "srcType": "None",
-                                    "dstType": "None",
-                                    "properties": [],
-                                    "metadata": [],
-                                }
-                            ],
+                            "properties": [],
+                            "metadata": [],
                         },
                     ],
                     "nodes": [
