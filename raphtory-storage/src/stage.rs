@@ -57,8 +57,9 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
         &self.graph
     }
 
-    /// Finalise all writes and promote the staged graph as the new active graph.
-    pub fn finish(self) -> Result<G, StageError> {
+    /// Finalise all writes. When `set_active` is true, promote the staged graph
+    /// as the new active graph.
+    pub fn finish(self, set_active: bool) -> Result<G, StageError> {
         let Stage {
             graph,
             folder,
@@ -87,8 +88,13 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
         };
 
         folder.write_graph_meta(new_meta)?;
-        let cleanup_old = false; // Keep the previous data folders around as archives.
-        folder.finish(cleanup_old).map_err(StageError::Finish)?;
+
+        if set_active {
+            let cleanup_old = false; // Keep the previous data folders around as archives.
+            folder.finish(cleanup_old).map_err(StageError::Finish)?;
+        } else {
+            folder.finish_inactive().map_err(StageError::Finish)?;
+        }
 
         Ok(graph)
     }

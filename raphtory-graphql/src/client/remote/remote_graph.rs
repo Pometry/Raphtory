@@ -21,8 +21,7 @@ use crate::{
         },
         ClientError,
     },
-    data::GqlGraphType,
-    model::graph::filter_expr_input::GqlFilter,
+    model::graph::{filter_expr_input::GqlFilter, GqlGraphType},
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{

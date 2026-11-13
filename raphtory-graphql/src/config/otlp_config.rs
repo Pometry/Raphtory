@@ -1,4 +1,4 @@
-use crate::{model::blocking_io, server::ServerError};
+use crate::{rayon::blocking_io, server::ServerError};
 use clap::ValueEnum;
 use config::ConfigError;
 use field_types::FieldName;

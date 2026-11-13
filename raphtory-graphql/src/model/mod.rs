@@ -2,19 +2,24 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-    auth::{ContextValidation, Roles},
-    auth_policy::{AuthorizationPolicy, NamespacePermission},
-    data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
-    model::graph::{
-        collection::GqlCollection,
-        graph::GqlGraph,
-        meta_graph::MetaGraph,
-        mutable_graph::GqlMutableGraph,
-        namespace::{is_namespace_visible, Namespace},
-        namespaced_item::NamespacedItem,
-        node_id::GqlNodeId,
+    auth::Roles,
+    auth_policy::AuthorizationPolicy,
+    data::Data,
+    model::{
+        graph::{
+            collection::GqlCollection,
+            graph::GqlGraph,
+            meta_graph::MetaGraph,
+            mutable_graph::GqlMutableGraph,
+            namespace::{is_namespace_visible, Namespace},
+            namespaced_item::NamespacedItem,
+            node_id::GqlNodeId,
+            GqlGraphType,
+        },
+        stage::GqlStagedGraph,
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
+    permissions::{parent_namespace, require_graph_write, require_namespace_write},
     rayon::{blocking_compute, blocking_write},
     url_encode::{url_decode_graph_at, url_encode_graph},
     GQLError,
@@ -26,7 +31,6 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::{
             storage::storage::{Extension, PersistenceStrategy},
@@ -35,12 +39,11 @@ use raphtory::{
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
-    io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
     prelude::*,
     version,
 };
 use raphtory_api::core::entities::properties::prop::PropType;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tracing::{error, warn};
 
 #[cfg(feature = "vectors")]
@@ -55,6 +58,7 @@ pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+pub mod stage;
 
 pub(crate) fn parse_json_schema(
     json: Option<&str>,
@@ -81,15 +85,6 @@ pub(crate) fn parse_json_schema(
         .map(Some)
 }
 
-/// a thin wrapper around spawn_blocking that unwraps the join handle
-pub(crate) async fn blocking_io<F, R>(f: F) -> R
-where
-    F: FnOnce() -> R + Send + 'static,
-    R: Send + 'static,
-{
-    tokio::task::spawn_blocking(f).await.unwrap()
-}
-
 /// Auto-grants Write on `path` for the creator's role after a graph is created.
 /// Returns an error if the grant fails so the caller can roll back the graph.
 /// No-op when there is no active auth policy; identity checks are delegated to the policy.
@@ -104,39 +99,6 @@ fn auto_grant_on_create(
     Ok(())
 }
 
-fn require_namespace_write(
-    ctx: &Context<'_>,
-    policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    ns_path: &str,
-    new_path: &str,
-    operation: &str,
-) -> Result<(), GQLError> {
-    if ctx.is_read_only() {
-        return Err(PermissionError::ReadOnlyContext.into());
-    }
-    match policy {
-        None => Ok(ctx.require_jwt_write_access()?),
-        Some(p) => {
-            let ns_perm = p.namespace_permissions(ctx, ns_path).map_err(|e| {
-                error!(
-                    namespace = ns_path,
-                    error = %e,
-                    "Authorization policy could not resolve namespace permissions"
-                );
-                PermissionError::AuthPolicyError
-            })?;
-            if ns_perm < Some(NamespacePermission::Write) {
-                return Err(PermissionError::NamespaceWriteRequired {
-                    namespace: ns_path.to_string(),
-                    graph: new_path.to_string(),
-                    operation: operation.to_string(),
-                }
-                .into());
-            }
-            Ok(())
-        }
-    }
-}
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub struct QueryRoot;
@@ -168,12 +130,13 @@ impl QueryRoot {
     /// Returns a graph
     pub async fn graph<'a>(
         ctx: &Context<'a>,
-        #[graphql(
-            desc = "Graph path relative to the root namespace (e.g. `\"master\"` or `\"team/project/graph\"`)."
-        )]
+        #[graphql(desc = "Graph path relative to the root namespace \
+                    (e.g. `\"master\"` or `\"team/project/graph\"`).")]
         path: &str,
         #[graphql(
-            desc = "Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type."
+            desc = "Optional override for graph semantics — `EVENT` treats every update \
+                    as a point-in-time event, `PERSISTENT` carries values forward until \
+                    overwritten or deleted. Defaults to the stored graph's native type."
         )]
         graph_type: Option<GqlGraphType>,
     ) -> Result<Option<GqlGraph>, GQLError> {
@@ -220,7 +183,7 @@ impl QueryRoot {
             }
         }
 
-        let work_dir = data.work_dir_read().await;
+        let work_dir = data.work_dir().read().await.into();
         let folder = ExistingGraphFolder::try_from(work_dir, &path)?;
         Ok(Some(MetaGraph::new(folder)))
     }
@@ -246,7 +209,7 @@ impl QueryRoot {
     /// Returns::  List of namespaces on root
     pub async fn namespaces<'a>(ctx: &Context<'a>) -> Result<GqlCollection<Namespace>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
-        let root = Namespace::root(data.work_dir_read().await);
+        let root = Namespace::root(data.work_dir().read().await.into());
         let all: Vec<Namespace> = blocking_compute(move || {
             root.self_and_all_children()
                 .filter_map(|child| match child {
@@ -276,7 +239,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         if is_namespace_visible(ctx, &data.auth_policy, &path)? {
             Ok(Namespace::try_new(
-                data.work_dir_read().await,
+                data.work_dir().read().await.into(),
                 path.clone(),
             )?)
         } else {
@@ -289,7 +252,7 @@ impl QueryRoot {
     /// Returns::  Root namespace
     pub async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
-        Namespace::root(data.work_dir_read().await)
+        Namespace::root(data.work_dir().read().await.into())
     }
 
     /// Encodes graph and returns as string.
@@ -319,171 +282,6 @@ pub struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    /// Delete graph from a path on the server.
-    pub async fn delete_graph<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
-    ) -> Result<bool, GQLError> {
-        let data = ctx.data_unchecked::<Data>();
-        require_graph_write(ctx, &data.auth_policy, &path)?;
-        let src_ns = parent_namespace(&path);
-        require_namespace_write(ctx, &data.auth_policy, src_ns, &path, "delete")?;
-        data.delete_graph(&path).await?;
-        Ok(true)
-    }
-
-    /// Load nodes
-    #[allow(clippy::too_many_arguments)]
-    pub async fn load_nodes<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
-        #[graphql(desc = "Path to the parquet directory.")] data_path: String,
-        #[graphql(desc = "The column name for the timestamps.")] time: String,
-        #[graphql(desc = "The column name for the node IDs.")] id: String,
-        #[graphql(
-            desc = "A value to use as the node type for all nodes. Cannot be used in combination with node_type_col."
-        )]
-        node_type: Option<String>,
-        #[graphql(
-            desc = "The node type column name in a dataframe. Cannot be used in combination with node_type."
-        )]
-        node_type_col: Option<String>,
-        #[graphql(desc = "List of node property column names.")] properties: Option<Vec<String>>,
-        #[graphql(desc = "List of node metadata column names.")] metadata: Option<Vec<String>>,
-        #[graphql(
-            desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None."
-        )]
-        schema: Option<String>,
-        #[graphql(desc = "The column name for the secondary index.")] event_id: Option<String>,
-        #[graphql(
-            desc = "A value to use as the layer for all nodes. Cannot be used in combination with layer_col."
-        )]
-        layer: Option<String>,
-        #[graphql(
-            desc = "The node layer column name in a dataframe. Cannot be used in combination with layer."
-        )]
-        layer_col: Option<String>,
-    ) -> Result<bool, GQLError> {
-        let data = ctx.data_unchecked::<Data>();
-        // src: require WRITE on graph
-        // require_graph_write(ctx, &data.auth_policy, graph_path)?;
-        let graph = data
-            .get_graph_with_write_permission(ctx, &graph_path)
-            .await?
-            .graph()
-            .clone();
-        // NOTE: skipping shared metadata for now until we figure out parsing of types
-        let properties_owned = properties.unwrap_or_default();
-        let properties: Vec<&str> = properties_owned.iter().map(String::as_str).collect();
-
-        let metadata_owned = metadata.unwrap_or_default();
-        let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
-
-        let schema = parse_json_schema(schema.as_deref())?;
-
-        // extracting PathBuf handles Strings too
-        let data_path = PathBuf::from(data_path);
-
-        data.is_parquet_path_allowed(&data_path).await?;
-
-        // wrap in Arc to avoid cloning the entire schema for inner loops
-        let arced_schema = schema.map(Arc::new);
-
-        load_nodes_from_parquet(
-            &graph,
-            &data_path,
-            &time,
-            event_id.as_deref(),
-            &id,
-            node_type.as_deref(),
-            node_type_col.as_deref(),
-            properties.as_slice(),
-            metadata.as_slice(),
-            None,
-            layer.as_deref(),
-            layer_col.as_deref(),
-            None,
-            None,
-            true,
-            arced_schema.clone(),
-        )?;
-        Ok(true)
-    }
-
-    /// Load edges
-    #[allow(clippy::too_many_arguments)]
-    pub async fn load_edges<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
-        #[graphql(desc = "Path to the parquet directory.")] data_path: String,
-        #[graphql(desc = "The column name for the update timestamps.")] time: String,
-        #[graphql(desc = "The column name for the source node IDs.")] src: String,
-        #[graphql(desc = "The column name for the destination node IDs.")] dst: String,
-        #[graphql(desc = "List of edge property column names. Defaults to None.")]
-        properties: Option<Vec<String>>,
-        #[graphql(desc = "List of edge metadata column names. Defaults to None.")] metadata: Option<
-            Vec<String>,
-        >,
-        #[graphql(
-            desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None."
-        )]
-        schema: Option<String>,
-        #[graphql(desc = "The column name for the secondary index.")] event_id: Option<String>,
-        #[graphql(
-            desc = "A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None."
-        )]
-        layer: Option<String>,
-        #[graphql(
-            desc = "The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None."
-        )]
-        layer_col: Option<String>,
-    ) -> Result<bool, GQLError> {
-        let data = ctx.data_unchecked::<Data>();
-        // src: require WRITE on graph
-        // require_graph_write(ctx, &data.auth_policy, graph_path)?;
-        let graph = data
-            .get_graph_with_write_permission(ctx, &graph_path)
-            .await?
-            .graph()
-            .clone();
-        // NOTE: skipping shared metadata for now until we figure out parsing of types
-        let properties_owned = properties.unwrap_or_default();
-        let properties: Vec<&str> = properties_owned.iter().map(String::as_str).collect();
-
-        let metadata_owned = metadata.unwrap_or_default();
-        let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
-
-        let schema = parse_json_schema(schema.as_deref())?;
-
-        // extracting PathBuf handles Strings too
-        let data_path = PathBuf::from(data_path);
-
-        data.is_parquet_path_allowed(&data_path).await?;
-
-        // wrap in Arc to avoid cloning the entire schema for inner loops
-        let arced_schema = schema.map(Arc::new);
-
-        load_edges_from_parquet(
-            &graph,
-            &data_path,
-            ColumnNames::new(
-                time.as_str(),
-                event_id.as_deref(),
-                src.as_str(),
-                dst.as_str(),
-                layer_col.as_deref(),
-            ),
-            true,
-            properties.as_slice(),
-            metadata.as_slice(),
-            None,
-            layer.as_deref(),
-            None,
-            arced_schema.clone(),
-        )?;
-        Ok(true)
-    }
-
     /// Creates a new graph.
     pub async fn new_graph<'a>(
         ctx: &Context<'a>,
@@ -495,7 +293,8 @@ impl Mut {
         require_namespace_write(ctx, &data.auth_policy, ns, &path, "create")?;
         let overwrite = false;
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
@@ -520,6 +319,19 @@ impl Mut {
         Ok(true)
     }
 
+    /// Delete graph from a path on the server.
+    pub async fn delete_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<bool, GQLError> {
+        let data = ctx.data_unchecked::<Data>();
+        require_graph_write(ctx, &data.auth_policy, &path)?;
+        let src_ns = parent_namespace(&path);
+        require_namespace_write(ctx, &data.auth_policy, src_ns, &path, "delete")?;
+        data.delete_graph(&path).await?;
+        Ok(true)
+    }
+
     /// Move graph from a path on the server to a new_path on the server.
     pub async fn move_graph<'a>(
         ctx: &Context<'a>,
@@ -536,9 +348,10 @@ impl Mut {
         // src: require WRITE on parent namespace (removing graph from namespace)
         let src_ns = parent_namespace(path);
         require_namespace_write(ctx, &data.auth_policy, src_ns, path, "move")?;
-        // copy_graph handles dst namespace WRITE check (and src READ, which WRITE implies)
+
+        // moving with the same path should be a no-op, not delete the graph
         if path != new_path {
-            // moving with the same path should be a no-op, not delete the graph
+            // copy_graph handles dst namespace WRITE check (and src READ, which WRITE implies)
             Self::copy_graph(ctx, path, new_path, overwrite).await?;
             data.delete_graph(path).await?;
         }
@@ -566,7 +379,8 @@ impl Mut {
         let graph = src.graph().clone();
         drop(src);
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, graph).await?;
@@ -593,7 +407,8 @@ impl Mut {
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &path, "upload")?;
         let in_file = graph.value(ctx)?.content;
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
@@ -618,13 +433,13 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, path, "send")?;
-        let work_dir = data.work_dir_write().await;
+        let work_dir = data.work_dir().write().await;
         let folder = if overwrite {
             ValidWriteableGraphFolder::try_existing_or_new(work_dir, path)?
         } else {
             ValidWriteableGraphFolder::try_new(work_dir, path)?
         };
-        let args = data.graph_args.clone();
+        let args = data.inner.graph_args.clone();
         let folder_clone = folder.clone();
         let g: MaterializedGraph =
             blocking_compute(move || url_decode_graph_at(graph, folder_clone.graph_folder(), args))
@@ -635,6 +450,32 @@ impl Mut {
             return Err(e);
         }
         Ok(path.to_owned())
+    }
+
+    /// Begin staging the graph at `graphPath`.
+    pub async fn stage<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
+        #[graphql(
+            desc = "When true, promotes the staged version as the active graph after the stage \
+                    is complete. When false, the staged version is saved to disk as an \
+                    inactive version."
+        )]
+        set_active: bool,
+    ) -> Result<GqlStagedGraph, GQLError> {
+        GqlStagedGraph::new(ctx, graph_path, set_active).await
+    }
+
+    /// Set the active version and start serving it immediately.
+    pub async fn set_active_version<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
+        #[graphql(desc = "Version id to serve.")] version: u32,
+    ) -> Result<bool, GQLError> {
+        let data = ctx.data_unchecked::<Data>();
+        require_graph_write(ctx, &data.auth_policy, &graph_path)?;
+        data.set_active_version(&graph_path, version).await?;
+        Ok(true)
     }
 
     /// Create an empty namespace at `path`.
@@ -672,7 +513,7 @@ impl Mut {
         require_namespace_write(ctx, &data.auth_policy, parent_ns, path, "delete")?;
         require_namespace_write(ctx, &data.auth_policy, path, path, "delete")?;
 
-        let namespace = Namespace::try_new(data.work_dir_write().await.into(), path.to_string())?;
+        let namespace = Namespace::try_new(data.work_dir().write().await.into(), path.to_string())?;
         let ns_clone = namespace.clone();
         let descendants: Vec<NamespacedItem> =
             blocking_compute(move || ns_clone.get_all_children().collect()).await;
@@ -715,7 +556,8 @@ impl Mut {
             .get_graph_requiring_read(ctx, parent_path, None)
             .await?;
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(&new_path, overwrite)?;
         let folder_clone = folder.clone();

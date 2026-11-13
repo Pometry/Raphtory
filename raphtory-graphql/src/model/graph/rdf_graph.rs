@@ -2,11 +2,11 @@
 //! RDF, with persistent semantics.
 use crate::{
     config::concurrency_config::ConcurrencyConfig,
-    data::{Data, GqlGraphType},
+    data::Data,
     model::{
         graph::{
             filter_expr_input::GqlFilter, graph::GqlGraph, node_id::GqlNodeId,
-            timeindex::GqlTimeInput, windowset::GqlGraphWindowSet, GqlAlignmentUnit,
+            timeindex::GqlTimeInput, windowset::GqlGraphWindowSet, GqlAlignmentUnit, GqlGraphType,
             WindowDuration,
         },
         QueryRoot,

@@ -74,7 +74,7 @@ use url::ParseError;
 
 #[cfg(feature = "vectors")]
 use {
-    crate::{paths::ExistingGraphFolder, GQLError},
+    crate::{paths::ValidGraphPaths, GQLError},
     raphtory_vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
@@ -135,7 +135,6 @@ type SchemaDataInjector = Arc<
 /// A struct for defining and running a Raphtory GraphQL server
 pub struct GraphServer {
     data: Data,
-    work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
     key_resolver: Option<Arc<dyn KeyResolver>>,
@@ -162,7 +161,6 @@ impl GraphServer {
         let extensions = config.extensions.clone();
         let data = Data::new(work_dir.as_path(), &config, graph_args);
         let server = Self {
-            work_dir,
             data,
             config,
             schema_data: Vec::new(),
@@ -188,7 +186,7 @@ impl GraphServer {
 
     /// Returns the working directory for this server.
     pub fn work_dir(&self) -> &Path {
-        &self.work_dir
+        self.data.work_dir().path()
     }
 
     /// Register a custom JWT key resolver (e.g. an SSO/JWKS resolver from an auth extension). When
@@ -243,11 +241,11 @@ impl GraphServer {
         template: &DocumentTemplate,
         embeddings: OpenAIEmbeddings,
     ) -> Result<(), GQLError> {
-        let vector_cache = self.data.vector_cache.resolve().await?;
+        let vector_cache = self.data.inner.vector_cache.resolve().await?;
         let model = vector_cache.openai(embeddings.into()).await?;
         for folder in self.data.get_all_graph_folders().await {
             self.data
-                .vectorise_folder(&folder, template, model.clone()) // TODO: avoid clone, just ask for a ref
+                .vectorise_folder(folder.local_path(), template, model.clone())
                 .await?;
         }
         Ok(())
@@ -265,10 +263,9 @@ impl GraphServer {
         template: &DocumentTemplate,
         embeddings: OpenAIEmbeddings,
     ) -> Result<(), GQLError> {
-        let vetor_cache = self.data.vector_cache.resolve();
-        let model = vetor_cache.await?.openai(embeddings.into()).await?;
-        let folder = ExistingGraphFolder::try_from(self.data.work_dir_read().await, path)?;
-        self.data.vectorise_folder(&folder, template, model).await
+        let vector = self.data.inner.vector_cache.resolve();
+        let model = vector.await?.openai(embeddings.into()).await?;
+        self.data.vectorise_folder(path, template, model).await
     }
 
     /// Start the server on the default port and return a handle to it.

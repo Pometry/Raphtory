@@ -250,6 +250,7 @@ impl PersistentGraph {
     }
 }
 
+/// Stage and version methods.
 impl PersistentGraph {
     pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
         Stage::new(self).map_err(GraphError::from)
