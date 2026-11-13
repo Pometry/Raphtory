@@ -14,7 +14,7 @@ terraform.tfstate.backup
 node_modules
 dist
 output.csv.gz
-data
+data/apache/big
 
 samples.jsonl
 slow_req.log

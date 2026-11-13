@@ -1,104 +1,10 @@
 use raphtory::{db::graph::assertions::assert_graph_equal, prelude::*, serialise::StableDecode};
-use raphtory_api::core::storage::graph_folder::{GraphFolder, GraphPaths};
+use raphtory_api::core::storage::graph_folder::{
+    GraphFolder, GraphFolderError, GraphPaths, DIRTY_PATH, ROOT_RAPH_PATH,
+};
 
-// /// Verify that the metadata is re-created if it does not exist.
-// #[test]
-// #[ignore = "Need to think about how to deal with reading old format"]
-// fn test_read_metadata_from_noninitialized_zip() {
-//     global_info_logger();
-//
-//     let graph = Graph::new();
-//     graph.add_node(0, 0, NO_PROPS, None).unwrap();
-//
-//     let tmp_dir = tempfile::TempDir::new().unwrap();
-//     let zip_path = tmp_dir.path().join("graph.zip");
-//     let folder = GraphFolder::new_as_zip(&zip_path);
-//     graph.encode(&folder).unwrap();
-//
-//     // Remove the metadata file from the zip to simulate a noninitialized zip
-//     remove_metadata_from_zip(&zip_path);
-//
-//     // Should fail because the metadata file is not present
-//     let err = folder.try_read_metadata();
-//     assert!(err.is_err());
-//
-//     // Should re-create the metadata file
-//     let result = folder.read_metadata().unwrap();
-//     assert_eq!(
-//         result,
-//         GraphMetadata {
-//             node_count: 1,
-//             edge_count: 0,
-//             metadata: vec![],
-//             graph_type: GraphType::EventGraph,
-//             is_diskgraph: false
-//         }
-//     );
-// }
-
-// /// Helper function to remove the metadata file from a zip
-// fn remove_metadata_from_zip(zip_path: &Path) {
-//     let mut zip_file = std::fs::File::open(&zip_path).unwrap();
-//     let mut zip_archive = zip::ZipArchive::new(&mut zip_file).unwrap();
-//     let mut temp_zip = tempfile::NamedTempFile::new().unwrap();
-//
-//     // Scope for the zip writer
-//     {
-//         let mut zip_writer = zip::ZipWriter::new(&mut temp_zip);
-//
-//         for i in 0..zip_archive.len() {
-//             let mut file = zip_archive.by_index(i).unwrap();
-//
-//             // Copy all files except the metadata file
-//             if file.name() != META_PATH {
-//                 zip_writer
-//                     .start_file::<_, ()>(file.name(), FileOptions::default())
-//                     .unwrap();
-//                 std::io::copy(&mut file, &mut zip_writer).unwrap();
-//             }
-//         }
-//
-//         zip_writer.finish().unwrap();
-//     }
-//
-//     std::fs::copy(temp_zip.path(), &zip_path).unwrap();
-// }
-
-// /// Verify that the metadata is re-created if it does not exist.
-// #[test]
-// #[ignore = "Need to think about how to handle reading from old format"]
-// fn test_read_metadata_from_noninitialized_folder() {
-//     global_info_logger();
-//
-//     let graph = Graph::new();
-//     graph.add_node(0, 0, NO_PROPS, None).unwrap();
-//
-//     let temp_folder = tempfile::TempDir::new().unwrap();
-//     let folder = GraphFolder::from(temp_folder.path());
-//     graph.encode(&folder).unwrap();
-//
-//     // Remove the metadata file
-//     std::fs::remove_file(folder.get_meta_path()).unwrap();
-//
-//     // Should fail because the metadata file is not present
-//     let err = folder.try_read_metadata();
-//     assert!(err.is_err());
-//
-//     // Should re-create the metadata file
-//     let result = folder.read_metadata().unwrap();
-//     assert_eq!(
-//         result,
-//         GraphMetadata {
-//             node_count: 1,
-//             edge_count: 0,
-//             metadata: vec![],
-//             graph_type: GraphType::EventGraph,
-//             is_diskgraph: false
-//         }
-//     );
-// }
 #[test]
-fn test_zip_from_folder() {
+fn zip_from_folder() {
     let graph = Graph::new();
     graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
     graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
@@ -110,7 +16,7 @@ fn test_zip_from_folder() {
     graph.encode(&initial_folder).unwrap();
 
     assert!(initial_folder.graph_path().unwrap().exists());
-    assert!(initial_folder.meta_path().unwrap().exists());
+    assert!(initial_folder.graph_meta_path().unwrap().exists());
 
     // Create a zip file from the folder
     let output_zip_path = temp_folder.path().join("output.zip");
@@ -127,7 +33,7 @@ fn test_zip_from_folder() {
 }
 
 #[test]
-fn test_zip_from_zip() {
+fn zip_from_zip() {
     let graph = Graph::new();
     graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
     graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
@@ -161,7 +67,7 @@ fn test_zip_from_zip() {
 }
 
 #[test]
-fn test_unzip_to_folder() {
+fn unzip_to_folder() {
     let graph = Graph::new();
 
     graph
@@ -212,9 +118,58 @@ fn test_unzip_to_folder() {
 
     // Verify the extracted folder has the same structure
     assert!(unzip_folder.graph_path().unwrap().exists());
-    assert!(unzip_folder.meta_path().unwrap().exists());
+    assert!(unzip_folder.graph_meta_path().unwrap().exists());
 
     // Verify the extracted graph is the same as the original
     let extracted_graph = Graph::decode(&unzip_folder).unwrap();
     assert_graph_equal(&graph, &extracted_graph);
+}
+
+#[test]
+fn init_write_renames_dirty_to_raph() {
+    let tmp = tempfile::tempdir().unwrap();
+    let folder = GraphFolder::from(tmp.path());
+
+    let writeable = folder.clone().init_write().unwrap();
+    assert_eq!(writeable.relative_data_path().unwrap(), "data0");
+    assert_eq!(tmp.path().join(DIRTY_PATH).exists(), true);
+    assert_eq!(tmp.path().join(ROOT_RAPH_PATH).exists(), false);
+
+    writeable.finish(true).unwrap();
+
+    assert_eq!(tmp.path().join("data0").is_dir(), true);
+    assert_eq!(tmp.path().join(DIRTY_PATH).exists(), false);
+    assert_eq!(tmp.path().join(ROOT_RAPH_PATH).exists(), true);
+    assert_eq!(folder.active_version().unwrap(), 0);
+}
+
+#[test]
+fn init_swap_creates_next_version() {
+    let tmp = tempfile::tempdir().unwrap();
+    let folder = GraphFolder::from(tmp.path());
+    folder.init().unwrap(); // Create version 0
+
+    let writeable = folder.clone().init_swap().unwrap();
+    assert_eq!(writeable.relative_data_path().unwrap(), "data1");
+    assert_eq!(tmp.path().join(DIRTY_PATH).exists(), true);
+    assert_eq!(folder.all_versions().unwrap().contains(&0), true);
+    assert_eq!(
+        folder.all_versions().unwrap().contains(&1),
+        false,
+        "data dir in dirty.json is not a complete version"
+    );
+
+    // Cannot set active version to a version that is in progress.
+    assert!(matches!(
+        folder.set_active_version(1),
+        Err(GraphFolderError::VersionInProgress(1))
+    ));
+
+    writeable.finish(false).unwrap(); // Atomically promote dirty -> raph.
+
+    assert_eq!(tmp.path().join("data1").is_dir(), true);
+    assert_eq!(tmp.path().join(DIRTY_PATH).exists(), false);
+    assert_eq!(folder.active_version().unwrap(), 1);
+    assert_eq!(folder.all_versions().unwrap().contains(&0), true);
+    assert_eq!(folder.all_versions().unwrap().contains(&1), true);
 }
