@@ -242,18 +242,20 @@ fn inexact(value: &Prop, dtype: &PropType) -> bool {
 /// `value` in the column type `dtype`; a float on an integer column is rounded
 /// by `round` first, and is not cast from 2^53 up.
 fn cast_constant(value: &Prop, dtype: &PropType, round: fn(f64) -> f64) -> Option<Prop> {
+    let rounded;
     let value = match (value.as_f64_lossless(), dtype) {
-        (None, _) | (Some(_), PropType::F32 | PropType::F64) => value.clone(),
+        (None, _) | (Some(_), PropType::F32 | PropType::F64) => value,
         (Some(float), _) if is_int(dtype) => {
             let bound = round(float);
-            (bound.abs() < 2f64.powi(53)).then_some(Prop::F64(bound))?
+            rounded = (bound.abs() < 2f64.powi(53)).then_some(Prop::F64(bound))?;
+            &rounded
         }
         _ => return None,
     };
     value
         .clone()
         .cast(dtype.clone())
-        .filter(|converted| converted.equals(&value))
+        .filter(|converted| converted.equals(value))
 }
 
 /// Index candidates for a property or metadata test, with constants cast to
