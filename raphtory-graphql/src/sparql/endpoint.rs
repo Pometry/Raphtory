@@ -226,8 +226,9 @@ impl<E: Executor> SparqlEndpoint<E> {
             let _permit = permit;
             QueryOutline::parse(&parsed, &options)
         })
+        // the outer error is the compute job failing, the inner one the query not parsing
         .await
-        .map_err(EndpointError::from)?
+        .map_err(EndpointError::Compute)?
         .map_err(|error| EndpointError::Query(error.into()))?;
         let Accept(accept) = Accept::from_request_without_body(&req).await?;
         let (format, media_type) =

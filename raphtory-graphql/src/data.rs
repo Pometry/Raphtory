@@ -370,14 +370,16 @@ impl Data {
         WorkDirWriteGuard { guard }
     }
 
-    /// Handed to whatever writes to a graph, so successful writes reach the policy.
-    pub(crate) fn mutation_notifier(&self) -> MutationNotifier {
-        MutationNotifier::new(self.auth_policy.clone())
+    /// Handed to whatever writes to the graph at `path`, so its successful writes reach the policy.
+    pub(crate) fn mutation_notifier(&self, path: &str) -> MutationNotifier {
+        MutationNotifier::new(self.auth_policy.clone(), path)
     }
 
-    /// Report a successful whole-graph mutation (create, delete, replace, move, ...).
-    fn notify_graph_mutated(&self) {
-        self.mutation_notifier().notify();
+    /// Report a successful whole-graph mutation (create, delete, replace, move, ...) of `path`.
+    pub(crate) fn notify_graph_mutated(&self, path: &str) {
+        if let Some(policy) = &self.auth_policy {
+            policy.on_graph_mutated(path);
+        }
     }
 
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
@@ -494,7 +496,7 @@ impl Data {
                 .await?
             })
             .await?;
-        self.notify_graph_mutated();
+        self.notify_graph_mutated(&key);
 
         Ok(())
     }
@@ -518,7 +520,7 @@ impl Data {
                 .await
             })
             .await?;
-        self.notify_graph_mutated();
+        self.notify_graph_mutated(&key);
         Ok(())
     }
 
@@ -548,7 +550,7 @@ impl Data {
         self.delete_graph_inner(graph_folder)
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
-        self.notify_graph_mutated();
+        self.notify_graph_mutated(path);
         Ok(())
     }
 
@@ -583,7 +585,11 @@ impl Data {
         })
         .await
         .map_err(|err| DeletionError::from_inner(path, err))?;
-        self.notify_graph_mutated();
+        for item in descendants {
+            if let NamespacedItem::MetaGraph(g) = item {
+                self.notify_graph_mutated(g.local_path());
+            }
+        }
         Ok(())
     }
 

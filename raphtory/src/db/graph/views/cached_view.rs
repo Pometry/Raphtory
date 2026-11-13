@@ -13,7 +13,8 @@ use crate::{
             InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
-    prelude::{GraphViewOps, Layer, LayerOps},
+    db::graph::views::layer_graph::LayeredGraph,
+    prelude::GraphViewOps,
     storage::core_ops::InheritCoreGraphOps,
 };
 use either::Either;
@@ -86,14 +87,18 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
         if cancel() {
             return None;
         }
-        // Slot 0 is the static layer, which `unique_layers` does not return.
-        let mut layered_graphs = vec![graph.layers(Layer::None).ok()];
-        for name in graph.unique_layers() {
-            let id = graph.get_layer_id(&name).unwrap().0;
-            if layered_graphs.len() <= id {
-                layered_graphs.resize_with(id + 1, || None);
+        // One view per layer of `graph`, indexed by layer id. Slot 0 is the private static layer,
+        // which is viewed with no layers.
+        let num_slots = graph.edge_meta().layer_meta().num_all_fields();
+        let mut layered_graphs = vec![Some(LayeredGraph::new(graph.clone(), LayerIds::None))];
+        for id in graph.layer_ids().iter(num_slots) {
+            if id == STATIC_GRAPH_LAYER_ID {
+                continue;
             }
-            layered_graphs[id] = Some(graph.layers(name).unwrap());
+            if layered_graphs.len() <= id.0 {
+                layered_graphs.resize_with(id.0 + 1, || None);
+            }
+            layered_graphs[id.0] = Some(LayeredGraph::new(graph.clone(), LayerIds::One(id)));
         }
         let empty = || vec![RoaringTreemap::new(); layered_graphs.len()];
 

@@ -4,6 +4,7 @@ use crate::{
         MAX_DETAILED_SCHEMA_ENTITIES, MAX_VARIANTS,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -34,7 +35,7 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
     }
 
     /// Returns the list of property schemas present on edges in this layer
-    pub async fn properties(&self) -> Vec<PropertySchema> {
+    pub async fn properties(&self) -> Result<Vec<PropertySchema>, GQLError> {
         let graph = self.graph.clone();
         let layer_id = self.layer_id;
         blocking_compute(move || {
@@ -56,10 +57,11 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
             }
         })
         .await
+        .map_err(GQLError::from)
     }
 
     /// Returns the list of metadata schemas present on edges in this layer
-    pub async fn metadata(&self) -> Vec<PropertySchema> {
+    pub async fn metadata(&self) -> Result<Vec<PropertySchema>, GQLError> {
         let graph = self.graph.clone();
         let layer_id = self.layer_id;
         blocking_compute(move || {
@@ -78,5 +80,6 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
             }
         })
         .await
+        .map_err(GQLError::from)
     }
 }

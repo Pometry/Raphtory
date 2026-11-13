@@ -9,12 +9,13 @@ use crate::{
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use futures_util::{future::BoxFuture, FutureExt};
+use parking_lot::Mutex;
 use raphtory::{db::api::view::MaterializedGraph, errors::GraphResult};
 use raphtory_vectors::{
     vector_selection::{QueryPair, VectorSelection},
     Embedding, VectorsQuery,
 };
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 
 /// [`blocking_compute`] as the executor raphtory-vectors runs graph access on, which wants the
 /// plain result back. A failed job (logged where it was caught) finds no matches, which ends
@@ -35,10 +36,7 @@ impl ComputeExecutor {
             let failure = failure.clone();
             async move {
                 blocking_compute(job).await.unwrap_or_else(|error| {
-                    failure
-                        .lock()
-                        .unwrap_or_else(PoisonError::into_inner)
-                        .get_or_insert(error);
+                    failure.lock().get_or_insert(error);
                     (
                         VectorsQuery::resolved(Ok(vec![])),
                         VectorsQuery::resolved(Ok(vec![])),
@@ -51,7 +49,7 @@ impl ComputeExecutor {
 
     /// The first job that failed, if any did.
     fn finish(self) -> Result<(), ComputeError> {
-        match self.0.lock().unwrap_or_else(PoisonError::into_inner).take() {
+        match self.0.lock().take() {
             Some(error) => Err(error),
             None => Ok(()),
         }

@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use std::{
     any::Any,
     panic::{self, AssertUnwindSafe},
-    sync::{Arc, LazyLock, OnceLock},
+    sync::{LazyLock, OnceLock},
 };
 use tokio::sync::{oneshot, Semaphore};
 use tracing::{error, warn};
@@ -17,8 +17,11 @@ pub struct PoolSettings {
     /// Threads caching filtered graph views. `None` = 4 with more than 6 cores, else cores / 2.
     pub caching_threads: Option<usize>,
     /// Max compute jobs handed to the compute pool at once; bounds how deep jobs can nest on a
-    /// worker's stack. `None` = 8 times the compute threads, between 32 and 256.
+    /// worker's stack. `None` = 8 times the compute threads.
     pub max_concurrent_compute: Option<usize>,
+    /// Stack size in bytes of each compute thread. `None` = [`STACK_PER_COMPUTE_JOB`] per
+    /// compute permit, at least [`MIN_COMPUTE_STACK_SIZE`].
+    pub compute_stack_size: Option<usize>,
 }
 
 static SETTINGS: OnceLock<PoolSettings> = OnceLock::new();
@@ -48,15 +51,32 @@ pub static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// Stack of a compute thread. Jobs nest on it (see [`COMPUTE_PERMITS`]), at roughly 80KB a
-/// request in the overflow seen in CI, so this leaves room for [`compute_permits`] of them. It is
+fn compute_threads() -> usize {
+    cores().max(2)
+}
+
+/// Stack budgeted per compute job that can nest on a compute thread (see [`COMPUTE_PERMITS`]).
+/// The overflow seen in CI took roughly 80KB a request; this leaves headroom for heavier ones.
+const STACK_PER_COMPUTE_JOB: usize = 256 * 1024;
+
+/// The default compute stack is never smaller than this, the fixed size it had before it scaled
+/// with the permits.
+const MIN_COMPUTE_STACK_SIZE: usize = 64 * 1024 * 1024;
+
+/// Stack of a compute thread, sized to fit [`compute_permits`] nested jobs unless configured. It is
 /// address space reserved per thread; only the pages a thread actually touches use memory.
-const COMPUTE_STACK_SIZE: usize = 64 * 1024 * 1024;
+fn compute_stack_size() -> usize {
+    settings().compute_stack_size.unwrap_or_else(|| {
+        compute_permits()
+            .saturating_mul(STACK_PER_COMPUTE_JOB)
+            .max(MIN_COMPUTE_STACK_SIZE)
+    })
+}
 
 pub static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
-        .stack_size(COMPUTE_STACK_SIZE)
-        .num_threads(cores().max(2))
+        .stack_size(compute_stack_size())
+        .num_threads(compute_threads())
         .thread_name(|t| format!("RAP-compute-{t}"))
         .build()
         .unwrap()
@@ -72,12 +92,17 @@ pub static EVICT_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 });
 
 /// How many compute jobs may be on the compute pool at once. Generous, so short queries rarely
-/// wait behind long ones, while still bounding the nesting (see [`COMPUTE_PERMITS`]).
+/// wait behind long ones, while still bounding the nesting (see [`COMPUTE_PERMITS`]). The stack
+/// size follows it (see [`compute_stack_size`]), so it scales with the cores without a cap.
 fn compute_permits() -> usize {
-    settings()
-        .max_concurrent_compute
-        .unwrap_or_else(|| (8 * COMPUTE_POOL.current_num_threads()).clamp(32, 256))
-        .max(1)
+    match settings().max_concurrent_compute {
+        Some(0) => {
+            warn!("max_concurrent_compute = 0 would run no compute job; using 1");
+            1
+        }
+        Some(permits) => permits,
+        None => 8 * compute_threads(),
+    }
 }
 
 /// A worker that blocks in `join` (any parallel iterator does) runs whatever job is queued on
@@ -86,8 +111,7 @@ fn compute_permits() -> usize {
 /// load, 215 requests nested on one 16MB `RAP-compute` stack and overflowed it, which kills the
 /// process with a bare SIGSEGV (no Rust overflow message, as Python owns the signal handlers).
 /// Only jobs holding a permit are ever on the pool, so a worker can nest at most that many.
-static COMPUTE_PERMITS: LazyLock<Arc<Semaphore>> =
-    LazyLock::new(|| Arc::new(Semaphore::new(compute_permits())));
+static COMPUTE_PERMITS: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(compute_permits()));
 
 /// Why a compute job gave no result. What a client sees is only this text: the panic message
 /// is logged where it is caught, as it can name server internals.
@@ -107,8 +131,7 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
     closure: F,
 ) -> Result<R, ComputeError> {
     let permit = COMPUTE_PERMITS
-        .clone()
-        .acquire_owned()
+        .acquire()
         .await
         .map_err(|_| ComputeError::Closed)?;
     spawn_compute(move || {
@@ -176,7 +199,7 @@ static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 });
 
 /// One caching operation at a time, as each already runs in parallel.
-static CACHING_PERMITS: LazyLock<Arc<Semaphore>> = LazyLock::new(|| Arc::new(Semaphore::new(1)));
+static CACHING_PERMITS: Semaphore = Semaphore::const_new(1);
 
 /// Why a caching job gave no result.
 #[derive(Debug, thiserror::Error)]
@@ -194,8 +217,7 @@ pub async fn blocking_cache<R: Send + 'static, F: FnOnce() -> R + Send + 'static
     closure: F,
 ) -> Result<R, CachingError> {
     let permit = CACHING_PERMITS
-        .clone()
-        .acquire_owned()
+        .acquire()
         .await
         .map_err(|_| CachingError::Closed)?;
     let (send, recv) = oneshot::channel();

@@ -428,6 +428,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            ConcurrencyConfigFieldName::ComputeStackSize => {
+                                self.with_compute_stack_size(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                             ConcurrencyConfigFieldName::MaxPageSize => {
                                 self.with_max_page_size(
                                     Deserialize::deserialize(value)
@@ -786,6 +792,11 @@ impl AppConfigBuilder {
         max_concurrent_compute: Option<usize>,
     ) -> &mut Self {
         self.config.concurrency.max_concurrent_compute = max_concurrent_compute;
+        self
+    }
+
+    pub fn with_compute_stack_size(&mut self, compute_stack_size: Option<usize>) -> &mut Self {
+        self.config.concurrency.compute_stack_size = compute_stack_size;
         self
     }
 

@@ -994,7 +994,8 @@ mod tests {
         .unwrap();
 
         let graph_with_vectors = data.get_graph_for_test(graph_name).await.unwrap();
-        let mutable_graph = GqlMutableGraph::new(graph_with_vectors, data.mutation_notifier());
+        let mutable_graph =
+            GqlMutableGraph::new(graph_with_vectors, data.mutation_notifier(graph_name));
 
         GraphTestContext {
             mutable_graph,

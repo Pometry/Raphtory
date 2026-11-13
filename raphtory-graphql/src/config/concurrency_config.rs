@@ -123,9 +123,14 @@ pub struct ConcurrencyConfig {
 
     /// Maximum compute jobs (query resolvers, algorithms, ...) on the compute pool at once; more
     /// wait for a slot. Bounds how deep jobs can nest on a compute thread's stack, which with
-    /// enough concurrent queries otherwise overflows it. `None` = 8 times the compute
-    /// threads, between 32 and 256.
+    /// enough concurrent queries otherwise overflows it, so the default stack size grows with
+    /// it (see `compute_stack_size`). `None` = 8 times the compute threads. Must be at least 1.
     pub max_concurrent_compute: Option<usize>,
+
+    /// Stack size in bytes of each compute thread. It must fit `max_concurrent_compute` nested
+    /// jobs; it is address space reserved per thread, and only the pages a thread touches use
+    /// memory. `None` = 256KB per concurrent compute job, at least 64MB.
+    pub compute_stack_size: Option<usize>,
 }
 
 impl Default for ConcurrencyConfig {
@@ -154,6 +159,7 @@ impl Default for ConcurrencyConfig {
             max_concurrent_loads: None,
             caching_threads: None,
             max_concurrent_compute: None,
+            compute_stack_size: None,
         }
     }
 }

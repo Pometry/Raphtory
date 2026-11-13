@@ -352,7 +352,7 @@ impl GqlNodes {
                 .map(GqlDegreeBounds::from)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Bounds on the in-degree of every node, in collection order; see `Node.approximateInDegree`.
@@ -377,7 +377,7 @@ impl GqlNodes {
                 .map(GqlDegreeBounds::from)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Bounds on the out-degree of every node, in collection order; see `Node.approximateOutDegree`.
@@ -402,7 +402,7 @@ impl GqlNodes {
                 .map(GqlDegreeBounds::from)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// The number of edge updates incident to every node, in collection order.

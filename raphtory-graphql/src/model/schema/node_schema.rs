@@ -4,6 +4,7 @@ use crate::{
         visible_ids_any_layer, DEFAULT_NODE_TYPE, MAX_DETAILED_SCHEMA_ENTITIES, MAX_VARIANTS,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -48,16 +49,20 @@ impl NodeSchema {
     /// Property schemas seen on nodes of this type — one entry per property key
     /// ever set on a node of this type, with its observed `PropertyType` and (for
     /// string-valued properties) the set of distinct values.
-    pub async fn properties(&self) -> Vec<PropertySchema> {
+    pub async fn properties(&self) -> Result<Vec<PropertySchema>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.properties_inner()).await
+        blocking_compute(move || self_clone.properties_inner())
+            .await
+            .map_err(GQLError::from)
     }
 
     /// Metadata schemas seen on nodes of this type — like `properties`, but
     /// covering metadata fields rather than temporal properties.
-    pub async fn metadata(&self) -> Vec<PropertySchema> {
+    pub async fn metadata(&self) -> Result<Vec<PropertySchema>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.metadata_inner()).await
+        blocking_compute(move || self_clone.metadata_inner())
+            .await
+            .map_err(GQLError::from)
     }
 }
 

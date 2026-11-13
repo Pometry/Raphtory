@@ -234,7 +234,7 @@ impl QueryRoot {
     ) -> Result<GqlMutableGraph, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let graph = data.get_graph_with_write_permission(ctx, &path).await?;
-        Ok(GqlMutableGraph::new(graph, data.mutation_notifier()))
+        Ok(GqlMutableGraph::new(graph, data.mutation_notifier(&path)))
     }
 
     /// Returns all namespaces using recursive search
@@ -402,7 +402,7 @@ impl Mut {
             true,
             arced_schema.clone(),
         )?;
-        data.mutation_notifier().notify();
+        data.notify_graph_mutated(&graph_path);
         Ok(true)
     }
 
@@ -476,7 +476,7 @@ impl Mut {
             None,
             arced_schema.clone(),
         )?;
-        data.mutation_notifier().notify();
+        data.notify_graph_mutated(&graph_path);
         Ok(true)
     }
 

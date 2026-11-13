@@ -68,9 +68,9 @@ crossbeam-channel = { workspace = true }
 zip = { workspace = true }
 clap = { workspace = true }
 rust-embed = { workspace = true }
+parking_lot = { workspace = true }
 
 [dev-dependencies]
-parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }

@@ -380,10 +380,10 @@ impl GqlNode {
             desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
         )]
         threshold: Option<usize>,
-    ) -> GqlDegreeBounds {
+    ) -> Result<GqlDegreeBounds, GQLError> {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.degree_bounds(threshold).into()).await
+        Ok(blocking_compute(move || self_clone.vv.degree_bounds(threshold).into()).await?)
     }
 
     /// Returns bounds on the number of edges with this node as the source, counting them exactly
@@ -394,10 +394,10 @@ impl GqlNode {
             desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
         )]
         threshold: Option<usize>,
-    ) -> GqlDegreeBounds {
+    ) -> Result<GqlDegreeBounds, GQLError> {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.out_degree_bounds(threshold).into()).await
+        Ok(blocking_compute(move || self_clone.vv.out_degree_bounds(threshold).into()).await?)
     }
 
     /// Returns bounds on the number of edges with this node as the destination, counting them
@@ -408,10 +408,10 @@ impl GqlNode {
             desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
         )]
         threshold: Option<usize>,
-    ) -> GqlDegreeBounds {
+    ) -> Result<GqlDegreeBounds, GQLError> {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.in_degree_bounds(threshold).into()).await
+        Ok(blocking_compute(move || self_clone.vv.in_degree_bounds(threshold).into()).await?)
     }
 
     /// Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge

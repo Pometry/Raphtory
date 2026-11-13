@@ -13,19 +13,25 @@ use raphtory::db::{
 };
 use std::sync::Arc;
 
-/// Tells the authorization policy that graph data changed. Empty without a policy.
+/// Tells the authorization policy that the graph at one path changed. Empty without a policy.
 #[derive(Clone, Default)]
-pub struct MutationNotifier(Option<Arc<dyn AuthorizationPolicy>>);
+pub struct MutationNotifier {
+    policy: Option<Arc<dyn AuthorizationPolicy>>,
+    path: Arc<str>,
+}
 
 impl MutationNotifier {
-    pub fn new(policy: Option<Arc<dyn AuthorizationPolicy>>) -> Self {
-        Self(policy)
+    pub fn new(policy: Option<Arc<dyn AuthorizationPolicy>>, path: &str) -> Self {
+        Self {
+            policy,
+            path: path.into(),
+        }
     }
 
     /// Report a write that succeeded; failed writes leave the graph unchanged.
     pub fn notify(&self) {
-        if let Some(policy) = &self.0 {
-            policy.on_graph_mutated();
+        if let Some(policy) = &self.policy {
+            policy.on_graph_mutated(&self.path);
         }
     }
 }
@@ -288,8 +294,9 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
             .is_some_and(|p| p.level() >= PermissionLevel::Read))
     }
 
-    /// Called after any graph on this server is successfully mutated. Default no-op.
-    fn on_graph_mutated(&self) {}
+    /// Called after the graph at `path` is successfully mutated, or created, replaced, moved or
+    /// deleted. Default no-op.
+    fn on_graph_mutated(&self, _path: &str) {}
 
     /// Called when the graph at `path` is evicted from memory, so the policy can drop anything
     /// that would keep it loaded. Default no-op.
