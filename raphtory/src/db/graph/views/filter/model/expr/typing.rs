@@ -305,7 +305,7 @@ pub(crate) fn str_kernel(shape: Shape) -> BinaryKernel<StringOp> {
 /// The members of a membership test, hashed once, and whether the test is
 /// for absence.
 pub(crate) struct SetMembers {
-    members: HashSet<HashableProp>,
+    pub(crate) members: HashSet<HashableProp>,
     negated: bool,
 }
 

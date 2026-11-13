@@ -179,6 +179,18 @@ impl PropType {
         )
     }
 
+    pub fn is_int(&self) -> bool {
+        matches!(
+            self,
+            PropType::U8
+                | PropType::U16
+                | PropType::U32
+                | PropType::U64
+                | PropType::I32
+                | PropType::I64
+        )
+    }
+
     pub fn is_str(&self) -> bool {
         matches!(self, PropType::Str)
     }
