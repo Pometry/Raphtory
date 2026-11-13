@@ -719,18 +719,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub fn get_segment(&self, segment_id: usize) -> Option<&Arc<NS>> {
-        self.segments
-            .get(segment_id)
-            .map(|segment| segment)
-            .or_else(|| {
-                let count = self.segments.count();
-                if segment_id < count {
-                    // Another thread has allocated the segment, wait for it to be added.
-                    Some(self.wait_for_segment(segment_id))
-                } else {
-                    None
-                }
-            })
+        self.segments.get(segment_id).or_else(|| {
+            let count = self.segments.count();
+            if segment_id < count {
+                // Another thread has allocated the segment, wait for it to be added.
+                Some(self.wait_for_segment(segment_id))
+            } else {
+                None
+            }
+        })
     }
 
     pub fn wait_for_segment(&self, segment_id: usize) -> &Arc<NS> {
