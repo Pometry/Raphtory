@@ -141,6 +141,18 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
     .await
 }
 
+/// [`blocking_compute`] for a fallible `closure`. A failed compute job and an error from
+/// `closure` both come back as `E`; a bare `.await?` on [`blocking_compute`] would only surface
+/// the former and leave the latter unchecked.
+pub async fn try_blocking_compute<R, E, F>(closure: F) -> Result<R, E>
+where
+    R: Send + 'static,
+    E: From<ComputeError> + Send + 'static,
+    F: FnOnce() -> Result<R, E> + Send + 'static,
+{
+    blocking_compute(closure).await?
+}
+
 /// A no-op round trip through the compute pool, for the health check. It skips the permit, as
 /// it is meant to show whether the pool itself is still running jobs, and an empty job cannot
 /// nest anything on the worker that picks it up.
