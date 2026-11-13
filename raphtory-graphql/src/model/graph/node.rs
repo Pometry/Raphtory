@@ -14,7 +14,7 @@ use crate::{
     rayon::blocking_compute,
     GQLError,
 };
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::{
     algorithms::components::{
         in_component, in_component_filtered, out_component, out_component_filtered,
@@ -23,6 +23,7 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
+            state::ops::DegreeBounds,
             view::{filter_ops::Select, Filter, *},
         },
         graph::node::NodeView,
@@ -42,6 +43,30 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<NodeView<'static, G>> for GqlNode
     fn from(value: NodeView<'static, G>) -> Self {
         Self {
             vv: NodeView::new_internal(value.graph.into_dynamic(), value.node),
+        }
+    }
+}
+
+/// `threshold` of the `approximate*Degree` fields when none is given.
+pub(crate) const DEFAULT_DEGREE_THRESHOLD: usize = 1000;
+
+/// Bounds on the degree of a node, as returned by `approximateDegree`,
+/// `approximateInDegree` and `approximateOutDegree`. Equal bounds mean the
+/// degree is exact.
+#[derive(SimpleObject, Clone)]
+#[graphql(name = "DegreeBounds")]
+pub struct GqlDegreeBounds {
+    /// Lower bound on the degree.
+    lower_bound: usize,
+    /// Upper bound on the degree.
+    upper_bound: usize,
+}
+
+impl From<DegreeBounds> for GqlDegreeBounds {
+    fn from(bounds: DegreeBounds) -> Self {
+        Self {
+            lower_bound: bounds.lower,
+            upper_bound: bounds.upper,
         }
     }
 }
@@ -343,6 +368,50 @@ impl GqlNode {
     pub async fn in_degree(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.in_degree()).await
+    }
+
+    /// Returns bounds on the number of unique counter parties for this node, counting them
+    /// exactly only when that walks at most `threshold` adjacency entries. Otherwise the bounds
+    /// are read from the node's adjacency sizes, ignoring any window or filter, so in a windowed
+    /// or filtered view the lower bound drops to 0.
+    pub async fn approximate_degree(
+        &self,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> GqlDegreeBounds {
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        blocking_compute(move || self_clone.vv.degree_bounds(threshold).into()).await
+    }
+
+    /// Returns bounds on the number of edges with this node as the source, counting them exactly
+    /// only when that is cheap; see `approximateDegree`.
+    pub async fn approximate_out_degree(
+        &self,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> GqlDegreeBounds {
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        blocking_compute(move || self_clone.vv.out_degree_bounds(threshold).into()).await
+    }
+
+    /// Returns bounds on the number of edges with this node as the destination, counting them
+    /// exactly only when that is cheap; see `approximateDegree`.
+    pub async fn approximate_in_degree(
+        &self,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> GqlDegreeBounds {
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        blocking_compute(move || self_clone.vv.in_degree_bounds(threshold).into()).await
     }
 
     /// Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge
