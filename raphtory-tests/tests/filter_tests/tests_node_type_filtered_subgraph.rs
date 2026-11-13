@@ -9,7 +9,7 @@ use raphtory::{
     },
     prelude::*,
 };
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use raphtory_tests::utils::{build_graph, build_graph_strat, make_node_types, GraphFixture};
 use serde_json::json;
 use std::ops::Range;
@@ -111,7 +111,7 @@ fn node_removed_via_edge_removal() {
     g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
     g.node(1).unwrap().set_node_type("test").unwrap();
     let expected = Graph::new();
-    expected.resolve_layer(None).unwrap();
+    expected.mutable().unwrap().resolve_layer(None);
     assert_graph_equal(&g.subgraph_node_types(["test"]), &expected);
 }
 
@@ -122,7 +122,7 @@ fn node_removed_via_edge_removal_window() {
     g.node(0).unwrap().set_node_type("two").unwrap();
     let gw = g.window(0, 1);
     let expected = Graph::new();
-    expected.resolve_layer(None).unwrap();
+    expected.mutable().unwrap().resolve_layer(None);
     let sg = gw.subgraph_node_types(["_default"]);
     assert!(!sg.has_node(0));
     assert!(!sg.has_node(1));

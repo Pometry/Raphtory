@@ -3,7 +3,6 @@ use std::any::Any;
 use crate::{
     arrow_loader::dataframe::DFChunk,
     errors::{InvalidGIDError, LoadError},
-    prelude::AdditionOps,
 };
 use arrow::{
     array::{
@@ -12,10 +11,12 @@ use arrow::{
     },
     datatypes::{DataType, Int32Type, Int64Type, UInt32Type, UInt64Type},
 };
+use db4_graph::TemporalGraph;
 use raphtory_api::{
     core::entities::{GidRef, GidType},
     iter::IntoDynBoxed,
 };
+use raphtory_storage::mutation::addition_ops::GraphMutationOps;
 use rayon::prelude::{IndexedParallelIterator, *};
 use storage::utils::Iter4;
 
@@ -300,7 +301,7 @@ impl NodeCol {
 
     pub fn validate(
         &self,
-        graph: &impl AdditionOps,
+        graph: &TemporalGraph,
         node_missing_error: impl Fn(InvalidGIDError) -> LoadError,
     ) -> Result<(), LoadError> {
         if let Some(existing) = graph.id_type().filter(|&id_type| id_type != self.0.dtype()) {

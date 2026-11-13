@@ -1,43 +1,94 @@
-use raphtory::{
-    db::graph::node::NodeView,
-    prelude::{GraphViewOps, NodeViewOps},
-};
-use raphtory_api::core::entities::properties::prop::PropType;
-use rustc_hash::FxHashMap;
-use std::collections::HashSet;
+use crate::model::schema::property_schema::PropertySchema;
+use raphtory::prelude::PropertiesOps;
+use raphtory_api::core::entities::{properties::meta::PropMapper, LayerId};
 
-pub(crate) mod edge_schema;
 pub(crate) mod graph_schema;
 pub(crate) mod layer_schema;
 pub(crate) mod node_schema;
 pub(crate) mod property_schema;
 
-const ENUM_BOUNDARY: usize = 20;
+/// Maximum number of distinct values collected per property key. More than that and we don't report any.
+const MAX_VARIANTS: usize = 20;
+
+/// Above this many entities (nodes graph-wide for `NodeSchema`, edges in the
+/// layer for `LayerSchema`), schema resolvers skip collecting property values
+/// (variants) and only return keys and types
+const MAX_DETAILED_SCHEMA_ENTITIES: usize = 1000;
 
 const DEFAULT_NODE_TYPE: &str = "None";
 
-fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<'graph, G>) -> String {
-    match node.node_type() {
-        None => "None".into(),
-        Some(n) => n.to_string(),
-    }
+pub(crate) fn visible_ids_any_layer(
+    ids: impl Iterator<Item = usize>,
+    mapper: &PropMapper,
+) -> Vec<usize> {
+    let layer_presence = mapper.read_lock_layer_presence();
+    ids.filter(|id| layer_presence.any_layer_has(*id)).collect()
 }
 
-type SchemaAggregate = FxHashMap<(String, PropType), HashSet<String>>;
+pub(crate) fn visible_ids_layer(
+    ids: impl Iterator<Item = usize>,
+    layer: LayerId,
+    mapper: &PropMapper,
+) -> Vec<usize> {
+    let layer_presence = mapper.read_lock_layer_presence();
+    ids.filter(|id| layer_presence.has(layer, *id)).collect()
+}
 
-fn merge_schemas(mut s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregate {
-    for ((key, prop_type), set2) in s2 {
-        if let Some(set1) = s1.get_mut(&(key.clone(), prop_type.clone())) {
-            // Here, an empty set means: too many values to be interpreted as an enumerated type
-            if !set1.is_empty() && !set2.is_empty() {
-                set1.extend(set2);
+/// Collect the distinct values seen against each property id. Once a property
+/// exceeds `max_variants` values we drop its set and report no variants for it.
+pub(crate) fn collect_variants<P: PropertiesOps>(
+    props_per_entity: impl Iterator<Item = P>,
+    mapper: &PropMapper,
+    max_variants: usize,
+    visible_properties: &[usize],
+) -> Vec<PropertySchema> {
+    // Vec is indexed by prop id; variants[0] returns the HashSet of variants for prop id 0
+    // `None` = never seen, `Some(empty)` = seen but past `max_variants`
+
+    let cap = visible_properties.last().copied().map_or(0, |id| id + 1);
+    let mut variants: Vec<Option<ahash::HashSet<String>>> = Vec::with_capacity(cap);
+    for props in props_per_entity {
+        for &id in visible_properties {
+            let Some(value) = props.get_by_id(id) else {
+                continue;
+            };
+            if variants.len() <= id {
+                variants.resize_with(id + 1, || None);
             }
-            if set1.len() > ENUM_BOUNDARY {
-                set1.clear();
+            match &mut variants[id] {
+                slot @ None => *slot = Some(ahash::HashSet::from_iter([value.to_string()])),
+                Some(seen) if !seen.is_empty() => {
+                    seen.insert(value.to_string());
+                    if seen.len() > max_variants {
+                        seen.clear();
+                    }
+                }
+                // already past the boundary, nothing left to record
+                Some(_) => {}
             }
-        } else {
-            s1.insert((key, prop_type), set2);
         }
     }
-    s1
+
+    // one read lock
+    let locked = mapper.locked();
+    visible_properties
+        .iter()
+        .filter_map(|&id| {
+            let (name, dtype) = locked.get_name_and_dtype(id)?;
+            let seen = variants.get_mut(id)?.take()?;
+            let mut seen = Vec::from_iter(seen);
+            seen.sort_unstable();
+            Some(PropertySchema::new(name.to_string(), dtype.clone(), seen))
+        })
+        .collect()
+}
+
+/// Keys and types only, no value scan - for graphs too big to sample.
+fn collect_no_variants(mapper: &PropMapper, visible_properties: &[usize]) -> Vec<PropertySchema> {
+    let mapper = mapper.locked();
+    visible_properties
+        .iter()
+        .filter_map(|id| mapper.get_name_and_dtype(*id))
+        .map(|(name, dtype)| PropertySchema::new(name.to_string(), dtype.clone(), vec![]))
+        .collect()
 }
