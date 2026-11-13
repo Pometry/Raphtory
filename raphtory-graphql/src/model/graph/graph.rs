@@ -723,18 +723,14 @@ impl GqlGraph {
     ////////////////////////
 
     /// Version id of the active data snapshot for this graph path.
-    pub async fn active_version(&self) -> Result<u32> {
+    pub async fn active_version(&self) -> Result<u32, GQLError> {
         let path = self.path.clone();
-        blocking_compute(move || path.graph_folder().active_version())
-            .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
+        Ok(blocking_compute(move || path.graph_folder().active_version()).await?)
     }
 
     /// All version ids for this graph, excluding versions that are being modified.
-    pub async fn versions(&self) -> Result<Vec<u32>> {
+    pub async fn versions(&self) -> Result<Vec<u32>, GQLError> {
         let path = self.path.clone();
-        blocking_compute(move || path.graph_folder().all_versions())
-            .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
+        Ok(blocking_compute(move || path.graph_folder().all_versions()).await?)
     }
 }
