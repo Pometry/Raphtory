@@ -232,20 +232,28 @@ fn indexed_column(
     if history && matches!(dtype, PropType::List(_)) {
         return None;
     }
+    let int_column = matches!(
+        dtype,
+        PropType::U8
+            | PropType::U16
+            | PropType::U32
+            | PropType::U64
+            | PropType::I32
+            | PropType::I64
+    );
+    // a float with a fraction, or NaN or an infinity, against an integer column
+    let inexact = |value: &Prop| {
+        int_column
+            && value
+                .as_f64_lossless()
+                .is_some_and(|float| float.fract() != 0.0)
+    };
     // the constant in the column's type; a float on an integer column is
     // rounded by `round` first, and is not served from 2^53 up
     let convert = |value: &Prop, round: fn(f64) -> f64| {
         let value = match (value.as_f64_lossless(), &dtype) {
             (None, _) | (Some(_), PropType::F32 | PropType::F64) => value.clone(),
-            (
-                Some(float),
-                PropType::U8
-                | PropType::U16
-                | PropType::U32
-                | PropType::U64
-                | PropType::I32
-                | PropType::I64,
-            ) => {
+            (Some(float), _) if int_column => {
                 let bound = round(float);
                 (bound.abs() < 2f64.powi(53)).then_some(Prop::F64(bound))?
             }
@@ -259,15 +267,34 @@ fn indexed_column(
     let exact: fn(f64) -> f64 = |float| float;
     let (mut value, mut members) = (None, None);
     let predicate = match *predicate {
+        NodePropPredicate::Eq(v) if inexact(v) => return Some(NodeList::empty()),
         NodePropPredicate::Eq(v) => NodePropPredicate::Eq(value.insert(convert(v, exact)?)),
+        // upper bounds round up and lower bounds down; an inexact `<=` is `<`
+        // and an inexact `>=` is `>`
         NodePropPredicate::Lt(v) => NodePropPredicate::Lt(value.insert(convert(v, f64::ceil)?)),
-        NodePropPredicate::Le(v) => NodePropPredicate::Le(value.insert(convert(v, f64::floor)?)),
+        NodePropPredicate::Le(v) => {
+            let bound = value.insert(convert(v, f64::ceil)?);
+            if inexact(v) {
+                NodePropPredicate::Lt(bound)
+            } else {
+                NodePropPredicate::Le(bound)
+            }
+        }
         NodePropPredicate::Gt(v) => NodePropPredicate::Gt(value.insert(convert(v, f64::floor)?)),
-        NodePropPredicate::Ge(v) => NodePropPredicate::Ge(value.insert(convert(v, f64::ceil)?)),
-        // a member that fails to convert leaves the set unserved
+        NodePropPredicate::Ge(v) => {
+            let bound = value.insert(convert(v, f64::floor)?);
+            if inexact(v) {
+                NodePropPredicate::Gt(bound)
+            } else {
+                NodePropPredicate::Ge(bound)
+            }
+        }
+        // an inexact member is dropped; one that fails to convert leaves the
+        // set unserved
         NodePropPredicate::In(set) => NodePropPredicate::In(
             members.insert(
                 set.iter()
+                    .filter(|member| !inexact(&member.0))
                     .map(|member| convert(&member.0, exact).map(HashableProp))
                     .collect::<Option<HashSet<_>>>()?,
             ),
