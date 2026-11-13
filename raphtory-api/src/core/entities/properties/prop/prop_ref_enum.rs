@@ -139,6 +139,24 @@ pub trait AsPropRef {
     fn as_prop_ref(&self) -> PropRef<'_>;
 }
 
+pub trait AsPropEntry {
+    fn as_prop_entry(&self) -> (usize, PropRef<'_>);
+}
+
+impl<P: AsPropRef> AsPropEntry for (usize, P) {
+    fn as_prop_entry(&self) -> (usize, PropRef<'_>) {
+        let (id, prop) = self;
+        (*id, prop.as_prop_ref())
+    }
+}
+
+impl<T, P: AsPropRef> AsPropEntry for (T, usize, P) {
+    fn as_prop_entry(&self) -> (usize, PropRef<'_>) {
+        let (_, id, prop) = self;
+        (*id, prop.as_prop_ref())
+    }
+}
+
 impl<'a> AsPropRef for PropRef<'a> {
     #[inline]
     fn as_prop_ref(&self) -> PropRef<'_> {
@@ -165,6 +183,12 @@ impl AsPropRef for Prop {
             Prop::DTime(dt) => PropRef::DTime(*dt),
             Prop::Decimal(bd) => PropRef::from(bd),
         }
+    }
+}
+
+impl<'a> AsPropRef for &'a Prop {
+    fn as_prop_ref(&self) -> PropRef<'_> {
+        Prop::as_prop_ref(self)
     }
 }
 

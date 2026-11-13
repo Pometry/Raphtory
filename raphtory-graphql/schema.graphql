@@ -709,6 +709,22 @@ type CollectionOfNamespacedItem {
 }
 
 """
+Bounds on the degree of a node, as returned by `approximateDegree`,
+`approximateInDegree` and `approximateOutDegree`. Equal bounds mean the
+degree is exact.
+"""
+type DegreeBounds {
+	"""
+	Lower bound on the degree.
+	"""
+	lowerBound: Int!
+	"""
+	Upper bound on the degree.
+	"""
+	upperBound: Int!
+}
+
+"""
 Edge direction to follow during traversal.
 """
 enum Direction {
@@ -1316,30 +1332,6 @@ input EdgeRead @oneOf {
 	A node expression evaluated on the edge's destination node.
 	"""
 	dst: EndpointRead
-}
-
-"""
-Describes edges between a specific pair of node types — the property and
-metadata keys seen on such edges, along with their observed value types.
-One `EdgeSchema` per `(srcType, dstType)` pair per layer.
-"""
-type EdgeSchema {
-	"""
-	Returns the type of source for these edges
-	"""
-	srcType: String!
-	"""
-	Returns the type of destination for these edges
-	"""
-	dstType: String!
-	"""
-	Returns the list of property schemas for edges connecting these types of nodes
-	"""
-	properties: [PropertySchema!]!
-	"""
-	Returns the list of metadata schemas for edges connecting these types of nodes
-	"""
-	metadata: [PropertySchema!]!
 }
 
 input EdgeSortBy {
@@ -2982,8 +2974,8 @@ type Intervals {
 }
 
 """
-Describes a single edge layer — its name and the per `(srcType, dstType)`
-edge schemas observed within it.
+Describes a single edge layer: its name and the edge property/metadata keys
+present in it, with observed variants (property values) on small graphs
 """
 type LayerSchema {
 	"""
@@ -2991,9 +2983,13 @@ type LayerSchema {
 	"""
 	name: String!
 	"""
-	Returns the list of edge schemas for this edge layer
+	Returns the list of property schemas present on edges in this layer
 	"""
-	edges: [EdgeSchema!]!
+	properties: [PropertySchema!]!
+	"""
+	Returns the list of metadata schemas present on edges in this layer
+	"""
+	metadata: [PropertySchema!]!
 }
 
 """
@@ -4483,6 +4479,38 @@ type Node {
 	"""
 	inDegree: Int!
 	"""
+	Returns bounds on the number of unique counter parties for this node, counting them
+	exactly only when that walks at most `threshold` adjacency entries. Otherwise the bounds
+	are read from the node's adjacency sizes, ignoring any window or filter, so in a windowed
+	or filtered view the lower bound drops to 0.
+	"""
+	approximateDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): DegreeBounds!
+	"""
+	Returns bounds on the number of edges with this node as the source, counting them exactly
+	only when that is cheap; see `approximateDegree`.
+	"""
+	approximateOutDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): DegreeBounds!
+	"""
+	Returns bounds on the number of edges with this node as the destination, counting them
+	exactly only when that is cheap; see `approximateDegree`.
+	"""
+	approximateInDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): DegreeBounds!
+	"""
 	Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge
 	predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
 	steps through. The returned nodes are on the full graph so their other-layer neighbours stay
@@ -5416,6 +5444,33 @@ type Nodes {
 	"""
 	outDegree: [Int!]!
 	"""
+	Bounds on the degree of every node, in collection order; see `Node.approximateDegree`.
+	"""
+	approximateDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
+	Bounds on the in-degree of every node, in collection order; see `Node.approximateInDegree`.
+	"""
+	approximateInDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
+	Bounds on the out-degree of every node, in collection order; see `Node.approximateOutDegree`.
+	"""
+	approximateOutDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
 	The number of edge updates incident to every node, in collection order.
 	"""
 	edgeHistoryCount: [Int!]!
@@ -6132,6 +6187,33 @@ type PathFromNode {
 	The out-degree (number of outgoing edges) of every node in the path, in order.
 	"""
 	outDegree: [Int!]!
+	"""
+	Bounds on the degree of every node in the path, in order; see `Node.approximateDegree`.
+	"""
+	approximateDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
+	Bounds on the in-degree of every node in the path, in order; see `Node.approximateInDegree`.
+	"""
+	approximateInDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
+	Bounds on the out-degree of every node in the path, in order; see `Node.approximateOutDegree`.
+	"""
+	approximateOutDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
 	"""
 	The number of edge updates incident to every node in the path, in order.
 	"""

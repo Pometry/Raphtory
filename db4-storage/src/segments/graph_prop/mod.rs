@@ -9,7 +9,7 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::entities::properties::{meta::Meta, prop::AsPropRef};
+use raphtory_api::core::entities::properties::{meta::Meta, prop::PropRef};
 use std::{
     ops::DerefMut,
     path::Path,
@@ -119,10 +119,7 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
         Ok(())
     }
 
-    fn check_metadata_immut<PR: AsPropRef>(
-        &self,
-        _props: &[(usize, PR)],
-    ) -> Result<(), StorageError> {
+    fn check_metadata_immut(&self, _prop_id: usize, _prop: PropRef) -> Result<(), StorageError> {
         Ok(())
     }
 }

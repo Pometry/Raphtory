@@ -2,14 +2,18 @@ use std::borrow::Cow;
 
 use crate::{
     arrow_loader::dataframe::DFChunk,
-    errors::{into_graph_err, GraphError, LoadError},
-    prelude::AdditionOps,
+    errors::{GraphError, LoadError},
 };
 use arrow::array::{Array, AsArray, LargeStringArray, StringArray, StringViewArray};
+use db4_graph::TemporalGraph;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
-use raphtory_api::core::entities::properties::meta::DEFAULT_NODE_TYPE_ID;
+use raphtory_api::core::entities::{
+    properties::meta::{DEFAULT_NODE_TYPE_ID, STATIC_GRAPH_LAYER_ID},
+    LayerId,
+};
+use raphtory_storage::mutation::addition_ops::GraphMutationOps;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum LayerCol<'a> {
@@ -29,6 +33,37 @@ pub enum LayerColVariants<Name, Utf8, LargeUtf8, Utf8View> {
     Utf8View(Utf8View),
 }
 
+struct Distinct {
+    seen: Vec<bool>,
+    distinct: Vec<LayerId>,
+}
+
+impl Distinct {
+    fn new(capacity: usize) -> Self {
+        let seen = vec![false; capacity];
+        let distinct = Vec::with_capacity(capacity);
+        Self { seen, distinct }
+    }
+
+    /// add value to list of unique values, returns `true` if the value is new
+    fn insert(&mut self, value: LayerId) -> bool {
+        match self.seen.get(value.0) {
+            None => {
+                self.seen.resize(value.0, false);
+                self.seen.push(true);
+                self.distinct.push(value);
+                true
+            }
+            Some(false) => {
+                self.seen[value.0] = true;
+                self.distinct.push(value);
+                true
+            }
+            Some(true) => false,
+        }
+    }
+}
+
 impl<'a> LayerCol<'a> {
     #[allow(dead_code)]
     pub fn iter(self) -> impl Iterator<Item = Option<&'a str>> {
@@ -42,7 +77,7 @@ impl<'a> LayerCol<'a> {
 
     pub fn resolve_node_type<'b>(
         self,
-        graph: &(impl AdditionOps + Send + Sync),
+        graph: &TemporalGraph,
     ) -> Result<Cow<'b, [usize]>, GraphError> {
         match self {
             LayerCol::Name { name, len } => {
@@ -87,27 +122,32 @@ impl<'a> LayerCol<'a> {
     pub fn resolve_layer<'b>(
         self,
         layer_id_col: Option<&'b [u64]>,
-        graph: &(impl AdditionOps + Send + Sync),
+        graph: &TemporalGraph,
         is_node_layer: bool,
-    ) -> Result<Cow<'b, [usize]>, GraphError> {
+    ) -> Result<(Cow<'b, [usize]>, Vec<LayerId>), GraphError> {
         match (self, layer_id_col) {
             (LayerCol::Name { name, len }, _) => {
                 if is_node_layer && name.is_none() {
                     // avoid resolving None to "_default" (like in edges) by avoiding resolve_layer(None)
-                    Ok(Cow::Owned(vec![0usize; len]))
+                    Ok((Cow::Owned(vec![0usize; len]), vec![STATIC_GRAPH_LAYER_ID]))
                 } else {
-                    let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
-                    Ok(Cow::Owned(vec![layer; len]))
+                    let layer = graph.resolve_layer(name).inner();
+                    Ok((Cow::Owned(vec![layer.0; len]), vec![layer]))
                 }
             }
             (col, None) => {
                 let mut res = vec![0usize; col.len()];
                 let mut last_name = None;
                 let mut last_layer = None;
+
+                let mut distinct = Distinct::new(graph.num_layers());
                 for (row, name) in col.iter().enumerate() {
                     match name {
                         // resolve_layer(None) returns "_default" which is good for edges and wrong for nodes
-                        None if is_node_layer => res[row] = 0,
+                        None if is_node_layer => {
+                            res[row] = 0;
+                            distinct.insert(STATIC_GRAPH_LAYER_ID);
+                        }
                         // `name` below can be None if we're resolving edge layer
                         name => {
                             if last_name == name && last_layer.is_some() {
@@ -115,40 +155,42 @@ impl<'a> LayerCol<'a> {
                                     res[row] = layer;
                                 }
                             } else {
-                                let layer =
-                                    graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
-                                res[row] = layer;
+                                let layer = graph.resolve_layer(name).inner();
+                                res[row] = layer.0;
                                 last_name = name;
-                                last_layer = Some(layer);
+                                last_layer = Some(layer.0);
+                                distinct.insert(layer);
                             }
                         }
                     }
                 }
-                Ok(Cow::Owned(res))
+                Ok((Cow::Owned(res), distinct.distinct))
             }
             (col, Some(layer_ids)) => {
                 // Fast path assumes all layers from the source graph are present.
                 // If some are missing (like materialize on filtered/windowed graphs),
                 // this can introduce gaps in the layer mappers and empty layer names.
-                let mut last_pair = None;
-
                 let edge_layer_mapper = graph.edge_meta().layer_meta();
                 let node_layer_mapper = graph.node_meta().layer_meta();
 
                 let mut locked_edge_lm = edge_layer_mapper.write();
                 let mut locked_node_lm = node_layer_mapper.write();
 
-                for pair @ (name_opt, id) in col.iter().zip(layer_ids) {
-                    if last_pair != Some(pair) {
+                let mut distinct = Distinct::new(graph.num_layers());
+
+                for (name_opt, id) in col.iter().zip(layer_ids) {
+                    if distinct.insert(LayerId(*id as usize)) {
                         // don't set anything if name_opt is None (goes in static graph layer)
                         if let Some(name) = name_opt {
                             locked_edge_lm.set_id(name, *id as usize);
                             locked_node_lm.set_id(name, *id as usize);
                         }
                     }
-                    last_pair = Some(pair);
                 }
-                Ok(Cow::Borrowed(bytemuck::cast_slice(layer_ids)))
+                Ok((
+                    Cow::Borrowed(bytemuck::cast_slice(layer_ids)),
+                    distinct.distinct,
+                ))
             }
         }
     }

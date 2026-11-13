@@ -392,17 +392,15 @@ mod graphql_test {
           graph(path: "graph") {
             schema {
               layers {
-                edges {
-                  properties {
-                    key
-                    propertyType
-                    variants
-                  }
-                  metadata {
-                    key
-                    propertyType
-                    variants
-                  }
+                properties {
+                  key
+                  propertyType
+                  variants
+                }
+                metadata {
+                  key
+                  propertyType
+                  variants
                 }
               }
               nodes {
@@ -453,7 +451,7 @@ mod graphql_test {
         }
 
         if let Value::Array(mut edge_properties) =
-            data["graph"]["schema"]["layers"][0]["edges"][0]["properties"].clone()
+            data["graph"]["schema"]["layers"][0]["properties"].clone()
         {
             sort_properties(&mut edge_properties);
 
@@ -463,7 +461,7 @@ mod graphql_test {
         }
 
         if let Value::Array(mut edge_metadata) =
-            data["graph"]["schema"]["layers"][0]["edges"][0]["metadata"].clone()
+            data["graph"]["schema"]["layers"][0]["metadata"].clone()
         {
             sort_properties(&mut edge_metadata);
 

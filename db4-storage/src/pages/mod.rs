@@ -328,14 +328,11 @@ impl<
         self.nodes().writer(node_segment)
     }
 
-    pub fn edge_writer(
-        &self,
-        eid: EID,
-    ) -> EdgeWriter<'_, RwLockWriteGuard<'_, MemEdgeSegment>, ES> {
+    pub fn edge_writer(&self, eid: EID) -> EdgeWriter<'_, ArcRwLockWriteGuard<MemEdgeSegment>, ES> {
         self.edges().get_writer(eid)
     }
 
-    pub fn get_free_writer(&self) -> EdgeWriter<'_, RwLockWriteGuard<'_, MemEdgeSegment>, ES> {
+    pub fn get_free_writer(&self) -> EdgeWriter<'_, ArcRwLockWriteGuard<MemEdgeSegment>, ES> {
         self.edges().get_free_writer()
     }
 
