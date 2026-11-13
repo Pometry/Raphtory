@@ -616,7 +616,7 @@ type CollectionOfMetaGraph {
 	list: [MetaGraph!]!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -650,7 +650,7 @@ type CollectionOfNamespace {
 	list: [Namespace!]!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -684,7 +684,7 @@ type CollectionOfNamespacedItem {
 	list: [NamespacedItem!]!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -751,7 +751,7 @@ type Edge {
 	defaultLayer: Edge!
 	"""
 	Returns a view of Edge containing all layers in the list of names.
-
+	
 	Errors if any of the layers do not exist.
 	"""
 	layers(
@@ -762,7 +762,7 @@ type Edge {
 	): Edge!
 	"""
 	Returns a view of Edge containing all layers except the excluded list of names.
-
+	
 	Errors if any of the layers do not exist.
 	"""
 	excludeLayers(
@@ -773,7 +773,7 @@ type Edge {
 	): Edge!
 	"""
 	Returns a view of Edge containing the specified layer.
-
+	
 	Errors if any of the layers do not exist.
 	"""
 	layer(
@@ -784,7 +784,7 @@ type Edge {
 	): Edge!
 	"""
 	Returns a view of Edge containing all layers except the excluded layer specified.
-
+	
 	Errors if any of the layers do not exist.
 	"""
 	excludeLayer(
@@ -795,9 +795,9 @@ type Edge {
 	): Edge!
 	"""
 	Creates a WindowSet with the given window duration and optional step using a rolling window.
-
+	
 	A rolling window is a window that moves forward by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -820,9 +820,9 @@ type Edge {
 	): EdgeWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window.
-
+	
 	An expanding window is a window that grows by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -839,7 +839,7 @@ type Edge {
 	): EdgeWindowSet!
 	"""
 	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
-
+	
 	For persistent graphs, any edge which exists at any point during the window will be included. You may want to restrict this to only edges that are present at the end of the window using the is_valid function.
 	"""
 	window(
@@ -870,7 +870,7 @@ type Edge {
 	latest: Edge!
 	"""
 	Creates a view of the Edge including all events that are valid at time.
-
+	
 	This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
 	"""
 	snapshotAt(
@@ -881,7 +881,7 @@ type Edge {
 	): Edge!
 	"""
 	Creates a view of the Edge including all events that are valid at the latest time.
-
+	
 	This is equivalent to a no-op for Graph and latest() for PersistentGraph.
 	"""
 	snapshotLatest: Edge!
@@ -965,21 +965,21 @@ type Edge {
 	hasLayer(name: String!): Boolean!
 	"""
 	Returns the source node of the edge.
-
+	
 	Returns:
 	Node:
 	"""
 	src: Node!
 	"""
 	Returns the destination node of the edge.
-
+	
 	Returns:
 	Node:
 	"""
 	dst: Node!
 	"""
 	Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
-
+	
 	Returns:
 	Node:
 	"""
@@ -1012,45 +1012,45 @@ type Edge {
 	explode: Edges!
 	"""
 	Returns an edge object for each layer within the original edge.
-
+	
 	Each new edge object contains only updates from the respective layers.
 	"""
 	explodeLayers: Edges!
 	"""
 	Returns a History object with time entries for when an edge is added or change to an edge is made.
-
+	
 	Returns:
 	History:
 	"""
 	history: History!
 	"""
 	Returns a history object with time entries for an edge's deletion times.
-
+	
 	Returns:
 	History:
 	"""
 	deletions: History!
 	"""
 	Checks if the edge is currently valid and exists at the current time.
-
+	
 	Returns: boolean
 	"""
 	isValid: Boolean!
 	"""
 	Checks if the edge is currently active and has at least one update within the current period.
-
+	
 	Returns: boolean
 	"""
 	isActive: Boolean!
 	"""
 	Checks if the edge is deleted at the current time.
-
+	
 	Returns: boolean
 	"""
 	isDeleted: Boolean!
 	"""
 	Returns true if the edge source and destination nodes are the same.
-
+	
 	Returns: boolean
 	"""
 	isSelfLoop: Boolean!
@@ -1413,7 +1413,7 @@ type EdgeWindowSet {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1484,9 +1484,9 @@ type Edges {
 	): Edges!
 	"""
 	Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
-
+	
 	Returns a collection of collections. This means that item in the window set is a collection of edges.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -1509,9 +1509,9 @@ type Edges {
 	): EdgesWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
-
+	
 	Returns a collection of collections. This means that item in the window set is a collection of edges.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -1609,7 +1609,7 @@ type Edges {
 	explode: Edges!
 	"""
 	Returns an edge object for each layer within the original edge.
-
+	
 	Each new edge object contains only updates from the respective layers.
 	"""
 	explodeLayers: Edges!
@@ -1654,7 +1654,7 @@ type Edges {
 	nbr: PathFromNode!
 	"""
 	Returns the number of edges.
-
+	
 	Returns:
 	int:
 	The property keys this collection reports: the first member's registry
@@ -1676,7 +1676,7 @@ type Edges {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1699,21 +1699,21 @@ type Edges {
 	"""
 	list: [Edge!]!
 	"""
-	Narrow the collection to edges matching `expr`. The filter sticks to the
-	returned view — every subsequent traversal through these edges (their
-	properties, their endpoints' neighbours, etc.) continues to see the
-	filtered scope.
-
+	Keep every edge in the collection and scope what is reached through them
+	by `expr`: their properties, their endpoints and the endpoints'
+	neighbours all see the filtered graph, and so does every later traversal.
+	
 	Useful when you want one scoping rule to apply across the whole query.
 	E.g. restricting everything to a specific week:
-
+	
 	```text
 	edges { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
 	list { src { neighbours { list { name } } } }   # neighbours still windowed
 	} }
 	```
-
-	Contrast with `select`, which applies here and is not carried through.
+	
+	Contrast with `select`, which keeps only the edges matching `expr` and
+	is not carried through.
 	"""
 	filter(
 		"""
@@ -1724,11 +1724,11 @@ type Edges {
 	"""
 	Narrow the collection to edges matching `expr`, but only at this step —
 	subsequent traversals out of these edges see the unfiltered graph again.
-
+	
 	Useful when you want different scopes at different hops. E.g. Monday's
 	edges, then the neighbours of their endpoints on Tuesday, then *those*
 	neighbours on Wednesday:
-
+	
 	```text
 	edges { select(expr: {view: [{window: {...monday...}}]}) {
 	list { src { select(expr: {view: [{window: {...tuesday...}}]}) {
@@ -1738,7 +1738,7 @@ type Edges {
 	} } }
 	} }
 	```
-
+	
 	Contrast with `filter`, which persists the scope through subsequent ops.
 	"""
 	select(
@@ -1761,7 +1761,7 @@ type EdgesWindowSet {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2175,9 +2175,9 @@ type Graph {
 	): Graph!
 	"""
 	Creates a rolling window with the specified window size and an optional step.
-
+	
 	A rolling window is a window that moves forward by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -2200,9 +2200,9 @@ type Graph {
 	): GraphWindowSet!
 	"""
 	Creates an expanding window with the specified step size.
-
+	
 	An expanding window is a window that grows by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -2332,7 +2332,7 @@ type Graph {
 	hasLayer(name: String!): Boolean!
 	"""
 	The earliest time at which any edge in this graph is valid.
-
+	
 	* `includeNegative` — if false, edge events with a timestamp `< 0` are
 	skipped when computing the minimum. Defaults to true.
 	"""
@@ -2353,7 +2353,7 @@ type Graph {
 	): EventTime!
 	"""
 	Returns the number of edges in the graph.
-
+	
 	Returns:
 	int:
 	"""
@@ -2364,7 +2364,7 @@ type Graph {
 	countTemporalEdges: Int!
 	"""
 	Returns the number of nodes in the graph.
-
+	
 	Optionally takes a list of node ids to return a subset.
 	"""
 	countNodes: Int!
@@ -2542,7 +2542,7 @@ type GraphWindowSet {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2591,7 +2591,7 @@ type History {
 	"""
 	Fetch one page of EventTime entries with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2612,7 +2612,7 @@ type History {
 	"""
 	Fetch one page of EventTime entries with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2710,7 +2710,7 @@ type HistoryDateTime {
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
 	will be raised on time conversion error. Defaults to False.
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2737,7 +2737,7 @@ type HistoryDateTime {
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
 	will be raised on time conversion error. Defaults to False.
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2784,7 +2784,7 @@ type HistoryEventId {
 	"""
 	Fetch one page of event ids with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2805,7 +2805,7 @@ type HistoryEventId {
 	"""
 	Fetch one page of event ids in reverse chronological order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2848,7 +2848,7 @@ type HistoryTimestamp {
 	"""
 	Fetch one page of timestamps with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2869,7 +2869,7 @@ type HistoryTimestamp {
 	"""
 	Fetch one page of timestamps in reverse order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2924,7 +2924,7 @@ type Intervals {
 	"""
 	Fetch one page of intervals between consecutive timestamps with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2945,7 +2945,7 @@ type Intervals {
 	"""
 	Fetch one page of intervals between consecutive timestamps in reverse order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -3092,14 +3092,14 @@ type MetaGraph {
 	nodeCount: Int
 	"""
 	Returns the number of edges in the graph, or null if the caller lacks unfiltered read.
-
+	
 	Returns:
 	int:
 	"""
 	edgeCount: Int
 	"""
 	Returns the metadata of the graph, or null if the caller lacks unfiltered read.
-
+	
 	Reads metadata without forcing a full graph load: from the
 	in-memory cache if the graph is already loaded, otherwise directly
 	from disk (parquet metadata for parquet-backed graphs, the
@@ -3129,12 +3129,12 @@ input MetaGraphCondition {
 	where: PropCondition!
 	"""
 	Overrides the result when the graph has no value for the target.
-
+	
 	Set this when absence should read as a default rather than a non-match —
 	e.g. treating a graph with no `archived` key as not archived, so
 	`archived == false` still selects it. Applies to `field` too, since a
 	graph may have no name.
-
+	
 	Left unset, the condition itself decides, which is what you want for
 	conditions already about absence (`isNone`, `ne`).
 	"""
@@ -3342,7 +3342,7 @@ type MutRoot {
 	): Boolean!
 	"""
 	Upload a graph file from a path on the client using GQL multipart uploading.
-
+	
 	Returns::
 	name of the new graph
 	"""
@@ -3362,7 +3362,7 @@ type MutRoot {
 	): String!
 	"""
 	Send graph bincode as base64 encoded string.
-
+	
 	Returns::
 	path of the new graph
 	"""
@@ -3408,11 +3408,11 @@ type MutRoot {
 	): Boolean!
 	"""
 	Create an empty namespace at `path`.
-
+	
 	Creates any missing parent namespaces along the way. Requires WRITE
 	permission on the parent namespace. Rejects paths that already host a
 	graph or an existing namespace, and paths that fail validation.
-
+	
 	Returns:: the path of the created namespace
 	"""
 	createNamespace(
@@ -3423,12 +3423,12 @@ type MutRoot {
 	): String!
 	"""
 	Delete a namespace and all of its descendants (graphs and sub-namespaces).
-
+	
 	Requires WRITE permission on the parent namespace, on the namespace
 	itself, and on every descendant graph and sub-namespace. Cached graphs
 	at any deleted path are invalidated. Rejects empty and non-existent
 	paths.
-
+	
 	Returns:: true on success
 	"""
 	deleteNamespace(
@@ -3439,7 +3439,7 @@ type MutRoot {
 	): Boolean!
 	"""
 	Returns a subgraph given a set of nodes from an existing graph in the server.
-
+	
 	Returns::
 	name of the new graph
 	"""
@@ -3776,7 +3776,7 @@ type MutableGraph {
 	the graph as of this call, so values added later need another build to
 	be searchable through it; filters over uncovered properties fall back
 	to a scan and stay correct either way.
-
+	
 	`props` replaces the saved selection of property names to index, which
 	later builds reuse; omit it to keep the saved one.
 	"""
@@ -3876,7 +3876,7 @@ type Namespace {
 	Graphs directly inside this namespace (excludes graphs in nested
 	namespaces). Filtered by the caller's permissions — only graphs the
 	caller is allowed to see are returned.
-
+	
 	`filter` and `sort` are applied before the returned collection is paged,
 	so `count` reflects the filtered total and `page` slices the sorted
 	order.
@@ -3899,7 +3899,7 @@ type Namespace {
 	"""
 	Most recent `lastUpdated` across the graphs directly inside this
 	namespace, or null when it holds none.
-
+	
 	Computed here so a listing can show a folder's recency without the client
 	walking every graph in every folder it displays.
 	"""
@@ -3911,7 +3911,7 @@ type Namespace {
 	"""
 	Sub-namespaces directly inside this one (one level down, not recursive).
 	Filtered by permissions.
-
+	
 	`filter` and `sort` are applied before the returned collection is paged.
 	"""
 	children(
@@ -3928,7 +3928,7 @@ type Namespace {
 	Everything in this namespace — sub-namespaces and graphs — as a single
 	heterogeneous collection. Sub-namespaces are listed before graphs.
 	Filtered by permissions.
-
+	
 	`filter` and `sort` are applied before the returned collection is paged.
 	`sort` orders the graphs; sub-namespaces keep path order and stay ahead of
 	them, so a client paging this collection walks folders before graphs
@@ -4173,7 +4173,7 @@ type NestedEdges {
 	"""
 	Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
 	will be returned. Each entry is the per-source list of incident edges.
 	"""
@@ -4203,7 +4203,7 @@ type NestedEdges {
 	Narrow the edge set to edges matching `expr`. The filter sticks to the
 	returned collection — every subsequent traversal continues to see the
 	filtered scope.
-
+	
 	Contrast with `select`, which applies here and is not carried through.
 	"""
 	filter(
@@ -4215,7 +4215,7 @@ type NestedEdges {
 	"""
 	Narrow the edge set to edges matching `expr`, but only at this hop —
 	further traversals out of these edges see the unfiltered graph again.
-
+	
 	Contrast with `filter`, which persists the scope through subsequent ops.
 	"""
 	select(
@@ -4297,9 +4297,9 @@ type Node {
 	): Node!
 	"""
 	Creates a WindowSet with the specified window size and optional step using a rolling window.
-
+	
 	A rolling window is a window that moves forward by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -4322,9 +4322,9 @@ type Node {
 	): NodeWindowSet!
 	"""
 	Creates a WindowSet with the specified step size using an expanding window.
-
+	
 	An expanding window is a window that grows by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -5007,7 +5007,7 @@ type NodeState {
 	Returns one page of this node state as a node state of its own, so that
 	`nodes` / `rows` / `columns` on it stay row-aligned with each other.
 	Pages past the end are empty rather than an error.
-
+	
 	For example, if page(limit: 5, offset: 1, page_index: 2) is called, a page with 5 items,
 	offset by 11 items (2 pages of 5 + 1), will be returned.
 	"""
@@ -5178,7 +5178,7 @@ type NodeWindowSet {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -5251,9 +5251,9 @@ type Nodes {
 	): Nodes!
 	"""
 	Creates a WindowSet with the specified window size and optional step using a rolling window.
-
+	
 	A rolling window is a window that moves forward by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -5276,9 +5276,9 @@ type Nodes {
 	): NodesWindowSet!
 	"""
 	Creates a WindowSet with the specified step size using an expanding window.
-
+	
 	An expanding window is a window that grows by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -5437,7 +5437,7 @@ type Nodes {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -5466,20 +5466,21 @@ type Nodes {
 	"""
 	ids: [String!]!
 	"""
-	Narrow the collection to nodes matching `expr`. The filter sticks to the
-	returned view — every subsequent traversal through these nodes (their
-	neighbours, edges, properties) continues to see the filtered scope.
-
+	Keep every node in the collection and scope what is reached through them
+	by `expr`: their neighbours, edges, degrees and properties all see the
+	filtered graph, and so does every later traversal.
+	
 	Useful when you want one scoping rule to apply across the whole query.
 	E.g. restricting everything to a specific week:
-
+	
 	```text
 	nodes { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
 	list { neighbours { list { name } } }   # neighbours still windowed
 	} }
 	```
-
-	Contrast with `select`, which applies here and is not carried through.
+	
+	Contrast with `select`, which keeps only the nodes matching `expr` and
+	is not carried through.
 	"""
 	filter(
 		"""
@@ -5490,11 +5491,11 @@ type Nodes {
 	"""
 	Narrow the collection to nodes matching `expr`, but only at this step —
 	subsequent traversals out of these nodes see the unfiltered graph again.
-
+	
 	Useful when you want different scopes at different hops. E.g. nodes
 	active on Monday, then their neighbours active on Tuesday, then *those*
 	neighbours active on Wednesday:
-
+	
 	```text
 	nodes { select(expr: {view: [{window: {...monday...}}]}) {
 	list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
@@ -5504,7 +5505,7 @@ type Nodes {
 	} } }
 	} }
 	```
-
+	
 	Contrast with `filter`, which persists the scope through subsequent ops.
 	"""
 	select(
@@ -5583,7 +5584,7 @@ type NodesWindowSet {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -5798,7 +5799,7 @@ type PathFromGraph {
 	"""
 	Fetch one page of source paths up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 source paths, offset by 11 (2 pages of 5 + 1),
 	will be returned. Each entry is the per-source list of neighbour nodes.
 	"""
@@ -5856,7 +5857,7 @@ type PathFromGraph {
 	Narrow the neighbour set to nodes matching `expr`. The filter sticks to
 	the returned path — every subsequent traversal (further hops, edges,
 	properties) continues to see the filtered scope.
-
+	
 	Contrast with `select`, which applies here and is not carried through.
 	"""
 	filter(
@@ -5868,7 +5869,7 @@ type PathFromGraph {
 	"""
 	Narrow the neighbour set to nodes matching `expr`, but only at this hop
 	— further traversals out of these nodes see the unfiltered graph again.
-
+	
 	Contrast with `filter`, which persists the scope through subsequent ops.
 	"""
 	select(
@@ -5973,9 +5974,9 @@ type PathFromNode {
 	): PathFromNode!
 	"""
 	Creates a WindowSet with the given window size and optional step using a rolling window.
-
+	
 	A rolling window is a window that moves forward by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -5998,9 +5999,9 @@ type PathFromNode {
 	): PathFromNodeWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window.
-
+	
 	An expanding window is a window that grows by step size at each iteration.
-
+	
 	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
 	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
 	e.g. "1 month and 1 day" will align at the start of the day.
@@ -6153,7 +6154,7 @@ type PathFromNode {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -6185,16 +6186,16 @@ type PathFromNode {
 	Narrow the neighbour set to nodes matching `expr`. The filter sticks to
 	the returned path — every subsequent traversal (further hops, edges,
 	properties) continues to see the filtered scope.
-
+	
 	Useful when you want one scoping rule to apply across the whole query.
 	E.g. restricting the whole traversal to a specific week:
-
+	
 	```text
 	node(name: "A") { neighbours { filter(expr: {view: [{window: {...week...}}]}) {
 	list { neighbours { list { name } } }   # further hops still windowed
 	} } }
 	```
-
+	
 	Contrast with `select`, which applies here and is not carried through.
 	"""
 	filter(
@@ -6206,10 +6207,10 @@ type PathFromNode {
 	"""
 	Narrow the neighbour set to nodes matching `expr`, but only at this hop
 	— further traversals out of these nodes see the unfiltered graph again.
-
+	
 	Useful when each hop needs a different scope. E.g. neighbours active on
 	Monday, then *their* neighbours active on Tuesday:
-
+	
 	```text
 	node(name: "A") { neighbours { select(expr: {view: [{window: {...monday...}}]}) {
 	list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
@@ -6217,7 +6218,7 @@ type PathFromNode {
 	} } }
 	} } }
 	```
-
+	
 	Contrast with `filter`, which persists the scope through subsequent ops.
 	"""
 	select(
@@ -6287,7 +6288,7 @@ type PathFromNodeWindowSet {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -6400,13 +6401,13 @@ input PropCondition @oneOf {
 	isNotIn: Value
 	"""
 	Presence check: property value is present (not null/missing).
-
+	
 	When set to `true`, requires the property to exist.
 	"""
 	isSome: Boolean
 	"""
 	Absence check: property value is missing / null.
-
+	
 	When set to `true`, requires the property to be missing.
 	"""
 	isNone: Boolean
@@ -6649,7 +6650,7 @@ type QueryRoot {
 	): MetaGraph
 	"""
 	Update graph query, has side effects to update graph state
-
+	
 	Returns:: GqlMutableGraph
 	"""
 	updateGraph(
@@ -6660,25 +6661,25 @@ type QueryRoot {
 	): MutableGraph!
 	"""
 	Returns all namespaces using recursive search
-
+	
 	Returns::  List of namespaces on root
 	"""
 	namespaces: CollectionOfNamespace!
 	"""
 	Returns a specific namespace at a given path
-
+	
 	Returns:: Namespace or error if no namespace found
 	"""
 	namespace(path: String!): Namespace!
 	"""
 	Returns root namespace
-
+	
 	Returns::  Root namespace
 	"""
 	root: Namespace!
 	"""
 	Encodes graph and returns as string.
-
+	
 	Returns:: Base64 url safe encoded string
 	"""
 	receiveGraph(
@@ -6693,7 +6694,7 @@ type QueryRoot {
 	version: String!
 	"""
 	Update graph query, has side effects to update graph state
-
+	
 	Returns:: GqlMutableGraph
 	"""
 	vectoriseGraph(
@@ -6717,10 +6718,10 @@ type QueryRoot {
 	"""
 	Index only the entities that are missing from an existing vector index, leaving what is
 	already indexed untouched. Cheap enough to run routinely, and never destructive.
-
+	
 	Fails if the graph has no index yet, or if the template or model differs from the one the
 	index was built with — `vectoriseGraph` is what covers those, by rebuilding.
-
+	
 	Returns:: bool
 	"""
 	vectoriseMissing(
@@ -6743,7 +6744,7 @@ type QueryRoot {
 	): Boolean!
 	"""
 	Create vectorised graph in the format used for queries
-
+	
 	Returns:: GqlVectorisedGraph
 	"""
 	vectorisedGraph(
@@ -7495,7 +7496,7 @@ input Value @oneOf {
 	decimal: String
 	"""
 	A named placeholder, resolved before the filter is evaluated.
-
+	
 	Lets a filter be written once with per-request values left open — an authorization policy
 	binds them per caller. A `Var` must be substituted before the filter reaches the engine;
 	converting one to a `Prop` is an error rather than a silent default.
@@ -7503,7 +7504,7 @@ input Value @oneOf {
 	var: String
 	"""
 	A named claim, read straight from the caller's token and substituted before evaluation.
-
+	
 	Like [`Value::Var`] but sourced directly from a token claim rather than a binding, so no
 	spec is needed. Must be substituted before the filter reaches the engine; converting one to
 	a `Prop` is an error rather than a silent default.
@@ -7820,7 +7821,7 @@ input Window {
 input WindowDuration @oneOf {
 	"""
 	Duration of window period.
-
+	
 	Choose from:
 	"""
 	duration: String
