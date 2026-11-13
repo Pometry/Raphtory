@@ -980,7 +980,7 @@ fn apply_row_filter_sync(graph: DynamicGraph, filter: GqlFilter) -> Result<Dynam
         // The stage is logged with the engine's own message; the caller only learns that
         // the grant is at fault, never what the filter said.
         match e {
-            GraphError::InvalidGqlFilter(_) | GraphError::InvalidFilter(_) => {
+            GraphError::InvalidFilter(_) => {
                 error!(error = %e, "access filter conversion failed")
             }
             _ => error!(error = %e, "access filter application failed"),

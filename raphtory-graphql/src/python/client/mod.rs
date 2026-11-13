@@ -167,7 +167,7 @@ impl From<ClientError> for PyErr {
     fn from(err: ClientError) -> Self {
         match &err {
             ClientError::PermissionDenied(msg) => RemotePermissionError::new_err(msg.clone()),
-            ClientError::Graph(GraphError::InvalidGqlFilter(msg)) => {
+            ClientError::Graph(GraphError::InvalidFilter(msg)) => {
                 PyValueError::new_err(msg.clone())
             }
             _ => adapt_err_value(&err),
