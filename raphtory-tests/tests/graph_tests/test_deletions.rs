@@ -15,7 +15,7 @@ use raphtory_api::core::{
     entities::GID,
     storage::timeindex::{AsTime, EventTime},
 };
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use raphtory_tests::{
     test_storage,
     utils::{build_graph, build_graph_strat},
@@ -204,7 +204,7 @@ fn test_multilayer_window() {
 
     let expected = PersistentGraph::new();
     expected.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
-    expected.resolve_layer(Some("a")).unwrap(); // empty layer exists
+    expected.mutable().unwrap().resolve_layer(Some("a")); // empty layer exists
 
     println!("expected: {:?}", expected);
     assert_persistent_materialize_graph_equal(&gw, &expected);
@@ -306,7 +306,7 @@ fn test_addition_deletion_multilayer_window() {
     g.delete_edge(0, 0, 0, None).unwrap();
     let gw = g.window(0, 0).valid_layers("a");
     let expected_gw = PersistentGraph::new();
-    expected_gw.resolve_layer(Some("a")).unwrap();
+    expected_gw.mutable().unwrap().resolve_layer(Some("a"));
     assert_graph_equal(&gw, &expected_gw);
     let gwm = gw.materialize().unwrap();
     assert_graph_equal(&gw, &gwm);

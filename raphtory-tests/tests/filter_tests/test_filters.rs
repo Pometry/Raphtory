@@ -1,8 +1,6 @@
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::entities::properties::prop::IntoProp;
-use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
-};
+use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use raphtory_tests::assertions::GraphTransformer;
 
 struct IdentityGraphTransformer;
@@ -26,9 +24,7 @@ mod test_property_semantics {
             prelude::*,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
-        use raphtory_storage::mutation::{
-            addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
-        };
+        use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
         use raphtory_tests::assertions::{assert_filter_nodes_results, TestVariants};
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(graph: G) -> G {
@@ -90,11 +86,7 @@ mod test_property_semantics {
         }
 
         fn init_graph_for_event_ids<
-            G: StaticGraphViewOps
-                + AdditionOps
-                + InternalAdditionOps
-                + InternalPropertyAdditionOps
-                + PropertyAdditionOps,
+            G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
         >(
             graph: G,
         ) -> G {
@@ -211,11 +203,7 @@ mod test_property_semantics {
         fn test_property_semantics_only_metadata() {
             // For this graph there won't be any temporal property index for property name "p1".
             fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
+                G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
             >(
                 graph: G,
             ) -> G {
@@ -259,11 +247,7 @@ mod test_property_semantics {
         fn test_property_semantics_only_temporal() {
             // For this graph there won't be any metadata index for property name "p1".
             fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
+                G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
             >(
                 graph: G,
             ) -> G {
@@ -311,19 +295,13 @@ mod test_property_semantics {
             prelude::*,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
-        use raphtory_storage::mutation::{
-            addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
-        };
+        use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
         use raphtory_tests::assertions::{
             assert_filter_edges_results, TestGraphVariants, TestVariants, WindowGraphTransformer,
         };
 
         fn init_graph<
-            G: StaticGraphViewOps
-                + AdditionOps
-                + InternalAdditionOps
-                + InternalPropertyAdditionOps
-                + PropertyAdditionOps,
+            G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
         >(
             graph: G,
         ) -> G {
@@ -383,11 +361,7 @@ mod test_property_semantics {
         }
 
         fn init_graph_for_event_ids<
-            G: StaticGraphViewOps
-                + AdditionOps
-                + InternalAdditionOps
-                + InternalPropertyAdditionOps
-                + PropertyAdditionOps,
+            G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
         >(
             graph: G,
         ) -> G {
@@ -409,11 +383,7 @@ mod test_property_semantics {
         #[test]
         fn test_persistent_graph_first_window() {
             fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
+                G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
             >(
                 graph: G,
             ) -> G {
@@ -650,11 +620,7 @@ mod test_property_semantics {
         fn test_property_semantics_only_metadata() {
             // For this graph there won't be any temporal property index for property name "p1".
             fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
+                G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
             >(
                 graph: G,
             ) -> G {
@@ -699,11 +665,7 @@ mod test_property_semantics {
         fn test_property_semantics_only_temporal() {
             // For this graph there won't be any metadata index for property name "p1".
             fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
+                G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
             >(
                 graph: G,
             ) -> G {
@@ -737,11 +699,7 @@ mod test_property_semantics {
 }
 
 fn init_nodes_graph<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -885,11 +843,7 @@ fn init_nodes_graph<
 }
 
 fn init_nodes_layers_graph<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -1033,11 +987,7 @@ fn init_nodes_layers_graph<
 }
 
 fn init_nodes_graph_with_num_ids<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -1152,11 +1102,7 @@ fn init_nodes_graph_with_num_ids<
 }
 
 fn init_nodes_graph_with_str_ids<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -1180,11 +1126,7 @@ fn init_nodes_graph_with_str_ids<
 }
 
 fn init_edges_graph<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -1278,11 +1220,7 @@ fn init_edges_graph<
 }
 
 fn init_edges_graph2<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -1372,11 +1310,7 @@ fn init_edges_graph2<
 }
 
 fn init_edges_graph_with_num_ids<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -1456,11 +1390,7 @@ fn init_edges_graph_with_num_ids<
 }
 
 fn init_edges_graph_with_str_ids<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -1483,12 +1413,7 @@ fn init_edges_graph_with_str_ids<
 }
 
 fn init_edges_graph_with_str_ids_del<
-    G: StaticGraphViewOps
-        + AdditionOps
-        + DeletionOps
-        + InternalAdditionOps
-        + InternalPropertyAdditionOps
-        + PropertyAdditionOps,
+    G: StaticGraphViewOps + AdditionOps + DeletionOps + InternalAdditionOps + PropertyAdditionOps,
 >(
     graph: G,
 ) -> G {
@@ -4666,9 +4591,7 @@ mod test_node_property_filter_agg {
         entities::properties::prop::{IntoProp, Prop},
         storage::arc_str::ArcStr,
     };
-    use raphtory_storage::mutation::{
-        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
-    };
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use raphtory_tests::assertions::{
         assert_filter_nodes_err, assert_filter_nodes_results, TestVariants::All,
     };
@@ -4711,11 +4634,7 @@ mod test_node_property_filter_agg {
 
     /// Writes a set of node temporal properties and node metadata to the given graph.
     pub fn init_nodes_graph<
-        G: StaticGraphViewOps
-            + AdditionOps
-            + InternalAdditionOps
-            + InternalPropertyAdditionOps
-            + PropertyAdditionOps,
+        G: StaticGraphViewOps + AdditionOps + InternalAdditionOps + PropertyAdditionOps,
     >(
         graph: G,
     ) -> G {
