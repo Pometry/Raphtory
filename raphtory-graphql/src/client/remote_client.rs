@@ -10,29 +10,77 @@ use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, io::Cursor};
 use url::Url;
 
+/// Scheme of server URLs that point at a unix socket, e.g. `unix:///path/to/raphtory.sock`.
+const UNIX_SCHEME: &str = "unix";
+
+/// Build the HTTP client for a server URL, together with the URL its requests go to.
+///
+/// A `unix:///path/to/raphtory.sock` URL routes every request through that socket
+/// and sends it to `/`; any other URL is used as-is over TCP.
+fn http_client(url: Url) -> Result<(Url, Client), ClientError> {
+    if url.scheme() == UNIX_SCHEME {
+        unix_socket_client(&url)
+    } else {
+        Ok((url, Client::new()))
+    }
+}
+
+#[cfg(unix)]
+fn unix_socket_client(url: &Url) -> Result<(Url, Client), ClientError> {
+    let socket = url.to_file_path().map_err(|_| {
+        ClientError::InvalidInput(format!(
+            "Invalid unix socket URL '{url}': expected unix:///absolute/path/to/socket"
+        ))
+    })?;
+    let client = Client::builder().unix_socket(socket).build()?;
+    // The socket alone decides where requests go; this URL only supplies the
+    // request target and the `Host` header.
+    let url = Url::parse("http://localhost/").expect("static URL is valid");
+    Ok((url, client))
+}
+
+#[cfg(not(unix))]
+fn unix_socket_client(url: &Url) -> Result<(Url, Client), ClientError> {
+    Err(ClientError::InvalidInput(format!(
+        "Unix socket URL '{url}' is not supported on this platform"
+    )))
+}
+
 /// Client for interacting with a Raphtory GraphQL server.
 #[derive(Clone, Debug)]
 pub struct RemoteClient {
+    /// Where requests are sent. For a `unix://` server URL this is `http://localhost/`
+    /// and `client` carries the socket.
     pub(crate) url: Url,
     pub(crate) token: String,
     client: Client,
 }
 
 impl RemoteClient {
-    /// Create a new client. Does not perform a connectivity check; use [`client::is_online`] first if needed.
+    /// Create a new client. Does not perform a connectivity check; use [`RemoteClient::is_online`] first if needed.
+    ///
+    /// `url` is either an `http(s)://` URL or `unix:///path/to/socket`.
+    ///
+    /// # Panics
+    ///
+    /// If `url` is a malformed `unix://` URL, or one used on a non-unix platform.
+    /// Use [`RemoteClient::connect`] to get these as errors instead.
     pub fn new(url: Url, token: Option<String>) -> Self {
+        let (url, client) = http_client(url).unwrap_or_else(|e| panic!("{e}"));
         Self {
             url,
             token: token.unwrap_or_default(),
-            client: Client::new(),
+            client,
         }
     }
 
     /// Create a new client and verify the server is reachable (GET url, expect 200).
     /// Returns an error if the server is not reachable.
+    ///
+    /// `url` is either an `http(s)://` URL or `unix:///path/to/socket`.
     pub async fn connect(url: Url, token: Option<String>) -> Result<Self, ClientError> {
         let token = token.unwrap_or_default();
-        let client = Client::new();
+        let (url, client) = http_client(url)?;
 
         let response = client
             .get(url.clone())
@@ -64,6 +112,18 @@ impl RemoteClient {
             token: token.into(),
             client: self.client.clone(),
         }
+    }
+
+    /// Returns true if the server responds to a GET on its URL with 200. Unlike
+    /// [`client::is_online`](crate::client::is_online), this goes through the
+    /// client's own transport, so it also works for `unix://` URLs.
+    pub async fn is_online(&self) -> bool {
+        self.client
+            .get(self.url.clone())
+            .send()
+            .await
+            .map(|response| response.status().as_u16() == 200)
+            .unwrap_or(false)
     }
 
     /// Returns true if the server could be reached and returns a healthy response.
@@ -343,5 +403,76 @@ impl RemoteClient {
 
     pub fn remote_graph(&self, path: String) -> RemoteGraph {
         RemoteGraph::new(path, self.clone())
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use crate::server::GraphServer;
+    use tempfile::tempdir;
+    use tokio::net::{TcpStream, UnixListener};
+
+    #[test]
+    fn unix_url_sends_requests_to_root() {
+        let (url, _) = http_client(Url::parse("unix:///tmp/raphtory.sock").unwrap()).unwrap();
+        assert_eq!(url.as_str(), "http://localhost/");
+    }
+
+    #[test]
+    fn http_url_is_kept() {
+        let (url, _) = http_client(Url::parse("http://localhost:1736/").unwrap()).unwrap();
+        assert_eq!(url.as_str(), "http://localhost:1736/");
+    }
+
+    #[test]
+    fn unix_url_with_host_is_rejected() {
+        let err = http_client(Url::parse("unix://somehost/tmp/raphtory.sock").unwrap());
+        assert!(matches!(err, Err(ClientError::InvalidInput(_))));
+    }
+
+    /// Forward every connection on a unix socket to the server's TCP port, as the
+    /// sandbox does, and drive the client end to end through it.
+    #[tokio::test]
+    async fn client_and_remote_graph_work_over_unix_socket() {
+        let tmp_dir = tempdir().unwrap();
+        let server = GraphServer::new(tmp_dir.path().join("graphs"), None, Args::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        let socket = tmp_dir.path().join("raphtory.sock");
+        let listener = UnixListener::bind(&socket).unwrap();
+        tokio::spawn(async move {
+            while let Ok((mut unix, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    let mut tcp = TcpStream::connect(("localhost", port)).await.unwrap();
+                    let _ = tokio::io::copy_bidirectional(&mut unix, &mut tcp).await;
+                });
+            }
+        });
+
+        let url = Url::parse(&format!("unix://{}", socket.display())).unwrap();
+        let client = RemoteClient::connect(url, None).await.unwrap();
+        assert!(client.is_online().await);
+        assert!(client.is_healthy().await);
+
+        client
+            .new_graph("unix-graph", GqlGraphType::Event)
+            .await
+            .unwrap();
+        let rg = client.remote_graph("unix-graph".into());
+        rg.add_node(1i64, "ben", raphtory::prelude::NO_PROPS, None, None)
+            .await
+            .unwrap();
+        let data = client
+            .query(
+                r#"{ graph(path: "unix-graph") { countNodes } }"#,
+                serde_json::json!({}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(data["graph"]["countNodes"], 1);
     }
 }

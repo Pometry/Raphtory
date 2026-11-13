@@ -36,6 +36,8 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
 
 /// Check if a server at the given URL is online (responds with 200).
+///
+/// TCP only; for `unix://` URLs use [`RemoteClient::is_online`].
 pub fn is_online(url: &str) -> bool {
     reqwest::blocking::Client::new()
         .get(url)
