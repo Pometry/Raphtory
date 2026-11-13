@@ -24,7 +24,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    mutation::addition_ops::{GraphMutationOps, InternalAdditionOps},
 };
 use rayon::iter::ParallelIterator;
 use serde::{
@@ -1157,6 +1157,7 @@ pub fn apply_graph_fixture<
 
 pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
     let g = Arc::new(Storage::new_with_config(Args::default()).unwrap());
+    let mutable = g.mutable().unwrap();
     let mut counter = 0usize;
     let actual_layer_set: HashSet<_> = graph_fix
         .edges()
@@ -1178,24 +1179,23 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
     // make sure the graph has the layers in the right order
     for layer in layers {
         if actual_layer_set.contains(layer) {
-            g.resolve_layer(Some(layer)).unwrap();
+            mutable.resolve_layer(Some(layer));
         }
     }
 
     let layers = g.edge_meta().layer_meta();
 
-    let session = g.write_session().unwrap();
     for ((src, dst, layer), updates) in graph_fix.edges() {
         // properties always exist in the graph
         for (_, props) in updates.props.t_props.iter() {
             for (key, value) in props {
-                session
+                mutable
                     .resolve_edge_property(key, value.dtype(), false)
                     .unwrap();
             }
         }
         for (key, value) in updates.props.c_props.iter() {
-            session
+            mutable
                 .resolve_edge_property(key, value.dtype(), true)
                 .unwrap();
         }
@@ -1229,13 +1229,13 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
         // list for a prop with no values rather than the prop key being absent on one side.
         for (_, props) in updates.props.t_props.iter() {
             for (key, value) in props {
-                session
+                mutable
                     .resolve_node_property(key, value.dtype(), false)
                     .unwrap();
             }
         }
         for (key, value) in updates.props.c_props.iter() {
-            session
+            mutable
                 .resolve_node_property(key, value.dtype(), true)
                 .unwrap();
         }
