@@ -39,7 +39,7 @@ pub trait GraphMutationOps: Send + Sync {
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-    ) -> Result<AtomicAddEdge<'_, Extension>, MutationError>;
+    ) -> Result<AtomicAddEdge<'_>, MutationError>;
 
     fn atomic_update_edge(&self, edge: EdgeRef) -> AtomicUpdateEdge<'_>;
 

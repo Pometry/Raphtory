@@ -42,7 +42,6 @@ pub mod layer_counter;
 pub mod locked;
 pub mod node_page;
 pub mod node_store;
-pub mod session;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

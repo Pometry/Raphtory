@@ -11,8 +11,9 @@ use std::sync::Arc;
 use storage::{
     error::StorageError,
     pages::{
-        edge_page::writer::EdgeWriter, graph_prop_page::writer::GraphPropWriter,
-        node_page::writer::NodeWriter,
+        edge_page::writer::EdgeWriter,
+        graph_prop_page::writer::GraphPropWriter,
+        node_page::writer::{NodeWriter, NodeWriters},
     },
     resolver::mapping_resolver::InvalidNodeId,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
@@ -24,6 +25,7 @@ pub mod addition_ops;
 pub mod addition_ops_ext;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS<Extension>>;
+pub type NodeWritersT<'a> = NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES<Extension>>;
 pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 
