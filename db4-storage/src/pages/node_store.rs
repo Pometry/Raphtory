@@ -537,7 +537,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         let segment = self.wait_for_segment(segment_id);
         let head = segment.head_mut_arc();
-        NodeWriter::new(segment, &self.stats, head)
+        NodeWriter::new(segment, head, &self.stats)
     }
 
     #[inline(always)]
@@ -546,7 +546,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         head: ArcRwLockWriteGuard<MemNodeSegment>,
     ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         let segment = self.wait_for_segment(head.segment_id());
-        NodeWriter::new(segment, &self.stats, head)
+        NodeWriter::new(segment, head, &self.stats)
     }
 
     /// try to get a writer for an existing segment (None if the segment is read-locked currently)
@@ -556,7 +556,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> Option<NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS>> {
         let segment = self.wait_for_segment(segment_id);
         let head = segment.try_head_mut_arc()?;
-        Some(NodeWriter::new(segment, &self.stats, head))
+        Some(NodeWriter::new(segment, head, &self.stats))
     }
 
     pub fn id_type(&self) -> Option<GidType> {

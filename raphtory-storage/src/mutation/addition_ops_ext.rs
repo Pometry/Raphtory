@@ -22,7 +22,7 @@ use raphtory_api::{
         },
         storage::dict_mapper::MaybeNew,
     },
-    ArcRwLockWriteGuard,
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
 };
 use raphtory_core::{
     entities::{
@@ -37,7 +37,10 @@ use storage::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
-    segments::{graph_prop::segment::MemGraphPropSegment, node::segment::MemNodeSegment},
+    segments::{
+        graph_prop::segment::MemGraphPropSegment, node::segment::MemNodeSegment,
+        node_type_index::MemNodeTypeIndex,
+    },
     transaction::TransactionGuard,
     wal::LSN,
     ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
@@ -171,8 +174,8 @@ impl<'a> AtomicUpdateEdge<'a> {
 
 #[derive(Debug)]
 pub struct AtomicAddNode<'a> {
-    writer: NodeWriterT<'a>,
     vid: MaybeNew<VID>,
+    writer: NodeWriterT<'a>,
 }
 
 impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
@@ -602,8 +605,8 @@ impl GraphMutationOps for TemporalGraph {
                     init.init(vid)?;
 
                     return Ok(AtomicAddNode {
-                        writer,
                         vid: MaybeNew::New(vid),
+                        writer,
                     });
                 }
             },
@@ -611,8 +614,8 @@ impl GraphMutationOps for TemporalGraph {
 
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
         let mut writer = AtomicAddNode {
-            writer: self.storage().node_writer(segment_id),
             vid: MaybeNew::Existing(node_vid),
+            writer: self.storage().node_writer(segment_id),
         };
         // node already exists, save to check node type
         if let Some(node_type) = node_type {

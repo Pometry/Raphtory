@@ -33,7 +33,7 @@ pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSe
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
-    pub fn new(segment: &'a NS, graph_stats: &'a GraphStats, writer: MP) -> Self {
+    pub fn new(segment: &'a NS, writer: MP, graph_stats: &'a GraphStats) -> Self {
         let old_est_size = writer.est_size();
 
         Self {

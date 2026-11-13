@@ -747,7 +747,7 @@ mod test {
         let stats = GraphStats::new();
         let segment = EdgeSegmentView::new(1, meta.clone(), None, ext.clone());
         let head = segment.head_mut();
-        let mut writer = EdgeWriter::new(&stats, &segment, head);
+        let mut writer = EdgeWriter::new(&segment, head, &stats);
         assert_eq!(writer.writer.est_size(), 0);
         writer.add_edge(
             EventTime::new(1, 0),

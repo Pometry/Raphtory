@@ -683,7 +683,7 @@ mod test {
         );
 
         let stats = GraphStats::default();
-        let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());
+        let mut writer = NodeWriter::new(&segment, segment.head_mut(), &stats);
 
         let est_size1 = writer.writer.est_size();
         assert_eq!(est_size1, 0);

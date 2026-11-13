@@ -26,7 +26,7 @@ pub struct EdgeWriter<'a, MP: DerefMut<Target = MemEdgeSegment> + 'a, ES: EdgeSe
 }
 
 impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'a, MP, ES> {
-    pub fn new(graph_stats: &'a GraphStats, segment: &'a ES, writer: MP) -> Self {
+    pub fn new(segment: &'a ES, writer: MP, graph_stats: &'a GraphStats) -> Self {
         let old_est_size = writer.est_size();
 
         Self {
