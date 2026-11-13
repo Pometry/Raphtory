@@ -32,7 +32,10 @@ use raphtory_core::{
     storage::timeindex::EventTime,
 };
 use storage::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    api::{
+        edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, node_type_index::NodeTypeIndexOps,
+        nodes::NodeSegmentOps,
+    },
     pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
@@ -176,6 +179,7 @@ impl<'a> AtomicUpdateEdge<'a> {
 pub struct AtomicAddNode<'a> {
     vid: MaybeNew<VID>,
     writer: NodeWriterT<'a>,
+    type_index: ArcRwLockReadGuard<MemNodeTypeIndex>,
 }
 
 impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
@@ -588,6 +592,8 @@ impl GraphMutationOps for TemporalGraph {
                     let (pos, mut writer) =
                         self.storage().nodes().reserve_and_lock_segment(1, None);
 
+                    let type_index = self.storage().node_type_index().head_shared_arc();
+
                     match node_type {
                         Some(node_type) => {
                             let node_type = self
@@ -607,23 +613,30 @@ impl GraphMutationOps for TemporalGraph {
                     return Ok(AtomicAddNode {
                         vid: MaybeNew::New(vid),
                         writer,
+                        type_index,
                     });
                 }
             },
         };
 
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
+        let node_writer = self.storage().node_writer(segment_id);
+        let type_index = self.storage().node_type_index().head_shared_arc();
+
         let mut writer = AtomicAddNode {
             vid: MaybeNew::Existing(node_vid),
-            writer: self.storage().node_writer(segment_id),
+            writer: node_writer,
+            type_index,
         };
-        // node already exists, save to check node type
+
+        // The node already exists, check or set the given node type.
         if let Some(node_type) = node_type {
             if writer.can_set_type() {
                 let node_type_id = self
                     .node_meta()
                     .get_or_create_node_type_id(node_type)
                     .inner();
+
                 writer.set_type(node_type_id);
             } else {
                 self.node_meta()
@@ -632,6 +645,7 @@ impl GraphMutationOps for TemporalGraph {
                     .ok_or(MutationError::NodeTypeError)?;
             }
         }
+
         Ok(writer)
     }
 
