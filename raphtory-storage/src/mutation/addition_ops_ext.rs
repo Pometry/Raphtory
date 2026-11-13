@@ -3,8 +3,7 @@ use crate::{
     graph::graph::Immutable,
     mutation::{
         addition_ops::{
-            EdgeWriteLock, GraphMutationOps, InternalAdditionOps, MetadataMutationOps,
-            NodeWriteLock, PropertyMutationOps, SetLsn,
+            GraphMutationOps, InternalAdditionOps, MetadataMutationOps, PropertyMutationOps,
         },
         EdgeWriterT, GraphPropWriterT, MutationError, NodeWriterT,
     },
@@ -109,26 +108,14 @@ where
     }
 }
 
-impl<'a, EXT> SetLsn for AtomicAddEdge<'a, EXT>
-where
-    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
-    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
-    NS<EXT>: NodeSegmentOps<Extension = EXT>,
-{
-    fn set_lsn(&mut self, lsn: LSN) {
-        self.static_session.set_lsn(lsn);
-    }
-}
-
-impl<'a, EXT> EdgeWriteLock for AtomicAddEdge<'a, EXT>
+impl<'a, EXT> AtomicAddEdge<'a, EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
+    pub fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.static_session.delete_edge_from_layer(
             t,
             self.src.inner(),
@@ -137,16 +124,20 @@ where
         );
     }
 
-    fn src(&self) -> MaybeNew<VID> {
+    pub fn src(&self) -> MaybeNew<VID> {
         self.src
     }
 
-    fn dst(&self) -> MaybeNew<VID> {
+    pub fn dst(&self) -> MaybeNew<VID> {
         self.dst
     }
 
-    fn eid(&self) -> MaybeNew<EID> {
+    pub fn eid(&self) -> MaybeNew<EID> {
         self.eid
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.static_session.set_lsn(lsn);
     }
 }
 
@@ -172,8 +163,8 @@ impl<'a> MetadataMutationOps for AtomicUpdateEdge<'a> {
     }
 }
 
-impl<'a> SetLsn for AtomicUpdateEdge<'a> {
-    fn set_lsn(&mut self, lsn: LSN) {
+impl<'a> AtomicUpdateEdge<'a> {
+    pub fn set_lsn(&mut self, lsn: LSN) {
         self.writer.set_lsn(lsn)
     }
 }
@@ -182,13 +173,6 @@ impl<'a> SetLsn for AtomicUpdateEdge<'a> {
 pub struct AtomicAddNode<'a> {
     writer: NodeWriterT<'a>,
     vid: MaybeNew<VID>,
-}
-
-impl<'a> AtomicAddNode<'a> {
-    fn local_pos(&self) -> LocalPOS {
-        let (_, pos) = resolve_pos(self.vid.inner(), self.writer.writer.max_page_len());
-        pos
-    }
 }
 
 impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
@@ -219,18 +203,12 @@ impl<'a> MetadataMutationOps for AtomicAddNode<'a> {
     }
 }
 
-impl<'a> SetLsn for AtomicAddNode<'a> {
-    fn set_lsn(&mut self, lsn: LSN) {
-        self.writer.writer.set_lsn(lsn)
-    }
-}
-
-impl<'a> NodeWriteLock for AtomicAddNode<'a> {
-    fn can_set_type(&self) -> bool {
+impl<'a> AtomicAddNode<'a> {
+    pub fn can_set_type(&self) -> bool {
         self.vid.is_new() || self.get_type() == DEFAULT_NODE_TYPE_ID
     }
 
-    fn get_type(&self) -> usize {
+    pub fn get_type(&self) -> usize {
         self.writer
             .get_metadata(self.local_pos(), STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
             .into_u64()
@@ -238,14 +216,23 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
             .unwrap_or(DEFAULT_NODE_TYPE_ID)
     }
 
-    fn set_type(&mut self, node_type: usize) {
+    pub fn set_type(&mut self, node_type: usize) {
         let pos = self.local_pos();
 
         self.writer.store_node_type(pos, node_type)
     }
 
-    fn node(&self) -> MaybeNew<VID> {
+    pub fn node(&self) -> MaybeNew<VID> {
         self.vid
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.writer.writer.set_lsn(lsn)
+    }
+
+    fn local_pos(&self) -> LocalPOS {
+        let (_, pos) = resolve_pos(self.vid.inner(), self.writer.writer.max_page_len());
+        pos
     }
 }
 
@@ -575,6 +562,7 @@ impl GraphMutationOps for TemporalGraph {
         let pos = writer
             .resolve_pos(edge.pid())
             .expect("resolve should not fail for writer matching eid");
+
         AtomicUpdateEdge {
             writer,
             pos,

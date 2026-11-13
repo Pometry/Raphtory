@@ -18,10 +18,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     durability_ops::DurabilityOps,
-    mutation::addition_ops::{
-        EdgeWriteLock, GraphMutationOps, InternalAdditionOps, NodeWriteLock, PropertyMutationOps,
-        SetLsn,
-    },
+    mutation::addition_ops::{GraphMutationOps, InternalAdditionOps, PropertyMutationOps},
 };
 use storage::wal::{GraphWalOps, WalOps};
 
@@ -321,6 +318,7 @@ fn add_node_impl<
     let transaction_manager = mutable_graph.transaction_manager()?;
     let wal = mutable_graph.wal()?;
     let transaction_id = transaction_manager.begin_transaction();
+
     let node_ref = v.as_node_ref();
     let node_gid = node_ref.as_gid_ref();
     let ti = time_from_input_session(&mutable_graph, t)?;

@@ -24,7 +24,7 @@ use raphtory_api::{
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use storage::{
     properties::props_meta_writer::PropsMetaWriter, segments::node::segment::MemNodeSegment,
-    wal::LSN, Extension,
+    Extension,
 };
 
 /// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.
@@ -132,30 +132,6 @@ pub trait MetadataMutationOps {
 
     /// Update the metadata, overwriting any existing values
     fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>);
-}
-
-pub trait SetLsn {
-    fn set_lsn(&mut self, lsn: LSN);
-}
-
-pub trait EdgeWriteLock: SetLsn + MetadataMutationOps + PropertyMutationOps + Send + Sync {
-    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId);
-
-    fn src(&self) -> MaybeNew<VID>;
-
-    fn dst(&self) -> MaybeNew<VID>;
-
-    fn eid(&self) -> MaybeNew<EID>;
-}
-
-pub trait NodeWriteLock: SetLsn + MetadataMutationOps + PropertyMutationOps + Send + Sync {
-    fn can_set_type(&self) -> bool;
-
-    fn get_type(&self) -> usize;
-
-    fn set_type(&mut self, node_type: usize);
-
-    fn node(&self) -> MaybeNew<VID>;
 }
 
 impl InternalAdditionOps for GraphStorage {
