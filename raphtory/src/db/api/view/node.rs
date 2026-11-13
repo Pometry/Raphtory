@@ -134,29 +134,31 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Returns:
     ///
     /// Bounds on the degree of this node, with `lower == upper` when it is exact.
-    fn approx_degree(&self, threshold: usize) -> Self::ValueType<ops::ApproxDegree<Self::Graph>>;
+    fn degree_bounds(&self, threshold: usize) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>>;
 
     /// Get bounds on the in-degree of this node, computing it exactly only when that is cheap.
     ///
-    /// See [`NodeViewOps::approx_degree`].
+    /// See [`NodeViewOps::degree_bounds`].
     ///
     /// Returns:
     ///
     /// Bounds on the in-degree of this node, with `lower == upper` when it is exact.
-    fn approx_in_degree(&self, threshold: usize)
-        -> Self::ValueType<ops::ApproxDegree<Self::Graph>>;
+    fn in_degree_bounds(
+        &self,
+        threshold: usize,
+    ) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>>;
 
     /// Get bounds on the out-degree of this node, computing it exactly only when that is cheap.
     ///
-    /// See [`NodeViewOps::approx_degree`].
+    /// See [`NodeViewOps::degree_bounds`].
     ///
     /// Returns:
     ///
     /// Bounds on the out-degree of this node, with `lower == upper` when it is exact.
-    fn approx_out_degree(
+    fn out_degree_bounds(
         &self,
         threshold: usize,
-    ) -> Self::ValueType<ops::ApproxDegree<Self::Graph>>;
+    ) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>>;
 
     /// Get the edges that are incident to this node.
     ///
@@ -308,8 +310,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn approx_degree(&self, threshold: usize) -> Self::ValueType<ops::ApproxDegree<Self::Graph>> {
-        let op = ops::ApproxDegree {
+    fn degree_bounds(&self, threshold: usize) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>> {
+        let op = ops::DegreeBoundsOp {
             view: self.graph().clone(),
             dir: Direction::BOTH,
             threshold,
@@ -318,11 +320,11 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn approx_in_degree(
+    fn in_degree_bounds(
         &self,
         threshold: usize,
-    ) -> Self::ValueType<ops::ApproxDegree<Self::Graph>> {
-        let op = ops::ApproxDegree {
+    ) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>> {
+        let op = ops::DegreeBoundsOp {
             view: self.graph().clone(),
             dir: Direction::IN,
             threshold,
@@ -331,11 +333,11 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn approx_out_degree(
+    fn out_degree_bounds(
         &self,
         threshold: usize,
-    ) -> Self::ValueType<ops::ApproxDegree<Self::Graph>> {
-        let op = ops::ApproxDegree {
+    ) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>> {
+        let op = ops::DegreeBoundsOp {
             view: self.graph().clone(),
             dir: Direction::OUT,
             threshold,

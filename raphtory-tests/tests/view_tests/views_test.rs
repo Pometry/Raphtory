@@ -538,7 +538,7 @@ fn test_entity_history() {
 }
 
 #[test]
-fn approx_degree_examples() {
+fn degree_bounds_examples() {
     let bounds = |lower, upper| DegreeBounds { lower, upper };
 
     // Hub 0 points at 1..=5 (t=1) and is pointed at by 4..=7 (t=2): 4 and 5 are on both sides,
@@ -553,47 +553,47 @@ fn approx_degree_examples() {
 
     // Without a filter, in/out-degree are exact whatever the threshold, and bound the degree.
     let hub = graph.node(0).unwrap();
-    assert_eq!(hub.approx_out_degree(0), bounds(5, 5));
-    assert_eq!(hub.approx_in_degree(0), bounds(4, 4));
-    assert_eq!(hub.approx_degree(8), bounds(5, 9));
-    assert_eq!(hub.approx_degree(9), bounds(7, 7));
+    assert_eq!(hub.out_degree_bounds(0), bounds(5, 5));
+    assert_eq!(hub.in_degree_bounds(0), bounds(4, 4));
+    assert_eq!(hub.degree_bounds(8), bounds(5, 9));
+    assert_eq!(hub.degree_bounds(9), bounds(7, 7));
 
     // A node with neighbours on one side only is exact for free.
-    assert_eq!(graph.node(1).unwrap().approx_degree(0), bounds(1, 1));
+    assert_eq!(graph.node(1).unwrap().degree_bounds(0), bounds(1, 1));
 
     // In a window, the all-time adjacency sizes are only an upper bound.
     let windowed = graph.window(2, 3);
     let hub = windowed.node(0).unwrap();
     assert_eq!(hub.degree(), 4);
-    assert_eq!(hub.approx_degree(8), bounds(0, 9));
-    assert_eq!(hub.approx_degree(9), bounds(4, 4));
-    assert_eq!(hub.approx_out_degree(4), bounds(0, 5));
-    assert_eq!(hub.approx_out_degree(5), bounds(0, 0));
+    assert_eq!(hub.degree_bounds(8), bounds(0, 9));
+    assert_eq!(hub.degree_bounds(9), bounds(4, 4));
+    assert_eq!(hub.out_degree_bounds(4), bounds(0, 5));
+    assert_eq!(hub.out_degree_bounds(5), bounds(0, 0));
 
     // A self-loop is in both the in and the out adjacency, but is a single neighbour.
     let graph = Graph::new();
     graph.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
     let node = graph.node(0).unwrap();
     assert_eq!(node.degree(), 1);
-    assert_eq!(node.approx_degree(1), bounds(1, 2));
-    assert_eq!(node.approx_degree(2), bounds(1, 1));
+    assert_eq!(node.degree_bounds(1), bounds(1, 2));
+    assert_eq!(node.degree_bounds(2), bounds(1, 1));
 }
 
-/// `approx_degree` and co. bound the exact degree, and are exact whenever their upper bound fits in
+/// `degree_bounds` and co. bound the exact degree, and are exact whenever their upper bound fits in
 /// `threshold` (so always with `usize::MAX`).
-fn check_approx_degree(view: &DynamicGraph, threshold: usize) -> Result<(), TestCaseError> {
+fn check_degree_bounds(view: &DynamicGraph, threshold: usize) -> Result<(), TestCaseError> {
     for node in view.nodes() {
         let cases = [
-            ("degree", node.degree(), node.approx_degree(threshold)),
+            ("degree", node.degree(), node.degree_bounds(threshold)),
             (
                 "in-degree",
                 node.in_degree(),
-                node.approx_in_degree(threshold),
+                node.in_degree_bounds(threshold),
             ),
             (
                 "out-degree",
                 node.out_degree(),
-                node.approx_out_degree(threshold),
+                node.out_degree_bounds(threshold),
             ),
         ];
         for (name, exact, bounds) in cases {
@@ -614,17 +614,17 @@ fn check_approx_degree(view: &DynamicGraph, threshold: usize) -> Result<(), Test
     let per_node = view
         .nodes()
         .iter()
-        .map(|node| node.approx_degree(threshold))
+        .map(|node| node.degree_bounds(threshold))
         .collect_vec();
     prop_assert_eq!(
-        view.nodes().approx_degree(threshold).collect_vec(),
+        view.nodes().degree_bounds(threshold).collect_vec(),
         per_node
     );
     Ok(())
 }
 
 #[test]
-fn approx_degree_bounds_degree_proptest() {
+fn degree_bounds_proptest() {
     proptest!(|(
         updates in proptest::collection::vec(
             (-10i64..10, 0u64..6, 0u64..6, 0usize..4, proptest::bool::ANY),
@@ -657,7 +657,7 @@ fn approx_degree_bounds_degree_proptest() {
         ];
         for view in &views {
             for threshold in [threshold, usize::MAX] {
-                check_approx_degree(view, threshold)?;
+                check_degree_bounds(view, threshold)?;
             }
         }
     });

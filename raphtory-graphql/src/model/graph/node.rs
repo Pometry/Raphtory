@@ -383,7 +383,7 @@ impl GqlNode {
     ) -> GqlDegreeBounds {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.approx_degree(threshold).into()).await
+        blocking_compute(move || self_clone.vv.degree_bounds(threshold).into()).await
     }
 
     /// Returns bounds on the number of edges with this node as the source, counting them exactly
@@ -397,7 +397,7 @@ impl GqlNode {
     ) -> GqlDegreeBounds {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.approx_out_degree(threshold).into()).await
+        blocking_compute(move || self_clone.vv.out_degree_bounds(threshold).into()).await
     }
 
     /// Returns bounds on the number of edges with this node as the destination, counting them
@@ -411,7 +411,7 @@ impl GqlNode {
     ) -> GqlDegreeBounds {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.approx_in_degree(threshold).into()).await
+        blocking_compute(move || self_clone.vv.in_degree_bounds(threshold).into()).await
     }
 
     /// Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge

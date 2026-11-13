@@ -315,7 +315,7 @@ impl GqlPathFromNode {
         Ok(blocking_compute(move || {
             self_clone
                 .nn
-                .approx_degree(threshold)
+                .degree_bounds(threshold)
                 .map(GqlDegreeBounds::from)
                 .collect()
         })
@@ -339,7 +339,7 @@ impl GqlPathFromNode {
         Ok(blocking_compute(move || {
             self_clone
                 .nn
-                .approx_in_degree(threshold)
+                .in_degree_bounds(threshold)
                 .map(GqlDegreeBounds::from)
                 .collect()
         })
@@ -363,7 +363,7 @@ impl GqlPathFromNode {
         Ok(blocking_compute(move || {
             self_clone
                 .nn
-                .approx_out_degree(threshold)
+                .out_degree_bounds(threshold)
                 .map(GqlDegreeBounds::from)
                 .collect()
         })

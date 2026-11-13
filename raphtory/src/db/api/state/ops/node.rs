@@ -214,15 +214,15 @@ impl DegreeBounds {
     }
 }
 
-/// The op behind `NodeViewOps::approx_degree` and co.
+/// The op behind `NodeViewOps::degree_bounds` and co.
 #[derive(Debug, Clone)]
-pub struct ApproxDegree<G> {
+pub struct DegreeBoundsOp<G> {
     pub(crate) dir: Direction,
     pub(crate) view: G,
     pub(crate) threshold: usize,
 }
 
-impl<G: GraphView> NodeOp for ApproxDegree<G> {
+impl<G: GraphView> NodeOp for DegreeBoundsOp<G> {
     type Output = DegreeBounds;
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
@@ -253,11 +253,11 @@ impl<G: GraphView> NodeOp for ApproxDegree<G> {
     }
 }
 
-impl<G: GraphView> ArrowNodeOp for ApproxDegree<G> {
+impl<G: GraphView> ArrowNodeOp for DegreeBoundsOp<G> {
     type ArrowOutput = DegreeBounds;
 }
 
-impl<G: GraphView + 'static> IntoDynNodeOp for ApproxDegree<G> {}
+impl<G: GraphView + 'static> IntoDynNodeOp for DegreeBoundsOp<G> {}
 
 /// Bounds on the degree of `node` across `layer_ids`, ignoring any window or filter. Only reads
 /// adjacency sizes, so it costs O(1) per layer.
