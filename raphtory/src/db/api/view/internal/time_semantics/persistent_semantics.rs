@@ -332,7 +332,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.filtered_tprops(view, prop_id)
             .map(|p| p.iter())
             .kmerge_by(|(a, _), (b, _)| a <= b)
     }
@@ -343,7 +343,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.filtered_tprops(view, prop_id)
             .map(|p| p.iter_rev())
             .kmerge_by(|(a, _), (b, _)| a >= b)
     }
@@ -354,7 +354,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.filtered_tprops(view, prop_id)
             .filter_map(|prop| prop.last())
             .max_by_key(|(t, _)| *t)
     }
@@ -366,7 +366,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.filtered_tprops(view, prop_id)
             .filter_map(|prop| prop.last_before(t.next()))
             .max_by_key(|(t, _)| *t)
     }
@@ -547,7 +547,7 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
+        let tprops: Vec<_> = node.filtered_tprops(view, prop_id).collect();
         let first = tprops
             .iter()
             .copied()
@@ -573,7 +573,7 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
+        let tprops: Vec<_> = node.filtered_tprops(view, prop_id).collect();
         let first = tprops
             .iter()
             .copied()
@@ -599,7 +599,7 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.filtered_tprops(view, prop_id)
             .filter_map(|prop| prop.last_before(w.end))
             .max_by_key(|(t, _)| *t)
     }
@@ -613,7 +613,7 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            node.tprop_iter_layers(view.layer_ids(), prop_id)
+            node.filtered_tprops(view, prop_id)
                 .filter_map(|prop| prop.last_before(t.next()).map(|(t, v)| (t.max(w.start), v)))
                 .max_by_key(|(t, _)| *t)
         } else {

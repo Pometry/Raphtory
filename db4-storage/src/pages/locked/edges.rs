@@ -10,8 +10,7 @@ use crate::{
     persist::strategy::PersistenceStrategy,
     segments::edge::segment::MemEdgeSegment,
 };
-use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::{ArcRwLockWriteGuard, core::entities::LayerId};
 use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
 use std::{
@@ -25,7 +24,7 @@ pub struct LockedEdgeSegment<'a, ES> {
     max_page_len: u32,
     segment: &'a ES,
     num_edges: &'a GraphStats,
-    head: RwLockWriteGuard<'a, MemEdgeSegment>,
+    head: ArcRwLockWriteGuard<MemEdgeSegment>,
 }
 
 impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
@@ -34,7 +33,7 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
         max_page_len: u32,
         segment: &'a ES,
         num_edges: &'a GraphStats,
-        head: RwLockWriteGuard<'a, MemEdgeSegment>,
+        head: ArcRwLockWriteGuard<MemEdgeSegment>,
     ) -> Self {
         Self {
             id,
@@ -65,6 +64,19 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
         let (page, pos) = resolve_pos(edge_id, self.max_page_len);
 
         if page == self.id { Some(pos) } else { None }
+    }
+
+    pub fn resolver(&self) -> impl Fn(EID) -> Option<LocalPOS> + use<ES> {
+        let max_page_len = self.max_page_len;
+        let segment_id = self.id;
+        move |eid| {
+            let (segment, pos) = resolve_pos(eid, max_page_len);
+            if segment == segment_id {
+                Some(pos)
+            } else {
+                None
+            }
+        }
     }
 
     pub fn ensure_layer(&mut self, layer_id: LayerId) {

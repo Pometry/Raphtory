@@ -318,6 +318,17 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             .map(|e| e.remote())
             .dedup()
     }
+
+    /// `node`'s values for `prop_id` in each layer of `view` that holds it.
+    fn filtered_tprops<G: GraphView + 'a>(
+        self,
+        view: G,
+        prop_id: usize,
+    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
+        self.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter(move |(layer_id, _)| view.node_layer_has_temporal_prop(*layer_id, prop_id))
+            .map(|(_, prop)| prop)
+    }
 }
 
 impl<'a, T: NodeStorageOps<'a>> FilteredNodeStorageOps<'a> for T {}
