@@ -27,7 +27,7 @@ jobs:
           # Restore only: this job finishes first and would save a thin cache before the heavier job sharing the key
           save-if: false
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6.0.9
+        uses: pnpm/action-setup@v6.1.1
         with:
           version: 9
       - uses: grafana/setup-k6-action@v1
