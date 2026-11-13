@@ -1,8 +1,8 @@
 use crate::core::{
     entities::{
         properties::prop::{
-            prop_array::*, prop_ref_enum::PropRef, ArrowRow, PropNum, PropType, PropTypeError,
-            PropUnwrap,
+            check_for_unification, prop_array::*, prop_ref_enum::PropRef, ArrowRow, PropNum,
+            PropType, PropTypeError, PropUnwrap,
         },
         GidRef,
     },
@@ -22,7 +22,8 @@ use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use num_traits::{Bounded, FromPrimitive, ToPrimitive, Zero};
+use minijinja::filters::round;
+use num_traits::{Bounded, Float, FromPrimitive, ToPrimitive, Zero};
 use ordered_float::OrderedFloat;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
@@ -675,6 +676,157 @@ impl Prop {
     /// convert prop into another prop type (primarily for numerical conversions)
     pub fn cast(self, prop_type: PropType) -> Option<Prop> {
         self.try_cast(prop_type).ok()
+    }
+
+    /// cast prop to given type, converting numeric values only if no rounding takes place
+    pub fn cast_exact(self, prop_type: &PropType) -> Option<Prop> {
+        fn cast_int_exact<T: num_traits::PrimInt + FromPrimitive + Into<BigDecimal>>(
+            v: T,
+            prop_type: &PropType,
+        ) -> Option<Prop> {
+            match prop_type {
+                PropType::U8 => Some(Prop::U8(v.to_u8()?)),
+                PropType::U16 => Some(Prop::U16(v.to_u16()?)),
+                PropType::I32 => Some(Prop::I32(v.to_i32()?)),
+                PropType::I64 => Some(Prop::I64(v.to_i64()?)),
+                PropType::U32 => Some(Prop::U32(v.to_u32()?)),
+                PropType::U64 => Some(Prop::U64(v.to_u64()?)),
+                PropType::F32 => {
+                    let converted = v.to_f32()?;
+                    let roundtrip = T::from_f32(converted)?;
+                    if roundtrip == v {
+                        Some(Prop::F32(converted))
+                    } else {
+                        None
+                    }
+                }
+                PropType::F64 => {
+                    let converted = v.to_f64()?;
+                    let roundtrip = T::from_f64(converted)?;
+                    if roundtrip == v {
+                        Some(Prop::F64(converted))
+                    } else {
+                        None
+                    }
+                }
+                PropType::Decimal { .. } => Some(Prop::Decimal(v.into())),
+                _ => None,
+            }
+        }
+
+        fn cast_float_exact<T: Float>(v: T, prop_type: &PropType) -> Option<Prop> {
+            if prop_type.is_int() {
+                if !v.fract().is_zero() {
+                    return None;
+                }
+            }
+            match prop_type {
+                PropType::U8 => Some(Prop::U8(v.to_u8()?)),
+                PropType::U16 => Some(Prop::U16(v.to_u16()?)),
+                PropType::I32 => {
+                    // i32 might not be exact for f32
+                    let int = v.to_i32()?;
+                    let float = T::from(int)?;
+                    (float == v).then_some(Prop::I32(int))
+                }
+                PropType::I64 => {
+                    // i64 might not be exact for f32/f64
+                    let int = v.to_i64()?;
+                    let float = T::from(int)?;
+                    (float == v).then_some(Prop::I64(int))
+                }
+                PropType::U32 => {
+                    // u32 might not be exact for f32
+                    let int = v.to_u32()?;
+                    let float = T::from(int)?;
+                    (float == v).then_some(Prop::U32(int))
+                }
+                PropType::U64 => {
+                    // u64 might not be exact for f32/f64
+                    let int = v.to_u64()?;
+                    let float = T::from(int)?;
+                    (float == v).then_some(Prop::U64(int))
+                }
+                PropType::F32 => {
+                    let converted = v.to_f32()?;
+                    let roundtrip = T::from(converted)?;
+                    if roundtrip == v {
+                        Some(Prop::F32(converted))
+                    } else {
+                        None
+                    }
+                }
+                PropType::F64 => {
+                    let converted = v.to_f64()?;
+                    let roundtrip = T::from(converted)?;
+                    if roundtrip == v {
+                        Some(Prop::F64(converted))
+                    } else {
+                        None
+                    }
+                }
+                PropType::Decimal { .. } => Some(Prop::Decimal(v.into())),
+                _ => None,
+            }
+        }
+        match self {
+            Prop::Str(_) => matches!(prop_type, PropType::Str).then_some(self),
+            Prop::U8(v) => cast_int_exact(v, prop_type),
+            Prop::U16(v) => cast_int_exact(v, prop_type),
+            Prop::I32(v) => cast_int_exact(v, prop_type),
+            Prop::I64(v) => cast_int_exact(v, prop_type),
+            Prop::U32(v) => cast_int_exact(v, prop_type),
+            Prop::U64(v) => cast_int_exact(v, prop_type),
+            Prop::F64(v) => cast_float_exact(v, prop_type),
+            Prop::F32(v) => cast_float_exact(v, prop_type),
+            Prop::Decimal(v) => match prop_type {
+                PropType::U8 => {
+                    let converted = v.to_u8()?;
+                    (v.fractional_digit_count() > 0).then_some(Prop::U8(converted))
+                }
+                PropType::U16 => {
+                    let converted = v.to_u16()?;
+                    (v.fractional_digit_count() > 0).then_some(Prop::U16(converted))
+                }
+                PropType::I32 => {
+                    let converted = v.to_i32()?;
+                    (v.fractional_digit_count() > 0).then_some(Prop::I32(converted))
+                }
+                PropType::I64 => {
+                    let converted = v.to_i64()?;
+                    (v.fractional_digit_count() > 0).then_some(Prop::I64(converted))
+                }
+                PropType::U32 => {
+                    let converted = v.to_u32()?;
+                    (v.fractional_digit_count() > 0).then_some(Prop::U32(converted))
+                }
+                PropType::U64 => {
+                    let converted = v.to_u64()?;
+                    (v.fractional_digit_count() > 0).then_some(Prop::U64(converted))
+                }
+                PropType::F32 => {
+                    let converted = v.to_f32()?;
+                    let roundtrip = BigDecimal::from_f32(converted)?;
+                    (v == roundtrip).then_some(Prop::F32(converted))
+                }
+                PropType::F64 => {
+                    let converted = v.to_f64()?;
+                    let roundtrip = BigDecimal::from_f64(converted)?;
+                    (v == roundtrip).then_some(Prop::F64(converted))
+                }
+                PropType::Decimal { .. } => Some(self),
+                _ => None,
+            },
+            Prop::Bool(_) => matches!(prop_type, PropType::Bool).then_some(self),
+            Prop::List(_) => check_for_unification(prop_type, &self.dtype())
+                .unwrap_or(true)
+                .then_some(self),
+            Prop::Map(_) => check_for_unification(prop_type, &self.dtype())
+                .unwrap_or(true)
+                .then_some(self),
+            Prop::NDTime(_) => matches!(prop_type, PropType::NDTime).then_some(self),
+            Prop::DTime(_) => matches!(prop_type, PropType::DTime).then_some(self),
+        }
     }
 
     /// convert `Prop` into another prop type (primarily for numerical conversions) or return `self` on failure
