@@ -226,7 +226,8 @@ impl<'a> AtomicAddNode<'a> {
     pub fn set_type(&mut self, node_type: usize) {
         let pos = self.local_pos();
 
-        self.writer.store_node_type(pos, node_type)
+        self.writer.store_node_type(pos, node_type);
+        self.type_index.insert(node_type, self.vid.inner());
     }
 
     pub fn node(&self) -> MaybeNew<VID> {
