@@ -432,7 +432,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
     ///
-    /// # Deadlock Safety: do not hold any node segment locks when calling this function other than the `existing_full_segment` guard passed in!
+    /// # Deadlock Safety: do not hold any node segment locks when calling this function other
+    /// than the `existing_full_segment` guard passed in!
     pub fn reserve_and_lock_segment(
         &self,
         num_rows: u32,
@@ -457,11 +458,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         };
         match writer_and_row {
             None | Some((_, None)) => {
-                // The current segment is full, push a new locked free segment before dropping the existing writer lock
-
+                // The current segment is full, push a new locked free segment before dropping the
+                // existing writer lock.
                 let guard = self.push_new_segment();
 
-                // deadlock safety: we hold the writer for the existing segment (either acquired above or passed in)
+                // deadlock safety: we hold the writer for the existing segment
+                // (either acquired above or passed in)
                 *slot.write() = guard.segment_id();
 
                 let writer = self.arc_writer(guard);
@@ -488,8 +490,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         increment_and_clamp(segment.nodes_counter(), rows, self.max_segment_len())
     }
 
-    /// Push a new segment; the segment is write-locked before it
-    /// is published and its guard is pushed into `new_guards`.
+    /// Push a new segment.
+    ///
+    /// Write-locks the segment before it is published and returns its guard.
     fn push_new_segment(&self) -> ArcRwLockWriteGuard<MemNodeSegment> {
         let mut guard = None;
 

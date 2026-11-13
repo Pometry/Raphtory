@@ -372,8 +372,9 @@ impl GraphMutationOps for TemporalGraph {
                 let dst_writer = nodes.writer(dst_chunk);
                 match nodes.reserve_segment_row(dst_writer.segment) {
                     None => {
-                        // existing segment is full, need to get a new one, pass in the existing writer reference so we don't end up trying to block
-                        // on it when potentially evicting it from free segments
+                        // existing segment is full, need to get a new one, pass in the existing
+                        // writer reference so we don't end up trying to block on it when
+                        // potentially evicting it from free segments
                         let (src_pos, src_writer) =
                             nodes.reserve_and_lock_segment(1, Some(&dst_writer));
                         let src_id = src_pos.as_vid(
@@ -583,6 +584,7 @@ impl GraphMutationOps for TemporalGraph {
                 MaybeInit::Init(init) => {
                     let (pos, mut writer) =
                         self.storage().nodes().reserve_and_lock_segment(1, None);
+
                     match node_type {
                         Some(node_type) => {
                             let node_type = self

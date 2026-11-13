@@ -31,6 +31,7 @@ impl FreeSegmentSlots {
     fn slot_idx(&self) -> usize {
         self.round_robin.fetch_add(1, Ordering::Relaxed) % self.slots.len()
     }
+
     /// get the next slot
     pub fn slot(&self) -> &RwLock<usize> {
         let idx = self.slot_idx();

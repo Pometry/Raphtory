@@ -27,9 +27,6 @@ use storage::{
     Extension,
 };
 
-/// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.
-pub type NodeTypeResolution = MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>;
-
 pub trait InternalAdditionOps {
     fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, MutationError>;
 
