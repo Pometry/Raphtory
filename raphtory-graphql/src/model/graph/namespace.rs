@@ -255,7 +255,7 @@ impl Namespace {
     ) -> Result<GqlCollection<MetaGraph>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
-        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await?;
         let mut visible = Vec::new();
         for item in items {
             if let NamespacedItem::MetaGraph(g) = item {
@@ -296,7 +296,7 @@ impl Namespace {
     async fn last_updated(&self, ctx: &Context<'_>) -> Result<Option<i64>, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
-        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await?;
         let mut latest: Option<i64> = None;
         for item in items {
             if let NamespacedItem::MetaGraph(g) = item {
@@ -357,7 +357,7 @@ impl Namespace {
             }
             namespaces
         })
-        .await;
+        .await?;
         let mut visible = Vec::new();
         for n in namespaces {
             if is_namespace_visible(ctx, &data.auth_policy, &n.relative_path)? {
@@ -386,7 +386,7 @@ impl Namespace {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let all_items =
-            blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+            blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await?;
         let mut visible = Vec::new();
         for item in all_items {
             let keep = match &item {

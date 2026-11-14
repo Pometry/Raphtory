@@ -1,4 +1,5 @@
 use crate::{
+    auth_policy::MutationNotifier,
     graph::{GraphWithVectors, UpdateEmbeddings},
     model::{
         graph::{
@@ -134,11 +135,12 @@ pub struct EdgeAddition {
 #[graphql(name = "MutableGraph")]
 pub struct GqlMutableGraph {
     graph: GraphWithVectors,
+    notifier: MutationNotifier,
 }
 
-impl From<GraphWithVectors> for GqlMutableGraph {
-    fn from(graph: GraphWithVectors) -> Self {
-        Self { graph }
+impl GqlMutableGraph {
+    pub fn new(graph: GraphWithVectors, notifier: MutationNotifier) -> Self {
+        Self { graph, notifier }
     }
 }
 
@@ -190,7 +192,8 @@ impl GqlMutableGraph {
         &self,
         #[graphql(desc = "Node id.")] name: GqlNodeId,
     ) -> Option<GqlMutableNode> {
-        self.graph.node(name).map(GqlMutableNode::new)
+        let node = self.graph.node(name)?;
+        Some(GqlMutableNode::new(node, self.notifier.clone()))
     }
 
     /// Add a new node or append an update to an existing one. Upsert semantics:
@@ -232,7 +235,7 @@ impl GqlMutableGraph {
             );
         }
 
-        Ok(GqlMutableNode::new(node))
+        Ok(GqlMutableNode::new(node, self.notifier.clone()))
     }
 
     /// Create a new node or fail if it already exists. Strict alternative to
@@ -274,7 +277,7 @@ impl GqlMutableGraph {
             );
         }
 
-        Ok(GqlMutableNode::new(node))
+        Ok(GqlMutableNode::new(node, self.notifier.clone()))
     }
 
     /// Batch-add multiple nodes in one call. For each `NodeAddition`, applies every
@@ -347,7 +350,8 @@ impl GqlMutableGraph {
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
         #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
     ) -> Option<GqlMutableEdge> {
-        self.graph.edge(src, dst).map(GqlMutableEdge::new)
+        let edge = self.graph.edge(src, dst)?;
+        Some(GqlMutableEdge::new(edge, self.notifier.clone()))
     }
 
     /// Add a new edge or append an update to an existing one. Upsert semantics:
@@ -387,7 +391,7 @@ impl GqlMutableGraph {
             );
         }
 
-        Ok(GqlMutableEdge::new(edge))
+        Ok(GqlMutableEdge::new(edge, self.notifier.clone()))
     }
 
     /// Batch-add multiple edges in one call. For each `EdgeAddition`, applies every
@@ -481,7 +485,7 @@ impl GqlMutableGraph {
             );
         }
 
-        Ok(GqlMutableEdge::new(edge))
+        Ok(GqlMutableEdge::new(edge, self.notifier.clone()))
     }
 
     /// Add temporal properties to the graph itself (not a node or edge). Each
@@ -492,17 +496,17 @@ impl GqlMutableGraph {
         #[graphql(desc = "List of `{key, value}` pairs to set.")] properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        let result = blocking_write(move || {
+        blocking_write(move || {
             self_clone
                 .graph
                 .add_properties(t.into_input_time(), as_properties(properties)?)?;
-            Ok(true)
+            Ok::<_, GraphError>(())
         })
-        .await;
+        .await?;
 
         self.post_mutation_ops().await;
 
-        result
+        Ok(true)
     }
 
     /// Add metadata to the graph itself. Errors if any of the keys already
@@ -514,14 +518,15 @@ impl GqlMutableGraph {
         >,
     ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        let result = blocking_write(move || {
+        blocking_write(move || {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
-            Ok(true)
+            Ok::<_, GraphError>(())
         })
-        .await;
+        .await?;
+
         self.post_mutation_ops().await;
 
-        result
+        Ok(true)
     }
 
     /// Update metadata of the graph itself, overwriting any existing values for
@@ -533,17 +538,17 @@ impl GqlMutableGraph {
         >,
     ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        let result = blocking_write(move || {
+        blocking_write(move || {
             self_clone
                 .graph
                 .update_metadata(as_properties(properties)?)?;
-            Ok(true)
+            Ok::<_, GraphError>(())
         })
-        .await;
+        .await?;
 
         self.post_mutation_ops().await;
 
-        result
+        Ok(true)
     }
 
     /// Persist any in-memory state for this graph to disk so other
@@ -612,9 +617,10 @@ impl GqlMutableGraph {
             })
     }
 
-    /// Post mutation operations.
+    /// Only reached once the mutation has succeeded.
     async fn post_mutation_ops(&self) {
         self.graph.set_dirty(true);
+        self.notifier.notify();
     }
 }
 
@@ -625,11 +631,12 @@ impl GqlMutableGraph {
 #[graphql(name = "MutableNode")]
 pub struct GqlMutableNode {
     node: NodeView<'static, GraphWithVectors>,
+    notifier: MutationNotifier,
 }
 
 impl GqlMutableNode {
-    pub fn new(node: NodeView<'static, GraphWithVectors>) -> Self {
-        Self { node }
+    pub fn new(node: NodeView<'static, GraphWithVectors>, notifier: MutationNotifier) -> Self {
+        Self { node, notifier }
     }
 }
 
@@ -739,9 +746,10 @@ impl GqlMutableNode {
 }
 
 impl GqlMutableNode {
-    /// Post mutation operations.
+    /// Only reached once the mutation has succeeded.
     async fn post_mutation_ops(&self) {
         self.node.graph.set_dirty(true);
+        self.notifier.notify();
     }
 }
 
@@ -752,11 +760,12 @@ impl GqlMutableNode {
 #[graphql(name = "MutableEdge")]
 pub struct GqlMutableEdge {
     edge: EdgeView<GraphWithVectors>,
+    notifier: MutationNotifier,
 }
 
 impl GqlMutableEdge {
-    pub fn new(edge: EdgeView<GraphWithVectors>) -> Self {
-        Self { edge }
+    pub fn new(edge: EdgeView<GraphWithVectors>, notifier: MutationNotifier) -> Self {
+        Self { edge, notifier }
     }
 }
 
@@ -774,12 +783,12 @@ impl GqlMutableEdge {
 
     /// Get the mutable source node of the edge.
     pub async fn src(&self) -> GqlMutableNode {
-        GqlMutableNode::new(self.edge.src())
+        GqlMutableNode::new(self.edge.src(), self.notifier.clone())
     }
 
     /// Get the mutable destination node of the edge.
     pub async fn dst(&self) -> GqlMutableNode {
-        GqlMutableNode::new(self.edge.dst())
+        GqlMutableNode::new(self.edge.dst(), self.notifier.clone())
     }
 
     /// Mark this edge as deleted at the given time. Persistent graphs treat this
@@ -916,9 +925,10 @@ impl GqlMutableEdge {
 }
 
 impl GqlMutableEdge {
-    /// Post mutation operations.
+    /// Only reached once the mutation has succeeded.
     async fn post_mutation_ops(&self) {
         self.edge.graph.set_dirty(true);
+        self.notifier.notify();
     }
 }
 
@@ -984,7 +994,8 @@ mod tests {
         .unwrap();
 
         let graph_with_vectors = data.get_graph_for_test(graph_name).await.unwrap();
-        let mutable_graph = GqlMutableGraph::from(graph_with_vectors);
+        let mutable_graph =
+            GqlMutableGraph::new(graph_with_vectors, data.mutation_notifier(graph_name));
 
         GraphTestContext {
             mutable_graph,

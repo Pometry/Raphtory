@@ -1,6 +1,7 @@
 use crate::{
     model::graph::{edge::GqlEdge, node::GqlNode, node_id::GqlNodeId},
     rayon::blocking_compute,
+    GQLError,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::{algorithms::bipartite::max_weight_matching::Matching, db::api::view::DynamicGraph};
@@ -45,48 +46,54 @@ impl GqlMatching {
     pub async fn src(
         &self,
         #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
-    ) -> Option<GqlNode> {
+    ) -> Result<Option<GqlNode>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.matching.src(dst).map(|n| n.cloned().into())).await
+        Ok(
+            blocking_compute(move || self_clone.matching.src(dst).map(|n| n.cloned().into()))
+                .await?,
+        )
     }
 
     /// The node matched to `src`, null if it is unmatched.
     pub async fn dst(
         &self,
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
-    ) -> Option<GqlNode> {
+    ) -> Result<Option<GqlNode>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.matching.dst(src).map(|n| n.cloned().into())).await
+        Ok(
+            blocking_compute(move || self_clone.matching.dst(src).map(|n| n.cloned().into()))
+                .await?,
+        )
     }
 
     /// The matched edge for `src`, null if it is unmatched.
     pub async fn edge_for_src(
         &self,
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
-    ) -> Option<GqlEdge> {
+    ) -> Result<Option<GqlEdge>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .matching
                 .edge_for_src(src)
                 .map(|e| e.cloned().into())
         })
-        .await
+        .await?)
     }
 
     /// The matched edge for `dst`, null if it is unmatched.
     pub async fn edge_for_dst(
         &self,
         #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
-    ) -> Option<GqlEdge> {
+    ) -> Result<Option<GqlEdge>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .matching
                 .edge_for_dst(dst)
                 .map(|e| e.cloned().into())
         })
-        .await
+        .await?)
     }
 
     /// Whether the `src` to `dst` edge is part of the matching.
@@ -94,8 +101,8 @@ impl GqlMatching {
         &self,
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
         #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
-    ) -> bool {
+    ) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.matching.contains(src, dst)).await
+        Ok(blocking_compute(move || self_clone.matching.contains(src, dst)).await?)
     }
 }

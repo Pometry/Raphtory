@@ -103,9 +103,9 @@ impl GqlAlgorithms {
     pub async fn run<F: FnOnce(DynamicGraph) -> O + Send + 'static, O: Send + 'static>(
         &self,
         algo: F,
-    ) -> O {
+    ) -> Result<O, GQLError> {
         let graph = self.graph.clone();
-        blocking_compute(move || algo(graph)).await
+        Ok(blocking_compute(move || algo(graph)).await?)
     }
 }
 
@@ -123,25 +123,26 @@ impl GqlAlgorithms {
         damping_factor: Option<f64>,
         #[graphql(desc = "Edge property to use as weight. If unset, all edges have weight 1.")]
         weight: Option<String>,
-    ) -> GqlNodeState {
-        self.run(move |graph| {
-            page_rank(
-                &graph,
-                weight.as_str(),
-                iter_count,
-                threads,
-                tol,
-                true,
-                damping_factor,
-            )
-            .into()
-        })
-        .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                page_rank(
+                    &graph,
+                    weight.as_str(),
+                    iter_count,
+                    threads,
+                    tol,
+                    true,
+                    damping_factor,
+                )
+                .into()
+            })
+            .await?)
     }
 
     /// Returns the degree centrality of every node.
-    pub async fn degree_centrality(&self) -> GqlNodeState {
-        self.run(|graph| degree_centrality(&graph).into()).await
+    pub async fn degree_centrality(&self) -> Result<GqlNodeState, GQLError> {
+        Ok(self.run(|graph| degree_centrality(&graph).into()).await?)
     }
 
     /// Returns the betweenness centrality of every node.
@@ -151,9 +152,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Whether to normalize the values. Defaults to true.")] normalized: Option<
             bool,
         >,
-    ) -> GqlNodeState {
-        self.run(move |graph| betweenness_centrality(&graph, k, normalized.unwrap_or(true)).into())
-            .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| betweenness_centrality(&graph, k, normalized.unwrap_or(true)).into())
+            .await?)
     }
 
     /// Returns the HITS hub and authority scores of every node.
@@ -163,9 +165,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> GqlNodeState {
-        self.run(move |graph| hits(&graph, iter_count.unwrap_or(20), threads).into())
-            .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| hits(&graph, iter_count.unwrap_or(20), threads).into())
+            .await?)
     }
 
     /// Returns the shortest (unweighted) path from `source` to every reachable node.
@@ -174,9 +177,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Source node id.")] source: GqlNodeId,
         #[graphql(desc = "Optional maximum path length; stops the search once reached.")]
         cutoff: Option<usize>,
-    ) -> GqlNodeState {
-        self.run(move |graph| single_source_shortest_path(&graph, source, cutoff).into())
-            .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| single_source_shortest_path(&graph, source, cutoff).into())
+            .await?)
     }
 
     /// Returns the in component (all nodes that can reach it following out-edges) of every node.
@@ -195,7 +199,7 @@ impl GqlAlgorithms {
                 None => Ok(in_components(&graph, threads)),
                 Some(filter) => in_components_filtered(&graph, threads, filter),
             })
-            .await?
+            .await??
             .into())
     }
 
@@ -215,7 +219,7 @@ impl GqlAlgorithms {
                 None => Ok(out_components(&graph, threads)),
                 Some(filter) => out_components_filtered(&graph, threads, filter),
             })
-            .await?
+            .await??
             .into())
     }
 
@@ -236,7 +240,7 @@ impl GqlAlgorithms {
                     Some(filter) => in_component_filtered(node, filter),
                 }
             })
-            .await?
+            .await??
             .into())
     }
 
@@ -257,7 +261,7 @@ impl GqlAlgorithms {
                     Some(filter) => out_component_filtered(node, filter),
                 }
             })
-            .await?
+            .await??
             .into())
     }
 
@@ -266,9 +270,10 @@ impl GqlAlgorithms {
     pub async fn local_triangle_count(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
-    ) -> Option<usize> {
-        self.run(move |graph| local_triangle_count(&graph, node))
-            .await
+    ) -> Result<Option<usize>, GQLError> {
+        Ok(self
+            .run(move |graph| local_triangle_count(&graph, node))
+            .await?)
     }
 
     /// Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
@@ -276,21 +281,24 @@ impl GqlAlgorithms {
     pub async fn local_clustering_coefficient(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
-    ) -> Option<f64> {
-        self.run(move |graph| local_clustering_coefficient(&graph, node))
-            .await
+    ) -> Result<Option<f64>, GQLError> {
+        Ok(self
+            .run(move |graph| local_clustering_coefficient(&graph, node))
+            .await?)
     }
 
     /// Returns the weakly connected component id of every node.
-    pub async fn weakly_connected_components(&self) -> GqlNodeState {
-        self.run(|graph| weakly_connected_components(&graph).into())
-            .await
+    pub async fn weakly_connected_components(&self) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(|graph| weakly_connected_components(&graph).into())
+            .await?)
     }
 
     /// Returns the strongly connected component id of every node.
-    pub async fn strongly_connected_components(&self) -> GqlNodeState {
-        self.run(|graph| strongly_connected_components(&graph).into())
-            .await
+    pub async fn strongly_connected_components(&self) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(|graph| strongly_connected_components(&graph).into())
+            .await?)
     }
 
     /// Returns the community of every node (Louvain).
@@ -303,18 +311,19 @@ impl GqlAlgorithms {
         #[graphql(desc = "Convergence tolerance. Defaults to 1e-8.")] tol: Option<f64>,
         #[graphql(desc = "Seed for the node-shuffling rng. If unset, seeded from the OS.")]
         rng_seed: Option<u64>,
-    ) -> GqlNodeState {
-        self.run(move |graph| {
-            louvain::<ModularityUnDir, _>(
-                &graph,
-                resolution.unwrap_or(1.0),
-                weight_prop.as_str(),
-                tol,
-                rng_seed,
-            )
-            .into()
-        })
-        .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                louvain::<ModularityUnDir, _>(
+                    &graph,
+                    resolution.unwrap_or(1.0),
+                    weight_prop.as_str(),
+                    tol,
+                    rng_seed,
+                )
+                .into()
+            })
+            .await?)
     }
 
     /// Returns the community of every node (label propagation).
@@ -345,7 +354,7 @@ impl GqlAlgorithms {
                     patience,
                 )
             })
-            .await?
+            .await??
             .into())
     }
 
@@ -375,14 +384,15 @@ impl GqlAlgorithms {
                     default_weight,
                 )
             })
-            .await?
+            .await??
             .into())
     }
 
     /// Returns the local reciprocity of every node.
-    pub async fn all_local_reciprocity(&self) -> GqlNodeState {
-        self.run(move |graph| all_local_reciprocity(&graph).into())
-            .await
+    pub async fn all_local_reciprocity(&self) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| all_local_reciprocity(&graph).into())
+            .await?)
     }
 
     /// Returns the net sum of edge weights (balance) of every node.
@@ -403,7 +413,7 @@ impl GqlAlgorithms {
                     direction.unwrap_or(GqlDirection::Both).into(),
                 )
             })
-            .await?
+            .await??
             .into())
     }
 
@@ -411,60 +421,62 @@ impl GqlAlgorithms {
     pub async fn local_clustering_coefficient_batch(
         &self,
         #[graphql(desc = "Node ids to compute the coefficient for.")] nodes: Vec<GqlNodeId>,
-    ) -> GqlNodeState {
-        self.run(move |graph| local_clustering_coefficient_batch(&graph, nodes).into())
-            .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| local_clustering_coefficient_batch(&graph, nodes).into())
+            .await?)
     }
 
     /// Returns the global clustering coefficient of the graph.
-    pub async fn global_clustering_coefficient(&self) -> f64 {
-        self.run(|graph| global_clustering_coefficient(&graph))
-            .await
+    pub async fn global_clustering_coefficient(&self) -> Result<f64, GQLError> {
+        Ok(self
+            .run(|graph| global_clustering_coefficient(&graph))
+            .await?)
     }
 
     /// Returns the directed graph density (fraction of possible directed edges present).
-    pub async fn directed_graph_density(&self) -> f64 {
-        self.run(|graph| directed_graph_density(&graph)).await
+    pub async fn directed_graph_density(&self) -> Result<f64, GQLError> {
+        Ok(self.run(|graph| directed_graph_density(&graph)).await?)
     }
 
     /// Returns the global reciprocity of the graph.
-    pub async fn global_reciprocity(&self) -> f64 {
-        self.run(|graph| global_reciprocity(&graph)).await
+    pub async fn global_reciprocity(&self) -> Result<f64, GQLError> {
+        Ok(self.run(|graph| global_reciprocity(&graph)).await?)
     }
 
     /// Returns the average (undirected) degree of the graph's nodes.
-    pub async fn average_degree(&self) -> f64 {
-        self.run(|graph| average_degree(&graph)).await
+    pub async fn average_degree(&self) -> Result<f64, GQLError> {
+        Ok(self.run(|graph| average_degree(&graph)).await?)
     }
 
     /// Returns the maximum (undirected) degree of any node in the graph.
-    pub async fn max_degree(&self) -> usize {
-        self.run(|graph| max_degree(&graph)).await
+    pub async fn max_degree(&self) -> Result<usize, GQLError> {
+        Ok(self.run(|graph| max_degree(&graph)).await?)
     }
 
     /// Returns the minimum (undirected) degree of any node in the graph.
-    pub async fn min_degree(&self) -> usize {
-        self.run(|graph| min_degree(&graph)).await
+    pub async fn min_degree(&self) -> Result<usize, GQLError> {
+        Ok(self.run(|graph| min_degree(&graph)).await?)
     }
 
     /// Returns the maximum out-degree of any node in the graph.
-    pub async fn max_out_degree(&self) -> usize {
-        self.run(|graph| max_out_degree(&graph)).await
+    pub async fn max_out_degree(&self) -> Result<usize, GQLError> {
+        Ok(self.run(|graph| max_out_degree(&graph)).await?)
     }
 
     /// Returns the maximum in-degree of any node in the graph.
-    pub async fn max_in_degree(&self) -> usize {
-        self.run(|graph| max_in_degree(&graph)).await
+    pub async fn max_in_degree(&self) -> Result<usize, GQLError> {
+        Ok(self.run(|graph| max_in_degree(&graph)).await?)
     }
 
     /// Returns the minimum out-degree of any node in the graph.
-    pub async fn min_out_degree(&self) -> usize {
-        self.run(|graph| min_out_degree(&graph)).await
+    pub async fn min_out_degree(&self) -> Result<usize, GQLError> {
+        Ok(self.run(|graph| min_out_degree(&graph)).await?)
     }
 
     /// Returns the minimum in-degree of any node in the graph.
-    pub async fn min_in_degree(&self) -> usize {
-        self.run(|graph| min_in_degree(&graph)).await
+    pub async fn min_in_degree(&self) -> Result<usize, GQLError> {
+        Ok(self.run(|graph| min_in_degree(&graph)).await?)
     }
 
     /// Returns the number of connected triplets (paths of length 2) in the graph.
@@ -473,8 +485,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> usize {
-        self.run(move |graph| triplet_count(&graph, threads)).await
+    ) -> Result<usize, GQLError> {
+        Ok(self
+            .run(move |graph| triplet_count(&graph, threads))
+            .await?)
     }
 
     /// Returns the number of triangles in the graph.
@@ -483,8 +497,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> usize {
-        self.run(move |graph| triangle_count(&graph, threads)).await
+    ) -> Result<usize, GQLError> {
+        Ok(self
+            .run(move |graph| triangle_count(&graph, threads))
+            .await?)
     }
 
     /// Returns the FastRP embedding of every node.
@@ -499,19 +515,20 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> GqlNodeState {
-        self.run(move |graph| {
-            fast_rp(
-                &graph,
-                embedding_dim,
-                normalization_strength,
-                iter_weights,
-                seed,
-                threads,
-            )
-            .into()
-        })
-        .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                fast_rp(
+                    &graph,
+                    embedding_dim,
+                    normalization_strength,
+                    iter_weights,
+                    seed,
+                    threads,
+                )
+                .into()
+            })
+            .await?)
     }
 
     /// Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.
@@ -526,14 +543,15 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> GqlNodeState {
-        self.run(move |graph| {
-            temporally_reachable_nodes(
-                &graph, threads, max_hops, start_time, seed_nodes, stop_nodes,
-            )
-            .into()
-        })
-        .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                temporally_reachable_nodes(
+                    &graph, threads, max_hops, start_time, seed_nodes, stop_nodes,
+                )
+                .into()
+            })
+            .await?)
     }
 
     /// Returns the 2D layout position of every node (Fruchterman-Reingold).
@@ -544,19 +562,20 @@ impl GqlAlgorithms {
         #[graphql(desc = "Initial node size. Defaults to 1.0.")] node_start_size: Option<f64>,
         #[graphql(desc = "Cooloff factor. Defaults to 0.95.")] cooloff_factor: Option<f64>,
         #[graphql(desc = "Time step. Defaults to 0.1.")] dt: Option<f64>,
-    ) -> GqlNodeState {
-        self.run(move |graph| {
-            fruchterman_reingold_unbounded(
-                &graph,
-                iter_count.unwrap_or(100),
-                scale.unwrap_or(1.0),
-                node_start_size.unwrap_or(1.0),
-                cooloff_factor.unwrap_or(0.95),
-                dt.unwrap_or(0.1),
-            )
-            .into()
-        })
-        .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                fruchterman_reingold_unbounded(
+                    &graph,
+                    iter_count.unwrap_or(100),
+                    scale.unwrap_or(1.0),
+                    node_start_size.unwrap_or(1.0),
+                    cooloff_factor.unwrap_or(0.95),
+                    dt.unwrap_or(0.1),
+                )
+                .into()
+            })
+            .await?)
     }
 
     /// Returns the 2D layout position of every node (cohesive Fruchterman-Reingold).
@@ -567,19 +586,20 @@ impl GqlAlgorithms {
         #[graphql(desc = "Initial node size. Defaults to 1.0.")] node_start_size: Option<f64>,
         #[graphql(desc = "Cooloff factor. Defaults to 0.95.")] cooloff_factor: Option<f64>,
         #[graphql(desc = "Time step. Defaults to 0.1.")] dt: Option<f64>,
-    ) -> GqlNodeState {
-        self.run(move |graph| {
-            cohesive_fruchterman_reingold(
-                &graph,
-                iter_count.unwrap_or(100),
-                scale.unwrap_or(1.0),
-                node_start_size.unwrap_or(1.0),
-                cooloff_factor.unwrap_or(0.95),
-                dt.unwrap_or(0.1),
-            )
-            .into()
-        })
-        .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                cohesive_fruchterman_reingold(
+                    &graph,
+                    iter_count.unwrap_or(100),
+                    scale.unwrap_or(1.0),
+                    node_start_size.unwrap_or(1.0),
+                    cooloff_factor.unwrap_or(0.95),
+                    dt.unwrap_or(0.1),
+                )
+                .into()
+            })
+            .await?)
     }
 
     /// Returns the local temporal three-node motif counts of every node.
@@ -590,9 +610,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> GqlNodeState {
-        self.run(move |graph| temporal_three_node_motif(&graph, delta, threads).into())
-            .await
+    ) -> Result<GqlNodeState, GQLError> {
+        Ok(self
+            .run(move |graph| temporal_three_node_motif(&graph, delta, threads).into())
+            .await?)
     }
 
     /// Returns the graph-wide temporal three-node motif counts: 40 counts in a
@@ -604,9 +625,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> Vec<usize> {
-        self.run(move |graph| global_temporal_three_node_motif(&graph, delta, threads).to_vec())
-            .await
+    ) -> Result<Vec<usize>, GQLError> {
+        Ok(self
+            .run(move |graph| global_temporal_three_node_motif(&graph, delta, threads).to_vec())
+            .await?)
     }
 
     /// Returns the graph-wide temporal three-node motif counts for each of
@@ -619,18 +641,19 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> Vec<GqlMotifCounts> {
-        self.run(move |graph| {
-            temporal_three_node_motif_multi(&graph, deltas.clone(), threads)
-                .into_iter()
-                .zip(deltas)
-                .map(|(res, delta)| GqlMotifCounts {
-                    delta,
-                    counts: res.to_vec(),
-                })
-                .collect()
-        })
-        .await
+    ) -> Result<Vec<GqlMotifCounts>, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                temporal_three_node_motif_multi(&graph, deltas.clone(), threads)
+                    .into_iter()
+                    .zip(deltas)
+                    .map(|(res, delta)| GqlMotifCounts {
+                        delta,
+                        counts: res.to_vec(),
+                    })
+                    .collect()
+            })
+            .await?)
     }
 
     /// Returns the temporal rich club coefficient: the maximal density among the
@@ -657,7 +680,7 @@ impl GqlAlgorithms {
                     window_size,
                 ))
             })
-            .await?)
+            .await??)
     }
 
     /// Simulates an SEIR epidemic, returning the infection, activation and
@@ -695,7 +718,7 @@ impl GqlAlgorithms {
                     &mut rng,
                 )
             })
-            .await?
+            .await??
             .into())
     }
 
@@ -708,16 +731,17 @@ impl GqlAlgorithms {
         max_cardinality: Option<bool>,
         #[graphql(desc = "Verify that the matching found is optimum. Defaults to false.")]
         verify_optimum: Option<bool>,
-    ) -> GqlMatching {
-        self.run(move |graph| {
-            max_weight_matching(
-                &graph,
-                weight_prop.as_str(),
-                max_cardinality.unwrap_or(false),
-                verify_optimum.unwrap_or(false),
-            )
-            .into()
-        })
-        .await
+    ) -> Result<GqlMatching, GQLError> {
+        Ok(self
+            .run(move |graph| {
+                max_weight_matching(
+                    &graph,
+                    weight_prop.as_str(),
+                    max_cardinality.unwrap_or(false),
+                    verify_optimum.unwrap_or(false),
+                )
+                .into()
+            })
+            .await?)
     }
 }

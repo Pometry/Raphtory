@@ -93,9 +93,9 @@ impl GqlGraph {
     /// Distinct layer names observed in the current view — any layer that has at
     /// least one edge event visible here. Excludes layers that exist elsewhere in
     /// the graph but whose edges have been filtered out.
-    pub async fn unique_layers(&self) -> Vec<String> {
+    pub async fn unique_layers(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await
+        Ok(blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await?)
     }
 
     /// View restricted to the default layer — where nodes and edges end up
@@ -112,9 +112,9 @@ impl GqlGraph {
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
-    ) -> GqlGraph {
+    ) -> Result<GqlGraph, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.apply(|g| g.valid_layers(names.clone()))).await
+        Ok(blocking_compute(move || self_clone.apply(|g| g.valid_layers(names.clone()))).await?)
     }
 
     /// View with the named layers hidden. Updates on those layers are removed; if
@@ -123,9 +123,12 @@ impl GqlGraph {
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
-    ) -> GqlGraph {
+    ) -> Result<GqlGraph, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.apply(|g| g.exclude_valid_layers(names.clone()))).await
+        Ok(
+            blocking_compute(move || self_clone.apply(|g| g.exclude_valid_layers(names.clone())))
+                .await?,
+        )
     }
 
     /// View restricted to a single layer. Convenience form of
@@ -153,9 +156,9 @@ impl GqlGraph {
     pub async fn subgraph(
         &self,
         #[graphql(desc = "Node ids to keep.")] nodes: Vec<GqlNodeId>,
-    ) -> GqlGraph {
+    ) -> Result<GqlGraph, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.apply(|g| g.subgraph(nodes.clone()))).await
+        Ok(blocking_compute(move || self_clone.apply(|g| g.subgraph(nodes.clone()))).await?)
     }
 
     /// View containing only valid edges — for persistent graphs this drops edges
@@ -170,23 +173,25 @@ impl GqlGraph {
     pub async fn subgraph_node_types(
         &self,
         #[graphql(desc = "Node types to include.")] node_types: Vec<String>,
-    ) -> GqlGraph {
+    ) -> Result<GqlGraph, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.apply(|g| g.subgraph_node_types(node_types.clone())))
-            .await
+        Ok(blocking_compute(move || {
+            self_clone.apply(|g| g.subgraph_node_types(node_types.clone()))
+        })
+        .await?)
     }
 
     /// View with a set of nodes removed (along with any edges touching them).
     pub async fn exclude_nodes(
         &self,
         #[graphql(desc = "Node ids to exclude.")] nodes: Vec<GqlNodeId>,
-    ) -> GqlGraph {
+    ) -> Result<GqlGraph, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
             self_clone.apply(|g| g.exclude_nodes(nodes.clone()))
         })
-        .await
+        .await?)
     }
 
     /// Creates a rolling window with the specified window size and an optional step.
@@ -271,9 +276,9 @@ impl GqlGraph {
     }
 
     /// Creates a view including all events at the latest time.
-    pub async fn latest(&self) -> GqlGraph {
+    pub async fn latest(&self) -> Result<GqlGraph, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.apply(|g| g.latest())).await
+        Ok(blocking_compute(move || self_clone.apply(|g| g.latest())).await?)
     }
 
     /// Create a view including all events that are valid at the specified time.
@@ -356,13 +361,13 @@ impl GqlGraph {
     /// Returns the time entry of the earliest activity in the graph.
     pub async fn earliest_time(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.graph.earliest_time().into()).await)
+        Ok(blocking_compute(move || self_clone.graph.earliest_time().into()).await?)
     }
 
     /// Returns the time entry of the latest activity in the graph.
     pub async fn latest_time(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.graph.latest_time().into()).await)
+        Ok(blocking_compute(move || self_clone.graph.latest_time().into()).await?)
     }
 
     /// Returns the start time of the window. Errors if there is no window.
@@ -376,15 +381,15 @@ impl GqlGraph {
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    pub async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.window_size().map(|s| s as i64)).await
+        Ok(blocking_compute(move || self_clone.graph.window_size().map(|s| s as i64)).await?)
     }
 
     /// Check if a layer with the given name is present in the graph.
-    pub async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.has_layer(name)).await
+        Ok(blocking_compute(move || self_clone.graph.has_layer(name)).await?)
     }
 
     /// The earliest time at which any edge in this graph is valid.
@@ -414,7 +419,7 @@ impl GqlGraph {
                     .into()
             }
         })
-        .await)
+        .await?)
     }
 
     /// The latest time at which any edge in this graph is valid.
@@ -441,7 +446,7 @@ impl GqlGraph {
                     .into()
             }
         })
-        .await)
+        .await?)
     }
 
     ////////////////////////
@@ -452,23 +457,23 @@ impl GqlGraph {
     ///
     /// Returns:
     ///     int:
-    pub async fn count_edges(&self) -> usize {
+    pub async fn count_edges(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.count_edges()).await
+        Ok(blocking_compute(move || self_clone.graph.count_edges()).await?)
     }
 
     /// Returns the number of temporal edges in the graph.
-    pub async fn count_temporal_edges(&self) -> usize {
+    pub async fn count_temporal_edges(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.count_temporal_edges()).await
+        Ok(blocking_compute(move || self_clone.graph.count_temporal_edges()).await?)
     }
 
     /// Returns the number of nodes in the graph.
     ///
     /// Optionally takes a list of node ids to return a subset.
-    pub async fn count_nodes(&self) -> usize {
+    pub async fn count_nodes(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.count_nodes()).await
+        Ok(blocking_compute(move || self_clone.graph.count_nodes()).await?)
     }
 
     ////////////////////////
@@ -528,7 +533,7 @@ impl GqlGraph {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
-            let narrowed = blocking_compute(move || nn.select(sel)).await?;
+            let narrowed = blocking_compute(move || nn.select(sel)).await??;
             return Ok(GqlNodes::new(narrowed));
         }
 
@@ -556,7 +561,7 @@ impl GqlGraph {
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
-            let narrowed = blocking_compute(move || base.select(sel)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await??;
             return Ok(GqlEdges::new(narrowed));
         }
 
@@ -606,7 +611,7 @@ impl GqlGraph {
     /// Returns the graph schema.
     pub async fn schema(&self) -> Result<GraphSchema, GQLError> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
+        Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await?)
     }
 
     /// Access the algorithms that can be run on this graph view.
@@ -650,14 +655,14 @@ impl GqlGraph {
                 None => vec![],
             }
         })
-        .await)
+        .await?)
     }
 
     /// All node types present in the graph. Mirrors the local
     /// `Graph.get_all_node_types`.
-    pub async fn get_all_node_types(&self) -> Vec<String> {
+    pub async fn get_all_node_types(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .graph
                 .get_all_node_types()
@@ -665,7 +670,7 @@ impl GqlGraph {
                 .map(|t| t.to_string())
                 .collect()
         })
-        .await
+        .await?)
     }
 
     /// Copy all nodes and edges of the current graph view into another already-
@@ -688,7 +693,7 @@ impl GqlGraph {
             other_g.import_edges(g.edges(), true)?;
             Ok(true)
         })
-        .await
+        .await?
     }
 
     /// Returns a filtered view of the graph. Applies a mixed node/edge filter
@@ -711,6 +716,6 @@ impl GqlGraph {
                 filtered_graph.into_dynamic(),
             ))
         })
-        .await
+        .await?
     }
 }

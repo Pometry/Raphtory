@@ -3,7 +3,10 @@
 
 use crate::{
     auth::ContextValidation,
-    auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
+    auth_policy::{
+        AuthorizationPolicy, DynGraphWithFolder, GraphPermission, GraphPin,
+        MaybeCachedFilteredRead, MutationNotifier, PermissionLevel,
+    },
     cache::GraphCache,
     config::{app_config::AppConfig, cache_config::CacheConfig},
     graph::GraphWithVectors,
@@ -94,6 +97,8 @@ pub enum InsertionError {
     PathValidation(#[from] PathValidationError),
     #[error("Failed to insert graph {graph}: {error}")]
     GraphError { graph: String, error: GraphError },
+    #[error(transparent)]
+    Compute(#[from] crate::rayon::ComputeError),
 }
 
 impl InsertionError {
@@ -306,6 +311,8 @@ impl WorkDirGuard {
 #[derive(Clone)]
 pub struct Data {
     pub inner: Arc<DataInner>,
+    /// Enforced on requests through this `Data`; `None` on the policy's unrestricted probe `Data`.
+    /// Keeps the policy alive, as `DataInner` only holds it weakly.
     pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
@@ -321,7 +328,8 @@ impl Deref for Data {
 async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
     if let Some(old_graph) = old_graph {
         let inner = old_graph.into_inner().await;
-        blocking_compute(move || {
+        // best effort: a failed flush is logged below, a failed job where it is caught
+        let _ = blocking_compute(move || {
             if let Err(e) = inner.graph.flush() {
                 error!(
                     "Failed to flush old graph {} before replacing: {e}",
@@ -362,7 +370,20 @@ impl Data {
         WorkDirWriteGuard { guard }
     }
 
+    /// Handed to whatever writes to the graph at `path`, so its successful writes reach the policy.
+    pub(crate) fn mutation_notifier(&self, path: &str) -> MutationNotifier {
+        MutationNotifier::new(self.auth_policy.clone(), path)
+    }
+
+    /// Report a successful whole-graph mutation (create, delete, replace, move, ...) of `path`.
+    pub(crate) fn notify_graph_mutated(&self, path: &str) {
+        if let Some(policy) = &self.auth_policy {
+            policy.on_graph_mutated(path);
+        }
+    }
+
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
+        self.cache.set_auth_policy(&policy);
         self.auth_policy = Some(policy)
     }
 
@@ -432,6 +453,7 @@ impl Data {
         let filter = filter.clone();
         blocking_compute(move || compile_row_filter(graph, filter).map(|_| ()))
             .await
+            .map_err(|error| AccessFilterError::Load(error.into()))?
             .map_err(AccessFilterError::DoesNotApply)
     }
 
@@ -471,9 +493,10 @@ impl Data {
                         graph
                     })
                 })
-                .await
+                .await?
             })
             .await?;
+        self.notify_graph_mutated(&key);
 
         Ok(())
     }
@@ -497,6 +520,7 @@ impl Data {
                 .await
             })
             .await?;
+        self.notify_graph_mutated(&key);
         Ok(())
     }
 
@@ -526,6 +550,7 @@ impl Data {
         self.delete_graph_inner(graph_folder)
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
+        self.notify_graph_mutated(path);
         Ok(())
     }
 
@@ -560,6 +585,11 @@ impl Data {
         })
         .await
         .map_err(|err| DeletionError::from_inner(path, err))?;
+        for item in descendants {
+            if let NamespacedItem::MetaGraph(g) = item {
+                self.notify_graph_mutated(g.local_path());
+            }
+        }
         Ok(())
     }
 
@@ -803,7 +833,7 @@ impl PermissionError {
     }
 }
 
-#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[graphql(name = "GraphType")]
 pub enum GqlGraphType {
     /// Persistent.
@@ -925,24 +955,35 @@ fn require_at_least_read(
 
 /// Gives the policy an asynchronous pass at an already-granted permission before its filter is
 /// applied (see [`AuthorizationPolicy::refine_permission`]). A no-op without a policy.
+///
+/// A denial comes back as a [`GQLError::Permission`]. A read the policy allowed but could not
+/// prepare comes back as the error preparing it raised, as it would from [`Data::load_refined`].
 async fn refine(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
+    graph_type: Option<GqlGraphType>,
     perm: GraphPermission,
-) -> Result<GraphPermission, GQLError> {
+) -> Result<MaybeCachedFilteredRead, GQLError> {
     match policy {
         Some(policy) => policy
-            .refine_permission(ctx, path, perm)
+            .refine_permission(ctx, path, graph_type, perm)
             .await
-            .map_err(|msg| {
-                error!(
-                    graph = path,
-                    "Authpolicy failure when refining permissions: {msg}"
-                );
-                PermissionError::AuthPolicyError.into()
+            .map_err(|e| match e.into_read_error() {
+                Ok(read) => read,
+                Err(msg) => {
+                    error!(
+                        graph = path,
+                        "Authpolicy failure when refining permissions: {msg}"
+                    );
+                    PermissionError::AuthPolicyError.into()
+                }
             }),
-        None => Ok(perm),
+        // No policy: whatever the permission carried is what gets applied.
+        None => Ok(MaybeCachedFilteredRead::Filter(match perm {
+            GraphPermission::Read { filter } => filter,
+            _ => None,
+        })),
     }
 }
 
@@ -972,7 +1013,7 @@ async fn apply_graph_filter(
     graph: DynamicGraph,
     row_filter: GqlFilter,
 ) -> Result<DynamicGraph, GQLError> {
-    blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
+    blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await?
 }
 
 fn apply_row_filter_sync(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GQLError> {
@@ -1050,13 +1091,26 @@ async fn apply_access_filter(
 // ---------------------------------------------------------------------------
 
 impl Data {
-    /// Loads and filters the graph using an already-verified permission. Private shared core.
-    async fn load_and_filter(
+    /// Loads and filters the graph using an already-verified permission.
+    async fn load_filtered(
         &self,
         path: &str,
-        perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
-    ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
+        filter: Option<&GraphAccessFilter>,
+    ) -> Result<DynGraphWithFolder, GQLError> {
+        let (view, _pin) = self.load_filtered_pinned(path, graph_type, filter).await?;
+        Ok(view)
+    }
+
+    /// [`Self::load_filtered`], with the graph pinned in the cache until the [`GraphPin`] drops.
+    ///
+    /// ⚠ Skips permission checks: `filter` must come from an already-verified permission.
+    pub async fn load_filtered_pinned(
+        &self,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+        filter: Option<&GraphAccessFilter>,
+    ) -> Result<(DynGraphWithFolder, GraphPin), GQLError> {
         let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
@@ -1076,15 +1130,28 @@ impl Data {
             None => gwv.graph().clone(),
         };
         let raw = typed_graph.into_dynamic();
-        let graph = if let GraphPermission::Read {
-            filter: Some(ref f),
-        } = perm
-        {
-            apply_access_filter(raw, f).await?
-        } else {
-            raw
+        let graph = match filter {
+            Some(f) => apply_access_filter(raw, f).await?,
+            None => raw,
         };
-        Ok((gwv.folder().clone(), graph))
+        let view = DynGraphWithFolder::new(gwv.folder().clone(), graph);
+        Ok((view, GraphPin::new(gwv)))
+    }
+
+    /// The read a refinement resolved to, applying its filter if it has one.
+    async fn load_refined(
+        &self,
+        path: &str,
+        refined: MaybeCachedFilteredRead,
+        graph_type: Option<GqlGraphType>,
+    ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
+        match refined {
+            MaybeCachedFilteredRead::FromCache(prepared) => Ok(prepared.into_parts()),
+            MaybeCachedFilteredRead::Filter(filter) => Ok(self
+                .load_filtered(path, graph_type, filter.as_ref())
+                .await?
+                .into_parts()),
+        }
     }
 
     /// For the `graph()` resolver: permission denial → `Ok(None)` (null to client, hides
@@ -1096,10 +1163,12 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> Result<Option<(UnlockedGraphFolder, DynamicGraph)>, GQLError> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
-            Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
-                Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Ok(perm) => match refine(ctx, &self.auth_policy, path, graph_type, perm).await {
+                Ok(refined) => self.load_refined(path, refined, graph_type).await.map(Some),
                 // Refinement denied access — hide the graph, as with any other read denial.
-                Err(_) => Ok(None),
+                Err(GQLError::Permission(_)) => Ok(None),
+                // The read was allowed but could not be prepared, as `load_refined` reports it.
+                Err(e) => Err(e),
             },
             Err(_) => Ok(None),
         }
@@ -1116,8 +1185,8 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
-        let perm = refine(ctx, &self.auth_policy, path, perm).await?;
-        self.load_and_filter(path, perm, graph_type).await
+        let refined = refine(ctx, &self.auth_policy, path, graph_type, perm).await?;
+        self.load_refined(path, refined, graph_type).await
     }
 
     /// Checks read permission then returns the raw `GraphWithVectors` (unfiltered).

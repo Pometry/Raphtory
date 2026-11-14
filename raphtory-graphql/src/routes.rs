@@ -10,7 +10,7 @@ use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::Duration};
 
-use crate::rayon::{blocking_compute, blocking_write};
+use crate::rayon::{blocking_write, probe_compute};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Health {
@@ -33,7 +33,7 @@ pub(crate) async fn health(Query(params): Query<HealthQuery>) -> impl IntoRespon
     // saturated beyond use) reports unhealthy.
     let result = tokio::time::timeout(
         Duration::from_secs(params.timeout.unwrap_or(10)),
-        join(blocking_compute(|| {}), blocking_write(|| {})),
+        join(probe_compute(), blocking_write(|| {})),
     )
     .await;
     match result {

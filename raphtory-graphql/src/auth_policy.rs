@@ -1,20 +1,80 @@
-use crate::model::graph::filtering::GraphAccessFilter;
+use crate::{
+    data::GqlGraphType,
+    graph::GraphWithVectors,
+    model::graph::filtering::GraphAccessFilter,
+    paths::UnlockedGraphFolder,
+    rayon::{blocking_cache, CachingError},
+    GQLError,
+};
 use futures_util::future::BoxFuture;
+use raphtory::db::{
+    api::view::{DynamicGraph, IntoDynamic},
+    graph::views::cached_view::CachedView,
+};
+use std::sync::Arc;
+
+/// Tells the authorization policy that the graph at one path changed. Empty without a policy.
+#[derive(Clone, Default)]
+pub struct MutationNotifier {
+    policy: Option<Arc<dyn AuthorizationPolicy>>,
+    path: Arc<str>,
+}
+
+impl MutationNotifier {
+    pub fn new(policy: Option<Arc<dyn AuthorizationPolicy>>, path: &str) -> Self {
+        Self {
+            policy,
+            path: path.into(),
+        }
+    }
+
+    /// Report a write that succeeded; failed writes leave the graph unchanged.
+    pub fn notify(&self) {
+        if let Some(policy) = &self.policy {
+            policy.on_graph_mutated(&self.path);
+        }
+    }
+}
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
 #[derive(Debug)]
-pub struct AuthPolicyError(pub String);
+pub struct AuthPolicyError {
+    message: String,
+    /// Set when the policy allowed the read but preparing it failed.
+    read: Option<GQLError>,
+}
 
 impl AuthPolicyError {
     pub fn new(msg: impl Into<String>) -> Self {
-        Self(msg.into())
+        Self {
+            message: msg.into(),
+            read: None,
+        }
+    }
+
+    /// The policy allowed the read, but preparing it failed: its filter could not be applied, or
+    /// the graph could not be loaded. Answered as `error`, exactly as if the read path had
+    /// prepared it, rather than hidden like a denial.
+    pub fn read_failed(error: GQLError) -> Self {
+        Self {
+            message: error.to_string(),
+            read: Some(error),
+        }
+    }
+
+    /// The read error from [`Self::read_failed`], or `self` back if this is a denial.
+    pub fn into_read_error(self) -> Result<GQLError, Self> {
+        match self.read {
+            Some(error) => Ok(error),
+            None => Err(self),
+        }
     }
 }
 
 impl std::fmt::Display for AuthPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(&self.message)
     }
 }
 
@@ -108,6 +168,55 @@ pub enum NamespacePermission {
     Write,
 }
 
+/// A loaded and filtered graph with its folder; what the authorization policy caches.
+#[derive(Clone)]
+pub struct DynGraphWithFolder {
+    folder: UnlockedGraphFolder,
+    graph: DynamicGraph,
+}
+
+impl DynGraphWithFolder {
+    pub(crate) fn new(folder: UnlockedGraphFolder, graph: DynamicGraph) -> Self {
+        Self { folder, graph }
+    }
+
+    pub(crate) fn into_parts(self) -> (UnlockedGraphFolder, DynamicGraph) {
+        (self.folder, self.graph)
+    }
+
+    /// Build a [`CachedView`] of this graph on the caching pool, giving up with `Ok(None)` once
+    /// `cancel` returns true, including while still queued behind other caching. See
+    /// [`CachedView::new_with_cancel`].
+    pub async fn into_cached_view_with_cancel(
+        self,
+        cancel: impl Fn() -> bool + Send + Sync + 'static,
+    ) -> Result<Option<Self>, CachingError> {
+        let Self { folder, graph } = self;
+        let cached = blocking_cache(move || {
+            CachedView::new_with_cancel(graph, cancel).map(IntoDynamic::into_dynamic)
+        })
+        .await?;
+        Ok(cached.map(|graph| Self { folder, graph }))
+    }
+}
+
+/// Stops the graph cache evicting a graph while held.
+#[derive(Clone)]
+pub struct GraphPin(#[allow(dead_code)] GraphWithVectors); // holds GraphWithVectors without exposing it
+
+impl GraphPin {
+    pub(crate) fn new(graph: GraphWithVectors) -> Self {
+        Self(graph)
+    }
+}
+
+/// A filter still to be applied, or a graph from the policy's cache.
+pub enum MaybeCachedFilteredRead {
+    Filter(Option<GraphAccessFilter>),
+    /// Read through the lazy filter until its cached view is ready.
+    FromCache(DynGraphWithFolder),
+}
+
 pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Resolves the effective permission level for a principal on a graph.
     ///
@@ -159,9 +268,16 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         &'a self,
         _ctx: &'a async_graphql::Context<'_>,
         _path: &'a str,
+        _graph_type: Option<GqlGraphType>,
         perm: GraphPermission,
-    ) -> BoxFuture<'a, Result<GraphPermission, AuthPolicyError>> {
-        Box::pin(std::future::ready(Ok(perm)))
+    ) -> BoxFuture<'a, Result<MaybeCachedFilteredRead, AuthPolicyError>> {
+        let filter = match perm {
+            GraphPermission::Read { filter } => filter,
+            _ => None,
+        };
+        Box::pin(std::future::ready(Ok(MaybeCachedFilteredRead::Filter(
+            filter,
+        ))))
     }
 
     /// Whether the principal has unfiltered read (`Write`, or `Read` with no filter) on the graph.
@@ -177,6 +293,14 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
             .graph_permissions(ctx, path)?
             .is_some_and(|p| p.level() >= PermissionLevel::Read))
     }
+
+    /// Called after the graph at `path` is successfully mutated, or created, replaced, moved or
+    /// deleted. Default no-op.
+    fn on_graph_mutated(&self, _path: &str) {}
+
+    /// Called when the graph at `path` is evicted from memory, so the policy can drop anything
+    /// that would keep it loaded. Default no-op.
+    fn on_graph_evicted(&self, _path: &str) {}
 
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling

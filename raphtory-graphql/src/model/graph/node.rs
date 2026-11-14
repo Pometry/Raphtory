@@ -100,18 +100,18 @@ impl GqlNode {
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
-    ) -> GqlNode {
+    ) -> Result<GqlNode, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.valid_layers(names).into()).await
+        Ok(blocking_compute(move || self_clone.vv.valid_layers(names).into()).await?)
     }
 
     /// Returns a collection containing nodes belonging to all layers except the excluded list of layers.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
-    ) -> GqlNode {
+    ) -> Result<GqlNode, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.exclude_valid_layers(names).into()).await
+        Ok(blocking_compute(move || self_clone.vv.exclude_valid_layers(names).into()).await?)
     }
 
     /// Returns a collection containing nodes belonging to the specified layer.
@@ -206,9 +206,9 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events at the latest time.
-    pub async fn latest(&self) -> GqlNode {
+    pub async fn latest(&self) -> Result<GqlNode, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.latest().into()).await
+        Ok(blocking_compute(move || self_clone.vv.latest().into()).await?)
     }
 
     /// Create a view of the node including all events that are valid at the specified time.
@@ -220,9 +220,9 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events that are valid at the latest time.
-    pub async fn snapshot_latest(&self) -> GqlNode {
+    pub async fn snapshot_latest(&self) -> Result<GqlNode, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.snapshot_latest().into()).await
+        Ok(blocking_compute(move || self_clone.vv.snapshot_latest().into()).await?)
     }
 
     /// Create a view of the node including all events before specified end time (exclusive).
@@ -264,27 +264,27 @@ impl GqlNode {
     ////////////////////////
 
     /// Returns the earliest time that the node exists.
-    pub async fn earliest_time(&self) -> GqlEventTime {
+    pub async fn earliest_time(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.earliest_time().into()).await
+        Ok(blocking_compute(move || self_clone.vv.earliest_time().into()).await?)
     }
 
     /// Returns the time of the first update made to the node.
-    pub async fn first_update(&self) -> GqlEventTime {
+    pub async fn first_update(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().earliest_time().into()).await
+        Ok(blocking_compute(move || self_clone.vv.history().earliest_time().into()).await?)
     }
 
     /// Returns the latest time that the node exists.
-    pub async fn latest_time(&self) -> GqlEventTime {
+    pub async fn latest_time(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.latest_time().into()).await
+        Ok(blocking_compute(move || self_clone.vv.latest_time().into()).await?)
     }
 
     /// Returns the time of the last update made to the node.
-    pub async fn last_update(&self) -> GqlEventTime {
+    pub async fn last_update(&self) -> Result<GqlEventTime, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().latest_time().into()).await
+        Ok(blocking_compute(move || self_clone.vv.history().latest_time().into()).await?)
     }
 
     /// Gets the start time for the window. Errors if there is no window.
@@ -298,9 +298,9 @@ impl GqlNode {
     }
 
     /// Returns a history object for the node, with time entries for node additions and changes made to node.
-    pub async fn history(&self) -> GqlHistory {
+    pub async fn history(&self) -> Result<GqlHistory, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().into()).await
+        Ok(blocking_compute(move || self_clone.vv.history().into()).await?)
     }
 
     /// Get the number of edge events for this node.
@@ -309,21 +309,21 @@ impl GqlNode {
     }
 
     /// Check if the node is active and it's history is not empty.
-    pub async fn is_active(&self) -> bool {
+    pub async fn is_active(&self) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.is_active()).await
+        Ok(blocking_compute(move || self_clone.vv.is_active()).await?)
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    pub async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.window_size().map(|s| s as i64)).await
+        Ok(blocking_compute(move || self_clone.vv.window_size().map(|s| s as i64)).await?)
     }
 
     /// Check if a layer with the given name is present in this view.
-    pub async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.has_layer(name)).await
+        Ok(blocking_compute(move || self_clone.vv.has_layer(name)).await?)
     }
 
     ////////////////////////
@@ -353,21 +353,21 @@ impl GqlNode {
     ////////////////////////
 
     /// Returns the number of unique counter parties for this node.
-    pub async fn degree(&self) -> usize {
+    pub async fn degree(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.degree()).await
+        Ok(blocking_compute(move || self_clone.vv.degree()).await?)
     }
 
     /// Returns the number edges with this node as the source.
-    pub async fn out_degree(&self) -> usize {
+    pub async fn out_degree(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.out_degree()).await
+        Ok(blocking_compute(move || self_clone.vv.out_degree()).await?)
     }
 
     /// Returns the number edges with this node as the destination.
-    pub async fn in_degree(&self) -> usize {
+    pub async fn in_degree(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.in_degree()).await
+        Ok(blocking_compute(move || self_clone.vv.in_degree()).await?)
     }
 
     /// Returns bounds on the number of unique counter parties for this node, counting them
@@ -380,10 +380,10 @@ impl GqlNode {
             desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
         )]
         threshold: Option<usize>,
-    ) -> GqlDegreeBounds {
+    ) -> Result<GqlDegreeBounds, GQLError> {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.degree_bounds(threshold).into()).await
+        Ok(blocking_compute(move || self_clone.vv.degree_bounds(threshold).into()).await?)
     }
 
     /// Returns bounds on the number of edges with this node as the source, counting them exactly
@@ -394,10 +394,10 @@ impl GqlNode {
             desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
         )]
         threshold: Option<usize>,
-    ) -> GqlDegreeBounds {
+    ) -> Result<GqlDegreeBounds, GQLError> {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.out_degree_bounds(threshold).into()).await
+        Ok(blocking_compute(move || self_clone.vv.out_degree_bounds(threshold).into()).await?)
     }
 
     /// Returns bounds on the number of edges with this node as the destination, counting them
@@ -408,10 +408,10 @@ impl GqlNode {
             desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
         )]
         threshold: Option<usize>,
-    ) -> GqlDegreeBounds {
+    ) -> Result<GqlDegreeBounds, GQLError> {
         let self_clone = self.clone();
         let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
-        blocking_compute(move || self_clone.vv.in_degree_bounds(threshold).into()).await
+        Ok(blocking_compute(move || self_clone.vv.in_degree_bounds(threshold).into()).await?)
     }
 
     /// Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge
@@ -431,11 +431,11 @@ impl GqlNode {
                 in_component_filtered(self_clone.vv.clone(), select)
                     .map(|state| GqlNodes::new(state.nodes()))
             })
-            .await?),
+            .await??),
             None => Ok(blocking_compute(move || {
                 GqlNodes::new(in_component(self_clone.vv.clone()).nodes())
             })
-            .await),
+            .await?),
         }
     }
 
@@ -456,11 +456,11 @@ impl GqlNode {
                 out_component_filtered(self_clone.vv.clone(), select)
                     .map(|state| GqlNodes::new(state.nodes()))
             })
-            .await?),
+            .await??),
             None => Ok(blocking_compute(move || {
                 GqlNodes::new(out_component(self_clone.vv.clone()).nodes())
             })
-            .await),
+            .await?),
         }
     }
 
@@ -474,7 +474,7 @@ impl GqlNode {
     ) -> Result<GqlEdges, GQLError> {
         let base = self.vv.edges();
         if let Some(sel) = select {
-            let narrowed = blocking_compute(move || base.select(sel)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await??;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
@@ -490,7 +490,7 @@ impl GqlNode {
     ) -> Result<GqlEdges, GQLError> {
         let base = self.vv.out_edges();
         if let Some(sel) = select {
-            let narrowed = blocking_compute(move || base.select(sel)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await??;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
@@ -506,7 +506,7 @@ impl GqlNode {
     ) -> Result<GqlEdges, GQLError> {
         let base = self.vv.in_edges();
         if let Some(sel) = select {
-            let narrowed = blocking_compute(move || base.select(sel)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await??;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
@@ -522,7 +522,7 @@ impl GqlNode {
     ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -538,7 +538,7 @@ impl GqlNode {
     ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.in_neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -554,7 +554,7 @@ impl GqlNode {
     ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.out_neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -575,7 +575,7 @@ impl GqlNode {
             let filtered = self_clone.vv.filter(expr)?;
             Ok(self_clone.update(filtered.into_dynamic()))
         })
-        .await
+        .await?
     }
 }
 

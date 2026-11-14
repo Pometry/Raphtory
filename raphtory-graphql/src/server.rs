@@ -158,6 +158,9 @@ impl GraphServer {
         let config = app_config.unwrap_or_default();
         configure_pools(PoolSettings {
             max_concurrent_loads: config.concurrency.max_concurrent_loads,
+            caching_threads: config.concurrency.caching_threads,
+            max_concurrent_compute: config.concurrency.max_concurrent_compute,
+            compute_stack_size: config.concurrency.compute_stack_size,
         });
         let extensions = config.extensions.clone();
         let data = Data::new(work_dir.as_path(), &config, graph_args);
@@ -201,6 +204,11 @@ impl GraphServer {
     /// Returns the resolved application config.
     pub fn config(&self) -> &AppConfig {
         &self.config
+    }
+
+    /// The server's graphs. A clone shares them.
+    pub fn data(&self) -> &Data {
+        &self.data
     }
 
     /// Set the authorization policy used for graph access checks.

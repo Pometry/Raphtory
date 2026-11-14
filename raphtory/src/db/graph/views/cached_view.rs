@@ -1,33 +1,36 @@
 use crate::{
     core::entities::LayerIds,
-    db::api::{
-        properties::internal::{
-            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+    db::{
+        api::{
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
+            state::Index,
+            view::internal::{
+                EdgeList, EdgeTimeSemanticsOps, FilterOps, GraphView, Immutable,
+                InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
+                InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+                InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+                InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, Static,
+            },
         },
-        view::internal::{
-            EdgeTimeSemanticsOps, FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter,
-            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
-            InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalLayerOps,
-            InternalNodeFilterOps, Static,
-        },
+        graph::views::layer_graph::LayeredGraph,
     },
-    prelude::{GraphViewOps, LayerOps},
+    prelude::GraphViewOps,
     storage::core_ops::InheritCoreGraphOps,
 };
+use either::Either;
 use raphtory_api::{
     core::{
-        entities::{LayerId, ELID},
+        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, ELID},
         storage::timeindex::{AsTime, EventTime},
+        Direction,
     },
     inherit::Base,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps,
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
+use raphtory_storage::graph::{
+    edges::edge_storage_ops::EdgeStorageOps,
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use rayon::prelude::*;
 use roaring::RoaringTreemap;
@@ -77,89 +80,187 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
-        let mut layered_masks = vec![];
-        let global_nodes_mask = Arc::new(
-            graph
-                .nodes()
-                .iter()
-                .map(|node| node.node.as_u64())
-                .collect(),
-        );
-        for l_name in graph.unique_layers() {
-            let l_id = graph.get_layer_id(&l_name).unwrap().0;
-            let layer_g = graph.layers(l_name).unwrap();
+        Self::new_with_cancel(graph, || false).expect("never cancelled")
+    }
 
-            let nodes = layer_g
-                .nodes()
-                .par_iter()
-                .map(|node| node.node.as_u64())
-                .collect::<Vec<_>>();
-
-            let nodes: RoaringTreemap = nodes.into_iter().collect();
-
-            let edges = layer_g.core_edges();
-
-            let edges_chunks = edges
-                .as_ref()
-                .par_iter(&LayerIds::All)
-                .filter(|edge| {
-                    layer_g.filter_edge(edge.as_ref())
-                        && nodes.contains(edge.src().as_u64())
-                        && nodes.contains(edge.dst().as_u64())
-                })
-                .map(|edge| edge.eid().as_u64())
-                .collect_vec_list();
-            let edges_filter: RoaringTreemap = edges_chunks.into_iter().flatten().collect();
-
-            let exploded_filter = if graph.internal_exploded_edge_filtered() {
-                Some(
-                    edges
-                        .par_iter(&LayerIds::All)
-                        .flat_map_iter(|e| {
-                            edges_filter
-                                .contains(e.eid().as_u64())
-                                .then_some(e)
-                                .into_iter()
-                                .flat_map(|e| {
-                                    let timesemantics = graph.edge_time_semantics();
-                                    timesemantics
-                                        .edge_exploded(e, &layer_g, layer_g.layer_ids())
-                                        .map(|(t, _)| t.i() as u64)
-                                })
-                        })
-                        .collect_vec_list()
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
-            } else {
-                None
-            };
-
-            if layered_masks.len() < l_id + 1 {
-                layered_masks.resize(
-                    l_id + 1,
-                    (
-                        RoaringTreemap::new(),
-                        RoaringTreemap::new(),
-                        Some(RoaringTreemap::new()),
-                    ),
-                );
+    /// [`Self::new`], giving up with `None` once `cancel` returns true. `cancel` is checked for
+    /// every node and edge scanned, so it should be cheap (e.g. an atomic load).
+    pub fn new_with_cancel(graph: G, cancel: impl Fn() -> bool + Sync) -> Option<Self> {
+        if cancel() {
+            return None;
+        }
+        // One view per layer of `graph`, indexed by layer id. Slot 0 is the private static layer,
+        // which is viewed with no layers.
+        let num_slots = graph.edge_meta().layer_meta().num_all_fields();
+        let mut layered_graphs = vec![Some(LayeredGraph::new(graph.clone(), LayerIds::None))];
+        for id in graph.layer_ids().iter(num_slots) {
+            if id == STATIC_GRAPH_LAYER_ID {
+                continue;
             }
+            if layered_graphs.len() <= id.0 {
+                layered_graphs.resize_with(id.0 + 1, || None);
+            }
+            layered_graphs[id.0] = Some(LayeredGraph::new(graph.clone(), LayerIds::One(id)));
+        }
+        let empty = || vec![RoaringTreemap::new(); layered_graphs.len()];
 
-            layered_masks[l_id] = (nodes, edges_filter, exploded_filter);
+        // One snapshot for both passes, so the edges are those of the nodes just scanned.
+        let storage = graph.core_graph().lock();
+        let (global_nodes_mask, layered_node_masks) = graph
+            .node_list()
+            .nodes_par_iter(&storage)
+            .try_fold(
+                || (RoaringTreemap::new(), empty()),
+                |(mut global, mut per_layer), vid| {
+                    if cancel() {
+                        return None;
+                    }
+                    if let Some(node) = storage.try_core_node(vid) {
+                        let (node, id) = (node.as_ref(), vid.as_u64());
+                        // a layer only shows nodes the whole graph shows
+                        if graph.filter_node(node) {
+                            push(&mut global, id);
+                            for (nodes, layer) in per_layer.iter_mut().zip(&layered_graphs) {
+                                if layer.as_ref().is_some_and(|layer| layer.filter_node(node)) {
+                                    push(nodes, id);
+                                }
+                            }
+                        }
+                    }
+                    Some((global, per_layer))
+                },
+            )
+            .try_reduce(
+                || (RoaringTreemap::new(), empty()),
+                |(global, per_layer), (other_global, other_per_layer)| {
+                    Some((global | other_global, union(per_layer, other_per_layer)))
+                },
+            )?;
+        let global_nodes_mask = Arc::new(optimized(global_nodes_mask));
+
+        // Every surviving edge leaves a surviving node in one of the view's layers.
+        let edges = storage.owned_edges();
+        let nodes = storage.core_nodes();
+        let (edges, nodes, layer_ids) = (&edges, &nodes, graph.layer_ids());
+        let candidates = Index::from_bitmap(global_nodes_mask.clone(), true)
+            .into_par_iter()
+            .flat_map_iter(move |vid| {
+                nodes
+                    .node_entry(vid)
+                    .edges_iter(layer_ids, Direction::OUT)
+                    .map(move |edge| edges.edge(Either::Right(edge)))
+            });
+
+        // Endpoints are checked against the node masks rather than the node filter for efficiency.
+        let exploded = graph.internal_exploded_edge_filtered();
+        let (layered_edge_masks, exploded_masks) = candidates
+            .try_fold(
+                || (empty(), empty()),
+                |(mut masks, mut exploded_masks), edge| {
+                    if cancel() {
+                        return None;
+                    }
+                    let (src, dst) = (edge.src().as_u64(), edge.dst().as_u64());
+                    for id in edge.layer_ids_iter(layer_ids).map(|id| id.0) {
+                        let Some(Some(layer_g)) = layered_graphs.get(id) else {
+                            // this layer is filtered out in this graph view
+                            continue;
+                        };
+                        let nodes = &layered_node_masks[id];
+                        if nodes.contains(src)
+                            && nodes.contains(dst)
+                            && layer_g.filter_edge_except_nodes(edge)
+                        {
+                            push(&mut masks[id], edge.eid().as_u64());
+                            if exploded {
+                                // event ids are not in storage order
+                                exploded_masks[id].extend(
+                                    graph
+                                        .edge_time_semantics()
+                                        .edge_exploded(edge, layer_g, layer_g.layer_ids())
+                                        .map(|(t, _)| t.i() as u64),
+                                );
+                            }
+                        }
+                    }
+                    Some((masks, exploded_masks))
+                },
+            )
+            .try_reduce(
+                || (empty(), empty()),
+                |(masks, exploded_masks), (other_masks, other_exploded_masks)| {
+                    Some((
+                        union(masks, other_masks),
+                        union(exploded_masks, other_exploded_masks),
+                    ))
+                },
+            )?;
+        if cancel() {
+            return None;
         }
 
-        Self {
+        // layer views reuse `node_list` (the global mask), so it must hold every layer's nodes
+        debug_assert!(
+            layered_node_masks
+                .iter()
+                .all(|nodes| nodes.is_subset(&global_nodes_mask)),
+            "a layer shows a node the whole graph does not"
+        );
+
+        let layered_mask = layered_node_masks
+            .into_par_iter()
+            .zip(layered_edge_masks)
+            .zip(exploded_masks)
+            .enumerate()
+            .map(|(id, ((nodes, edges), exploded_mask))| {
+                // the static layer and missing layers get an empty exploded filter
+                let named = id != STATIC_GRAPH_LAYER_ID.0 && layered_graphs[id].is_some();
+                let exploded_filter = (!named || exploded).then(|| optimized(exploded_mask));
+                (optimized(nodes), optimized(edges), exploded_filter)
+            })
+            .collect::<Vec<_>>()
+            .into();
+
+        Some(Self {
             graph,
             global_nodes_mask,
-            layered_mask: layered_masks.into(),
-        }
+            layered_mask,
+        })
     }
 }
 
-// FIXME: this should use the list version ideally
-impl<'graph, G: GraphViewOps<'graph>> InheritListOps for CachedView<G> {}
+/// Run-length encode where that is smaller: masks of mostly visible ids shrink a lot.
+fn optimized(mut mask: RoaringTreemap) -> RoaringTreemap {
+    mask.optimize();
+    mask
+}
+
+/// Ids arriving in ascending storage order will almost always append.
+fn push(mask: &mut RoaringTreemap, id: u64) {
+    if mask.try_push(id).is_err() {
+        mask.insert(id);
+    }
+}
+
+fn union(mut masks: Vec<RoaringTreemap>, others: Vec<RoaringTreemap>) -> Vec<RoaringTreemap> {
+    for (mask, other) in masks.iter_mut().zip(others) {
+        *mask |= other;
+    }
+    masks
+}
+
+impl<'graph, G: GraphViewOps<'graph>> ListOps for CachedView<G> {
+    /// The global mask, shared rather than copied.
+    fn node_list(&self) -> NodeList {
+        NodeList::List {
+            elems: Index::from_bitmap(self.global_nodes_mask.clone(), true),
+        }
+    }
+
+    fn edge_list(&self) -> EdgeList {
+        self.graph.edge_list()
+    }
+}
 
 impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for CachedView<G> {
     fn internal_exploded_edge_filtered(&self) -> bool {
@@ -273,7 +374,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
         self.graph.internal_nodes_filtered()
     }
     fn internal_node_list_trusted(&self) -> bool {
-        self.graph.internal_node_list_trusted()
+        true
     }
 
     fn edge_filter_includes_node_filter(&self) -> bool {
@@ -291,7 +392,11 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         match layer_ids {
-            LayerIds::None => false,
+            // The unlayered nodes should still be returned when no layer is selected
+            LayerIds::None => self
+                .layered_mask
+                .get(STATIC_GRAPH_LAYER_ID.0)
+                .is_some_and(|(nodes, _, _)| nodes.contains(node.vid().as_u64())),
             LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask

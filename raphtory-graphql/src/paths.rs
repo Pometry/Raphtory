@@ -101,6 +101,7 @@ pub trait ValidGraphPaths {
         let folder = self.graph_folder().root().to_path_buf();
         blocking_compute(move || folder.read_metadata())
             .await
+            .with_path(self.local_path())?
             .with_path(self.local_path())
     }
 }
@@ -591,6 +592,8 @@ pub enum InternalPathValidationError {
     GraphFolderError(#[from] GraphFolderError),
     #[error("Graph path should always have a parent")]
     MissingParent,
+    #[error(transparent)]
+    Compute(#[from] crate::rayon::ComputeError),
     #[error(transparent)]
     StripPrefix(#[from] StripPrefixError),
     #[error("Expected a graph but found a namespace")]

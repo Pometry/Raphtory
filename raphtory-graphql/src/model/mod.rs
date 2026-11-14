@@ -233,12 +233,8 @@ impl QueryRoot {
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<GqlMutableGraph, GQLError> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = data
-            .get_graph_with_write_permission(ctx, &path)
-            .await?
-            .into();
-
-        Ok(graph)
+        let graph = data.get_graph_with_write_permission(ctx, &path).await?;
+        Ok(GqlMutableGraph::new(graph, data.mutation_notifier(&path)))
     }
 
     /// Returns all namespaces using recursive search
@@ -256,7 +252,7 @@ impl QueryRoot {
                 .sorted()
                 .collect()
         })
-        .await;
+        .await?;
         // Filter to namespaces the caller may see. A policy that cannot answer fails the
         // listing rather than shortening it: an omitted entry is indistinguishable from one
         // the caller simply has no grant on.
@@ -301,7 +297,7 @@ impl QueryRoot {
     ) -> Result<String, GQLError> {
         let data = ctx.data_unchecked::<Data>();
         let (_, graph) = data.get_graph_requiring_read(ctx, &path, None).await?;
-        let materialized = blocking_compute(move || graph.materialize()).await?;
+        let materialized = blocking_compute(move || graph.materialize()).await??;
         Ok(url_encode_graph(materialized)?)
     }
 
@@ -367,11 +363,10 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         // src: require WRITE on graph
         // require_graph_write(ctx, &data.auth_policy, graph_path)?;
-        let graph = data
+        let handle = data
             .get_graph_with_write_permission(ctx, &graph_path)
-            .await?
-            .graph()
-            .clone();
+            .await?;
+        let graph = handle.graph().clone();
         // NOTE: skipping shared metadata for now until we figure out parsing of types
         let properties_owned = properties.unwrap_or_default();
         let properties: Vec<&str> = properties_owned.iter().map(String::as_str).collect();
@@ -407,6 +402,7 @@ impl Mut {
             true,
             arced_schema.clone(),
         )?;
+        data.notify_graph_mutated(&graph_path);
         Ok(true)
     }
 
@@ -441,11 +437,10 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         // src: require WRITE on graph
         // require_graph_write(ctx, &data.auth_policy, graph_path)?;
-        let graph = data
+        let handle = data
             .get_graph_with_write_permission(ctx, &graph_path)
-            .await?
-            .graph()
-            .clone();
+            .await?;
+        let graph = handle.graph().clone();
         // NOTE: skipping shared metadata for now until we figure out parsing of types
         let properties_owned = properties.unwrap_or_default();
         let properties: Vec<&str> = properties_owned.iter().map(String::as_str).collect();
@@ -481,6 +476,7 @@ impl Mut {
             None,
             arced_schema.clone(),
         )?;
+        data.notify_graph_mutated(&graph_path);
         Ok(true)
     }
 
@@ -628,7 +624,7 @@ impl Mut {
         let folder_clone = folder.clone();
         let g: MaterializedGraph =
             blocking_compute(move || url_decode_graph_at(graph, folder_clone.graph_folder(), args))
-                .await?;
+                .await??;
         data.insert_graph(folder, g).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, path) {
             let _ = data.delete_graph(path).await;
@@ -675,7 +671,7 @@ impl Mut {
         let namespace = Namespace::try_new(data.work_dir_write().await.into(), path.to_string())?;
         let ns_clone = namespace.clone();
         let descendants: Vec<NamespacedItem> =
-            blocking_compute(move || ns_clone.get_all_children().collect()).await;
+            blocking_compute(move || ns_clone.get_all_children().collect()).await?;
         for item in &descendants {
             match item {
                 NamespacedItem::Namespace(n) => {
@@ -727,7 +723,7 @@ impl Mut {
                 subgraph.materialize()
             }
         })
-        .await?;
+        .await??;
         new_subgraph.flush()?;
 
         data.insert_graph(folder, new_subgraph).await?;
