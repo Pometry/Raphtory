@@ -78,7 +78,7 @@ use crate::{
 use raphtory_api::core::entities::{
     properties::{
         meta::NODE_ID_PROP_ID,
-        prop::{prop_hashable::HashableProp, IntoProp, Prop, PropType},
+        prop::{prop_hashable::HashableProp, CastBound, IntoProp, Prop, PropType},
     },
     GidRef, GidType, LayerIds,
 };
@@ -89,11 +89,9 @@ use raphtory_storage::{
 };
 use std::{
     collections::HashSet,
-    convert::identity,
     fmt::Debug,
     sync::{Arc, LazyLock},
 };
-
 // ── leaves ───────────────────────────────────────────────────────────────────
 
 /// The terms an entity offers. Implemented by the leaf enum of each entity.
@@ -217,47 +215,6 @@ fn indexed_nodes(
     })
 }
 
-/// Whether `dtype` is an integer type.
-fn is_int(dtype: &PropType) -> bool {
-    matches!(
-        dtype,
-        PropType::U8
-            | PropType::U16
-            | PropType::U32
-            | PropType::U64
-            | PropType::I32
-            | PropType::I64
-    )
-}
-
-/// Whether `value` is a float with a fraction, or NaN or an infinity, against
-/// an integer column of type `dtype`.
-fn inexact(value: &Prop, dtype: &PropType) -> bool {
-    is_int(dtype)
-        && value
-            .as_f64_lossless()
-            .is_some_and(|float| float.fract() != 0.0)
-}
-
-/// `value` in the column type `dtype`; a float on an integer column is rounded
-/// by `round` first, and is not cast from 2^53 up.
-fn cast_constant(value: &Prop, dtype: &PropType, round: fn(f64) -> f64) -> Option<Prop> {
-    let rounded;
-    let value = match (value.as_f64_lossless(), dtype) {
-        (None, _) | (Some(_), PropType::F32 | PropType::F64) => value,
-        (Some(float), _) if is_int(dtype) => {
-            let bound = round(float);
-            rounded = (bound.abs() < 2f64.powi(53)).then_some(Prop::F64(bound))?;
-            &rounded
-        }
-        _ => return None,
-    };
-    value
-        .clone()
-        .cast(dtype.clone())
-        .filter(|converted| converted.equals(value))
-}
-
 /// Index candidates for a property or metadata test, with constants cast to
 /// the column's type. Histories, views, windows and layer filters use `Ever`,
 /// the rest `Latest`.
@@ -276,42 +233,74 @@ fn indexed_column(
     }
     let (mut value, mut members) = (None, None);
     let predicate = match *predicate {
-        NodePropPredicate::Eq(v) if inexact(v, &dtype) => return Some(NodeList::empty()),
         NodePropPredicate::Eq(v) => {
-            NodePropPredicate::Eq(value.insert(cast_constant(v, &dtype, identity)?))
+            match v.clone().cast_exact(&dtype) {
+                Some(v) => NodePropPredicate::Eq(value.insert(v)),
+                None => {
+                    return Some(NodeList::empty()); // no exact conversion, nothing can be equal to this value
+                }
+            }
         }
         // upper bounds round up and lower bounds down; an inexact `<=` is `<`
         // and an inexact `>=` is `>`
         NodePropPredicate::Lt(v) => {
-            NodePropPredicate::Lt(value.insert(cast_constant(v, &dtype, f64::ceil)?))
+            let bound = v.clone().cast_bound(&dtype, true)?;
+            match bound {
+                CastBound::Exact(bound) | CastBound::Rounded(bound) => {
+                    NodePropPredicate::Lt(value.insert(bound))
+                }
+                CastBound::ClampedMax(bound) => NodePropPredicate::Le(value.insert(bound)),
+                CastBound::ClampedMin(_) => {
+                    // nothing can be less than min
+                    return Some(NodeList::empty());
+                }
+            }
         }
         NodePropPredicate::Le(v) => {
-            let bound = value.insert(cast_constant(v, &dtype, f64::ceil)?);
-            if inexact(v, &dtype) {
-                NodePropPredicate::Lt(bound)
-            } else {
-                NodePropPredicate::Le(bound)
+            let bound = v.clone().cast_bound(&dtype, true)?;
+            match bound {
+                CastBound::Exact(bound) | CastBound::ClampedMax(bound) => {
+                    NodePropPredicate::Le(value.insert(bound))
+                }
+                CastBound::Rounded(bound) => NodePropPredicate::Lt(value.insert(bound)),
+                CastBound::ClampedMin(_) => {
+                    // nothing can be less than min
+                    return Some(NodeList::empty());
+                }
             }
         }
         NodePropPredicate::Gt(v) => {
-            NodePropPredicate::Gt(value.insert(cast_constant(v, &dtype, f64::floor)?))
-        }
-        NodePropPredicate::Ge(v) => {
-            let bound = value.insert(cast_constant(v, &dtype, f64::floor)?);
-            if inexact(v, &dtype) {
-                NodePropPredicate::Gt(bound)
-            } else {
-                NodePropPredicate::Ge(bound)
+            let bound = v.clone().cast_bound(&dtype, false)?;
+            match bound {
+                CastBound::Exact(bound) | CastBound::Rounded(bound) => {
+                    NodePropPredicate::Gt(value.insert(bound))
+                }
+                CastBound::ClampedMin(bound) => NodePropPredicate::Ge(value.insert(bound)),
+                CastBound::ClampedMax(_) => {
+                    // nothing can be greater than max
+                    return Some(NodeList::empty());
+                }
             }
         }
-        // an inexact member is dropped; one that fails to cast leaves the set
-        // unserved
+        NodePropPredicate::Ge(v) => {
+            let bound = v.clone().cast_bound(&dtype, false)?;
+            match bound {
+                CastBound::Exact(bound) | CastBound::ClampedMin(bound) => {
+                    NodePropPredicate::Ge(value.insert(bound))
+                }
+                CastBound::Rounded(bound) => NodePropPredicate::Gt(value.insert(bound)),
+                CastBound::ClampedMax(_) => {
+                    // nothing can be greater than max
+                    return Some(NodeList::empty());
+                }
+            }
+        }
+        // anything that doesn't have an exact conversion is dropped as it can never equal an actual value
         NodePropPredicate::In(set) => NodePropPredicate::In(
             members.insert(
                 set.iter()
-                    .filter(|member| !inexact(&member.0, &dtype))
-                    .map(|member| cast_constant(&member.0, &dtype, identity).map(HashableProp))
-                    .collect::<Option<HashSet<_>>>()?,
+                    .filter_map(|v| v.0.clone().cast_exact(&dtype).map(HashableProp))
+                    .collect::<HashSet<_>>(),
             ),
         ),
         string_test if dtype == PropType::Str => string_test,

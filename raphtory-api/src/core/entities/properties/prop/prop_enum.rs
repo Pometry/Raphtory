@@ -22,7 +22,6 @@ use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use minijinja::filters::round;
 use num_traits::{Bounded, Float, FromPrimitive, ToPrimitive, Zero};
 use ordered_float::OrderedFloat;
 use rustc_hash::{FxBuildHasher, FxHashMap};
@@ -647,6 +646,18 @@ pub fn validate_bd(bd: &BigDecimal) -> Result<(), InvalidBigDecimal> {
     }
 }
 
+/// The result of upper/lower bound casting
+pub enum CastBound {
+    /// The value is exactly equivalent to the input numerically
+    Exact(Prop),
+    /// The value was clamped to the maximum of the target type
+    ClampedMax(Prop),
+    /// The value was clamped to the minimum of the target type
+    ClampedMin(Prop),
+    /// The value was in range for the target type but rounded (up or down depending on the method)
+    Rounded(Prop),
+}
+
 impl Prop {
     /// cast to T or return self on failure
     fn cast_num_inner<T>(self) -> Result<T, Prop>
@@ -676,6 +687,44 @@ impl Prop {
     /// convert prop into another prop type (primarily for numerical conversions)
     pub fn cast(self, prop_type: PropType) -> Option<Prop> {
         self.try_cast(prop_type).ok()
+    }
+
+    /// next numerically larger value of the same type, saturating (None if not numeric)
+    pub fn next_up(self) -> Option<Prop> {
+        match self {
+            Prop::U8(v) => Some(Prop::U8(v.saturating_add(1))),
+            Prop::U16(v) => Some(Prop::U16(v.saturating_add(1))),
+            Prop::I32(v) => Some(Prop::I32(v.saturating_add(1))),
+            Prop::I64(v) => Some(Prop::I64(v.saturating_add(1))),
+            Prop::U32(v) => Some(Prop::U32(v.saturating_add(1))),
+            Prop::U64(v) => Some(Prop::U64(v.saturating_add(1))),
+            Prop::F64(v) => Some(Prop::F64(v.next_up())),
+            Prop::F32(v) => Some(Prop::F32(v.next_up())),
+            Prop::Decimal(v) => {
+                let (v, scale) = v.into_bigint_and_scale();
+                Some(Prop::Decimal(BigDecimal::from_bigint(v + 1, scale)))
+            }
+            _ => None,
+        }
+    }
+
+    /// next numerically smaller value of the same type, saturating (None if not numeric)
+    pub fn next_down(self) -> Option<Prop> {
+        match self {
+            Prop::U8(v) => Some(Prop::U8(v.saturating_sub(1))),
+            Prop::U16(v) => Some(Prop::U16(v.saturating_sub(1))),
+            Prop::I32(v) => Some(Prop::I32(v.saturating_sub(1))),
+            Prop::I64(v) => Some(Prop::I64(v.saturating_sub(1))),
+            Prop::U32(v) => Some(Prop::U32(v.saturating_sub(1))),
+            Prop::U64(v) => Some(Prop::U64(v.saturating_sub(1))),
+            Prop::F64(v) => Some(Prop::F64(v.next_down())),
+            Prop::F32(v) => Some(Prop::F32(v.next_down())),
+            Prop::Decimal(v) => {
+                let (v, scale) = v.into_bigint_and_scale();
+                Some(Prop::Decimal(BigDecimal::from_bigint(v - 1, scale)))
+            }
+            _ => None,
+        }
     }
 
     /// cast prop to given type, converting numeric values only if no rounding takes place
@@ -714,7 +763,10 @@ impl Prop {
             }
         }
 
-        fn cast_float_exact<T: Float>(v: T, prop_type: &PropType) -> Option<Prop> {
+        fn cast_float_exact<T: Float>(v: T, prop_type: &PropType) -> Option<Prop>
+        where
+            BigDecimal: TryFrom<T>,
+        {
             if prop_type.is_int() {
                 if !v.fract().is_zero() {
                     return None;
@@ -765,7 +817,7 @@ impl Prop {
                         None
                     }
                 }
-                PropType::Decimal { .. } => Some(Prop::Decimal(v.into())),
+                PropType::Decimal { .. } => Some(Prop::Decimal(BigDecimal::try_from(v).ok()?)),
                 _ => None,
             }
         }
@@ -814,7 +866,7 @@ impl Prop {
                     let roundtrip = BigDecimal::from_f64(converted)?;
                     (v == roundtrip).then_some(Prop::F64(converted))
                 }
-                PropType::Decimal { .. } => Some(self),
+                PropType::Decimal { .. } => Some(Prop::Decimal(v)),
                 _ => None,
             },
             Prop::Bool(_) => matches!(prop_type, PropType::Bool).then_some(self),
@@ -826,6 +878,218 @@ impl Prop {
                 .then_some(self),
             Prop::NDTime(_) => matches!(prop_type, PropType::NDTime).then_some(self),
             Prop::DTime(_) => matches!(prop_type, PropType::DTime).then_some(self),
+        }
+    }
+
+    /// convert `Prop` into another type, numeric values that are larger than the maximum value for the target
+    /// type are clamped. Any rounding will always round up. Returns `Some(CastBound)` if the value
+    /// was cast successfully. If the value was smaller than the minimum target value or
+    /// not numeric, `None`.
+    pub fn cast_bound(self, prop_type: &PropType, round_up: bool) -> Option<CastBound> {
+        let max_value = prop_type.max_value()?; // maximum representable value for output type
+        if self.compare(&max_value)?.is_gt() {
+            // clamp to maximum value for output
+            return Some(CastBound::ClampedMax(max_value));
+        }
+        let min_value = prop_type.min_value()?;
+        if self.compare(&min_value)?.is_lt() {
+            return Some(CastBound::ClampedMin(min_value));
+        }
+        fn cast_int_bound<T: num_traits::PrimInt + FromPrimitive + Into<BigDecimal>>(
+            v: T,
+            prop_type: &PropType,
+            round_up: bool,
+        ) -> Option<CastBound> {
+            match prop_type {
+                PropType::U8 => Some(CastBound::Exact(Prop::U8(v.to_u8()?))),
+                PropType::U16 => Some(CastBound::Exact(Prop::U16(v.to_u16()?))),
+                PropType::I32 => Some(CastBound::Exact(Prop::I32(v.to_i32()?))),
+                PropType::I64 => Some(CastBound::Exact(Prop::I64(v.to_i64()?))),
+                PropType::U32 => Some(CastBound::Exact(Prop::U32(v.to_u32()?))),
+                PropType::U64 => Some(CastBound::Exact(Prop::U64(v.to_u64()?))),
+                PropType::F32 => {
+                    let converted = v.to_f32()?;
+                    let roundtrip = T::from_f32(converted)?;
+                    if roundtrip == v {
+                        Some(CastBound::Exact(Prop::F32(converted)))
+                    } else {
+                        if round_up {
+                            if roundtrip < v {
+                                Some(CastBound::Rounded(Prop::F32(converted.next_up())))
+                            } else {
+                                Some(CastBound::Rounded(Prop::F32(converted)))
+                            }
+                        } else {
+                            if roundtrip > v {
+                                Some(CastBound::Rounded(Prop::F32(converted.next_down())))
+                            } else {
+                                Some(CastBound::Rounded(Prop::F32(converted)))
+                            }
+                        }
+                    }
+                }
+                PropType::F64 => {
+                    let converted = v.to_f64()?;
+                    let roundtrip = T::from_f64(converted)?;
+                    if roundtrip == v {
+                        Some(CastBound::Exact(Prop::F64(converted)))
+                    } else {
+                        if round_up {
+                            if roundtrip < v {
+                                Some(CastBound::Rounded(Prop::F64(converted.next_up())))
+                            } else {
+                                Some(CastBound::Rounded(Prop::F64(converted)))
+                            }
+                        } else {
+                            if roundtrip > v {
+                                Some(CastBound::Rounded(Prop::F64(converted.next_down())))
+                            } else {
+                                Some(CastBound::Rounded(Prop::F64(converted)))
+                            }
+                        }
+                    }
+                }
+                PropType::Decimal { .. } => Some(CastBound::Exact(Prop::Decimal(v.into()))),
+                _ => None,
+            }
+        }
+
+        fn cast_float_bound<T: Float>(
+            v: T,
+            prop_type: &PropType,
+            round_up: bool,
+        ) -> Option<CastBound>
+        where
+            BigDecimal: TryFrom<T>,
+        {
+            let (roundtrip, value) = match prop_type {
+                PropType::U8 => {
+                    let int = v.to_u8()?;
+                    let roundtrip = T::from(int)?;
+                    (roundtrip, Prop::U8(int))
+                }
+                PropType::U16 => {
+                    let int = v.to_u16()?;
+                    let roundtrip = T::from(int)?;
+                    (roundtrip, Prop::U16(int))
+                }
+                PropType::I32 => {
+                    let int = v.to_i32()?;
+                    let roundtrip = T::from(int)?;
+                    (roundtrip, Prop::I32(int))
+                }
+                PropType::I64 => {
+                    let int = v.to_i64()?;
+                    let roundtrip = T::from(int)?;
+                    (roundtrip, Prop::I64(int))
+                }
+                PropType::U32 => {
+                    let int = v.to_u32()?;
+                    let roundtrip = T::from(int)?;
+                    (roundtrip, Prop::U32(int))
+                }
+                PropType::U64 => {
+                    let int = v.to_u64()?;
+                    let roundtrip = T::from(int)?;
+                    (roundtrip, Prop::U64(int))
+                }
+                PropType::F32 => {
+                    let converted = v.to_f32()?;
+                    let roundtrip = T::from(converted)?;
+                    (roundtrip, Prop::F32(converted))
+                }
+                PropType::F64 => {
+                    let converted = v.to_f64()?;
+                    let roundtrip = T::from(converted)?;
+                    (roundtrip, Prop::F64(converted))
+                }
+                PropType::Decimal { .. } => {
+                    let decimal = BigDecimal::try_from(v).ok()?;
+                    let roundtrip = T::from(decimal.clone())?;
+                    (roundtrip, Prop::Decimal(decimal))
+                }
+                _ => return None,
+            };
+            if round_up {
+                let cast = match v.partial_cmp(&roundtrip)? {
+                    Ordering::Less => CastBound::Rounded(value.next_up()?),
+                    Ordering::Equal => CastBound::Exact(value),
+                    Ordering::Greater => CastBound::Rounded(value),
+                };
+                Some(cast)
+            } else {
+                let cast = match v.partial_cmp(&roundtrip)? {
+                    Ordering::Less => CastBound::Rounded(value),
+                    Ordering::Equal => CastBound::Exact(value),
+                    Ordering::Greater => CastBound::Rounded(value.next_down()?),
+                };
+                Some(cast)
+            }
+        }
+
+        match self {
+            Prop::U8(v) => cast_int_bound(v, prop_type, round_up),
+            Prop::U16(v) => cast_int_bound(v, prop_type, round_up),
+            Prop::I32(v) => cast_int_bound(v, prop_type, round_up),
+            Prop::I64(v) => cast_int_bound(v, prop_type, round_up),
+            Prop::U32(v) => cast_int_bound(v, prop_type, round_up),
+            Prop::U64(v) => cast_int_bound(v, prop_type, round_up),
+            Prop::F64(v) => cast_float_bound(v, prop_type, round_up),
+            Prop::F32(v) => cast_float_bound(v, prop_type, round_up),
+            Prop::Decimal(v) => {
+                let (roundtrip, value) = match prop_type {
+                    PropType::U8 => {
+                        let value = v.to_u8()?;
+                        (BigDecimal::from_u8(value)?, Prop::U8(value))
+                    }
+                    PropType::U16 => {
+                        let value = v.to_u16()?;
+                        (BigDecimal::from_u16(value)?, Prop::U16(value))
+                    }
+                    PropType::I32 => {
+                        let value = v.to_i32()?;
+                        (BigDecimal::from_i32(value)?, Prop::I32(value))
+                    }
+                    PropType::I64 => {
+                        let value = v.to_i64()?;
+                        (BigDecimal::from_i64(value)?, Prop::I64(value))
+                    }
+                    PropType::U32 => {
+                        let value = v.to_u32()?;
+                        (BigDecimal::from_u32(value)?, Prop::U32(value))
+                    }
+                    PropType::U64 => {
+                        let value = v.to_u64()?;
+                        (BigDecimal::from_u64(value)?, Prop::U64(value))
+                    }
+                    PropType::F32 => {
+                        let value = v.to_f32()?;
+                        (BigDecimal::from_f32(value)?, Prop::F32(value))
+                    }
+                    PropType::F64 => {
+                        let value = v.to_f64()?;
+                        (BigDecimal::from_f64(value)?, Prop::F64(value))
+                    }
+                    PropType::Decimal { .. } => return Some(CastBound::Exact(Prop::Decimal(v))),
+                    _ => return None,
+                };
+                if round_up {
+                    let cast = match v.cmp(&roundtrip) {
+                        Ordering::Less => CastBound::Rounded(value.next_up()?),
+                        Ordering::Equal => CastBound::Exact(value),
+                        Ordering::Greater => CastBound::Rounded(value),
+                    };
+                    Some(cast)
+                } else {
+                    let cast = match v.cmp(&roundtrip) {
+                        Ordering::Less => CastBound::Rounded(value),
+                        Ordering::Equal => CastBound::Exact(value),
+                        Ordering::Greater => CastBound::Rounded(value.next_down()?),
+                    };
+                    Some(cast)
+                }
+            }
+            _ => None,
         }
     }
 
