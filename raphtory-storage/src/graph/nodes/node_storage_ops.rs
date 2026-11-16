@@ -80,6 +80,16 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
+        self.tprop_iter_layers_with_id(layer_ids, prop_id)
+            .map(|(_, prop)| prop)
+    }
+
+    /// [`tprop_iter_layers`](Self::tprop_iter_layers), with the id of each layer.
+    fn tprop_iter_layers_with_id(
+        self,
+        layer_ids: &LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (LayerId, storage::NodeTProps<'a>)> + Send + Sync + 'a {
         let layers = match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::once(STATIC_GRAPH_LAYER_ID)),
             LayerIds::All => LayerVariants::All((0..self.num_layers()).map(LayerId)),
@@ -99,7 +109,7 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
                 }
             }
         };
-        layers.map(move |id| self.temporal_prop_layer(id, prop_id))
+        layers.map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
     fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;

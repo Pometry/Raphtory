@@ -348,15 +348,15 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .kmerge_by(|(a, _), (b, _)| a >= b)
     }
 
-    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+    fn node_tprop_last_with_layer<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last())
-            .max_by_key(|(t, _)| *t)
+    ) -> Option<(EventTime, LayerId, Prop)> {
+        node.tprop_iter_layers_with_id(view.layer_ids(), prop_id)
+            .filter_map(|(layer_id, prop)| prop.last().map(|(t, prop)| (t, layer_id, prop)))
+            .max_by_key(|(t, _, _)| *t)
     }
 
     fn node_tprop_last_at<'graph, G: GraphViewOps<'graph>>(
@@ -592,16 +592,20 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
         window_iter_rev.chain(first)
     }
 
-    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+    fn node_tprop_last_with_layer_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<EventTime>,
-    ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last_before(w.end))
-            .max_by_key(|(t, _)| *t)
+    ) -> Option<(EventTime, LayerId, Prop)> {
+        // a value set before the window is seen at the start of the window
+        node.tprop_iter_layers_with_id(view.layer_ids(), prop_id)
+            .filter_map(|(layer_id, prop)| {
+                prop.last_before(w.end).map(|(t, prop)| (t, layer_id, prop))
+            })
+            .max_by_key(|(t, _, _)| *t)
+            .map(|(t, layer_id, prop)| (t.max(w.start), layer_id, prop))
     }
 
     fn node_tprop_last_at_window<'graph, G: GraphViewOps<'graph>>(

@@ -148,14 +148,14 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_tprop_iter_window_rev(node, view, prop_id, self.window.clone())
     }
 
-    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+    fn node_tprop_last_with_layer<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<(EventTime, Prop)> {
+    ) -> Option<(EventTime, LayerId, Prop)> {
         self.semantics
-            .node_tprop_last_window(node, view, prop_id, self.window.clone())
+            .node_tprop_last_with_layer_window(node, view, prop_id, self.window.clone())
     }
 
     #[inline]

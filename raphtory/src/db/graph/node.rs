@@ -30,6 +30,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::*,
 };
+use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
@@ -305,6 +306,29 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
+    }
+
+    /// The updates that set the latest value of a temporal property, like [`rows`](Self::rows)
+    /// but each with just the properties whose latest value it set, in time order.
+    pub fn latest_rows(&self) -> Vec<NodeUpdateRow> {
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        let mut latest = self
+            .graph
+            .node_visible_temporal_prop_ids()
+            .filter_map(|prop_id| {
+                let (t, layer_id, prop) =
+                    semantics.node_tprop_last_with_layer(node.as_ref(), &self.graph, prop_id)?;
+                Some(((t, layer_id), (prop_id, prop)))
+            })
+            .collect_vec();
+        latest.sort_unstable_by_key(|((t, layer_id), (prop_id, _))| (*t, *layer_id, *prop_id));
+        latest
+            .into_iter()
+            .chunk_by(|(row, _)| *row)
+            .into_iter()
+            .map(|((t, layer_id), props)| (t, layer_id, props.map(|(_, prop)| prop).collect()))
+            .collect()
     }
 
     pub fn rows_gs<'a>(&'a self, gs: &'a GraphStorage) -> BoxedLIter<'a, NodeUpdateRow>

@@ -197,15 +197,15 @@ impl NodeTimeSemanticsOps for MultiWindowTimeSemantics {
             .flat_map(move |w| semantics.node_tprop_iter_window_rev(node, view.clone(), prop_id, w))
     }
 
-    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+    fn node_tprop_last_with_layer<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<(EventTime, Prop)> {
+    ) -> Option<(EventTime, LayerId, Prop)> {
         self.windows.iter().rev().find_map(|w| {
             self.semantics
-                .node_tprop_last_window(node, view.clone(), prop_id, w.clone())
+                .node_tprop_last_with_layer_window(node, view.clone(), prop_id, w.clone())
         })
     }
 

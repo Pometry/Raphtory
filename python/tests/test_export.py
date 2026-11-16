@@ -1,4 +1,4 @@
-from raphtory import Graph
+from raphtory import Graph, PersistentGraph
 import pandas as pd
 import pyarrow as pa
 import json
@@ -1171,18 +1171,110 @@ def build_node_update_graph():
     return g
 
 
-def node_rows(df):
-    """The rows of a node update DataFrame without event ids, with empty cells as None, sorted by node and time."""
-    df = df.drop(columns="rap_secondary_index")
-    rows = [
+def cells(df):
+    """The rows of a DataFrame as tuples, with empty cells as None."""
+    return [
         tuple(None if pd.isna(v) else v for v in row)
         for row in df.itertuples(index=False)
     ]
-    return sorted(rows, key=lambda row: (row[0], row[2]))
+
+
+def node_rows(df):
+    """The rows of a node update DataFrame without event ids, sorted by node and time."""
+    return sorted(
+        cells(df.drop(columns="rap_secondary_index")), key=lambda row: (row[0], row[2])
+    )
 
 
 def test_nodes_to_df():
-    df = build_node_update_graph().nodes.to_df()
+    g = build_node_update_graph()
+    g.add_node(5, "a", properties={"x": 2})  # replaces a's x from time 1
+    g.add_edge(6, "a", "c")  # c only exists through an edge
+    df = g.nodes.to_df()
+    history = g.nodes.to_df(include_property_history=True)
+
+    assert list(df.columns) == list(history.columns)
+    # only the updates that hold a property's latest value, each with just those properties
+    assert node_rows(df) == [
+        ("a", "server", 2, None, None, "up"),
+        ("a", "server", 5, None, 2, None),
+        ("b", None, 4, "maintenance", 7, None),
+    ]
+    # each row is an update from the history, with the same time, event id and layer
+    update = ["rap_node_gid", "rap_time", "rap_secondary_index", "rap_layer"]
+    assert set(cells(df[update])) <= set(cells(history[update]))
+    # rows are grouped by node, in node order
+    with_rows = set(df["rap_node_gid"])
+    assert list(dict.fromkeys(df["rap_node_gid"])) == [
+        node for node in g.nodes.id if node in with_rows
+    ]
+    # the values are the latest values the properties API reports
+    for name in ["x", "y"]:
+        values = {
+            node: value
+            for node, value in zip(df["rap_node_gid"], df[name])
+            if not pd.isna(value)
+        }
+        latest = g.nodes.properties.temporal.get(name).value()
+        assert values == {
+            node: value for node, value in zip(g.nodes.id, latest) if value is not None
+        }
+    # an integer property keeps its type even though some rows leave it empty
+    assert str(df["x"].dtype) == "int64[pyarrow]"
+    df = g.nodes.to_df(convert_datetime=True)
+    assert str(df["rap_time"].dtype) == "timestamp[ms, tz=UTC][pyarrow]"
+
+
+def test_nodes_to_df_latest_follows_the_view():
+    df = build_node_update_graph().window(0, 4).nodes.to_df()
+
+    # b's update at time 4 is outside the window, and its update at time 3 sets no property
+    assert node_rows(df) == [
+        ("a", "server", 1, None, 1, None),
+        ("a", "server", 2, None, None, "up"),
+    ]
+
+
+def test_nodes_to_df_latest_follows_the_layers():
+    g = build_node_update_graph()
+    g.add_node(5, "b", properties={"x": 9}, layer="other")
+    view = g.layer("maintenance")
+    df = view.nodes.to_df()
+
+    # b's update on the "other" layer is outside the view
+    assert node_rows(df) == [
+        ("a", "server", 1, None, 1, None),
+        ("a", "server", 2, None, None, "up"),
+        ("b", None, 4, "maintenance", 7, None),
+    ]
+    values = {
+        node: value
+        for node, value in zip(df["rap_node_gid"], df["x"])
+        if not pd.isna(value)
+    }
+    assert values == dict(zip(view.nodes.id, view.nodes.properties.temporal.get("x").value()))
+
+
+def test_nodes_to_df_latest_persistent_window():
+    g = PersistentGraph()
+    g.add_node(1, "a", properties={"x": 1})
+    g.add_node(2, "a", properties={"y": "up"})
+    g.add_node(6, "a", properties={"x": 3})
+    view = g.window(4, 10)
+    df = view.nodes.to_df()
+
+    # y was set before the window, so it is seen at the start of the window
+    assert node_rows(df) == [
+        ("a", None, 4, None, None, "up"),
+        ("a", None, 6, None, 3, None),
+    ]
+    update = ["rap_node_gid", "rap_time", "rap_secondary_index", "rap_layer"]
+    history = view.nodes.to_df(include_property_history=True)
+    assert set(cells(df[update])) <= set(cells(history[update]))
+
+
+def test_nodes_to_df_history():
+    df = build_node_update_graph().nodes.to_df(include_property_history=True)
 
     assert list(df.columns) == [
         "rap_node_gid",
@@ -1205,8 +1297,10 @@ def test_nodes_to_df():
     assert str(df["x"].dtype) == "int64[pyarrow]"
 
 
-def test_nodes_to_df_convert_datetime():
-    df = build_node_update_graph().nodes.to_df(convert_datetime=True)
+def test_nodes_to_df_history_convert_datetime():
+    df = build_node_update_graph().nodes.to_df(
+        include_property_history=True, convert_datetime=True
+    )
 
     assert str(df["rap_time"].dtype) == "timestamp[ms, tz=UTC][pyarrow]"
     assert sorted(df["rap_time"]) == [
@@ -1214,22 +1308,23 @@ def test_nodes_to_df_convert_datetime():
     ]
 
 
-def test_nodes_to_arrow_convert_datetime():
-    table = build_node_update_graph().nodes.to_arrow(convert_datetime=True)
+def test_nodes_to_arrow_history_convert_datetime():
+    nodes = build_node_update_graph().nodes
+    table = nodes.to_arrow(include_property_history=True, convert_datetime=True)
 
     assert table.schema.field("rap_time").type == pa.timestamp("ms", tz="UTC")
     assert table.to_pandas(types_mapper=pd.ArrowDtype).equals(
-        build_node_update_graph().nodes.to_df(convert_datetime=True)
+        nodes.to_df(include_property_history=True, convert_datetime=True)
     )
 
 
-def test_nodes_to_df_follows_the_view():
+def test_nodes_to_df_history_follows_the_view():
     g = build_node_update_graph()
 
-    df = g.window(2, 4).nodes.to_df()
+    df = g.window(2, 4).nodes.to_df(include_property_history=True)
     assert sorted(zip(df["rap_node_gid"], df["rap_time"])) == [("a", 2), ("b", 3)]
 
-    df = g.nodes.type_filter(["server"]).to_df()
+    df = g.nodes.type_filter(["server"]).to_df(include_property_history=True)
     assert set(df["rap_node_gid"]) == {"a"}
 
 
@@ -1248,22 +1343,26 @@ def load_node_updates(data):
     return g
 
 
-def test_nodes_to_df_round_trip():
-    df = build_node_update_graph().nodes.to_df()
+def test_nodes_to_df_history_round_trip():
+    df = build_node_update_graph().nodes.to_df(include_property_history=True)
 
-    assert node_rows(load_node_updates(df).nodes.to_df()) == node_rows(df)
+    history = load_node_updates(df).nodes.to_df(include_property_history=True)
+    assert node_rows(history) == node_rows(df)
 
 
 def test_nodes_to_arrow():
-    g = build_node_update_graph()
-    table = g.nodes.to_arrow()
+    nodes = build_node_update_graph().nodes
 
-    assert isinstance(table, pa.Table)
-    assert table.schema.names == list(g.nodes.to_df().columns)
+    for include_property_history in [False, True]:
+        table = nodes.to_arrow(include_property_history=include_property_history)
+        assert isinstance(table, pa.Table)
+        assert table.to_pandas(types_mapper=pd.ArrowDtype).equals(
+            nodes.to_df(include_property_history=include_property_history)
+        )
+
+    table = nodes.to_arrow(include_property_history=True)
     assert table.schema.field("rap_time").type == pa.int64()
     assert table.schema.field("x").type == pa.int64()
-    assert table.to_pandas(types_mapper=pd.ArrowDtype).equals(g.nodes.to_df())
     # the table loads back into a graph without going through pandas
-    assert node_rows(load_node_updates(table).nodes.to_df()) == node_rows(
-        g.nodes.to_df()
-    )
+    history = load_node_updates(table).nodes.to_df(include_property_history=True)
+    assert node_rows(history) == node_rows(nodes.to_df(include_property_history=True))

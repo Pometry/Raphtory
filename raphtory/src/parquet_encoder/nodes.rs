@@ -27,18 +27,14 @@ use raphtory_core::entities::VID;
 use raphtory_storage::graph::nodes::nodes_ref::NodesStorageEntry;
 use rayon::prelude::*;
 
-/// Splits `node_list` into chunks of node ids for parallel encoding. Chunk ids follow the order of
-/// the list, so output gathered per chunk can be put back in order.
-///
-/// A node is kept when `keep` returns true. `keep` is skipped for lists already known to hold only
-/// kept nodes: `all_trusted` covers a list of every node, `list_trusted` an explicit list.
-pub(crate) fn get_node_ids_par_iter<'a>(
+pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
+    g: &'a G,
     node_list: &'a List<VID>,
-    nodes_locked: &'a NodesStorageEntry,
-    all_trusted: bool,
     list_trusted: bool,
-    keep: impl Fn(VID) -> bool + Send + Sync + Copy + 'a,
-) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = VID> + 'a)> {
+    nodes_locked: &'a NodesStorageEntry,
+) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = NodeView<'a, &'a G>> + 'a)> {
+    let filtered = g.filtered();
+
     match node_list {
         // TODO: use the node type index instead of scanning every row group
         List::All
@@ -51,7 +47,14 @@ pub(crate) fn get_node_ids_par_iter<'a>(
                 .map(move |(chunk, vids)| {
                     (
                         chunk,
-                        Either::Left(vids.filter(move |&vid| all_trusted || keep(vid))),
+                        Either::Left(vids.filter_map(move |vid| {
+                            let node = g.core_node(vid);
+                            if !filtered || g.filter_node(node.as_ref()) {
+                                Some(NodeView::new_internal(g, vid))
+                            } else {
+                                None
+                            }
+                        })),
                     )
                 }),
         ),
@@ -68,28 +71,19 @@ pub(crate) fn get_node_ids_par_iter<'a>(
                 .map(move |(c_id, chunk)| {
                     (
                         c_id,
-                        Either::Right(
-                            chunk
-                                .into_iter()
-                                .copied()
-                                .filter(move |&vid| list_trusted || keep(vid)),
-                        ),
+                        Either::Right(chunk.into_iter().filter_map(move |vid| {
+                            let node = g.core_node(*vid);
+                            if list_trusted || g.filter_node(node.as_ref()) {
+                                Some(NodeView::new_internal(g, *vid))
+                            } else {
+                                None
+                            }
+                        })),
                     )
                 });
             Either::Right(iter)
         }
     }
-}
-
-pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
-    g: &'a G,
-    node_list: &'a List<VID>,
-    list_trusted: bool,
-    nodes_locked: &'a NodesStorageEntry,
-) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = NodeView<'a, &'a G>> + 'a)> {
-    let keep = move |vid| g.filter_node(g.core_node(vid).as_ref());
-    get_node_ids_par_iter(node_list, nodes_locked, !g.filtered(), list_trusted, keep)
-        .map(move |(chunk, vids)| (chunk, vids.map(move |vid| NodeView::new_internal(g, vid))))
 }
 
 /// The columns every node update row starts with; one column per temporal property follows.
@@ -124,14 +118,17 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
     encode_node_rows(
         g,
         get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
+        false,
         sink_factory_fn,
     )
 }
 
-/// Encodes one row per update of the given nodes, as seen through `g`.
+/// Encodes one row per update of the given nodes, as seen through `g`. With `latest_only`, only the
+/// updates that hold the latest value of a property are encoded, each with just those properties.
 pub(crate) fn encode_node_rows<'a, G, I, S>(
     g: &'a G,
     nodes: impl ParallelIterator<Item = (usize, I)>,
+    latest_only: bool,
     sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError>
 where
@@ -152,20 +149,24 @@ where
             for node_rows in nodes
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
-                        node.rows()
-                            .map(|(t, layer_id, props)| ParquetTNode {
-                                export_id: node.id(),
-                                export_vid: node.node.0,
-                                export_node_type: node.node_type(),
-                                // null for STATIC_GRAPH_LAYER
-                                export_layer: (layer_id != STATIC_GRAPH_LAYER_ID)
-                                    .then(|| layer_meta.get_name(layer_id.0)),
-                                export_layer_id: layer_id.0,
-                                cols,
-                                t,
-                                props,
-                            })
-                            .into_dyn_boxed()
+                        let rows = if latest_only {
+                            node.latest_rows().into_iter().into_dyn_boxed()
+                        } else {
+                            node.rows()
+                        };
+                        rows.map(|(t, layer_id, props)| ParquetTNode {
+                            export_id: node.id(),
+                            export_vid: node.node.0,
+                            export_node_type: node.node_type(),
+                            // null for STATIC_GRAPH_LAYER
+                            export_layer: (layer_id != STATIC_GRAPH_LAYER_ID)
+                                .then(|| layer_meta.get_name(layer_id.0)),
+                            export_layer_id: layer_id.0,
+                            cols,
+                            t,
+                            props,
+                        })
+                        .into_dyn_boxed()
                     })
                 })
                 .chunks(ROW_GROUP_SIZE)

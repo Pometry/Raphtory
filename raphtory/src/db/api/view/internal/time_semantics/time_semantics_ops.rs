@@ -87,7 +87,19 @@ pub trait NodeTimeSemanticsOps {
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<(EventTime, Prop)>;
+    ) -> Option<(EventTime, Prop)> {
+        self.node_tprop_last_with_layer(node, view, prop_id)
+            .map(|(t, _, prop)| (t, prop))
+    }
+
+    /// [`node_tprop_last`](Self::node_tprop_last), with the layer of the update that set the
+    /// value.
+    fn node_tprop_last_with_layer<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, LayerId, Prop)>;
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
@@ -192,13 +204,13 @@ pub trait NodeTimeSemanticsWindowOps {
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
 
-    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+    fn node_tprop_last_with_layer_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<EventTime>,
-    ) -> Option<(EventTime, Prop)>;
+    ) -> Option<(EventTime, LayerId, Prop)>;
 
     fn node_tprop_last_at_window<'graph, G: GraphView + 'graph>(
         &self,

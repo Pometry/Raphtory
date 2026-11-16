@@ -156,13 +156,13 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         for_all_iter!(self, semantics => semantics.node_edge_history_rev(node, view, layer_ids))
     }
 
-    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+    fn node_tprop_last_with_layer<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<(EventTime, Prop)> {
-        for_all!(self, semantics => semantics.node_tprop_last(node, view, prop_id))
+    ) -> Option<(EventTime, LayerId, Prop)> {
+        for_all!(self, semantics => semantics.node_tprop_last_with_layer(node, view, prop_id))
     }
 }
 
