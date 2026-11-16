@@ -148,7 +148,10 @@ impl QueryRoot {
         else {
             return Ok(None);
         };
-        Ok(Some(GqlGraph::new(folder, graph)))
+        let plugin_data = data.plugin_data(path).await?;
+        Ok(Some(
+            GqlGraph::new(folder, graph).with_plugin_data(plugin_data),
+        ))
     }
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
