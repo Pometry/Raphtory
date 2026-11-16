@@ -1,5 +1,5 @@
 use crate::{api::node_type_index::NodeTypeIndexOps, segments::node_type_index::MemNodeTypeIndex};
-use raphtory_api::ArcRwLockWriteGuard;
+use raphtory_api::{ArcRwLockWriteGuard, core::entities::VID};
 
 pub struct NodeTypeIndexWriter<NTI: NodeTypeIndexOps> {
     head: ArcRwLockWriteGuard<MemNodeTypeIndex>,
@@ -15,5 +15,9 @@ impl<NTI: NodeTypeIndexOps> NodeTypeIndexWriter<NTI> {
             index,
             initial_est_size,
         }
+    }
+
+    pub fn insert(&mut self, type_id: usize, vid: VID) {
+        self.head.insert(type_id, vid);
     }
 }

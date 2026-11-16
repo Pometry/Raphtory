@@ -19,8 +19,8 @@ use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct EdgeWriter<'a, MP: DerefMut<Target = MemEdgeSegment> + 'a, ES: EdgeSegmentOps> {
-    pub segment: &'a ES,
     pub writer: MP,
+    pub segment: &'a ES,
     pub graph_stats: &'a GraphStats,
     initial_est_size: usize,
 }

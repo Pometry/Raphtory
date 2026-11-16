@@ -27,7 +27,7 @@ use raphtory_api::{
 use raphtory_core::{
     entities::{
         nodes::node_ref::{AsNodeRef, NodeRef},
-        GidRef, EID, ELID, VID,
+        GidRef, EID, ELID, GID, VID,
     },
     storage::timeindex::{AsTime, EventTime},
 };
@@ -322,11 +322,17 @@ impl<'a> AtomicAddNode<'a> {
             .unwrap_or(DEFAULT_NODE_TYPE_ID)
     }
 
+    pub fn store_node_id(&mut self, gid: GID) {
+        self.writer.store_node_id(self.local_pos(), gid);
+    }
+
     pub fn set_type(&mut self, node_type: usize) {
         let pos = self.local_pos();
-
         self.writer.store_node_type(pos, node_type);
-        self.type_index.insert(node_type, self.vid.inner());
+
+        if node_type != DEFAULT_NODE_TYPE_ID {
+            self.type_index.insert(node_type, self.vid.inner());
+        }
     }
 
     pub fn node(&self) -> MaybeNew<VID> {
@@ -699,32 +705,35 @@ impl GraphMutationOps for TemporalGraph {
             NodeRef::External(gid) => match self.gid_resolver.get_or_init(gid)? {
                 MaybeInit::VID(vid) => vid,
                 MaybeInit::Init(init) => {
-                    let (pos, mut writer) =
+                    // This is a new node, reserve a pos and fill in node data.
+                    let (pos, node_writer) =
                         self.storage().nodes().reserve_and_lock_segment(1, None);
-
                     let type_index = self.storage().node_type_index().head_shared_arc();
+                    let vid = pos.as_vid(
+                        node_writer.segment.segment_id(),
+                        node_writer.writer.max_page_len(),
+                    );
 
-                    match node_type {
-                        Some(node_type) => {
-                            let node_type = self
-                                .node_meta()
-                                .get_or_create_node_type_id(node_type)
-                                .inner();
-                            writer.store_node_id_and_node_type(pos, Some(gid), node_type);
-                        }
-                        None => {
-                            writer.store_node_id(pos, gid.to_owned());
-                        }
-                    }
-
-                    let vid = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                     init.init(vid)?;
 
-                    return Ok(AtomicAddNode {
+                    let mut atomic = AtomicAddNode {
                         vid: MaybeNew::New(vid),
-                        writer,
+                        writer: node_writer,
                         type_index,
-                    });
+                    };
+
+                    atomic.store_node_id(gid.to_owned());
+
+                    if let Some(node_type) = node_type {
+                        let node_type_id = self
+                            .node_meta()
+                            .get_or_create_node_type_id(node_type)
+                            .inner();
+
+                        atomic.set_type(node_type_id);
+                    }
+
+                    return Ok(atomic);
                 }
             },
         };
@@ -739,7 +748,7 @@ impl GraphMutationOps for TemporalGraph {
             type_index,
         };
 
-        // The node already exists, check or set the given node type.
+        // The node already exists, set or validate the given node type.
         if let Some(node_type) = node_type {
             if writer.can_set_type() {
                 let node_type_id = self

@@ -27,8 +27,8 @@ use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> {
-    pub segment: &'a NS,
     pub writer: MP,
+    pub segment: &'a NS,
     pub graph_stats: &'a GraphStats,
     initial_est_size: usize,
 }
