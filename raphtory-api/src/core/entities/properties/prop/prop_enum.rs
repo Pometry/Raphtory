@@ -22,7 +22,7 @@ use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use num_traits::{Bounded, Float, FromPrimitive, ToPrimitive, Zero};
+use num_traits::{Bounded, Float, FromPrimitive, NumCast, PrimInt, ToPrimitive, Zero};
 use ordered_float::OrderedFloat;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
@@ -1427,25 +1427,54 @@ impl Prop {
     /// compares via `f64`. Non-numeric variants fall back to the same-type ordering ([`PartialOrd`]);
     /// incomparable pairs return `None`.
     pub fn compare(&self, other: &Prop) -> Option<Ordering> {
-        // A `Decimal` on either side: compare exactly in `Decimal` rather than losing precision
-        // through `f64`.
-        if matches!(self, Prop::Decimal(_)) || matches!(other, Prop::Decimal(_)) {
-            if let (Some(a), Some(b)) = (
-                self.clone().into_big_decimal().ok(),
-                other.clone().into_big_decimal().ok(),
-            ) {
+        self.partial_cmp(other).or_else(|| {
+            // A `Decimal` on either side: compare exactly in `Decimal` rather than losing precision
+            // through `f64`.
+            if matches!(self, Prop::Decimal(_)) || matches!(other, Prop::Decimal(_)) {
+                if let (Some(a), Some(b)) = (
+                    self.clone().into_big_decimal().ok(),
+                    other.clone().into_big_decimal().ok(),
+                ) {
+                    return a.partial_cmp(&b);
+                }
+            }
+            if let (Some(a), Some(b)) = (self.as_i128(), other.as_i128()) {
                 return a.partial_cmp(&b);
             }
-        }
 
-        if let (Some(a), Some(b)) = (self.as_i128(), other.as_i128()) {
-            return a.partial_cmp(&b);
-        }
+            if let (Some((a, a_error)), Some((b, b_error))) =
+                (self.as_f64_and_error(), other.as_f64_and_error())
+            {
+                // at most one error can actually be non-trivial, otherwise it would have been handled by another case
+                let cmp = a.partial_cmp(&b)?;
+                return Some(cmp.then(b_error).then(a_error.reverse()));
+            }
+            None
+        })
+    }
 
-        if let (Some(a), Some(b)) = (self.as_f64(), other.as_f64()) {
-            return a.partial_cmp(&b);
+    /// convert to float and return roundtrip error direction
+    fn as_f64_and_error(&self) -> Option<(f64, Ordering)> {
+        fn small_int<T: PrimInt>(v: &T) -> Option<(f64, Ordering)> {
+            Some((v.to_f64()?, Ordering::Equal))
         }
-        self.partial_cmp(other)
+        fn with_error<T: FromPrimitive + ToPrimitive + Ord>(v: &T) -> Option<(f64, Ordering)> {
+            let f = v.to_f64()?;
+            let r = T::from_f64(f)?;
+            Some((f, r.cmp(v)))
+        }
+        match self {
+            Prop::U8(v) => small_int(v),
+            Prop::U16(v) => small_int(v),
+            Prop::I32(v) => small_int(v),
+            Prop::I64(v) => with_error(v),
+            Prop::U32(v) => small_int(v),
+            Prop::U64(v) => with_error(v),
+            Prop::F64(v) => Some((*v, Ordering::Equal)),
+            Prop::F32(v) => Some((*v as f64, Ordering::Equal)),
+            Prop::Decimal(v) => with_error(v),
+            _ => None,
+        }
     }
 
     /// True if two props are equal. Every numeric variant is widened (`1i64 == 1.0f64 ==
