@@ -1012,16 +1012,16 @@ impl Prop {
             };
             if round_up {
                 let cast = match v.partial_cmp(&roundtrip)? {
-                    Ordering::Less => CastBound::Rounded(value.next_up()?),
+                    Ordering::Less => CastBound::Rounded(value),
                     Ordering::Equal => CastBound::Exact(value),
-                    Ordering::Greater => CastBound::Rounded(value),
+                    Ordering::Greater => CastBound::Rounded(value.next_up()?),
                 };
                 Some(cast)
             } else {
                 let cast = match v.partial_cmp(&roundtrip)? {
-                    Ordering::Less => CastBound::Rounded(value),
+                    Ordering::Less => CastBound::Rounded(value.next_down()?),
                     Ordering::Equal => CastBound::Exact(value),
-                    Ordering::Greater => CastBound::Rounded(value.next_down()?),
+                    Ordering::Greater => CastBound::Rounded(value),
                 };
                 Some(cast)
             }
@@ -1075,16 +1075,16 @@ impl Prop {
                 };
                 if round_up {
                     let cast = match v.cmp(&roundtrip) {
-                        Ordering::Less => CastBound::Rounded(value.next_up()?),
+                        Ordering::Less => CastBound::Rounded(value),
                         Ordering::Equal => CastBound::Exact(value),
-                        Ordering::Greater => CastBound::Rounded(value),
+                        Ordering::Greater => CastBound::Rounded(value.next_up()?),
                     };
                     Some(cast)
                 } else {
                     let cast = match v.cmp(&roundtrip) {
-                        Ordering::Less => CastBound::Rounded(value),
+                        Ordering::Less => CastBound::Rounded(value.next_down()?),
                         Ordering::Equal => CastBound::Exact(value),
-                        Ordering::Greater => CastBound::Rounded(value.next_down()?),
+                        Ordering::Greater => CastBound::Rounded(value),
                     };
                     Some(cast)
                 }
@@ -1460,8 +1460,18 @@ impl Prop {
         }
         fn with_error<T: FromPrimitive + ToPrimitive + Ord>(v: &T) -> Option<(f64, Ordering)> {
             let f = v.to_f64()?;
-            let r = T::from_f64(f)?;
-            Some((f, r.cmp(v)))
+            match T::from_f64(f) {
+                Some(r) => Some((f, r.cmp(v))),
+                None => {
+                    // out of range for type we started with due to rounding
+                    if f < 0.0 {
+                        // negative, round trip would be smaller than minimum value for type
+                        Some((f, Ordering::Less))
+                    } else {
+                        Some((f, Ordering::Greater))
+                    }
+                }
+            }
         }
         match self {
             Prop::U8(v) => small_int(v),
