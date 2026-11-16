@@ -22,18 +22,18 @@ pub struct EdgeWriter<'a, MP: DerefMut<Target = MemEdgeSegment> + 'a, ES: EdgeSe
     pub segment: &'a ES,
     pub writer: MP,
     pub graph_stats: &'a GraphStats,
-    old_est_size: usize,
+    initial_est_size: usize,
 }
 
 impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'a, MP, ES> {
     pub fn new(segment: &'a ES, writer: MP, graph_stats: &'a GraphStats) -> Self {
-        let old_est_size = writer.est_size();
+        let initial_est_size = writer.est_size();
 
         Self {
             segment,
             writer,
             graph_stats,
-            old_est_size,
+            initial_est_size,
         }
     }
 
@@ -242,10 +242,16 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> Drop
     for EdgeWriter<'a, MP, ES>
 {
     fn drop(&mut self) {
-        let delta = self.writer.est_size() - self.old_est_size;
+        let delta = self.writer.est_size() - self.initial_est_size;
         self.writer.increment_global_memory(delta);
-        if let Err(err) = self.segment.notify_write(self.writer.deref_mut()) {
-            drop_error!("Failed to persist {}, err: {}", self.segment_id(), err)
+        let head_mut = self.writer.deref_mut();
+
+        if let Err(err) = self.segment.notify_write(head_mut) {
+            drop_error!(
+                "Failed to persist edge segment {}, err: {}",
+                self.segment_id(),
+                err
+            )
         }
     }
 }

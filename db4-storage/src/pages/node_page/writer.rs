@@ -6,6 +6,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
     wal::LSN,
 };
+use drop_logging::drop_error;
 use raphtory_api::{
     ArcRwLockWriteGuard,
     core::entities::{
@@ -29,18 +30,18 @@ pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSe
     pub segment: &'a NS,
     pub writer: MP,
     pub graph_stats: &'a GraphStats,
-    old_est_size: usize,
+    initial_est_size: usize,
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
     pub fn new(segment: &'a NS, writer: MP, graph_stats: &'a GraphStats) -> Self {
-        let old_est_size = writer.est_size();
+        let initial_est_size = writer.est_size();
 
         Self {
             segment,
             writer,
             graph_stats,
-            old_est_size,
+            initial_est_size,
         }
     }
 
@@ -175,6 +176,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.writer
             .get_metadata(pos, layer_id, prop_id)
             .or_else(|| self.segment.get_metadata_immut(pos, layer_id, prop_id))
+    }
+
+    pub fn segment_id(&self) -> usize {
+        self.segment.segment_id()
     }
 
     pub fn check_metadata<P: AsPropEntry>(
@@ -318,12 +323,17 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     for NodeWriter<'a, MP, NS>
 {
     fn drop(&mut self) {
-        self.writer
-            .increment_global_est_size(self.writer.est_size() - self.old_est_size);
+        let delta = self.writer.est_size() - self.initial_est_size;
+        self.writer.increment_global_est_size(delta);
+        let head_mut = self.writer.deref_mut();
 
-        self.segment
-            .notify_write(self.writer.deref_mut())
-            .expect("Failed to persist node page");
+        if let Err(err) = self.segment.notify_write(head_mut) {
+            drop_error!(
+                "Failed to persist node segment {}, err: {}",
+                self.segment_id(),
+                err
+            )
+        }
     }
 }
 /// Holds writers for src and dst node segments when adding an edge.
