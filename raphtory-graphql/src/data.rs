@@ -6,7 +6,7 @@ use crate::{
     auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
     cache::GraphCache,
     config::{app_config::AppConfig, cache_config::CacheConfig},
-    graph::GraphWithVectors,
+    graph::{GraphWithVectors, PluginData},
     model::{
         blocking_io,
         graph::{
@@ -409,6 +409,11 @@ impl Data {
         self.cache
             .get_or_insert(path, self.read_graph_from_disk(path))
             .await
+    }
+
+    /// The plugin data of the served graph at `path`.
+    pub async fn plugin_data(&self, path: &str) -> Result<PluginData, GQLError> {
+        Ok(self.get_graph_unchecked(path).await?.plugin_data().clone())
     }
 
     /// Whether `filter` can be applied to the graph at `path`. Policies use it to

@@ -26,10 +26,12 @@ use raphtory_storage::{
     mutation::InheritMutationOps,
 };
 use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
     future::poll_fn,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     task::Poll,
 };
@@ -61,6 +63,26 @@ pub struct GraphWithVectorsInner {
     pub folder: UnlockedGraphFolder,
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
+    pub plugin_data: PluginData,
+}
+
+/// Values server plugins keep for one served graph, one per type, dropped when the server drops
+/// the graph.
+#[derive(Clone, Default)]
+pub struct PluginData(Arc<Mutex<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>>);
+
+impl PluginData {
+    /// The value of type `T`, made by `init` on first use.
+    pub fn get_or_init<T: Any + Send + Sync>(&self, init: impl FnOnce() -> T) -> Arc<T> {
+        let mut values = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let value = values
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Arc::new(init()));
+        value.clone().downcast().expect("keyed by its type")
+    }
 }
 
 impl GraphWithVectors {
@@ -75,8 +97,13 @@ impl GraphWithVectors {
             folder: folder.unlock(),
             is_dirty: AtomicBool::new(false),
             is_flushing: AtomicBool::new(false),
+            plugin_data: PluginData::default(),
         });
         Self { inner }
+    }
+
+    pub fn plugin_data(&self) -> &PluginData {
+        &self.inner.plugin_data
     }
 
     /// Calls `Arc::into_inner` on the underlying Arc until we hold the only reference and returns it
@@ -288,5 +315,20 @@ impl UpdateEmbeddings for EdgeView<GraphWithVectors> {
         self.graph
             .update_edge_embeddings(vec![(self.src().node, self.dst().node)])
             .await
+    }
+}
+
+#[cfg(test)]
+mod plugin_data_tests {
+    use super::PluginData;
+    use std::sync::Arc;
+
+    #[test]
+    fn plugin_data_keeps_one_value_per_type() {
+        let data = PluginData::default();
+        let first = data.get_or_init(|| 1u32);
+        assert!(Arc::ptr_eq(&first, &data.get_or_init(|| 2u32)));
+        assert_eq!(*data.clone().get_or_init(|| 3u32), 1);
+        assert_eq!(*data.get_or_init(|| "other type"), "other type");
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     data::Data,
-    graph::GraphWithVectors,
+    graph::{GraphWithVectors, PluginData},
     model::{
         algorithms::GqlAlgorithms,
         graph::{
@@ -50,11 +50,13 @@ use std::{collections::HashSet, convert::Into};
 pub struct GqlGraph {
     path: UnlockedGraphFolder,
     pub(crate) graph: DynamicGraph,
+    plugin_data: PluginData,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
     fn from(value: GraphWithVectors) -> Self {
         GqlGraph::new(value.folder().clone(), value.graph().clone())
+            .with_plugin_data(value.plugin_data().clone())
     }
 }
 
@@ -63,7 +65,26 @@ impl GqlGraph {
         Self {
             path,
             graph: graph.into_dynamic(),
+            plugin_data: PluginData::default(),
         }
+    }
+
+    /// This view with the plugin data of the served graph it was made from.
+    pub fn with_plugin_data(self, plugin_data: PluginData) -> Self {
+        Self {
+            plugin_data,
+            ..self
+        }
+    }
+
+    /// The view this object resolves against, for schema extensions that read it directly.
+    pub fn graph(&self) -> &DynamicGraph {
+        &self.graph
+    }
+
+    /// The served graph's plugin data; views derived from it share it.
+    pub fn plugin_data(&self) -> &PluginData {
+        &self.plugin_data
     }
 
     fn apply<F, G>(&self, graph_operation: F) -> Self
@@ -74,6 +95,7 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
+            plugin_data: self.plugin_data.clone(),
         }
     }
 }

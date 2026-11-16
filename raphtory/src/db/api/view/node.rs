@@ -125,6 +125,41 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// The out-degree of this node.
     fn out_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>>;
 
+    /// Get bounds on the degree of this node, computing it exactly only when that is cheap.
+    ///
+    /// The degree is counted exactly when that walks at most `threshold` adjacency entries;
+    /// otherwise the bounds are read from the adjacency sizes alone, ignoring any window or
+    /// filter, so in a windowed or filtered view the lower bound drops to 0.
+    ///
+    /// Returns:
+    ///
+    /// Bounds on the degree of this node, with `lower == upper` when it is exact.
+    fn degree_bounds(&self, threshold: usize) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>>;
+
+    /// Get bounds on the in-degree of this node, computing it exactly only when that is cheap.
+    ///
+    /// See [`NodeViewOps::degree_bounds`].
+    ///
+    /// Returns:
+    ///
+    /// Bounds on the in-degree of this node, with `lower == upper` when it is exact.
+    fn in_degree_bounds(
+        &self,
+        threshold: usize,
+    ) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>>;
+
+    /// Get bounds on the out-degree of this node, computing it exactly only when that is cheap.
+    ///
+    /// See [`NodeViewOps::degree_bounds`].
+    ///
+    /// Returns:
+    ///
+    /// Bounds on the out-degree of this node, with `lower == upper` when it is exact.
+    fn out_degree_bounds(
+        &self,
+        threshold: usize,
+    ) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>>;
+
     /// Get the edges that are incident to this node.
     ///
     /// Returns:
@@ -270,6 +305,42 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         let op = ops::Degree {
             view: self.graph().clone(),
             dir: Direction::OUT,
+        };
+        self.map(op)
+    }
+
+    #[inline]
+    fn degree_bounds(&self, threshold: usize) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>> {
+        let op = ops::DegreeBoundsOp {
+            view: self.graph().clone(),
+            dir: Direction::BOTH,
+            threshold,
+        };
+        self.map(op)
+    }
+
+    #[inline]
+    fn in_degree_bounds(
+        &self,
+        threshold: usize,
+    ) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>> {
+        let op = ops::DegreeBoundsOp {
+            view: self.graph().clone(),
+            dir: Direction::IN,
+            threshold,
+        };
+        self.map(op)
+    }
+
+    #[inline]
+    fn out_degree_bounds(
+        &self,
+        threshold: usize,
+    ) -> Self::ValueType<ops::DegreeBoundsOp<Self::Graph>> {
+        let op = ops::DegreeBoundsOp {
+            view: self.graph().clone(),
+            dir: Direction::OUT,
+            threshold,
         };
         self.map(op)
     }
