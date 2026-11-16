@@ -234,7 +234,8 @@ fn indexed_column(
     let (mut value, mut members) = (None, None);
     let predicate = match *predicate {
         NodePropPredicate::Eq(v) => {
-            match v.clone().cast_exact(&dtype) {
+            let cast_dtype = dtype.at_same_list_depth(&v.dtype())?;
+            match v.clone().cast_exact(cast_dtype) {
                 Some(v) => NodePropPredicate::Eq(value.insert(v)),
                 None => {
                     return Some(NodeList::empty()); // no exact conversion, nothing can be equal to this value
@@ -244,7 +245,8 @@ fn indexed_column(
         // upper bounds round up and lower bounds down; an inexact `<=` is `<`
         // and an inexact `>=` is `>`
         NodePropPredicate::Lt(v) => {
-            let bound = v.clone().cast_bound(&dtype, true)?;
+            let cast_dtype = dtype.at_same_list_depth(&v.dtype())?;
+            let bound = v.clone().cast_bound(cast_dtype, true)?;
             match bound {
                 CastBound::Exact(bound) | CastBound::Rounded(bound) => {
                     NodePropPredicate::Lt(value.insert(bound))
@@ -257,7 +259,8 @@ fn indexed_column(
             }
         }
         NodePropPredicate::Le(v) => {
-            let bound = v.clone().cast_bound(&dtype, true)?;
+            let cast_dtype = dtype.at_same_list_depth(&v.dtype())?;
+            let bound = v.clone().cast_bound(cast_dtype, true)?;
             match bound {
                 CastBound::Exact(bound) | CastBound::ClampedMax(bound) => {
                     NodePropPredicate::Le(value.insert(bound))
@@ -270,7 +273,8 @@ fn indexed_column(
             }
         }
         NodePropPredicate::Gt(v) => {
-            let bound = v.clone().cast_bound(&dtype, false)?;
+            let cast_dtype = dtype.at_same_list_depth(&v.dtype())?;
+            let bound = v.clone().cast_bound(cast_dtype, false)?;
             match bound {
                 CastBound::Exact(bound) | CastBound::Rounded(bound) => {
                     NodePropPredicate::Gt(value.insert(bound))
@@ -283,7 +287,8 @@ fn indexed_column(
             }
         }
         NodePropPredicate::Ge(v) => {
-            let bound = v.clone().cast_bound(&dtype, false)?;
+            let cast_dtype = dtype.at_same_list_depth(&v.dtype())?;
+            let bound = v.clone().cast_bound(cast_dtype, false)?;
             match bound {
                 CastBound::Exact(bound) | CastBound::ClampedMin(bound) => {
                     NodePropPredicate::Ge(value.insert(bound))
@@ -299,7 +304,10 @@ fn indexed_column(
         NodePropPredicate::In(set) => NodePropPredicate::In(
             members.insert(
                 set.iter()
-                    .filter_map(|v| v.0.clone().cast_exact(&dtype).map(HashableProp))
+                    .filter_map(|v| {
+                        let cast_dtype = dtype.at_same_list_depth(&v.dtype())?;
+                        v.0.clone().cast_exact(cast_dtype).map(HashableProp)
+                    })
                     .collect::<HashSet<_>>(),
             ),
         ),

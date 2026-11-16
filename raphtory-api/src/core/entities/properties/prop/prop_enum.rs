@@ -22,7 +22,7 @@ use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use num_traits::{Bounded, Float, FromPrimitive, NumCast, PrimInt, ToPrimitive, Zero};
+use num_traits::{Bounded, Float, FromPrimitive, PrimInt, ToPrimitive, Zero};
 use ordered_float::OrderedFloat;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{

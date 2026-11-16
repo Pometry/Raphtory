@@ -162,6 +162,16 @@ impl PropType {
         }
     }
 
+    pub fn inner_and_depth(&self) -> (&PropType, usize) {
+        let mut depth = 0;
+        let mut inner = self;
+        while let Some(next) = inner.inner() {
+            inner = next;
+            depth += 1;
+        }
+        (inner, depth)
+    }
+
     pub fn map(fields: impl IntoIterator<Item = (impl Into<String>, PropType)>) -> Self {
         let map: HashMap<_, _> = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
         PropType::Map(Arc::from(map))
@@ -185,6 +195,22 @@ impl PropType {
                 *scale,
             ))),
             _ => None,
+        }
+    }
+
+    /// Remove `List` from self until it has the same level of nested lists as `other`.
+    /// Returns `None` if `other` is more deeply nested than `self`.
+    pub fn at_same_list_depth(&self, other: &PropType) -> Option<&PropType> {
+        let (_, this_depth) = self.inner_and_depth();
+        let (_, other_depth) = other.inner_and_depth();
+        if this_depth > other_depth {
+            let mut inner = self;
+            for _ in 0..(this_depth - other_depth) {
+                inner = inner.inner()?;
+            }
+            Some(inner)
+        } else {
+            None
         }
     }
 
