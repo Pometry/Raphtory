@@ -555,10 +555,11 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
                 if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
                     None
                 } else {
-                    prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
+                    prop.last_before(w.start)
                 }
             })
-            .max_by_key(|(t, _)| *t);
+            .max_by_key(|(t, _)| *t)
+            .map(|(t, v)| (t.max(w.start), v));
         let window_iter = tprops
             .into_iter()
             .map(move |prop| prop.iter_window(w.clone()))
@@ -581,10 +582,11 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
                 if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
                     None
                 } else {
-                    prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
+                    prop.last_before(w.start)
                 }
             })
-            .max_by_key(|(t, _)| *t);
+            .max_by_key(|(t, _)| *t)
+            .map(|(t, v)| (t.max(w.start), v));
         let window_iter_rev = tprops
             .into_iter()
             .map(move |prop| prop.iter_window_rev(w.clone()))
@@ -618,8 +620,9 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
             node.tprop_iter_layers(view.layer_ids(), prop_id)
-                .filter_map(|prop| prop.last_before(t.next()).map(|(t, v)| (t.max(w.start), v)))
+                .filter_map(|prop| prop.last_before(t.next()))
                 .max_by_key(|(t, _)| *t)
+                .map(|(t, v)| (t.max(w.start), v))
         } else {
             None
         }

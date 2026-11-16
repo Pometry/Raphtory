@@ -150,7 +150,7 @@ where
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
                         let rows = if latest_only {
-                            node.latest_rows().into_iter().into_dyn_boxed()
+                            node.latest_rows().into_dyn_boxed()
                         } else {
                             node.rows()
                         };

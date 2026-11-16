@@ -229,6 +229,27 @@ fn test_multilayer_window2() {
 }
 
 #[test]
+fn test_node_prop_persists_newest_value_across_layers() {
+    let g = PersistentGraph::new();
+    // the newer value is on the layer created first, which has the lower layer id
+    g.add_node(2, 0, [("x", "new")], None, Some("a")).unwrap();
+    g.add_node(1, 0, [("x", "old")], None, Some("b")).unwrap();
+
+    let node = g.window(5, 10).node(0).unwrap();
+    let x = node.properties().temporal().get("x").unwrap();
+    assert_eq!(x.latest(), Some(Prop::from("new")));
+    assert_eq!(x.at(6), Some(Prop::from("new")));
+    assert_eq!(
+        x.iter().collect_vec(),
+        [(EventTime::start(5), Prop::from("new"))]
+    );
+    assert_eq!(
+        x.iter_rev().collect_vec(),
+        [(EventTime::start(5), Prop::from("new"))]
+    );
+}
+
+#[test]
 fn test_deletion_at_window_start() {
     let g = PersistentGraph::new();
     g.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
