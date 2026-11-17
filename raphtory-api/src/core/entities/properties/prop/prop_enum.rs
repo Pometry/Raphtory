@@ -775,30 +775,10 @@ impl Prop {
             match prop_type {
                 PropType::U8 => Some(Prop::U8(v.to_u8()?)),
                 PropType::U16 => Some(Prop::U16(v.to_u16()?)),
-                PropType::I32 => {
-                    // i32 might not be exact for f32
-                    let int = v.to_i32()?;
-                    let float = T::from(int)?;
-                    (float == v).then_some(Prop::I32(int))
-                }
-                PropType::I64 => {
-                    // i64 might not be exact for f32/f64
-                    let int = v.to_i64()?;
-                    let float = T::from(int)?;
-                    (float == v).then_some(Prop::I64(int))
-                }
-                PropType::U32 => {
-                    // u32 might not be exact for f32
-                    let int = v.to_u32()?;
-                    let float = T::from(int)?;
-                    (float == v).then_some(Prop::U32(int))
-                }
-                PropType::U64 => {
-                    // u64 might not be exact for f32/f64
-                    let int = v.to_u64()?;
-                    let float = T::from(int)?;
-                    (float == v).then_some(Prop::U64(int))
-                }
+                PropType::I32 => Some(Prop::I32(v.to_i32()?)),
+                PropType::I64 => Some(Prop::I64(v.to_i64()?)),
+                PropType::U32 => Some(Prop::U32(v.to_u32()?)),
+                PropType::U64 => Some(Prop::U64(v.to_u64()?)),
                 PropType::F32 => {
                     let converted = v.to_f32()?;
                     let roundtrip = T::from(converted)?;
@@ -808,15 +788,7 @@ impl Prop {
                         None
                     }
                 }
-                PropType::F64 => {
-                    let converted = v.to_f64()?;
-                    let roundtrip = T::from(converted)?;
-                    if roundtrip == v {
-                        Some(Prop::F64(converted))
-                    } else {
-                        None
-                    }
-                }
+                PropType::F64 => Some(Prop::F64(v.to_f64()?)),
                 PropType::Decimal { .. } => Some(Prop::Decimal(BigDecimal::try_from(v).ok()?)),
                 _ => None,
             }
@@ -901,12 +873,24 @@ impl Prop {
             round_up: bool,
         ) -> Option<CastBound> {
             match prop_type {
-                PropType::U8 => Some(CastBound::Exact(Prop::U8(v.to_u8()?))),
-                PropType::U16 => Some(CastBound::Exact(Prop::U16(v.to_u16()?))),
-                PropType::I32 => Some(CastBound::Exact(Prop::I32(v.to_i32()?))),
-                PropType::I64 => Some(CastBound::Exact(Prop::I64(v.to_i64()?))),
-                PropType::U32 => Some(CastBound::Exact(Prop::U32(v.to_u32()?))),
-                PropType::U64 => Some(CastBound::Exact(Prop::U64(v.to_u64()?))),
+                PropType::U8 => Some(CastBound::Exact(Prop::U8(
+                    v.to_u8().expect("should be in bounds"),
+                ))),
+                PropType::U16 => Some(CastBound::Exact(Prop::U16(
+                    v.to_u16().expect("should be in bounds"),
+                ))),
+                PropType::I32 => Some(CastBound::Exact(Prop::I32(
+                    v.to_i32().expect("should be in bounds"),
+                ))),
+                PropType::I64 => Some(CastBound::Exact(Prop::I64(
+                    v.to_i64().expect("should be in bounds"),
+                ))),
+                PropType::U32 => Some(CastBound::Exact(Prop::U32(
+                    v.to_u32().expect("should be in bounds"),
+                ))),
+                PropType::U64 => Some(CastBound::Exact(Prop::U64(
+                    v.to_u64().expect("should be in bounds"),
+                ))),
                 PropType::F32 => {
                     let converted = v.to_f32()?;
                     let roundtrip = T::from_f32(converted)?;

@@ -198,22 +198,6 @@ impl PropType {
         }
     }
 
-    /// Remove `List` from self until it has the same level of nested lists as `other`.
-    /// Returns `None` if `other` is more deeply nested than `self`.
-    pub fn at_same_list_depth(&self, other: &PropType) -> Option<&PropType> {
-        let (_, this_depth) = self.inner_and_depth();
-        let (_, other_depth) = other.inner_and_depth();
-        if this_depth >= other_depth {
-            let mut inner = self;
-            for _ in 0..(this_depth - other_depth) {
-                inner = inner.inner()?;
-            }
-            Some(inner)
-        } else {
-            None
-        }
-    }
-
     /// Maximum possible value for a numeric property
     pub fn max_value(&self) -> Option<Prop> {
         match self {
@@ -232,6 +216,22 @@ impl PropType {
                 *scale,
             ))),
             _ => None,
+        }
+    }
+
+    /// Remove `List` from self until it has the same level of nested lists as `other`.
+    /// Returns `None` if `other` is more deeply nested than `self`.
+    pub fn at_same_list_depth(&self, other: &PropType) -> Option<&PropType> {
+        let (_, this_depth) = self.inner_and_depth();
+        let (_, other_depth) = other.inner_and_depth();
+        if this_depth >= other_depth {
+            let mut inner = self;
+            for _ in 0..(this_depth - other_depth) {
+                inner = inner.inner()?;
+            }
+            Some(inner)
+        } else {
+            None
         }
     }
 
