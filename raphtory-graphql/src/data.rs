@@ -852,7 +852,7 @@ impl Data {
             raw
         };
 
-        // NOTE: This drops the GraphWithVectors clone returned from the cache.
+        // FIXME: This drops the GraphWithVectors clone returned from the cache.
         // As a result, it does not keep the graph pinned in the cache.
         Ok((gwv.folder().clone(), graph))
     }
