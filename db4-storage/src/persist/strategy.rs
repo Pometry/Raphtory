@@ -108,19 +108,14 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     /// the VID stride. `None` means the predicate cannot be served and the
     /// caller should scan as usual. Candidates may include non-matching nodes
     /// — callers must verify every candidate.
-    fn node_prop_candidates<'a>(
+    fn node_prop_candidates(
         &self,
-        _segments: impl Iterator<Item = &'a Self::NS>,
-        _max_segment_len: u32,
+        _max_candidate_size: usize,
         _prop_id: usize,
         _metadata: bool,
         _predicate: &PropPredicate,
         _semantics: PropSemantics,
-    ) -> Option<GlobalPropCandidates>
-    where
-        Self: Sized,
-        Self::NS: 'a,
-    {
+    ) -> Option<GlobalPropCandidates> {
         None
     }
 

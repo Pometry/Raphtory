@@ -84,11 +84,9 @@ pub struct Metadata {
     pub meta: GraphMetadata,
 
     /// The version of the source graph this graph was derived from.
-    /// Populated on a stage operation.
     pub src_version: Option<u32>,
 
     /// The event id of the source graph this graph was derived from.
-    /// Populated on a stage operation.
     pub src_event_id: Option<u64>,
 }
 
@@ -455,7 +453,7 @@ pub trait GraphPaths {
         parse_path_pointer(&self.relative_data_path()?, DATA_PATH)
     }
 
-    /// All versions available for this graph, excluding any in-progress versions.
+    /// All versions available for this graph, excluding any versions that are being modified.
     fn all_versions(&self) -> Result<Vec<u32>, GraphFolderError> {
         let mut versions = BTreeSet::new();
 
@@ -763,6 +761,23 @@ impl WriteableGraphFolder {
                 }
             }
         }
+
+        Ok(GraphFolder {
+            root: self.path,
+            write_as_zip_format: false,
+        })
+    }
+
+    /// Finalise an in-progress swap without updating the `raph` pointer.
+    /// The new `data{id}` folder remains on disk.
+    pub fn finish_inactive(self) -> Result<GraphFolder, GraphFolderError> {
+        let dirty_path = self.root().join(DIRTY_PATH);
+
+        if !dirty_path.exists() {
+            return Err(GraphFolderError::NoWriteInProgress);
+        }
+
+        fs::remove_file(dirty_path)?;
 
         Ok(GraphFolder {
             root: self.path,
