@@ -32,7 +32,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    export::node_updates,
+    export::{node_metadata, node_updates},
     prelude::PropertiesOps,
     python::{
         filter::filter_expr::PyFilterExpr,
@@ -48,7 +48,7 @@ use crate::{
 };
 use pyo3::{
     exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, pyclass, pymethods, types::PyDict,
-    Borrowed, IntoPyObjectExt, Py, PyAny, PyResult, Python,
+    Borrowed, IntoPyObjectExt, PyAny, PyResult, Python,
 };
 use pyo3_arrow::PyTable;
 use python::{
@@ -435,16 +435,21 @@ pub struct PyNodes {
 }
 
 impl PyNodes {
-    /// The node update table of these nodes as a pyarrow Table.
-    fn node_table<'py>(
+    /// The node update table and the node metadata table of these nodes as pyarrow Tables.
+    fn node_tables<'py>(
         &self,
         py: Python<'py>,
         include_property_history: bool,
         convert_datetime: bool,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let table =
-            py.detach(|| node_updates(&self.nodes, !include_property_history, convert_datetime))?;
-        Ok(PyTable::try_new(table.batches, table.schema)?.into_pyarrow(py)?)
+    ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
+        let (updates, metadata) = py.detach(|| {
+            let updates = node_updates(&self.nodes, !include_property_history, convert_datetime)?;
+            Ok::<_, GraphError>((updates, node_metadata(&self.nodes)?))
+        })?;
+        Ok((
+            PyTable::try_new(updates.batches, updates.schema)?.into_pyarrow(py)?,
+            PyTable::try_new(metadata.batches, metadata.schema)?.into_pyarrow(py)?,
+        ))
     }
 }
 
@@ -739,9 +744,10 @@ impl PyNodes {
         self.nodes.out_degree()
     }
 
-    /// Converts the nodes' updates into a pandas DataFrame, with one row per update.
+    /// Converts the nodes into two pandas DataFrames: their updates, with one row per update, and
+    /// their metadata, with one row per node.
     ///
-    /// The DataFrame has the following columns:
+    /// The updates DataFrame has the following columns:
     /// - "rap_node_gid": the id of the node, an integer or a string depending on the graph.
     /// - "rap_node_type": the type of the node.
     /// - "rap_time": the time of the update, in milliseconds since the epoch.
@@ -750,31 +756,39 @@ impl PyNodes {
     ///
     /// These are followed by one column per temporal property. A cell is empty when the update did
     /// not set that property. By default, only the updates that hold the latest value of a property are included.
-    /// Node metadata is not included. Columns use pyarrow-backed dtypes, so
-    /// integer columns with empty cells keep their type.
+    ///
+    /// The metadata DataFrame has the columns "rap_node_gid" and "rap_node_type", followed by one
+    /// column per metadata key. A cell is empty when the node has no value for that key.
+    ///
+    /// Columns use pyarrow-backed dtypes, so integer columns with empty cells keep their type.
     ///
     /// Args:
     ///     include_property_history (bool): If True, include every update instead of only the updates that hold a property's latest value. Defaults to False.
     ///     convert_datetime (bool): If True, the "rap_time" column holds UTC datetimes instead of milliseconds. Defaults to False.
     ///
     /// Returns:
-    ///     DataFrame: the node updates as a pandas DataFrame.
+    ///     tuple[DataFrame, DataFrame]: the node updates and the node metadata as pandas DataFrames.
     #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
-    pub fn to_df(
+    pub fn to_df<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         include_property_history: bool,
         convert_datetime: bool,
-    ) -> PyResult<Py<PyAny>> {
-        let table = self.node_table(py, include_property_history, convert_datetime)?;
+    ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
+        let (updates, metadata) =
+            self.node_tables(py, include_property_history, convert_datetime)?;
         let kwargs = PyDict::new(py);
         kwargs.set_item("types_mapper", py.import("pandas")?.getattr("ArrowDtype")?)?;
-        Ok(table.call_method("to_pandas", (), Some(&kwargs))?.unbind())
+        Ok((
+            updates.call_method("to_pandas", (), Some(&kwargs))?,
+            metadata.call_method("to_pandas", (), Some(&kwargs))?,
+        ))
     }
 
-    /// Converts the nodes' updates into a pyarrow Table, with one row per update.
+    /// Converts the nodes into two pyarrow Tables: their updates, with one row per update, and
+    /// their metadata, with one row per node.
     ///
-    /// The Table has the following columns:
+    /// The updates Table has the following columns:
     /// - "rap_node_gid": the id of the node, an integer or a string depending on the graph.
     /// - "rap_node_type": the type of the node.
     /// - "rap_time": the time of the update, in milliseconds since the epoch.
@@ -783,22 +797,24 @@ impl PyNodes {
     ///
     /// These are followed by one column per temporal property. A cell is empty when the update did
     /// not set that property. By default, only the updates that hold the latest value of a property are included.
-    /// Node metadata is not included.
+    ///
+    /// The metadata Table has the columns "rap_node_gid" and "rap_node_type", followed by one
+    /// column per metadata key. A cell is empty when the node has no value for that key.
     ///
     /// Args:
     ///     include_property_history (bool): If True, include every update instead of only the updates that hold a property's latest value. Defaults to False.
     ///     convert_datetime (bool): If True, the "rap_time" column holds UTC datetimes instead of milliseconds. Defaults to False.
     ///
     /// Returns:
-    ///     pyarrow.Table: the node updates as a pyarrow Table.
+    ///     tuple[pyarrow.Table, pyarrow.Table]: the node updates and the node metadata as pyarrow Tables.
     #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
     pub fn to_arrow<'py>(
         &self,
         py: Python<'py>,
         include_property_history: bool,
         convert_datetime: bool,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        self.node_table(py, include_property_history, convert_datetime)
+    ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
+        self.node_tables(py, include_property_history, convert_datetime)
     }
 
     /// Filter nodes by node type.

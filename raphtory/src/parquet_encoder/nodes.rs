@@ -183,6 +183,25 @@ where
     )
 }
 
+/// The columns every node metadata row starts with; one column per metadata key follows.
+pub(crate) fn node_cprop_fixed_fields(id_type: &DataType) -> Vec<Field> {
+    vec![
+        Field::new(NODE_GID_COL, id_type.clone(), false),
+        Field::new(NODE_VID_COL, DataType::UInt64, false),
+        Field::new(TYPE_COL, DataType::Utf8, true),
+        Field::new(TYPE_ID_COL, DataType::UInt64, true),
+    ]
+}
+
+/// The schema of the batches [`encode_node_metadata`] produces for `g`.
+pub(crate) fn node_cprop_schema<G: GraphView>(g: &G) -> Result<SchemaRef, GraphError> {
+    derive_schema(
+        g.node_meta().metadata_mapper(),
+        g.id_type(),
+        node_cprop_fixed_fields,
+    )
+}
+
 pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
     g: &G,
     sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
@@ -190,19 +209,30 @@ pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
     let (node_list, list_trusted) = g.trusted_node_list();
+    encode_node_metadata(
+        g,
+        get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
+        sink_factory_fn,
+    )
+}
+
+/// Encodes one metadata row for each of the given nodes, as seen through `g`.
+pub(crate) fn encode_node_metadata<'a, G, I, S>(
+    g: &'a G,
+    nodes: impl ParallelIterator<Item = (usize, I)>,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
+) -> Result<(), GraphError>
+where
+    G: GraphView,
+    I: Iterator<Item = NodeView<'a, &'a G>>,
+    S: RecordBatchSink,
+{
     run_encode_indexed(
         g,
         g.node_meta().metadata_mapper(),
-        get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
+        nodes,
         sink_factory_fn,
-        |id_type| {
-            vec![
-                Field::new(NODE_GID_COL, id_type.clone(), false),
-                Field::new(NODE_VID_COL, DataType::UInt64, false),
-                Field::new(TYPE_COL, DataType::Utf8, true),
-                Field::new(TYPE_ID_COL, DataType::UInt64, true),
-            ]
-        },
+        node_cprop_fixed_fields,
         |nodes, _g, decoder, sink| {
             for node_rows in nodes
                 .map(move |node| ParquetCNode {

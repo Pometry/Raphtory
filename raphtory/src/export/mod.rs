@@ -1,11 +1,12 @@
-//! Export of graph data as Arrow tables with one row per update.
+//! Export of graph data as Arrow tables: update tables with one row per update, and metadata
+//! tables with one row per entity.
 //!
 //! Each table starts with a few fixed columns, followed by one column per property. A row leaves
-//! a property's cell empty when its update did not set that property.
+//! a property's cell empty when it has no value for that property.
 
 mod nodes;
 
-pub use nodes::node_updates;
+pub use nodes::{node_metadata, node_updates};
 
 use crate::{
     errors::GraphError,
@@ -40,8 +41,10 @@ fn select_columns(
     convert_datetime: bool,
 ) -> Result<ExportTable, GraphError> {
     let mut schema = encoded.project(indices)?;
-    let time = schema.index_of(TIME_COL)?;
-    if convert_datetime {
+    let time = convert_datetime
+        .then(|| schema.index_of(TIME_COL))
+        .transpose()?;
+    if let Some(time) = time {
         let mut fields: Vec<_> = schema.fields().iter().map(|f| f.as_ref().clone()).collect();
         fields[time] = fields[time].clone().with_data_type(datetime_type());
         schema = Schema::new(fields);
@@ -51,7 +54,7 @@ fn select_columns(
         .iter()
         .map(|batch| {
             let mut columns = batch.project(indices)?.columns().to_vec();
-            if convert_datetime {
+            if let Some(time) = time {
                 columns[time] = cast(&columns[time], &datetime_type())?;
             }
             Ok(RecordBatch::try_new(schema.clone(), columns)?)

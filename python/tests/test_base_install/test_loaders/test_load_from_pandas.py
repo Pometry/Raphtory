@@ -2097,6 +2097,28 @@ def test_load_node_metadata_unknown_node_is_an_error():
     assert g.node("a").metadata.get("m") is None
 
 
+def test_load_node_metadata_missing_node_type_across_batches():
+    g = Graph()
+    for node in ["a", "b", "c", "d"]:
+        g.add_node(1, node)
+    batches = [
+        pa.record_batch({"id": [node], "t": pa.array([t], pa.string()), "m": [1]})
+        for node, t in [("a", "server"), ("b", None), ("c", "db"), ("d", None)]
+    ]
+
+    g.load_node_metadata(
+        pa.Table.from_batches(batches), id="id", node_type_col="t", metadata=["m"]
+    )
+
+    # a missing node type does not pick up the type of a node in an earlier batch
+    assert {n.name: n.node_type for n in g.nodes} == {
+        "a": "server",
+        "b": None,
+        "c": "db",
+        "d": None,
+    }
+
+
 def test_load_metadata_for_known_entities_still_works():
     g = Graph()
     g.add_edge(1, "a", "b")

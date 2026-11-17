@@ -750,21 +750,18 @@ fn resolve_node_and_meta_for_node_col<
     );
 
     let mut last_node_type: Option<&str> = None;
-    let mut last_node_type_id: Option<usize> = None;
+    // the id of `last_node_type`: a node without a type has id 0
+    let mut last_node_type_id = 0;
     let mut new_segment_guards = vec![];
     for (gid, node_type, vid, node_type_id) in zip {
         if last_node_type != node_type {
-            if let Some(name) = node_type {
-                let resolved_node_type_id = locked_mapper.get_or_create_id(name).inner();
-                *node_type_id = resolved_node_type_id;
-                last_node_type_id = Some(resolved_node_type_id);
-            } else {
-                *node_type_id = 0;
-                last_node_type_id = Some(0);
-            }
-        } else if let Some(id) = last_node_type_id {
-            *node_type_id = id;
+            last_node_type_id = match node_type {
+                Some(name) => locked_mapper.get_or_create_id(name).inner(),
+                None => 0,
+            };
         }
+        // the buffer is reused between chunks, so every row has to be written
+        *node_type_id = last_node_type_id;
 
         // Create the node if it doesn't exist yet so metadata-only callers
         // (e.g. materialize loading node c_props before t_props) still
