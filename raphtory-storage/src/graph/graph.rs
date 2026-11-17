@@ -167,9 +167,10 @@ impl GraphStorage {
     ) -> Option<GlobalPropCandidates> {
         let storage = self.temporal_graph().storage();
         let nodes = storage.nodes();
+
+        let max_candidate_size = nodes.num_nodes() / 4;
         storage.extension().node_prop_candidates(
-            nodes.segments_iter(),
-            nodes.max_segment_len(),
+            max_candidate_size,
             prop_id,
             metadata,
             predicate,

@@ -110,8 +110,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     /// — callers must verify every candidate.
     fn node_prop_candidates<'a>(
         &self,
-        _segments: impl Iterator<Item = &'a Self::NS>,
-        _max_segment_len: u32,
+        _max_candidate_size: usize,
         _prop_id: usize,
         _metadata: bool,
         _predicate: &PropPredicate,
