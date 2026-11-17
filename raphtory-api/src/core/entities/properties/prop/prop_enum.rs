@@ -834,27 +834,27 @@ impl Prop {
             Prop::Decimal(v) => match prop_type {
                 PropType::U8 => {
                     let converted = v.to_u8()?;
-                    (v.fractional_digit_count() > 0).then_some(Prop::U8(converted))
+                    (v.fractional_digit_count() <= 0).then_some(Prop::U8(converted))
                 }
                 PropType::U16 => {
                     let converted = v.to_u16()?;
-                    (v.fractional_digit_count() > 0).then_some(Prop::U16(converted))
+                    (v.fractional_digit_count() <= 0).then_some(Prop::U16(converted))
                 }
                 PropType::I32 => {
                     let converted = v.to_i32()?;
-                    (v.fractional_digit_count() > 0).then_some(Prop::I32(converted))
+                    (v.fractional_digit_count() <= 0).then_some(Prop::I32(converted))
                 }
                 PropType::I64 => {
                     let converted = v.to_i64()?;
-                    (v.fractional_digit_count() > 0).then_some(Prop::I64(converted))
+                    (v.fractional_digit_count() <= 0).then_some(Prop::I64(converted))
                 }
                 PropType::U32 => {
                     let converted = v.to_u32()?;
-                    (v.fractional_digit_count() > 0).then_some(Prop::U32(converted))
+                    (v.fractional_digit_count() <= 0).then_some(Prop::U32(converted))
                 }
                 PropType::U64 => {
                     let converted = v.to_u64()?;
-                    (v.fractional_digit_count() > 0).then_some(Prop::U64(converted))
+                    (v.fractional_digit_count() <= 0).then_some(Prop::U64(converted))
                 }
                 PropType::F32 => {
                     let converted = v.to_f32()?;
