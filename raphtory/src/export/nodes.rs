@@ -15,7 +15,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use arrow::datatypes::{Schema, SchemaRef};
+use arrow::datatypes::Schema;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use raphtory_storage::graph::graph::GraphStorage;
 use rayon::prelude::*;

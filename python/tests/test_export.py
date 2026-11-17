@@ -1412,3 +1412,24 @@ def test_nodes_to_arrow():
     expected_updates, expected_metadata = nodes.to_df(include_property_history=True)
     assert node_rows(loaded_updates) == node_rows(expected_updates)
     assert sorted(cells(loaded_metadata)) == sorted(cells(expected_metadata))
+
+
+def test_nodes_text_columns_are_strings():
+    g = Graph()
+    g.add_node(1, "a", properties={"s": "up", "ls": ["x", "y"], "m": {"k": "v"}})
+    g.add_node(2, "b", properties={"s": "down"})
+    g.node("a").add_metadata({"owner": "ops"})
+    updates, metadata = g.nodes.to_arrow()
+
+    # string views are converted, nested ones included, since pandas and pyarrow can't
+    # filter, sort or print them right now
+    assert updates.schema.field("s").type == pa.string()
+    assert updates.schema.field("ls").type == pa.large_list(pa.string())
+    assert updates.schema.field("m").type == pa.struct([("k", pa.string())])
+    assert metadata.schema.field("owner").type == pa.string()
+    assert updates.filter(pa.compute.equal(updates["s"], "up")).num_rows == 1
+
+    updates, metadata = g.nodes.to_df()
+    str(updates), str(metadata)
+    assert list(updates[updates["s"] == "up"]["rap_node_gid"]) == ["a"]
+    assert list(updates.sort_values("s")["s"]) == ["down", "up"]
