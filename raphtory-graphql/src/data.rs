@@ -499,20 +499,25 @@ impl Data {
     ) -> Result<(), InsertionError> {
         let key = folder.local_path().to_owned();
         let args = self.inner.graph_args.clone();
+        let path = key.clone();
 
-        // TODO: Should this be cache.insert_or_replace_with?
         self.inner
             .cache
-            .invalidate_with(&key, |old_graph| async {
+            .insert_or_replace_with(&key, |old_graph| async move {
                 flush_graph(old_graph).await;
 
-                blocking_io(move || {
+                let existing = blocking_io(move || {
                     folder.write_graph_bytes(bytes, args)?;
-                    folder.finish()
+                    folder.finish()?.as_existing()
                 })
-                .await
+                .await?;
+
+                self.read_graph_from_disk(existing)
+                    .await
+                    .map_err(|e| InsertionError::from_graph_err(&path, e))
             })
             .await?;
+
         Ok(())
     }
 
