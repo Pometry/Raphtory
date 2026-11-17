@@ -562,6 +562,29 @@ def test_node_type_comparison_to_a_non_string_type_is_a_python_error():
     assert isinstance(filter.Node.node_type() == "person", filter.Expr)
 
 
+def test_a_bare_str_is_refused_where_a_list_is_expected():
+    """A str is iterable, so it used to be split into its characters:
+    `layers("ab")` selected layers `a` and `b` instead of layer `ab`. The
+    filter methods now refuse it with the same TypeError the graph-level
+    methods raise."""
+    g = Graph()
+    g.add_edge(1, "x", "y", layer="ab")
+    g.add_edge(1, "x", "z", layer="a")
+    g.add_edge(1, "y", "z", layer="b")
+    with pytest.raises(TypeError) as graph_err:
+        g.layers("ab")
+    with pytest.raises(TypeError) as filter_err:
+        filter.Graph.layers("ab")
+    assert str(filter_err.value) == str(graph_err.value)
+    with pytest.raises(TypeError):
+        filter.Node.property("p").is_in("abc")
+    with pytest.raises(TypeError):
+        filter.Node.subgraph("ab")
+    assert sorted(e.id for e in g.filter(filter.Graph.layers(["ab"])).edges) == [
+        ("x", "y")
+    ]
+
+
 @with_variants(init_graph)
 def test_filter_nodes_for_node_type_ne():
     def check(graph):
@@ -1069,3 +1092,47 @@ def test_filter_nodes_for_node_name_len_is_invalid():
             graph.filter(filter_expr).nodes.id
 
     return check
+
+
+def test_a_node_window_bound_keeps_its_event_id():
+    """A window bound given as (time, event id) cuts between two
+    events at the same time, as `graph.window` does.
+
+    time (t, event id)   (0,0)  (1,0)  (1,3)  (1,5)  (2,0)
+    a p=1                        ●
+    b p=1                                      ●
+    window((1,3),(2,0))                 [===========)
+    window((0,0),(1,3))  [==================)
+    """
+    g = Graph()
+    g.add_node(1, "a", {"p": 1}, event_id=0)
+    g.add_node(1, "b", {"p": 1}, event_id=5)
+    for start, end, expected in [((1, 3), (2, 0), ["b"]), ((0, 0), (1, 3), ["a"])]:
+        expr = filter.Node.window(start, end).property("p") == 1
+        assert sorted(g.filter(expr).nodes.name) == expected
+        assert sorted(g.nodes[expr].name) == expected
+        assert sorted(g.window(start, end).nodes.name) == expected
+
+
+def test_name_and_node_type_order_as_strings():
+    """`>` on a name or a node type compares strings, so "b" is
+    after "a" and "A" is before it."""
+    g = Graph()
+    g.add_node(1, "b", node_type="t")
+    g.add_node(1, "A", node_type="a")
+    for expr in [filter.Node.name() > "a", filter.Node.node_type() > "a"]:
+        assert sorted(g.filter(expr).nodes.name) == ["b"]
+        assert sorted(g.nodes[expr].name) == ["b"]
+
+
+def test_view_builders_are_exported_from_filter():
+    """`raphtory.filter` exports the class each view builder returns."""
+    for owner in (filter.Node, filter.Edge, filter.ExplodedEdge, filter.Graph):
+        for builder in (
+            owner.window(0, 1),
+            owner.at(0),
+            owner.latest(),
+            owner.layers(["L"]),
+        ):
+            cls = type(builder)
+            assert getattr(filter, cls.__name__, None) is cls, cls.__name__

@@ -157,7 +157,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum LayerIds {
     None,
     All,
@@ -181,7 +181,7 @@ pub enum LayerVariants<None, All, One, Multiple> {
     Multiple(Multiple),
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
 pub struct Multiple(pub Arc<[LayerId]>);
 
 impl<'a> IntoIterator for &'a Multiple {

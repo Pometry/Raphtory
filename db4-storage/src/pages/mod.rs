@@ -20,7 +20,10 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder};
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder},
+};
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
@@ -59,7 +62,7 @@ pub struct GraphStore<
     event_id: AtomicUsize,
     ext: EXT,
     /// Write-held for the whole of a bulk load; regular updates and vacuum hold a read guard.
-    bulk_loader_lock: RwLock<()>,
+    bulk_load_lock: RwLock<()>,
 }
 
 impl<
@@ -105,7 +108,7 @@ impl<
         Ok(())
     }
 
-    /// Refresh the graph metadata file (`.meta`) for disk-backed graphs.
+    /// Refresh the graph metadata file (`meta`) for disk-backed graphs.
     pub fn refresh_metadata(&self) -> Result<(), StorageError> {
         if let Some(graph_dir) = self.graph_dir.as_ref()
             && let Some(data_folder) = graph_dir.parent()
@@ -191,7 +194,7 @@ impl<
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|dir| dir.path().to_path_buf()),
             ext,
-            bulk_loader_lock: RwLock::new(()),
+            bulk_load_lock: RwLock::new(()),
         })
     }
 
@@ -232,7 +235,7 @@ impl<
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.path().to_path_buf()),
             ext,
-            bulk_loader_lock: RwLock::new(()),
+            bulk_load_lock: RwLock::new(()),
         })
     }
 
@@ -321,30 +324,27 @@ impl<
     pub fn node_writer(
         &self,
         node_segment: usize,
-    ) -> NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS> {
+    ) -> NodeWriter<'_, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         self.nodes().writer(node_segment)
     }
 
-    pub fn edge_writer(
-        &self,
-        eid: EID,
-    ) -> EdgeWriter<'_, RwLockWriteGuard<'_, MemEdgeSegment>, ES> {
+    pub fn edge_writer(&self, eid: EID) -> EdgeWriter<'_, ArcRwLockWriteGuard<MemEdgeSegment>, ES> {
         self.edges().get_writer(eid)
     }
 
-    pub fn get_free_writer(&self) -> EdgeWriter<'_, RwLockWriteGuard<'_, MemEdgeSegment>, ES> {
+    pub fn get_free_writer(&self) -> EdgeWriter<'_, ArcRwLockWriteGuard<MemEdgeSegment>, ES> {
         self.edges().get_free_writer()
     }
 
     /// Read guard held by regular updates and vacuum, excluding them from bulk loads.
     /// Recursive, so a regular update nested in another does not wait behind a queued bulk load.
     pub fn bulk_load_shared(&self) -> RwLockReadGuard<'_, ()> {
-        self.bulk_loader_lock.read_recursive()
+        self.bulk_load_lock.read_recursive()
     }
 
     /// Write guard held for the whole of a bulk load or WAL replay.
     pub fn bulk_load_exclusive(&self) -> RwLockWriteGuard<'_, ()> {
-        self.bulk_loader_lock.write()
+        self.bulk_load_lock.write()
     }
 
     pub fn vacuum(self: &Arc<Self>) -> Result<(), StorageError> {
@@ -486,8 +486,8 @@ pub fn row_group_par_iter<I: From<usize>>(
     max_seg_len: u32,
     max_actual_seg_len: u32,
 ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = I>)> {
-    let (num_chunks, chunk_size) = if num_segments != 0 {
-        let chunk_size = (chunk_size / num_segments).max(1);
+    let (num_chunks, chunk_size) = if let Some(per_segment) = chunk_size.checked_div(num_segments) {
+        let chunk_size = per_segment.max(1);
         let num_chunks = (max_seg_len as usize).div_ceil(chunk_size);
         (num_chunks, chunk_size)
     } else {

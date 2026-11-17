@@ -1,7 +1,10 @@
 use rayon::{ThreadPool, ThreadPoolBuilder};
 #[cfg(test)]
 use std::sync::Mutex;
-use std::sync::{LazyLock, OnceLock};
+use std::{
+    panic::{self, AssertUnwindSafe},
+    sync::{LazyLock, OnceLock},
+};
 use tokio::sync::{oneshot, Semaphore};
 use tracing::warn;
 
@@ -63,9 +66,12 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
 ) -> R {
     let (send, recv) = oneshot::channel();
     COMPUTE_POOL.spawn(move || {
-        let _ = send.send(closure()); // this only errors if no-one is listening anymore
+        // a panic in a rayon job aborts the process, so it resumes in the caller instead
+        let _ = send.send(panic::catch_unwind(AssertUnwindSafe(closure)));
     });
-    recv.await.expect("Function panicked in rayon::spawn")
+    recv.await
+        .expect("the compute job was dropped before it ran")
+        .unwrap_or_else(|panic| panic::resume_unwind(panic))
 }
 
 static LOAD_PERMITS: LazyLock<Semaphore> = LazyLock::new(|| {
@@ -114,7 +120,7 @@ mod deadlock_tests {
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
-        test_pool_lock(43871, |lock| {
+        test_pool_lock(|lock| {
             COMPUTE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock();
             });
@@ -124,7 +130,7 @@ mod deadlock_tests {
 
     #[tokio::test]
     async fn test_deadlock_in_write_pool() {
-        test_pool_lock(43872, |lock| {
+        test_pool_lock(|lock| {
             WRITE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock();
             });
@@ -132,13 +138,17 @@ mod deadlock_tests {
         .await;
     }
 
-    async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
+    // Holding TEST_SERIAL (and the pool-jamming lock) across awaits is deliberate: it
+    // serialises tests that block the process-global pools.
+    #[allow(clippy::await_holding_lock)]
+    async fn test_pool_lock(pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let _serial = super::TEST_SERIAL.lock();
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
-        let _running = server.start_with_port(port).await.unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
         tokio::time::sleep(Duration::from_secs(1)).await; // this is to wait for the server to be up
         let lock = Arc::new(Mutex::new(()));
         let _guard = lock.lock();
@@ -150,13 +160,13 @@ mod deadlock_tests {
         let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
-        assert_eq!(health.healthy, false);
+        assert!(!health.healthy);
 
         let req = client.get(format!("http://localhost:{port}/health?timeout=5"));
         let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
-        assert_eq!(health.healthy, false);
+        assert!(!health.healthy);
     }
 }
 
@@ -164,6 +174,13 @@ mod deadlock_tests {
 mod scheduler_tests {
     use super::*;
     use std::time::Duration;
+
+    #[tokio::test]
+    async fn a_compute_job_that_panics_fails_its_caller() {
+        let job = tokio::spawn(blocking_compute(|| -> usize { panic!("boom") }));
+        assert!(job.await.unwrap_err().is_panic());
+        assert_eq!(blocking_compute(|| 1).await, 1);
+    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn concurrent_loads_are_bounded() {

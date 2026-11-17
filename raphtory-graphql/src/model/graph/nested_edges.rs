@@ -7,6 +7,7 @@ use crate::{
         timeindex::{GqlEventTime, GqlTimeInput},
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -15,7 +16,6 @@ use raphtory::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
         graph::edges::{DynEdgeItem, NestedEdges},
     },
-    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::utils::time::IntoTime;
@@ -329,7 +329,7 @@ impl GqlNestedEdges {
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.edges.filter(expr)?;
@@ -348,7 +348,7 @@ impl GqlNestedEdges {
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.edges.select(expr)?;

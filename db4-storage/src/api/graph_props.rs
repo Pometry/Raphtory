@@ -2,7 +2,7 @@ use crate::{error::StorageError, segments::graph_prop::segment::MemGraphPropSegm
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::{
     meta::Meta,
-    prop::{AsPropRef, Prop},
+    prop::{Prop, PropRef},
     tprop::TPropOps,
 };
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
@@ -59,10 +59,7 @@ where
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
-    fn check_metadata_immut<PR: AsPropRef>(
-        &self,
-        props: &[(usize, PR)],
-    ) -> Result<(), StorageError>;
+    fn check_metadata_immut(&self, prop_id: usize, prop: PropRef) -> Result<(), StorageError>;
 }
 
 /// Trait for returning a guard-free, copyable reference to graph properties

@@ -72,7 +72,7 @@ use crate::{
     },
 };
 use pyo3::{prelude::*, types::PyList};
-use rand::{prelude::StdRng, SeedableRng};
+use rand::{make_rng, prelude::StdRng, SeedableRng};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerIds},
     storage::timeindex::EventTime,
@@ -902,7 +902,7 @@ pub fn temporal_SEIR(
     rng_seed: Option<u64>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, SeedError> {
     let mut rng = match rng_seed {
-        None => StdRng::from_os_rng(),
+        None => make_rng(),
         Some(seed) => StdRng::seed_from_u64(seed),
     };
     temporal_SEIR_rs(

@@ -1,17 +1,23 @@
-use crate::core::{
-    entities::{
-        properties::prop::{
-            check_for_unification, unify_types, Prop, PropError, PropType, PropTypeError,
+use crate::{
+    core::{
+        entities::{
+            properties::prop::{
+                check_for_unification, unify_types, Prop, PropError, PropType, PropTypeError,
+            },
+            LayerId, LayerIds,
         },
-        LayerId, LayerIds,
+        storage::{
+            arc_str::ArcStr,
+            dict_mapper::{
+                DictMapper, LockedDictMapper, MaybeNew, PublicKeys, StagedDictMapper,
+                WriteLockedDictMapper,
+            },
+        },
     },
-    storage::{
-        arc_str::ArcStr,
-        dict_mapper::{DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper},
-    },
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
 };
-use itertools::Either;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use itertools::{Either, Itertools};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockUpgradableReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -242,9 +248,29 @@ impl Meta {
             self.temporal_prop_mapper.get_name(prop_id)
         }
     }
+
+    /// O(1) check: has temporal-prop `prop_id` been observed in `layer_id`?
+    #[inline]
+    pub fn temporal_layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.temporal_prop_mapper.layer_has(layer_id, prop_id)
+    }
+
+    /// O(1) check: has metadata-prop `prop_id` been observed in `layer_id`?
+    #[inline]
+    pub fn metadata_layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.metadata_mapper.layer_has(layer_id, prop_id)
+    }
+
+    /// Read-locks both per-layer property/metadata presence bitsets.
+    pub fn read_lock_layer_presence(&self) -> ReadLockedMetaPresence {
+        ReadLockedMetaPresence {
+            temporal: self.temporal_prop_mapper.read_lock_layer_presence(),
+            metadata: self.metadata_mapper.read_lock_layer_presence(),
+        }
+    }
 }
 
-/// Manages the mapping of property names to their IDs and types.
+/// Manages the mapping of property names to their IDs, types and layers in which they exist.
 #[derive(Default, Serialize, Deserialize)]
 pub struct PropMapper {
     /// Maps property names to their IDs.
@@ -255,17 +281,26 @@ pub struct PropMapper {
 
     /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: AtomicUsize,
+
+    /// Per-layer property presence bitset; `layer_prop_presence[layer_id][prop_id]`
+    /// is true if this property has been observed in this layer
+    layer_prop_presence: Arc<RwLock<Vec<Vec<bool>>>>,
 }
 
 impl Debug for PropMapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("{")?;
+        let layer_prop_presence = self.layer_prop_presence.read_recursive();
         for (k, (id, dtype)) in self
             .all_keys()
             .iter()
             .zip(self.all_ids().zip(self.d_types().iter()))
         {
-            write!(f, "{k}: ({id}, {dtype:?}), ")?;
+            let map = layer_prop_presence
+                .iter()
+                .map(|v| v.get(id).copied().unwrap_or(false))
+                .collect_vec();
+            write!(f, "{k}: ({id}, {dtype:?}, {map:?}), ")?;
         }
         f.write_str("}")
     }
@@ -292,19 +327,83 @@ impl PropMapper {
             id_mapper: DictMapper::new_with_private_fields(fields),
             row_size: AtomicUsize::new(row_size),
             dtypes: Arc::new(RwLock::new(dtypes)),
+            layer_prop_presence: Arc::new(RwLock::new(Vec::new())),
         }
+    }
+
+    /// O(1) check: has property `prop_id` ever been observed in `layer_id`?
+    /// `false` is authoritative; callers can safely skip column reads for
+    /// this (layer, prop).
+    #[inline]
+    pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        presence_has(
+            &self.layer_prop_presence.read_recursive(),
+            layer_id,
+            prop_id,
+        )
+    }
+
+    /// Which prop ids are present in at least one layer, indexed by prop id.
+    ///
+    /// `false` is authoritative in the same way [`Self::layer_has`] is: the property has no values anywhere.
+    /// These "ghost" entries can exist on materialized graphs where the PropMapper was `deep_clone`d
+    pub fn props_in_any_layer(&self) -> Vec<bool> {
+        let presence = self.layer_prop_presence.read_recursive();
+        let width = presence.iter().map(|row| row.len()).max().unwrap_or(0);
+        let mut any = vec![false; width];
+        for row in presence.iter() {
+            for (prop_id, present) in row.iter().enumerate() {
+                any[prop_id] |= present;
+            }
+        }
+        any
+    }
+
+    /// Mark `prop_ids` as present in `layer_id`.
+    pub fn mark_props_in_layer(
+        &self,
+        layer_id: LayerId,
+        prop_ids: impl IntoIterator<Item = usize>,
+    ) {
+        let mut prop_ids = prop_ids.into_iter().peekable();
+        if prop_ids.peek().is_none() {
+            return;
+        }
+        // ids before the first missing one are already marked, and bits are never unset
+        let first_missing = {
+            let presence = self.layer_prop_presence.read_recursive();
+            prop_ids.find(|&prop_id| !presence_has(&presence, layer_id, prop_id))
+        };
+        // new bits wait for locked graphs to drop their read guards so we can acquire a write guard
+        if let Some(first_missing) = first_missing {
+            let mut presence = self.layer_prop_presence.write();
+            for prop_id in std::iter::once(first_missing).chain(prop_ids) {
+                ensure_and_set(&mut presence, layer_id.0, prop_id);
+            }
+        }
+    }
+
+    /// Read-locks the presence bitset until the guard is dropped.
+    pub fn read_lock_layer_presence(&self) -> ReadLockedLayerPresence {
+        ReadLockedLayerPresence(self.layer_prop_presence.read_arc_recursive())
     }
 
     pub fn d_types(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
         self.dtypes.read_recursive()
     }
 
+    /// Copies the name/id and dtype schema into a standalone mapper.
+    ///
+    /// The per-layer property presence bitset is deliberately *not* copied because
+    /// a different (often filtered) graph can change (or often hide) properties/layers.
+    /// It must be rebuilt and can't be carried over.
     pub fn deep_clone(&self) -> Self {
         let dtypes = self.dtypes.read_recursive().clone();
         Self {
             id_mapper: self.id_mapper.deep_clone(),
             row_size: AtomicUsize::new(self.row_size.load(std::sync::atomic::Ordering::Relaxed)),
             dtypes: Arc::new(RwLock::new(dtypes)),
+            layer_prop_presence: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -415,16 +514,64 @@ impl PropMapper {
         }
     }
 
-    pub fn write_locked(&self) -> WriteLockedPropMapper<'_> {
+    /// Write-locks the name/id and dtype mappers.
+    ///
+    /// Deliberately leaves the per-layer property presence bitset unlocked: sometimes we don't need it
+    pub fn write_locked_mappers(&self) -> WriteLockedPropMapper<'_> {
         WriteLockedPropMapper {
             dict_mapper: self.id_mapper.write(),
             d_types: self.dtypes.write(),
             row_size: &self.row_size,
         }
     }
+
+    pub fn stage(&self) -> StagedPropMapper<'_> {
+        StagedPropMapper {
+            dict_mapper: self.id_mapper.stage(),
+            d_types: self.dtypes.upgradable_read(),
+            row_size: &self.row_size,
+        }
+    }
+
+    /// Write-locks only the per-layer presence bitset.
+    pub fn write_locked_layer_presence(&self) -> WriteLockedLayerPresence {
+        WriteLockedLayerPresence {
+            presence: self.layer_prop_presence.write_arc(),
+        }
+    }
 }
 
-/// Write-locked view of a [`PropMapper`].
+#[inline]
+fn presence_has(presence: &[Vec<bool>], layer_id: LayerId, prop_id: usize) -> bool {
+    presence
+        .get(layer_id.0)
+        .is_some_and(|row| row.get(prop_id).copied().unwrap_or(false))
+}
+
+fn presence_any_has(presence: &[Vec<bool>], prop_id: usize) -> bool {
+    presence
+        .iter()
+        .any(|layer| layer.get(prop_id).copied().unwrap_or(false))
+}
+
+#[inline]
+fn ensure_and_set(presence: &mut Vec<Vec<bool>>, layer_idx: usize, prop_id: usize) -> bool {
+    if presence.len() <= layer_idx {
+        presence.resize_with(layer_idx + 1, Vec::new);
+    }
+    let row = &mut presence[layer_idx];
+    if row.len() <= prop_id {
+        row.resize(prop_id + 1, false);
+    }
+    let before = row[prop_id];
+    row[prop_id] = true;
+    !before
+}
+
+/// Write-locked view of a [`PropMapper`]'s name/id and dtype mappers.
+///
+/// Holds no lock on the per-layer property presence bitset - see
+/// [`PropMapper::write_locked_layer_presence`] for that.
 pub struct WriteLockedPropMapper<'a> {
     /// Maps property names to their IDs.
     dict_mapper: WriteLockedDictMapper<'a>,
@@ -434,6 +581,63 @@ pub struct WriteLockedPropMapper<'a> {
 
     /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: &'a AtomicUsize,
+}
+
+/// Write-locked view of a [`PropMapper`]'s per-layer property presence bitset.
+pub struct WriteLockedLayerPresence {
+    presence: ArcRwLockWriteGuard<Vec<Vec<bool>>>,
+}
+
+impl WriteLockedLayerPresence {
+    /// Mark `prop_id` as present in `layer_id`.
+    pub fn mark(&mut self, layer_id: LayerId, prop_id: usize) -> bool {
+        ensure_and_set(&mut self.presence, layer_id.0, prop_id)
+    }
+
+    pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        presence_has(&self.presence, layer_id, prop_id)
+    }
+}
+
+/// Read guard on a presence bitset, held by locked graphs.
+#[derive(Debug)]
+pub struct ReadLockedLayerPresence(ArcRwLockReadGuard<Vec<Vec<bool>>>);
+
+impl ReadLockedLayerPresence {
+    #[inline]
+    pub fn has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        presence_has(&self.0, layer_id, prop_id)
+    }
+
+    pub fn any_layer_has(&self, prop_id: usize) -> bool {
+        presence_any_has(&self.0, prop_id)
+    }
+}
+
+/// Read guards on one [`Meta`]'s temporal and metadata presence bitsets.
+#[derive(Debug)]
+pub struct ReadLockedMetaPresence {
+    pub temporal: ReadLockedLayerPresence,
+    pub metadata: ReadLockedLayerPresence,
+}
+
+/// A locked graph's presence bitset (holds a read lock), or the live one (gets a read or write lock each time).
+#[derive(Clone, Copy)]
+pub enum LayerPresenceRef<'a> {
+    Locked(&'a ReadLockedLayerPresence),
+    Live(&'a PropMapper),
+}
+
+impl LayerPresenceRef<'_> {
+    /// Whether `prop_id` was ever written in `layer_id`. Read-locked graphs don't need to lock the
+    /// layer presence bitset.
+    #[inline]
+    pub fn has(self, layer_id: LayerId, prop_id: usize) -> bool {
+        match self {
+            LayerPresenceRef::Locked(presence) => presence.has(layer_id, prop_id),
+            LayerPresenceRef::Live(mapper) => mapper.layer_has(layer_id, prop_id),
+        }
+    }
 }
 
 impl<'a> WriteLockedPropMapper<'a> {
@@ -529,6 +733,80 @@ impl<'a> WriteLockedPropMapper<'a> {
     }
 }
 
+pub struct StagedPropMapper<'a> {
+    dict_mapper: StagedDictMapper<'a>,
+    d_types: RwLockUpgradableReadGuard<'a, Vec<PropType>>,
+    row_size: &'a AtomicUsize,
+}
+
+impl<'a> StagedPropMapper<'a> {
+    pub fn upgrade(self) -> WriteLockedPropMapper<'a> {
+        WriteLockedPropMapper {
+            dict_mapper: self.dict_mapper.upgrade(),
+            d_types: RwLockUpgradableReadGuard::upgrade(self.d_types),
+            row_size: self.row_size,
+        }
+    }
+
+    pub fn get_id(&self, prop: &str) -> Option<usize> {
+        self.dict_mapper.get_id(prop)
+    }
+
+    /// Try to resolve a previously unresolved property and unify types when needed
+    ///
+    /// Outcomes:
+    ///     - `Ok(None)` if the property still does not exist
+    ///     - `Ok(Some(Either::Left(id, unified_type)))` if the property exists and needs unification
+    ///     - `Ok(Some(Either::Right(id)` if the property exists and does not need unification
+    ///     - `Err(err)` if the property exists and types are not compatible
+    pub fn resolve_and_unify(
+        &self,
+        prop: &str,
+        dtype: PropType,
+    ) -> Result<Option<Either<(usize, PropType), usize>>, PropError> {
+        match self.get_id(prop) {
+            Some(id) => match self.recheck_and_unify(prop, id, dtype)? {
+                Some(unified_type) => Ok(Some(Either::Left((id, unified_type)))),
+                None => Ok(Some(Either::Right(id))),
+            },
+            None => Ok(None),
+        }
+    }
+
+    /// Recheck the need for unification for an already resolved property.
+    /// Outcomes are `Ok(None)` if no unification is needed, `Ok(Some(PropType)` if types are compatible
+    /// but need to be unified, and `Err(PropError)` if the types are incompatible.
+    pub fn recheck_and_unify(
+        &self,
+        prop: &str,
+        id: usize,
+        dtype: PropType,
+    ) -> Result<Option<PropType>, PropError> {
+        let existing_dtype = self
+            .d_types
+            .get(id)
+            .expect("existing property ids should always have a type");
+        let outcome = check_for_unification(existing_dtype, &dtype);
+        match outcome {
+            None => Ok(None),
+            Some(can_unify) => {
+                if can_unify {
+                    let mut unified = false;
+                    let unified_type = unify_types(existing_dtype, &dtype, &mut unified)
+                        .map_err(|err| err.with_name(prop.to_string()))?;
+                    Ok(Some(unified_type))
+                } else {
+                    Err(PropError {
+                        name: prop.to_string(),
+                        expected: existing_dtype.clone(),
+                        actual: dtype,
+                    })
+                }
+            }
+        }
+    }
+}
+
 pub struct LockedPropMapper<'a> {
     dict_mapper: LockedDictMapper<'a>,
     d_types: RwLockReadGuard<'a, Vec<PropType>>,
@@ -539,8 +817,16 @@ impl<'a> LockedPropMapper<'a> {
         self.dict_mapper.get_id(prop)
     }
 
-    pub fn get_dtype(&'a self, prop_id: usize) -> Option<&'a PropType> {
+    pub fn get_dtype(&self, prop_id: usize) -> Option<&PropType> {
         self.d_types.get(prop_id)
+    }
+
+    pub fn get_name(&self, prop_id: usize) -> Option<&ArcStr> {
+        self.dict_mapper.get_name(prop_id)
+    }
+
+    pub fn get_name_and_dtype(&self, prop_id: usize) -> Option<(&ArcStr, &PropType)> {
+        self.get_name(prop_id).zip(self.get_dtype(prop_id))
     }
 
     /// Fast check for property type without unifying the types
@@ -735,7 +1021,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             locked.new_id_and_dtype("new_prop", PropType::U8)
         };
 
@@ -748,7 +1034,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             let id = locked.new_id_and_dtype("existing_prop", PropType::U8);
             locked.set_or_unify_dtype(id, PropType::U8).unwrap();
             id
@@ -763,7 +1049,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let result = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             let id = locked.new_id_and_dtype("existing_prop", PropType::U8);
 
             locked.set_or_unify_dtype(id, PropType::U16)
@@ -784,7 +1070,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             let id = locked.new_id_and_dtype("prop", PropType::Empty);
             locked.set_or_unify_dtype(id, PropType::U8).unwrap();
             id
@@ -799,7 +1085,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             locked.set_id_and_dtype("existing_prop", 5, PropType::U8);
             locked.new_id_and_dtype("new_prop", PropType::U16)
         };
@@ -813,7 +1099,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let (id1, id2) = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             let id1 = locked.new_id_and_dtype("prop1", PropType::U8);
             let id2 = locked.new_id_and_dtype("prop2", PropType::U16);
 
@@ -840,7 +1126,7 @@ mod write_locked_prop_mapper_tests {
 
         let prop_mapper = PropMapper::default();
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             locked.new_id_and_dtype("attrs", map_1.clone())
         };
 
@@ -848,7 +1134,7 @@ mod write_locked_prop_mapper_tests {
         assert_eq!(before, map_1.est_size());
 
         {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             locked.set_or_unify_dtype(id, map_2.clone()).unwrap();
         }
 
@@ -856,5 +1142,82 @@ mod write_locked_prop_mapper_tests {
         assert_eq!(after, before + expected_delta);
         assert_eq!(after, expected_type.est_size());
         assert_eq!(prop_mapper.get_dtype(0), Some(expected_type));
+    }
+}
+
+#[cfg(test)]
+mod layer_presence_tests {
+    use super::*;
+    use std::{sync::mpsc, thread, time::Duration};
+
+    #[test]
+    fn mark_props_in_layer_sets_only_that_layer() {
+        let mapper = PropMapper::default();
+        mapper.mark_props_in_layer(LayerId(2), [0, 3]);
+        // already-marked ids before and between the new ones
+        mapper.mark_props_in_layer(LayerId(2), [0, 1, 3, 4]);
+
+        for prop_id in [0, 1, 3, 4] {
+            assert!(mapper.layer_has(LayerId(2), prop_id));
+        }
+        assert!(!mapper.layer_has(LayerId(2), 2));
+        assert!(!mapper.layer_has(LayerId(1), 0));
+    }
+
+    #[test]
+    fn locked_presence_matches_live() {
+        let mapper = PropMapper::default();
+        mapper.mark_props_in_layer(LayerId(1), [0]);
+        mapper.mark_props_in_layer(LayerId(3), [0]);
+        let locked = mapper.read_lock_layer_presence();
+
+        for presence in [
+            LayerPresenceRef::Locked(&locked),
+            LayerPresenceRef::Live(&mapper),
+        ] {
+            let present = |prop_id| {
+                (0..5)
+                    .map(LayerId)
+                    .filter(|&layer_id| presence.has(layer_id, prop_id))
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(present(0), [LayerId(1), LayerId(3)]);
+            assert!(present(1).is_empty());
+        }
+    }
+
+    #[test]
+    fn marking_set_bits_does_not_wait_for_locked_presence() {
+        let mapper = Arc::new(PropMapper::default());
+        mapper.mark_props_in_layer(LayerId(1), [0, 1]);
+        let _locked = mapper.read_lock_layer_presence();
+
+        let (done, finished) = mpsc::channel();
+        let writer = Arc::clone(&mapper);
+        thread::spawn(move || {
+            writer.mark_props_in_layer(LayerId(1), [1, 0]);
+            writer.mark_props_in_layer(LayerId(1), std::iter::empty());
+            done.send(()).unwrap();
+        });
+        assert!(finished.recv_timeout(Duration::from_secs(10)).is_ok());
+    }
+
+    #[test]
+    fn marking_a_new_bit_waits_until_locked_presence_is_dropped() {
+        let mapper = Arc::new(PropMapper::default());
+        let locked = mapper.read_lock_layer_presence();
+
+        let (done, finished) = mpsc::channel();
+        let writer = Arc::clone(&mapper);
+        thread::spawn(move || {
+            writer.mark_props_in_layer(LayerId(1), [0]);
+            done.send(()).unwrap();
+        });
+        assert!(finished.recv_timeout(Duration::from_millis(200)).is_err());
+        assert!(!locked.has(LayerId(1), 0));
+
+        drop(locked);
+        assert!(finished.recv_timeout(Duration::from_secs(10)).is_ok());
+        assert!(mapper.layer_has(LayerId(1), 0));
     }
 }

@@ -11,16 +11,18 @@ use crate::{
     utils::Iter4,
     wal::LSN,
 };
-use parking_lot::lock_api::ArcRwLockReadGuard;
-use raphtory_api::core::{
-    entities::{
-        LayerId, VID,
-        properties::{
-            meta::{Meta, STATIC_GRAPH_LAYER_ID},
-            prop::AsPropRef,
+use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
+    core::{
+        entities::{
+            LayerId, VID,
+            properties::{
+                meta::{Meta, STATIC_GRAPH_LAYER_ID},
+                prop::{AsPropRef, PropRef},
+            },
         },
+        storage::dict_mapper::MaybeNew,
     },
-    storage::dict_mapper::MaybeNew,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
@@ -87,6 +89,10 @@ impl MemEdgeSegment {
             global_memory_tracker,
             lsn: 0,
         }
+    }
+
+    pub fn segment_id(&self) -> usize {
+        self.layers[0].segment_id()
     }
 
     pub fn increment_global_memory(&self, increment: usize) {
@@ -281,14 +287,15 @@ impl MemEdgeSegment {
         row.map(|row| row.row)
     }
 
-    pub fn check_metadata<P: AsPropRef>(
+    pub fn check_metadata(
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, P)],
+        prop_id: usize,
+        prop: PropRef,
     ) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(layer_id.0) {
-            layer.check_metadata(edge_pos, props)?;
+            layer.check_metadata(edge_pos, prop_id, prop)?;
         }
 
         Ok(())
@@ -360,7 +367,7 @@ pub struct EdgeSegmentView<EXT> {
 
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
-    inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>,
+    inner: ArcRwLockReadGuard<MemEdgeSegment>,
     num_edges: u32,
 }
 
@@ -494,7 +501,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
                 ext.memory_tracker().clone(),
             ))
             .into(),
-            segment_id: segment_id,
+            segment_id,
             num_edges: AtomicU32::new(0),
             _ext: ext,
         }
@@ -516,7 +523,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.segment.read_recursive()
     }
 
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment> {
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemEdgeSegment> {
         self.segment.read_arc_recursive()
     }
 
@@ -524,15 +531,19 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.segment.write()
     }
 
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemEdgeSegment> {
+        self.segment.write_arc()
+    }
+
     fn try_head_mut(&self) -> Option<parking_lot::RwLockWriteGuard<'_, MemEdgeSegment>> {
         self.segment.try_write()
     }
 
-    fn try_head_mut_for(
+    fn try_head_mut_arc_for(
         &self,
         timeout: std::time::Duration,
-    ) -> Option<parking_lot::RwLockWriteGuard<'_, MemEdgeSegment>> {
-        self.segment.try_write_for(timeout)
+    ) -> Option<ArcRwLockWriteGuard<MemEdgeSegment>> {
+        self.segment.try_write_arc_for(timeout)
     }
 
     fn set_dirty(&self, _dirty: bool) {}
@@ -613,11 +624,12 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         Ok(())
     }
 
-    fn check_metadata_immut<PR: AsPropRef>(
+    fn check_metadata_immut(
         &self,
         _edge_pos: LocalPOS,
         _layer_id: LayerId,
-        _props: &[(usize, PR)],
+        _prop_id: usize,
+        _prop: PropRef,
     ) -> Result<(), StorageError> {
         Ok(())
     }

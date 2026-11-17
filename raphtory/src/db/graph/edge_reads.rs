@@ -7,7 +7,7 @@ use crate::{
     core::{entities::LayerIds, utils::iter::GenLockedIter},
     db::{
         api::view::{
-            internal::{EdgeTimeSemanticsOps, GraphView, InnerFilterOps},
+            internal::{BoxableGraphView, EdgeTimeSemanticsOps, GraphView, InnerFilterOps},
             BoxedLIter, IntoDynBoxed,
         },
         graph::views::layer_graph::LayeredGraph,
@@ -40,7 +40,7 @@ impl EdgeAt {
     }
 
     /// A read through a layer the view does not show has no answer.
-    fn visible<G: GraphView>(self, graph: &G) -> bool {
+    pub(crate) fn visible<G: BoxableGraphView>(self, graph: &G) -> bool {
         match self {
             EdgeAt::Whole => true,
             EdgeAt::Layer(layer) | EdgeAt::Exploded(layer, _) => graph.layer_ids().contains(&layer),

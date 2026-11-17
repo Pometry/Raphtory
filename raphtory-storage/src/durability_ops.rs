@@ -1,4 +1,7 @@
-use crate::{graph::graph::GraphStorage, mutation::MutationError};
+use crate::{
+    graph::graph::GraphStorage,
+    mutation::{addition_ops::InternalAdditionOps, MutationError},
+};
 use storage::{transaction::TransactionGuard, ControlFile, Wal};
 
 /// Accessor methods for supporting durability.

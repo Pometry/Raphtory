@@ -4,12 +4,13 @@ use crate::{
         edges::GqlEdges,
         filter_expr_input::GqlFilter,
         history::GqlHistory,
-        node::GqlNode,
+        node::{GqlDegreeBounds, GqlNode, DEFAULT_DEGREE_THRESHOLD},
         timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlPathFromNodeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -19,7 +20,6 @@ use raphtory::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
         graph::path::PathFromNode,
     },
-    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::utils::time::IntoTime;
@@ -117,7 +117,7 @@ impl GqlPathFromNode {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
+    ) -> Result<GqlPathFromNodeWindowSet, GQLError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if let Some(unit) = alignment_unit {
@@ -145,7 +145,7 @@ impl GqlPathFromNode {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
+    ) -> Result<GqlPathFromNodeWindowSet, GQLError> {
         let step = step.try_into_interval()?;
         let ws = if let Some(unit) = alignment_unit {
             self.nn.expanding_aligned(step, unit.into())?
@@ -298,6 +298,78 @@ impl GqlPathFromNode {
         Ok(blocking_compute(move || self_clone.nn.out_degree().collect()).await)
     }
 
+    /// Bounds on the degree of every node in the path, in order; see `Node.approximateDegree`.
+    pub async fn approximate_degree(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> async_graphql::Result<Vec<GqlDegreeBounds>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        Ok(blocking_compute(move || {
+            self_clone
+                .nn
+                .degree_bounds(threshold)
+                .map(GqlDegreeBounds::from)
+                .collect()
+        })
+        .await)
+    }
+
+    /// Bounds on the in-degree of every node in the path, in order; see `Node.approximateInDegree`.
+    pub async fn approximate_in_degree(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> async_graphql::Result<Vec<GqlDegreeBounds>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        Ok(blocking_compute(move || {
+            self_clone
+                .nn
+                .in_degree_bounds(threshold)
+                .map(GqlDegreeBounds::from)
+                .collect()
+        })
+        .await)
+    }
+
+    /// Bounds on the out-degree of every node in the path, in order; see `Node.approximateOutDegree`.
+    pub async fn approximate_out_degree(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> async_graphql::Result<Vec<GqlDegreeBounds>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        Ok(blocking_compute(move || {
+            self_clone
+                .nn
+                .out_degree_bounds(threshold)
+                .map(GqlDegreeBounds::from)
+                .collect()
+        })
+        .await)
+    }
+
     /// The number of edge updates incident to every node in the path, in order.
     pub async fn edge_history_count(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
         // Columnar metric over every member — unbounded, so honour the
@@ -413,7 +485,7 @@ impl GqlPathFromNode {
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.nn.filter(expr)?;
@@ -443,7 +515,7 @@ impl GqlPathFromNode {
             desc = "Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.nn.select(expr)?;
@@ -460,8 +532,11 @@ impl GqlPathFromNode {
     /// (both directions), as a flat `PathFromNode`.
     pub async fn neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -474,8 +549,11 @@ impl GqlPathFromNode {
     /// flat `PathFromNode`.
     pub async fn in_neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -488,8 +566,11 @@ impl GqlPathFromNode {
     /// flat `PathFromNode`.
     pub async fn out_neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;

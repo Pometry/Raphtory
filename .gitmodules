@@ -1,0 +1,6 @@
+[submodule "raphtory-rdf-tests/test-suites/rdf-tests"]
+	path = raphtory-rdf-tests/test-suites/rdf-tests
+	url = https://github.com/w3c/rdf-tests.git
+[submodule "raphtory-rdf-tests/test-suites/data-shapes"]
+	path = raphtory-rdf-tests/test-suites/data-shapes
+	url = https://github.com/w3c/data-shapes.git

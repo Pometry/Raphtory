@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use itertools::Itertools;
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{rngs::SmallRng, RngExt, SeedableRng};
 use raphtory_itertools::FastMergeExt;
 use std::hint::black_box;
 

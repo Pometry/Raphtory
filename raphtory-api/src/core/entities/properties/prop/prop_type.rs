@@ -1,11 +1,10 @@
 use arrow_schema::{ArrowError, DataType};
 use serde::{Deserialize, Serialize};
 use std::{
-    cell::LazyCell,
     collections::HashMap,
     fmt::{self, Display, Formatter},
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -140,7 +139,7 @@ impl Display for PropType {
     }
 }
 
-const CONTAINER_SIZE: LazyCell<usize> = LazyCell::new(|| {
+static CONTAINER_SIZE: LazyLock<usize> = LazyLock::new(|| {
     std::env::var("RAPHTORY_PROP_CONTAINER_SIZE")
         .ok()
         .map(|size| {
@@ -500,11 +499,11 @@ pub fn unify_types(
     }
 }
 
-// fast check before we actually unify, 99% of the time this will be enough
-// there are 3 outcomes,
-// types are identical so no unification needed, None
-// types can be unified Some(true)
-// and types cannot be unified Some(false)
+/// fast check before we actually unify, 99% of the time this will be enough
+/// there are 3 outcomes,
+/// types are identical so no unification needed, None
+/// types can be unified Some(true)
+/// and types cannot be unified Some(false)
 pub fn check_for_unification(l: &PropType, r: &PropType) -> Option<bool> {
     match (l, r) {
         (PropType::Empty, _) => Some(true),

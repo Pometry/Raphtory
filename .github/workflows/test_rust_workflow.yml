@@ -24,6 +24,8 @@ jobs:
           - os: windows-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Free up space (ubuntu)

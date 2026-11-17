@@ -96,7 +96,7 @@ where
                 .await
         } else {
             let path = req.uri().path().trim_start_matches('/');
-            let file_name = req.uri().path().split('/').last().unwrap_or("");
+            let file_name = req.uri().path().split('/').next_back().unwrap_or("");
 
             if file_name.contains("worker") && file_name.ends_with("js") {
                 // Always return the worker from root

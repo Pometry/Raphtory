@@ -1,12 +1,25 @@
+use crate::{
+    LocalPOS,
+    error::StorageError,
+    generic_time_ops::LayerIter,
+    pages::node_store::increment_and_clamp,
+    segments::node::segment::MemNodeSegment,
+    utils::{Iter2, Iter3, Iter4},
+    wal::LSN,
+};
 use itertools::Itertools;
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
     core::{
         Direction,
-        entities::properties::{
-            meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID},
-            prop::{AsPropRef, Prop, PropUnwrap},
-            tprop::TPropOps,
+        entities::{
+            LayerId,
+            properties::{
+                meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
+                prop::{Prop, PropRef, PropUnwrap, prop_hashable::HashableProp},
+                tprop::TPropOps,
+            },
         },
     },
     iter::IntoDynBoxed,
@@ -17,6 +30,8 @@ use raphtory_core::{
     storage::timeindex::{EventTime, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
+use raphtory_itertools::FastMergeExt;
+use rayon::prelude::*;
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -29,22 +44,6 @@ use std::{
     },
     time::Duration,
 };
-
-use crate::{
-    LocalPOS,
-    error::StorageError,
-    generic_time_ops::LayerIter,
-    pages::node_store::increment_and_clamp,
-    segments::node::segment::MemNodeSegment,
-    utils::{Iter2, Iter3, Iter4},
-    wal::LSN,
-};
-use raphtory_api::core::entities::{
-    LayerId,
-    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::prop_hashable::HashableProp},
-};
-use raphtory_itertools::FastMergeExt;
-use rayon::prelude::*;
 
 /// A property predicate a storage backend may resolve to candidate rows via a
 /// secondary index. String operators use the semantics of the corresponding
@@ -215,7 +214,11 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn segment_id(&self) -> usize;
 
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>;
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemNodeSegment>;
+
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemNodeSegment>;
+
+    fn try_head_mut_arc(&self) -> Option<ArcRwLockWriteGuard<MemNodeSegment>>;
 
     fn head(&self) -> RwLockReadGuard<'_, MemNodeSegment>;
 
@@ -289,11 +292,12 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn get_metadata_immut(&self, pos: LocalPOS, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
-    fn check_metadata_immut<P: AsPropRef>(
+    fn check_metadata_immut(
         &self,
         pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, P)],
+        prop_id: usize,
+        prop_ref: PropRef,
     ) -> Result<(), StorageError>;
 }
 

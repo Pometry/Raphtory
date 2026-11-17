@@ -625,7 +625,7 @@ impl Term for NodeRead {
                 name: NodeField::Exists,
                 views: read_views(views),
             }),
-            NodeLeaf::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
+            NodeLeaf::Opaque(_) => return Err(GraphError::invalid_filter(OPAQUE_FILTER_ERROR)),
         })
     }
 }
@@ -1420,12 +1420,8 @@ pub trait EntityInput: Sized {
     }
 }
 
-fn invalid(msg: impl Into<String>) -> GraphError {
-    GraphError::InvalidGqlFilter(msg.into())
-}
-
 fn prop(value: Value) -> Result<Prop, GraphError> {
-    Prop::try_from(value).map_err(|e| invalid(format!("invalid constant: {e}")))
+    Prop::try_from(value).map_err(|e| GraphError::invalid_filter(format!("invalid constant: {e}")))
 }
 
 /// The members of a set: a list of constants. Anything else, a placeholder a
@@ -1434,7 +1430,9 @@ fn member_values(values: Value, negated: bool) -> Result<Vec<Prop>, GraphError> 
     let op = if negated { "isNotIn" } else { "isIn" };
     match values {
         Value::List(items) => items.into_iter().map(prop).collect(),
-        other => Err(invalid(format!("{op} requires a list value, got {other}"))),
+        other => Err(GraphError::invalid_filter(format!(
+            "{op} requires a list value, got {other}"
+        ))),
     }
 }
 
@@ -1457,7 +1455,7 @@ fn string_op(
 ) -> Result<StringOp, GraphError> {
     let plain = |op| match (levenshtein_distance, prefix_match) {
         (None, None) => Ok(op),
-        _ => Err(invalid(
+        _ => Err(GraphError::invalid_filter(
             "only FUZZY takes `levenshteinDistance` and `prefixMatch`",
         )),
     };
@@ -1471,7 +1469,7 @@ fn string_op(
                 levenshtein_distance,
                 prefix_match,
             }),
-            _ => Err(invalid(
+            _ => Err(GraphError::invalid_filter(
                 "FUZZY requires `levenshteinDistance` and `prefixMatch`",
             )),
         },

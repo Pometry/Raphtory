@@ -71,6 +71,7 @@ impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
 }
 
 pub trait OptionAsStr<'a> {
+    #[allow(clippy::wrong_self_convention)]
     fn as_str(self) -> Option<&'a str>;
 }
 

@@ -19,7 +19,10 @@ impl GraphSchema {
 
         let layers = graph
             .unique_layers()
-            .map(|layer_name| graph.layers(layer_name).unwrap().into())
+            .filter_map(|layer| {
+                let layer_id = graph.get_layer_id(layer.as_ref())?;
+                Some(LayerSchema::new(graph.clone(), layer_id))
+            })
             .collect_vec();
 
         GraphSchema { nodes, layers }

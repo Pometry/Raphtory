@@ -27,12 +27,12 @@ use crate::{
         property::{ObjectEntry, Value},
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
-use dynamic_graphql::{Enum, InputObject, OneOfInput, Result};
-use raphtory::{
-    db::graph::views::filter::model::{node_filter::NodeFilter, property_filter::PropertyRef},
-    errors::GraphError,
+use dynamic_graphql::{Enum, InputObject, OneOfInput};
+use raphtory::db::graph::views::filter::model::{
+    node_filter::NodeFilter, property_filter::PropertyRef,
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::cmp::Ordering;
@@ -198,7 +198,7 @@ fn lower_case_value(value: &Value) -> Value {
         Value::NDTime(v) => Value::NDTime(v.clone()),
         Value::Decimal(v) => Value::Decimal(v.clone()),
         Value::Var(v) => Value::Var(v.clone()),
-        Value::Claim(v) => Value::Var(v.clone()),
+        Value::Claim(v) => Value::Claim(v.clone()),
     }
 }
 
@@ -263,7 +263,7 @@ fn condition_matches_with_case(
     cond: &PropCondition,
     value: Option<&Prop>,
     case_sensitive: bool,
-) -> Result<bool> {
+) -> Result<bool, GQLError> {
     if !case_sensitive {
         let folded_value = value.map(lower_case_prop);
         return condition_matches(key, &lower_case_condition(cond), folded_value.as_ref());
@@ -276,7 +276,11 @@ fn condition_matches_with_case(
 /// `And`/`Or`/`Not` are handled here because they compose whole conditions,
 /// while everything below them compiles to one `PropertyFilter` whose `matches`
 /// already understands absent values and list-aggregating wrappers.
-fn condition_matches(key: &str, cond: &PropCondition, value: Option<&Prop>) -> Result<bool> {
+fn condition_matches(
+    key: &str,
+    cond: &PropCondition,
+    value: Option<&Prop>,
+) -> Result<bool, GQLError> {
     match cond {
         PropCondition::And(list) => {
             for c in list {
@@ -316,7 +320,7 @@ async fn field_value(
     field: MetaGraphField,
     ctx: &Context<'_>,
     data: &Data,
-) -> Result<Option<Prop>> {
+) -> Result<Option<Prop>, GQLError> {
     Ok(match field {
         MetaGraphField::Name => graph.name_value().map(|name| Prop::Str(name.into())),
         MetaGraphField::Path => Some(Prop::Str(graph.local_path().into())),
@@ -349,16 +353,14 @@ fn field_name(field: MetaGraphField) -> &'static str {
 impl MetaGraphCondition {
     /// Mirrors `MetaGraphSort::validate` — the cost of the `Option` pair is that
     /// "exactly one target" has to be checked rather than made unrepresentable.
-    fn validate(&self) -> Result<()> {
+    fn validate(&self) -> Result<(), GQLError> {
         match (self.field.is_some(), self.metadata_key.is_some()) {
-            (true, true) => Err(GraphError::InvalidGqlFilter(
+            (true, true) => Err(GQLError::InvalidFilter(
                 "a condition must set either `field` or `metadataKey`, not both".into(),
-            )
-            .into()),
-            (false, false) => Err(GraphError::InvalidGqlFilter(
+            )),
+            (false, false) => Err(GQLError::InvalidFilter(
                 "a condition must set one of `field` or `metadataKey`".into(),
-            )
-            .into()),
+            )),
             _ => Ok(()),
         }
     }
@@ -369,7 +371,7 @@ impl MetaGraphFilter {
     ///
     /// Done up front rather than during evaluation so a malformed condition is
     /// reported whether or not short-circuiting would have reached it.
-    fn validate(&self) -> Result<()> {
+    fn validate(&self) -> Result<(), GQLError> {
         match self {
             MetaGraphFilter::Condition(condition) => condition.validate(),
             MetaGraphFilter::And(list) | MetaGraphFilter::Or(list) => {
@@ -428,7 +430,7 @@ impl MetaGraphFilter {
         graph: &MetaGraph,
         ctx: &Context<'_>,
         data: &Data,
-    ) -> Result<bool> {
+    ) -> Result<bool, GQLError> {
         self.validate()?;
         let mut fields = Vec::new();
         self.referenced_fields(&mut fields);
@@ -451,7 +453,7 @@ impl MetaGraphFilter {
         &self,
         fields: &[(MetaGraphField, Option<Prop>)],
         pairs: &[(String, Prop)],
-    ) -> Result<bool> {
+    ) -> Result<bool, GQLError> {
         match self {
             MetaGraphFilter::Condition(condition) => {
                 let (label, value) = match (&condition.field, &condition.metadata_key) {
@@ -511,9 +513,11 @@ impl MetaGraphFilter {
     }
 }
 
-fn require_non_empty(op: &str, list: &[MetaGraphFilter]) -> Result<()> {
+fn require_non_empty(op: &str, list: &[MetaGraphFilter]) -> Result<(), GQLError> {
     if list.is_empty() {
-        Err(GraphError::InvalidGqlFilter(format!("{op} expects a non-empty list")).into())
+        Err(GQLError::InvalidFilter(format!(
+            "{op} expects a non-empty list"
+        )))
     } else {
         Ok(())
     }
@@ -538,7 +542,7 @@ impl NamespacedItemFilter {
         item: &NamespacedItem,
         ctx: &Context<'_>,
         data: &Data,
-    ) -> Result<bool> {
+    ) -> Result<bool, GQLError> {
         match item {
             NamespacedItem::MetaGraph(g) => match &self.graphs {
                 None => Ok(true),
@@ -602,7 +606,7 @@ impl SortValue {
 
 /// Places `prop` within an explicit `valueOrder`. Listed values take their
 /// position; anything else lands in one bucket after them, ordered naturally.
-fn rank_by_value_order(prop: &Prop, order: &[Value]) -> Result<SortValue> {
+fn rank_by_value_order(prop: &Prop, order: &[Value]) -> Result<SortValue, GQLError> {
     for (rank, candidate) in order.iter().enumerate() {
         if Prop::try_from(candidate.clone())? == *prop {
             return Ok(SortValue::Ranked(rank, Box::new(SortValue::Absent)));
@@ -630,16 +634,14 @@ fn prop_to_sort_value(prop: &Prop) -> SortValue {
 }
 
 impl MetaGraphSort {
-    fn validate(&self) -> Result<()> {
+    fn validate(&self) -> Result<(), GQLError> {
         match (self.field.is_some(), self.metadata_key.is_some()) {
-            (true, true) => Err(GraphError::InvalidGqlFilter(
+            (true, true) => Err(GQLError::InvalidFilter(
                 "a sort key sets either `field` or `metadataKey`, not both".into(),
-            )
-            .into()),
-            (false, false) => Err(GraphError::InvalidGqlFilter(
+            )),
+            (false, false) => Err(GQLError::InvalidFilter(
                 "a sort key must set one of `field` or `metadataKey`".into(),
-            )
-            .into()),
+            )),
             _ => Ok(()),
         }
     }
@@ -649,7 +651,7 @@ impl MetaGraphSort {
         graph: &MetaGraph,
         ctx: &Context<'_>,
         data: &Data,
-    ) -> Result<SortValue> {
+    ) -> Result<SortValue, GQLError> {
         if let Some(field) = self.field {
             return Ok(match field_value(graph, field, ctx, data).await? {
                 Some(prop) => prop_to_sort_value(&prop),
@@ -679,7 +681,7 @@ pub(crate) async fn sort_graphs(
     sort: Option<Vec<MetaGraphSort>>,
     ctx: &Context<'_>,
     data: &Data,
-) -> Result<Vec<MetaGraph>> {
+) -> Result<Vec<MetaGraph>, GQLError> {
     let sort = sort.unwrap_or_default();
     for key in &sort {
         key.validate()?;

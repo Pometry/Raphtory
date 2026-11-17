@@ -501,3 +501,24 @@ def test_namespace_listing_does_not_load_each_graph():
             metadata_keys = {item["key"]: item["value"] for item in entry["metadata"]}
             assert "owner" in metadata_keys
             assert metadata_keys["owner"] == "pometry"
+
+
+def test_a_claim_in_a_graph_filter_stays_a_claim_whatever_the_case_folding():
+    # A graph filter folded to lower case kept a claim as a variable, so an
+    # unresolved claim was reported as an unresolved variable.
+    g = Graph()
+    g.add_node(1, "a")
+    g.add_metadata({"dept": "eng"})
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=g)
+        for case_sensitive in ("", ", caseSensitive: true", ", caseSensitive: false"):
+            with pytest.raises(Exception) as err:
+                client.query(
+                    '{ root { graphs(filter: {condition: {metadataKey: "dept", '
+                    'where: {eq: {claim: "dept"}}'
+                    + case_sensitive
+                    + "}}) { list { path } } } }"
+                )
+            assert "unresolved claim 'dept' in filter" in str(err.value), case_sensitive

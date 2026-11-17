@@ -7,6 +7,7 @@ pub mod edge;
 pub mod edges;
 pub mod filter_expr_input;
 pub mod filtering;
+#[allow(clippy::module_inception)]
 pub mod graph;
 pub mod history;
 pub mod meta_graph;
@@ -33,6 +34,9 @@ pub mod vectorised_graph;
 
 #[cfg(feature = "vectors")]
 pub mod document;
+
+#[cfg(feature = "rdf")]
+pub mod rdf_graph;
 
 #[derive(OneOfInput, Clone)]
 pub enum WindowDuration {

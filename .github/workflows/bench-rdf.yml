@@ -1,0 +1,71 @@
+name: RDF Benchmarks
+permissions:
+  # submit PR comment
+  pull-requests: write
+  # deployments permission to deploy GitHub pages website
+  deployments: write
+  # contents permission to update benchmark contents in gh-pages branch
+  contents: write
+on:
+  workflow_call:
+
+jobs:
+  benchmark:
+    name: RDF Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-bench-rdf
+      # downloaded once per change of the checksums, not from the archives on every run
+      - name: RDF data cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/raphtory-rdf
+          key: rdf-bench-data-${{ hashFiles('raphtory-rdf-tests/tests/common/bear-b.sha256', 'raphtory-rdf-tests/benches/common/bsbm.sha256') }}
+      - name: Fetch BEAR-B and BSBM
+        run: make bear-b-fetch bsbm-fetch
+      - name: Run benchmark
+        run: |
+          set -o pipefail
+          RAPHTORY_RDF_DATA="$HOME/.cache/raphtory-rdf" cargo bench -p raphtory-rdf-tests --features bench --bench load --bench temporal --bench sparql -- --output-format=bencher | tee benchmark-result.txt
+          # a benchmark without its data skips itself, which would drop its cases from the page
+          if grep '^skipping' benchmark-result.txt; then exit 1; fi
+      - name: Restore Cargo.lock to avoid dirty working tree
+        run: git checkout -- Cargo.lock
+      - name: Store benchmark results from master branch
+        if: github.ref_name == github.event.repository.default_branch
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: RDF Benchmark
+          tool: "cargo"
+          output-file-path: benchmark-result.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          alert-threshold: "200%"
+          comment-on-alert: true
+          summary-always: true
+          fail-on-alert: false
+          auto-push: true
+          benchmark-data-dir-path: dev/bench-rdf
+      - name: Compare benchmark results to master
+        if: github.ref_name != github.event.repository.default_branch
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: RDF Benchmark
+          tool: "cargo"
+          output-file-path: benchmark-result.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          alert-threshold: "200%"
+          comment-on-alert: true
+          summary-always: true
+          fail-on-alert: false
+          save-data-file: false
+          benchmark-data-dir-path: dev/bench-rdf
+      - name: Clean criterion folder before caching
+        run: |
+          rm -r "target/criterion"

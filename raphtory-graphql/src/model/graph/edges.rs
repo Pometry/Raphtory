@@ -12,6 +12,7 @@ use crate::{
         sorting::EdgeSortBy,
     },
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -21,7 +22,6 @@ use raphtory::{
         api::view::{DynamicGraph, Filter, Select},
         graph::edges::{DynEdgeItem, Edges},
     },
-    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::utils::time::IntoTime;
@@ -118,7 +118,7 @@ impl GqlEdges {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlEdgesWindowSet, GraphError> {
+    ) -> Result<GqlEdgesWindowSet, GQLError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if let Some(unit) = alignment_unit {
@@ -146,7 +146,7 @@ impl GqlEdges {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlEdgesWindowSet, GraphError> {
+    ) -> Result<GqlEdgesWindowSet, GQLError> {
         let step = step.try_into_interval()?;
         let ws = if let Some(unit) = alignment_unit {
             self.ee.expanding_aligned(step, unit.into())?
@@ -249,7 +249,7 @@ impl GqlEdges {
             desc = "Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order."
         )]
         sort_bys: Vec<EdgeSortBy>,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             // A key that sets none or several of the mutually exclusive fields
@@ -390,10 +390,9 @@ impl GqlEdges {
         Ok(blocking_compute(move || self_clone.iter().collect()).await)
     }
 
-    /// Narrow the collection to edges matching `expr`. The filter sticks to the
-    /// returned view — every subsequent traversal through these edges (their
-    /// properties, their endpoints' neighbours, etc.) continues to see the
-    /// filtered scope.
+    /// Keep every edge in the collection and scope what is reached through them
+    /// by `expr`: their properties, their endpoints and the endpoints'
+    /// neighbours all see the filtered graph, and so does every later traversal.
     ///
     /// Useful when you want one scoping rule to apply across the whole query.
     /// E.g. restricting everything to a specific week:
@@ -404,14 +403,15 @@ impl GqlEdges {
     /// } }
     /// ```
     ///
-    /// Contrast with `select`, which applies here and is not carried through.
+    /// Contrast with `select`, which keeps only the edges matching `expr` and
+    /// is not carried through.
     pub async fn filter(
         &self,
         #[graphql(
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.ee.filter(expr)?;
@@ -444,7 +444,7 @@ impl GqlEdges {
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.ee.select(expr)?;

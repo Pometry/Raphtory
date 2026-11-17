@@ -55,12 +55,12 @@ pub(crate) async fn setup_with_policy(
     TestSetup { data, schema }
 }
 
-pub(crate) async fn run_mutation(schema: &Schema, query: &str) -> async_graphql::Response {
+pub(crate) async fn run_query(schema: &Schema, query: &str) -> async_graphql::Response {
     let req = Request::new(query).data(Access::Rw);
     schema.execute(req).await
 }
 
-pub(crate) async fn run_mutation_as_user(schema: &Schema, query: &str) -> async_graphql::Response {
+pub(crate) async fn run_query_as_user(schema: &Schema, query: &str) -> async_graphql::Response {
     // No `Access::Rw` injected, so the policy decides allow/deny. `FakePolicy` resolves
     // permissions by path alone, so no identity needs to travel in the request.
     let req = Request::new(query);

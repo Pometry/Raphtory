@@ -109,7 +109,9 @@ impl PyExplodedEdgeFilter {
         Self(self.0.clone().before(time))
     }
 
-    /// Evaluates exploded edge predicates against the latest available state.
+    /// Evaluates exploded edge predicates at the graph's latest time, as
+    /// `GraphView.latest()` does: an exploded edge whose update is earlier has
+    /// no value there. For each edge's own last value, use `snapshot_latest()`.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -421,7 +423,9 @@ impl PyExplodedEdge {
         PyExplodedEdgeFilter::root().before(time)
     }
 
-    /// Evaluates exploded edge predicates against the latest available state.
+    /// Evaluates exploded edge predicates at the graph's latest time, as
+    /// `GraphView.latest()` does: an exploded edge whose update is earlier has
+    /// no value there. For each edge's own last value, use `snapshot_latest()`.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:

@@ -188,7 +188,9 @@ impl PyEdgeFilter {
         Self(self.0.clone().before(time))
     }
 
-    /// Evaluates edge predicates against the latest available edge state.
+    /// Evaluates edge predicates at the graph's latest time, as
+    /// `GraphView.latest()` does: an edge whose last update is earlier has no
+    /// value there. For each edge's own last value, use `snapshot_latest()`.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -513,7 +515,9 @@ impl PyEdge {
         PyEdgeFilter::root().before(time)
     }
 
-    /// Evaluates edge predicates against the latest available edge state.
+    /// Evaluates edge predicates at the graph's latest time, as
+    /// `GraphView.latest()` does: an edge whose last update is earlier has no
+    /// value there. For each edge's own last value, use `snapshot_latest()`.
     ///
     /// Returns:
     ///     filter.EdgeFilter:

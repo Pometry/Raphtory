@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use rand::{distr::Uniform, Rng};
+use rand::{distr::Uniform, RngExt};
 use raphtory::core::entities::nodes::structure::adjset::AdjSet;
 use raphtory_api::core::storage::sorted_vec_map::SVM;
 use std::collections::BTreeSet;

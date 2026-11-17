@@ -36,6 +36,7 @@ use pyo3::PyErr;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
+use raphtory_storage::graph::graph::Immutable;
 #[cfg(feature = "io")]
 use tempfile::PersistError;
 
@@ -209,6 +210,9 @@ pub enum GraphError {
     #[error("Nodes already exist with IDs: {0:?}")]
     NodesExistError(Vec<GID>),
 
+    #[error("Cannot import node {0:?}: it has no updates and does not exist in the target graph")]
+    ImportNodeWithoutUpdates(GID),
+
     #[error("Edge already exists for nodes {0:?} {1:?}")]
     EdgeExistsError(GID, GID),
 
@@ -354,9 +358,6 @@ pub enum GraphError {
     InvalidContains(FilterOperator),
 
     #[error("Invalid filter: {0}")]
-    InvalidGqlFilter(String),
-
-    #[error("Invalid filter: {0}")]
     InvalidFilter(String),
 
     #[error("Property {0} not found in temporal or metadata")]
@@ -388,6 +389,12 @@ pub enum GraphError {
 
     #[error(transparent)]
     GraphFolder(#[from] GraphFolderError),
+}
+
+impl From<Immutable> for GraphError {
+    fn from(value: Immutable) -> Self {
+        Self::MutationError(value.into())
+    }
 }
 
 impl From<MetadataError> for GraphError {

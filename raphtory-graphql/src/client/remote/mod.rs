@@ -43,7 +43,7 @@ pub use remote_nodes::RemoteNodes;
 pub use remote_path_from_graph::RemotePathFromGraph;
 pub use remote_path_from_node::RemotePathFromNode;
 pub use remote_schema::{
-    RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
+    RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
 };
 
 #[cfg(test)]

@@ -1,7 +1,8 @@
-use crate::core::{entities::properties::meta::STATIC_GRAPH_LAYER_NAME, storage::arc_str::ArcStr};
-use parking_lot::{
-    lock_api::ArcRwLockReadGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
+use crate::{
+    core::{entities::properties::meta::STATIC_GRAPH_LAYER_NAME, storage::arc_str::ArcStr},
+    ArcRwLockReadGuard,
 };
+use parking_lot::{RwLock, RwLockReadGuard, RwLockUpgradableReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -131,6 +132,27 @@ pub struct LockedDictMapper<'a> {
     num_private_fields: usize,
 }
 
+pub struct StagedDictMapper<'a> {
+    map: RwLockUpgradableReadGuard<'a, FxHashMap<ArcStr, usize>>,
+    reverse_map: RwLockUpgradableReadGuard<'a, Vec<ArcStr>>,
+}
+
+impl<'a> StagedDictMapper<'a> {
+    pub fn upgrade(self) -> WriteLockedDictMapper<'a> {
+        let map = RwLockUpgradableReadGuard::upgrade(self.map);
+        let reverse_map = RwLockUpgradableReadGuard::upgrade(self.reverse_map);
+        WriteLockedDictMapper { map, reverse_map }
+    }
+
+    pub fn get_id(&self, name: &str) -> Option<usize> {
+        self.map.get(name).copied()
+    }
+
+    pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
+        &self.map
+    }
+}
+
 pub struct WriteLockedDictMapper<'a> {
     map: RwLockWriteGuard<'a, FxHashMap<ArcStr, usize>>,
     reverse_map: RwLockWriteGuard<'a, Vec<ArcStr>>,
@@ -139,6 +161,10 @@ pub struct WriteLockedDictMapper<'a> {
 impl LockedDictMapper<'_> {
     pub fn get_id(&self, name: &str) -> Option<usize> {
         self.map.get(name).copied()
+    }
+
+    pub fn get_name(&self, prop_id: usize) -> Option<&ArcStr> {
+        self.reverse_map.get(prop_id)
     }
 
     pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
@@ -172,15 +198,15 @@ impl WriteLockedDictMapper<'_> {
         new_id
     }
 
-    pub fn set_id(&mut self, name: impl Into<ArcStr>, id: usize) {
+    /// map name to id, returns true if the name was not previously present in the map
+    pub fn set_id(&mut self, name: impl Into<ArcStr>, id: usize) -> bool {
         let arc_name = name.into();
-        let map_entry = self.map.entry(arc_name.clone());
         let keys = self.reverse_map.deref_mut();
         if keys.len() <= id {
             keys.resize(id + 1, Default::default())
         }
-        keys[id] = arc_name;
-        map_entry.insert_entry(id);
+        keys[id] = arc_name.clone();
+        self.map.insert(arc_name, id).is_none()
     }
 
     pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
@@ -197,7 +223,7 @@ impl DictMapper {
         self.reverse_map.write()
     }
 
-    fn read_arc_lock_reverse_map(&self) -> ArcRwLockReadGuard<RawRwLock, Vec<ArcStr>> {
+    fn read_arc_lock_reverse_map(&self) -> ArcRwLockReadGuard<Vec<ArcStr>> {
         self.reverse_map.read_arc_recursive()
     }
 
@@ -235,6 +261,12 @@ impl DictMapper {
             reverse_map: self.read_lock_reverse_map(),
             num_private_fields: self.num_private_fields,
         }
+    }
+
+    pub fn stage(&self) -> StagedDictMapper<'_> {
+        let map = self.map.upgradable_read();
+        let reverse_map = self.reverse_map.upgradable_read();
+        StagedDictMapper { map, reverse_map }
     }
 
     pub fn write(&self) -> WriteLockedDictMapper<'_> {
@@ -342,7 +374,7 @@ impl DictMapper {
 
 #[derive(Debug)]
 pub struct AllKeys<T> {
-    pub(crate) guard: ArcRwLockReadGuard<RawRwLock, Vec<T>>,
+    pub(crate) guard: ArcRwLockReadGuard<Vec<T>>,
 }
 
 impl<T> Deref for AllKeys<T> {
@@ -367,7 +399,7 @@ impl<T: Clone> IntoIterator for AllKeys<T> {
 }
 
 pub struct PublicKeys<T> {
-    guard: ArcRwLockReadGuard<RawRwLock, Vec<T>>,
+    guard: ArcRwLockReadGuard<Vec<T>>,
     num_private_fields: usize,
 }
 
@@ -401,7 +433,7 @@ impl<T: Clone> IntoIterator for PublicKeys<T> {
 }
 
 pub struct LockedIter<T> {
-    guard: ArcRwLockReadGuard<RawRwLock, Vec<T>>,
+    guard: ArcRwLockReadGuard<Vec<T>>,
     pos: usize,
     len: usize,
 }

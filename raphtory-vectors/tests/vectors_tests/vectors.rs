@@ -12,7 +12,6 @@ mod vector_tests {
         vectorisable::Vectorisable,
     };
     use std::time::Duration;
-    use tokio;
 
     const NO_PROPS: [(&str, Prop); 0] = [];
 

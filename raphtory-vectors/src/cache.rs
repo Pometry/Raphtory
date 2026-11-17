@@ -5,7 +5,7 @@ use crate::{
 };
 use ahash::RandomState;
 use futures_util::StreamExt;
-use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
+use heed::{types::SerdeBincode, CommitOrAbort, Database, Env, EnvOpenOptions};
 use moka::future::Cache;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ struct CacheEntry {
     text: String,
     vector: Embedding,
 }
-type VectorDb = Database<SerdeBincode<u64>, SerdeBincode<CacheEntry>>;
+type VectorDb = Database<'static, SerdeBincode<u64>, SerdeBincode<CacheEntry>>;
 
 enum VectorStore {
     Mem(RwLock<HashMap<u64, CacheEntry>>),
@@ -50,17 +50,25 @@ impl VectorStore {
         let env = unsafe { EnvOpenOptions::new().map_size(max_size).open(path) }?;
 
         let rtxn = env.read_txn()?;
-        let db = env
-            .open_database(&rtxn, None)
-            .transpose()
-            .unwrap_or_else(|| {
-                let mut wtxn = env.write_txn()?;
-                let db = env.create_database(&mut wtxn, None);
-                wtxn.commit()?;
+        let db = match env
+            .open_databases_and_commit(rtxn, |dbo, rtxn| {
+                let local_database = dbo.open_database(rtxn, None)?;
+                Ok::<_, heed::Error>(CommitOrAbort::<_, ()>::Commit(local_database))
+            })?
+            .unwrap_commit()
+        {
+            Some(db) => db,
+            None => {
+                let wtxn = env.write_txn()?;
+                let db = env
+                    .create_databases_and_commit(wtxn, |wdo, wtxn| {
+                        let db = wdo.create_database(wtxn, None)?;
+                        Ok::<_, heed::Error>(CommitOrAbort::<_, ()>::Commit(db))
+                    })?
+                    .unwrap_commit();
                 db
-            })?;
-        drop(rtxn);
-
+            }
+        };
         Ok(Self::Disk { env, db })
     }
 

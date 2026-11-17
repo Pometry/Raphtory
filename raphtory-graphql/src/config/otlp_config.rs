@@ -111,7 +111,7 @@ pub const DEFAULT_TRACING_LEVEL: TracingLevel = TracingLevel::COMPLETE;
 
 pub const DEFAULT_OTLP_TRANSPORT_PROTOCOL: TracingProtocol = TracingProtocol::TONIC;
 pub const DEFAULT_OTLP_AGENT_PORT_TONIC: u16 = 4317;
-pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
+pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &str = "Raphtory";
 
 #[cfg(feature = "integration-test")]
 // in-memory exporters to retrieve spans and logs in tests.
@@ -339,7 +339,7 @@ impl TracingConfig {
             match providers {
                 Ok(providers) => Ok(Some(providers)),
                 Err(e) => {
-                    eprintln!("{}", e.to_string()); // error!() here does not work since tracing is not enabled yet
+                    eprintln!("{}", e); // error!() here does not work since tracing is not enabled yet
                     Ok(None)
                 }
             }

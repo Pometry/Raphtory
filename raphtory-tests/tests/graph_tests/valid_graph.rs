@@ -9,7 +9,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::storage::timeindex::AsTime;
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use raphtory_tests::utils::{build_graph, build_graph_strat};
 use std::ops::Range;
 
@@ -98,7 +98,7 @@ fn test_single_deleted_edge_events() {
     assert_eq!(gv.valid_layers("a").count_nodes(), 0);
 
     let expected = Graph::new();
-    expected.resolve_layer(Some("a")).unwrap();
+    expected.mutable().unwrap().resolve_layer(Some("a"));
     assert_graph_equal(&gv, &expected);
     let gvm = gv.materialize().unwrap();
     assert_graph_equal(&gv, &gvm);
@@ -114,7 +114,7 @@ fn test_single_deleted_edge_persistent() {
     assert_eq!(gv.count_temporal_edges(), 0);
 
     let expected = PersistentGraph::new();
-    expected.resolve_layer(Some("a")).unwrap();
+    expected.mutable().unwrap().resolve_layer(Some("a"));
     assert_graph_equal(&gv, &expected);
     let gvm = gv.materialize().unwrap();
     assert_graph_equal(&gv, &gvm);
@@ -177,7 +177,7 @@ fn broken_earliest_time() {
     g.delete_edge(1, 0, 1, None).unwrap();
     let gv = g.valid();
     let expected = PersistentGraph::new();
-    expected.resolve_layer(None).unwrap();
+    expected.mutable().unwrap().resolve_layer(None);
     assert_graph_equal(&gv, &expected);
     let gm = gv.materialize().unwrap();
     assert_graph_equal(&gv, &gm);
@@ -347,8 +347,8 @@ fn weird_empty_graph() {
     let gvw = g.valid().window(0, 5);
     assert_eq!(gvw.count_nodes(), 0);
     let expected = PersistentGraph::new();
-    expected.resolve_layer(None).unwrap();
-    expected.resolve_layer(Some("a")).unwrap();
+    expected.mutable().unwrap().resolve_layer(None);
+    expected.mutable().unwrap().resolve_layer(Some("a"));
     assert_graph_equal(&gvw, &expected);
     let gvwm = gvw.materialize().unwrap();
     assert_graph_equal(&gvw, &gvwm);

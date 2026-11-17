@@ -1,9 +1,8 @@
 use crate::test_support::setup_with_graphs;
 use async_graphql::Request;
-use itertools::Itertools;
 use raphtory::{
     db::api::view::MaterializedGraph,
-    prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS},
+    prelude::{AdditionOps, Graph, NO_PROPS},
 };
 use serde_json::json;
 use tempfile::tempdir;
@@ -82,8 +81,6 @@ async fn test_algorithm_dijkstra_num_ids() {
         .add_edge(2000, 1, 2000, [("weight", 3.0)], None)
         .unwrap();
     let graph: MaterializedGraph = graph.into();
-    let vids = graph.nodes().iter().map(|n| n.node).collect_vec();
-    dbg!(vids);
     let tmp_dir = tempdir().unwrap();
     let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
 

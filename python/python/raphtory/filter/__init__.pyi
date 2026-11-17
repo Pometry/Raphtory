@@ -10,7 +10,7 @@ from __future__ import annotations
 ###############################################################################
 
 from typing import *
-from raphtory import Nodes, Metadata, Prop, filter
+from raphtory import GraphView, Nodes, Metadata, Prop, filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -567,7 +567,9 @@ class Node(object):
     @staticmethod
     def latest() -> filter.NodeFilter:
         """
-        Evaluates filters against the latest available state of each node.
+        Evaluates filters at the graph's latest time, as `GraphView.latest()`
+        does: a node whose last update is earlier has no value there. For each
+        node's own last value, use `snapshot_latest()`.
 
         Returns:
             filter.NodeFilter:
@@ -623,7 +625,8 @@ class Node(object):
     @staticmethod
     def node_type() -> filter.Expr:
         """
-        Selects the node type field for filtering.
+        Selects the node type field for filtering. A node created without a
+        type is matched as the type `_default`.
 
         Returns:
             filter.Expr:
@@ -923,7 +926,9 @@ class NodeFilter(object):
 
     def latest(self) -> filter.NodeFilter:
         """
-        Evaluates filters against the latest available state of each node.
+        Evaluates filters at the graph's latest time, as `GraphView.latest()`
+        does: a node whose last update is earlier has no value there. For each
+        node's own last value, use `snapshot_latest()`.
 
         Returns:
             filter.NodeFilter:
@@ -974,7 +979,8 @@ class NodeFilter(object):
 
     def node_type(self) -> filter.Expr:
         """
-        Selects the node type field for filtering.
+        Selects the node type field for filtering. A node created without a
+        type is matched as the type `_default`.
 
         Returns:
             filter.Expr:
@@ -1271,7 +1277,9 @@ class Edge(object):
     @staticmethod
     def latest() -> filter.EdgeFilter:
         """
-        Evaluates edge predicates against the latest available edge state.
+        Evaluates edge predicates at the graph's latest time, as
+        `GraphView.latest()` does: an edge whose last update is earlier has no
+        value there. For each edge's own last value, use `snapshot_latest()`.
 
         Returns:
             filter.EdgeFilter:
@@ -1599,7 +1607,9 @@ class EdgeFilter(object):
 
     def latest(self) -> filter.EdgeFilter:
         """
-        Evaluates edge predicates against the latest available edge state.
+        Evaluates edge predicates at the graph's latest time, as
+        `GraphView.latest()` does: an edge whose last update is earlier has no
+        value there. For each edge's own last value, use `snapshot_latest()`.
 
         Returns:
             filter.EdgeFilter:
@@ -1978,7 +1988,9 @@ class ExplodedEdge(object):
     @staticmethod
     def latest() -> filter.ExplodedEdgeFilter:
         """
-        Evaluates exploded edge predicates against the latest available state.
+        Evaluates exploded edge predicates at the graph's latest time, as
+        `GraphView.latest()` does: an exploded edge whose update is earlier has
+        no value there. For each edge's own last value, use `snapshot_latest()`.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -2296,7 +2308,9 @@ class ExplodedEdgeFilter(object):
 
     def latest(self) -> filter.ExplodedEdgeFilter:
         """
-        Evaluates exploded edge predicates against the latest available state.
+        Evaluates exploded edge predicates at the graph's latest time, as
+        `GraphView.latest()` does: an exploded edge whose update is earlier has
+        no value there. For each edge's own last value, use `snapshot_latest()`.
 
         Returns:
             filter.ExplodedEdgeFilter:

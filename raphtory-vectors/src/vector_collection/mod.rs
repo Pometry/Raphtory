@@ -18,6 +18,7 @@ pub trait VectorCollectionFactory {
         name: &str,
         dim: usize,
     ) -> VectorResult<Self::DbType>;
+    #[allow(clippy::wrong_self_convention)]
     async fn from_path(
         &self,
         path: CollectionPath,

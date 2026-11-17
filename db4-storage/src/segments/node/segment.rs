@@ -2,8 +2,9 @@ use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
-    loop_lock_write,
+    loop_lock_write, loop_lock_write_arc,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    properties::PropEntry,
     segments::{
         HasRow, SegmentContainer,
         node::entry::{MemNodeEntry, MemNodeRef},
@@ -11,14 +12,17 @@ use crate::{
     wal::LSN,
 };
 use either::Either;
-use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
-use raphtory_api::core::{
-    Direction,
-    entities::{
-        EID, LayerId, VID,
-        properties::{
-            meta::Meta,
-            prop::{AsPropRef, Prop},
+use parking_lot::RwLock;
+use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
+    core::{
+        Direction,
+        entities::{
+            EID, LayerId, VID,
+            properties::{
+                meta::Meta,
+                prop::{AsPropRef, Prop, PropRef},
+            },
         },
     },
 };
@@ -344,14 +348,15 @@ impl MemNodeSegment {
         (is_new, layer_est_size - est_size)
     }
 
-    pub fn check_metadata<P: AsPropRef>(
+    pub fn check_metadata(
         &self,
         node_pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, P)],
+        prop_id: usize,
+        prop: PropRef,
     ) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(layer_id.0) {
-            layer.check_metadata(node_pos, props)?;
+            layer.check_metadata(node_pos, prop_id, prop)?;
         }
         Ok(())
     }
@@ -386,6 +391,11 @@ impl MemNodeSegment {
         segment_container.c_prop(node_pos, prop_id)
     }
 
+    pub fn prop_entry(&self, node_pos: LocalPOS, layer_id: LayerId) -> Option<PropEntry<'_>> {
+        let layer = self.get_layer(layer_id)?;
+        layer.prop_entry(node_pos)
+    }
+
     pub fn latest(&self) -> Option<EventTime> {
         Iterator::max(self.layers.iter().filter_map(|seg| seg.latest()))
     }
@@ -417,15 +427,12 @@ pub struct NodeSegmentView<EXT> {
 
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
-    inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+    inner: ArcRwLockReadGuard<MemNodeSegment>,
     num_nodes: u32,
 }
 
 impl ArcLockedSegmentView {
-    pub fn new(
-        inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
-        num_nodes: u32,
-    ) -> Self {
+    pub fn new(inner: ArcRwLockReadGuard<MemNodeSegment>, num_nodes: u32) -> Self {
         Self { inner, num_nodes }
     }
 }
@@ -510,8 +517,17 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     #[inline(always)]
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemNodeSegment> {
         self.inner.read_arc_recursive()
+    }
+
+    #[inline(always)]
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemNodeSegment> {
+        loop_lock_write_arc(&self.inner)
+    }
+
+    fn try_head_mut_arc(&self) -> Option<ArcRwLockWriteGuard<MemNodeSegment>> {
+        self.inner.try_write_arc()
     }
 
     #[inline(always)]
@@ -620,11 +636,12 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         None
     }
 
-    fn check_metadata_immut<PR: AsPropRef>(
+    fn check_metadata_immut(
         &self,
         _pos: LocalPOS,
         _layer_id: LayerId,
-        _props: &[(usize, PR)],
+        _prop_id: usize,
+        _prop_ref: PropRef,
     ) -> Result<(), StorageError> {
         Ok(())
     }

@@ -179,11 +179,12 @@ impl PyPersistentGraph {
     /// Build secondary indexes over node property values to speed up
     /// property filters (equality, comparisons and string matching).
     ///
-    /// The index describes the graph as of this call: values written
-    /// afterwards are not searchable through it until the next build, so call
-    /// this again after loading more data. Filters over properties the index
-    /// does not cover fall back to a scan and stay correct either way; an
-    /// index only changes how fast they run.
+    /// The index describes the graph as of this call. Values written
+    /// afterwards are still found, served by a scan beside the index, so
+    /// answers stay correct and only the speed-up is lost for them until the
+    /// next build; call this again after loading more data. Filters over
+    /// properties the index does not cover fall back to a scan in the same
+    /// way; an index only changes how fast they run.
     ///
     /// Arguments:
     ///     props (list[str], optional): the property names to index, replacing

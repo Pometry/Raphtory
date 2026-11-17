@@ -14,6 +14,11 @@ use crate::{
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
+#[cfg(feature = "rdf")]
+use crate::{
+    model::graph::rdf_graph::RdfSchema,
+    sparql::{endpoint::SparqlEndpoint, jobs::RdfJobs},
+};
 use async_graphql::dynamic::Schema;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
@@ -21,12 +26,18 @@ use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
     trace::{SdkTracerProvider, Tracer},
 };
+#[cfg(feature = "rdf")]
+use poem::{
+    endpoint::make_sync,
+    http::{header::VARY, StatusCode},
+    middleware::SetHeader,
+};
 use poem::{
     get,
     listener::{Acceptor, Listener, TcpListener},
-    middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
+    middleware::{Compression, Cors},
     web::CompressionLevel,
-    EndpointExt, Route, Server,
+    Endpoint, EndpointExt, Route, Server,
 };
 use raphtory::db::api::storage::storage::Args;
 use serde_json::json;
@@ -52,7 +63,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
@@ -157,6 +168,13 @@ impl GraphServer {
             schema_data: Vec::new(),
             key_resolver: None,
             schema_plugins: Vec::new(),
+        };
+        #[cfg(feature = "rdf")]
+        let server = if server.config.schema.disable_rdf {
+            server
+        } else {
+            let shacl = !server.config.schema.disable_shacl;
+            server.with_schema_plugin(RdfSchema { shacl })
         };
         extensions.process(server)
     }
@@ -384,13 +402,21 @@ impl GraphServer {
         .map_err(|e| SchemaError(e.to_string()))
     }
 
-    async fn generate_endpoint(
-        self,
-        tracer: Option<Tracer>,
-    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+    async fn generate_endpoint(self, tracer: Option<Tracer>) -> Result<impl Endpoint, ServerError> {
         let config = self.config.clone();
         let key_resolver = self.key_resolver.clone();
-        let schema = self.build_schema(tracer).await?;
+        #[cfg(feature = "rdf")]
+        let jobs = RdfJobs::new(&config.concurrency);
+        #[cfg(feature = "rdf")]
+        let server = self.with_schema_data(jobs.clone());
+        #[cfg(not(feature = "rdf"))]
+        let server = self;
+        let schema = server.build_schema(tracer).await?;
+        let graphql = Arc::new(AuthenticatedGraphQL::new(
+            schema,
+            config.clone(),
+            key_resolver,
+        ));
 
         let app = Route::new()
             .nest(
@@ -398,14 +424,27 @@ impl GraphServer {
                 PublicFilesEndpoint::new(
                     config.public_dir.clone(),
                     config.schema.disable_ui,
-                    AuthenticatedGraphQL::new(schema, config, key_resolver),
+                    graphql.clone(),
                 ),
             )
             .at("/health", get(health))
             .at("/version", get(version))
-            .with(Cors::new())
-            .with(Compression::new().with_quality(CompressionLevel::Fastest));
-        Ok(app)
+            .with(Cors::new());
+        // `Cors` replaces `Vary`, so `Vary: Accept` is added outside it
+        #[cfg(feature = "rdf")]
+        let app = if config.schema.disable_rdf || config.schema.disable_sparql_endpoint {
+            // registered anyway so that `/` (the UI or GraphQL) does not answer it
+            Route::new().at("/sparql/*path", make_sync(|_| StatusCode::NOT_FOUND))
+        } else {
+            Route::new().at(
+                "/sparql/*path",
+                SparqlEndpoint::new(graphql, &config.concurrency, jobs)
+                    .with(Cors::new())
+                    .with(SetHeader::new().appending(VARY, "Accept")),
+            )
+        }
+        .nest_no_strip("/", app);
+        Ok(app.with(Compression::new().with_quality(CompressionLevel::Fastest)))
     }
 
     /// Run the server on the default port until completion.
@@ -475,7 +514,11 @@ impl RunningGraphServer {
 
 async fn server_termination(
     mut internal_signal: Receiver<()>,
-    tp: Option<(SdkTracerProvider, SdkLoggerProvider)>,
+    // unused with `integration-test`, where the exporters are kept alive across tests
+    #[cfg_attr(feature = "integration-test", allow(unused_variables))] tp: Option<(
+        SdkTracerProvider,
+        SdkLoggerProvider,
+    )>,
 ) {
     let ctrl_c = async {
         signal::ctrl_c()
@@ -509,11 +552,11 @@ async fn server_termination(
             tokio::task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
-                    error!("Failed to shut down tracing provider: {:?}", e);
+                    tracing::error!("Failed to shut down tracing provider: {:?}", e);
                 }
                 let res = lp.shutdown();
                 if let Err(e) = res {
-                    error!("Failed to shut down logging provider: {:?}", e);
+                    tracing::error!("Failed to shut down logging provider: {:?}", e);
                 }
             })
             .await
@@ -610,8 +653,7 @@ mod server_tests {
 
     // Builds a GraphQL batch request body containing `n` trivial queries.
     fn batch_body(n: usize) -> String {
-        let queries = std::iter::repeat(r#"{"query":"{__typename}"}"#)
-            .take(n)
+        let queries = std::iter::repeat_n(r#"{"query":"{__typename}"}"#, n)
             .collect::<Vec<_>>()
             .join(",");
         format!("[{queries}]")

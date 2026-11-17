@@ -38,6 +38,10 @@ jobs:
     name: Run benchmarks
     uses: ./.github/workflows/bench-graphql.yml
     secrets: inherit
+  call-rdf-bench-workflow-in-local-repo:
+    name: Run benchmarks
+    uses: ./.github/workflows/bench-rdf.yml
+    secrets: inherit
   call-stress-test-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/stress-test.yml

@@ -3,6 +3,7 @@ use pyo3::{exceptions::PyException, PyResult};
 use raphtory_api::python::error::adapt_err_value;
 
 pub mod running_server;
+#[allow(clippy::module_inception)]
 pub mod server;
 
 pub(crate) enum BridgeCommand {

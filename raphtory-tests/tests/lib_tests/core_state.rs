@@ -2,7 +2,7 @@
 mod state_test {
     use itertools::Itertools;
     use proptest::proptest;
-    use rand::Rng;
+    use rand::RngExt;
 
     use raphtory::{
         core::state::{

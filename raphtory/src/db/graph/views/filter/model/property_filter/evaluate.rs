@@ -13,7 +13,7 @@ enum ValueType {
 pub fn aggregate_values<I: IntoIterator<Item = Prop>>(vals: I, op: Op) -> Option<Prop> {
     match op {
         Op::Len => Some(Prop::U64(vals.into_iter().count() as u64)),
-        Op::Sum => generalised_reduce(vals, |a, b| a.add(b), |first| first.is_numeric()),
+        Op::Sum => generalised_reduce(vals, |a, b| a + b, |first| first.is_numeric()),
         Op::Avg => Prop::mean(vals),
         Op::Min => generalised_reduce(vals, |a, b| a.min(b), |_| true),
         Op::Max => generalised_reduce(vals, |a, b| a.max(b), |_| true),
@@ -407,11 +407,14 @@ pub fn scan_f64_sum_count<P: Borrow<Prop>>(
     Some((sum, count))
 }
 
+/// The values of one list property, fed to an aggregation.
+pub type ListValues<'a> = Box<dyn DoubleEndedIterator<Item = Prop> + 'a>;
+
 /// List-aware aggregation for the expr layer: descends one level into list
 /// properties and applies `op` per element list.
 pub fn aggregate_list_values(
     vals: Option<Prop>,
-    op: &dyn Fn(Box<dyn DoubleEndedIterator<Item = Prop> + '_>) -> Option<Prop>,
+    op: &dyn Fn(ListValues<'_>) -> Option<Prop>,
 ) -> Option<Prop> {
     match vals? {
         Prop::List(x) => {

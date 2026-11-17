@@ -159,7 +159,8 @@ def test_edge_reads_through_an_endpoint_keep_the_edge_views():
 def test_a_view_expression_restricts_the_whole_filter():
     """`and: [view, predicate]` applies the view first and the predicate inside it,
     like `graph.window(0, 2).filter(predicate)`: dave's updates at 2 and 3 fall
-    outside [0, 2), so he is gone before the predicate runs."""
+    outside [0, 2), so he is gone before the predicate runs. A view alone under
+    `not` keeps the times outside it; beside a predicate under `or` it is refused."""
     g = build()
     window = {"view": [{"window": {"start": 0, "end": 2}}]}
     has_score = node(
@@ -168,9 +169,11 @@ def test_a_view_expression_restricts_the_whole_filter():
     with graphql_client(g) as client:
         assert node_names(client, {"and": [window, has_score]}) == ["alice", "bob"]
         assert node_names(client, has_score) == ["alice", "bob", "dave"]
-        for shape in ({"or": [window, has_score]}, {"not": window}):
-            with pytest.raises(Exception, match="view"):
-                node_names(client, shape)
+        with pytest.raises(Exception, match="view"):
+            node_names(client, {"or": [window, has_score]})
+        # dave's updates at 2, 3 and 6 all fall inside [2, 8)
+        outside = {"not": {"view": [{"window": {"start": 2, "end": 8}}]}}
+        assert node_names(client, outside) == ["alice", "bob", "carol"]
 
 
 def test_structural_predicates_and_views():
@@ -401,3 +404,22 @@ def test_empty_expressions_are_refused():
         ]:
             with pytest.raises(Exception, match=message):
                 node_names(client, shape)
+
+
+def test_name_and_node_type_order_as_strings():
+    """`GT` on a name or a node type compares strings, so "b" is
+    after "a" and "A" is before it; the server answers as the local engine
+    does and keeps serving afterwards."""
+    g = Graph()
+    g.add_node(1, "b", node_type="t")
+    g.add_node(1, "A", node_type="a")
+    by_name = node(cmp("GT", read({"field": "NAME"}), const({"str": "a"})))
+    by_type = node(cmp("GT", read({"field": "NODE_TYPE"}), const({"str": "a"})))
+    with graphql_client(g) as client:
+        assert node_names(client, by_name) == ["b"]
+        assert node_names(client, by_type) == ["b"]
+        assert client.query('{ graph(path: "g") { countNodes } }') == {
+            "graph": {"countNodes": 2}
+        }
+    for expr in [f.Node.name() > "a", f.Node.node_type() > "a"]:
+        assert sorted(n.name for n in g.filter(expr).nodes) == ["b"]

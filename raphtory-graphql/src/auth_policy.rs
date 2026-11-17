@@ -4,7 +4,7 @@ use futures_util::future::BoxFuture;
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
 #[derive(Debug)]
-pub struct AuthPolicyError(String);
+pub struct AuthPolicyError(pub String);
 
 impl AuthPolicyError {
     pub fn new(msg: impl Into<String>) -> Self {
@@ -36,6 +36,7 @@ pub enum PermissionLevel {
 
 /// The effective permission level a principal has on a specific graph.
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum GraphPermission {
     /// May query graph metadata (counts, schema) but not read data.
     Introspect,

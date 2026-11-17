@@ -2,15 +2,25 @@ use super::{
     GraphStore, edge_page::writer::EdgeWriter, node_page::writer::NodeWriters, resolve_pos,
 };
 use crate::{
+    LocalPOS,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    error::StorageError,
     persist::strategy::PersistenceStrategy,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     wal::LSN,
 };
-use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{
-    entities::properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
-    storage::dict_mapper::MaybeNew,
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::{
+        entities::{
+            LayerId,
+            properties::{
+                meta::STATIC_GRAPH_LAYER_ID,
+                prop::{AsPropEntry, Prop},
+            },
+        },
+        storage::dict_mapper::MaybeNew,
+    },
 };
 use raphtory_core::{
     entities::{EID, ELID, VID},
@@ -24,8 +34,8 @@ pub struct EdgeWriteSession<
     GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > {
-    node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
-    edge_writer: EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>,
+    node_writers: NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
+    edge_writer: EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES>,
     graph: &'a GraphStore<NS, ES, GS, EXT>,
 }
 
@@ -38,8 +48,8 @@ impl<
 > EdgeWriteSession<'a, NS, ES, GS, EXT>
 {
     pub fn new(
-        node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
-        edge_writer: EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>,
+        node_writers: NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
+        edge_writer: EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES>,
         graph: &'a GraphStore<NS, ES, GS, EXT>,
     ) -> Self {
         Self {
@@ -47,6 +57,10 @@ impl<
             edge_writer,
             graph,
         }
+    }
+
+    pub fn resolve_pos(&self, eid: EID) -> Option<LocalPOS> {
+        self.edge_writer.resolve_pos(eid)
     }
 
     pub fn add_edge_into_layer<T: AsTime>(
@@ -196,12 +210,32 @@ impl<
 
     pub fn node_writers(
         &mut self,
-    ) -> &mut NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
+    ) -> &mut NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         &mut self.node_writers
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
         self.node_writers.set_lsn(lsn);
         self.edge_writer.set_lsn(lsn);
+    }
+
+    pub fn check_metadata<P: AsPropEntry>(
+        &self,
+        pos: LocalPOS,
+        layer: LayerId,
+        props: impl Iterator<Item = P>,
+    ) -> Result<(), StorageError> {
+        self.edge_writer.check_metadata(pos, layer, props)
+    }
+
+    pub fn update_metadata(
+        &mut self,
+        pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        layer: LayerId,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        self.edge_writer.update_c_props(pos, src, dst, layer, props)
     }
 }

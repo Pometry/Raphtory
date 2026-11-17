@@ -7,7 +7,7 @@ use raphtory_api::core::entities::{
     LayerId,
     properties::{
         meta::Meta,
-        prop::{AsPropRef, Prop},
+        prop::{AsPropRef, Prop, PropRef},
     },
 };
 use raphtory_core::{
@@ -123,11 +123,10 @@ impl MemGraphPropSegment {
         layer_est_size - est_size
     }
 
-    pub fn check_metadata<P: AsPropRef>(&self, props: &[(usize, P)]) -> Result<(), StorageError> {
+    pub fn check_metadata(&self, prop_id: usize, prop: PropRef) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(Self::DEFAULT_LAYER.0) {
-            layer.check_metadata(Self::DEFAULT_ROW.into(), props)?;
+            layer.check_metadata(Self::DEFAULT_ROW.into(), prop_id, prop)?;
         }
-
         Ok(())
     }
 

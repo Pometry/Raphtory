@@ -6,12 +6,16 @@ use crate::{
     segments::node::segment::MemNodeSegment,
     wal::LSN,
 };
-use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::{
-    EID, GID, LayerId, VID,
-    properties::{
-        meta::{DEFAULT_NODE_TYPE_ID, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
-        prop::{AsPropRef, Prop},
+use raphtory_api::{
+    ArcRwLockWriteGuard,
+    core::entities::{
+        EID, GID, LayerId, VID,
+        properties::{
+            meta::{
+                DEFAULT_NODE_TYPE_ID, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID,
+            },
+            prop::{AsPropEntry, AsPropRef, Prop},
+        },
     },
 };
 use raphtory_core::{
@@ -173,14 +177,20 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             .or_else(|| self.segment.get_metadata_immut(pos, layer_id, prop_id))
     }
 
-    pub fn check_metadata<P: AsPropRef>(
+    pub fn check_metadata<P: AsPropEntry>(
         &self,
         pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, P)],
+        props: impl Iterator<Item = P>,
     ) -> Result<(), StorageError> {
-        self.writer.check_metadata(pos, layer_id, props)?;
-        self.segment.check_metadata_immut(pos, layer_id, props)
+        for entry in props {
+            let (prop_id, prop_ref) = entry.as_prop_entry();
+            self.writer
+                .check_metadata(pos, layer_id, prop_id, prop_ref.clone())?;
+            self.segment
+                .check_metadata_immut(pos, layer_id, prop_id, prop_ref)?;
+        }
+        Ok(())
     }
 
     pub fn update_c_props<P: AsPropRef>(
@@ -287,9 +297,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 }
 
-impl<'a, NS: NodeSegmentOps> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
+impl<'a, NS: NodeSegmentOps> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
     pub fn unlocked<R>(&mut self, op: impl FnOnce() -> R) -> R {
-        RwLockWriteGuard::unlocked(&mut self.writer, op)
+        ArcRwLockWriteGuard::unlocked(&mut self.writer, op)
     }
 }
 

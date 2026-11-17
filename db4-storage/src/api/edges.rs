@@ -1,12 +1,15 @@
 use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
-use raphtory_api::core::entities::{
-    LayerId,
-    edges::edge_ref::Dir,
-    properties::{
-        meta::Meta,
-        prop::{AsPropRef, Prop},
-        tprop::TPropOps,
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
+    core::entities::{
+        LayerId,
+        edges::edge_ref::Dir,
+        properties::{
+            meta::Meta,
+            prop::{Prop, PropRef},
+            tprop::TPropOps,
+        },
     },
 };
 use raphtory_core::{
@@ -67,13 +70,18 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
 
     fn head(&self) -> RwLockReadGuard<'_, MemEdgeSegment>;
 
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>;
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemEdgeSegment>;
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemEdgeSegment>;
 
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<MemEdgeSegment>;
+
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
-    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
+    fn try_head_mut_arc_for(
+        &self,
+        timeout: Duration,
+    ) -> Option<ArcRwLockWriteGuard<MemEdgeSegment>>;
 
     fn set_dirty(&self, dirty: bool);
 
@@ -129,11 +137,12 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
-    fn check_metadata_immut<PR: AsPropRef>(
+    fn check_metadata_immut(
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, PR)],
+        prop_id: usize,
+        prop: PropRef,
     ) -> Result<(), StorageError>;
 }
 

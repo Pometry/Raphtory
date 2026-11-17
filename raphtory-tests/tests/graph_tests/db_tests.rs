@@ -98,16 +98,16 @@ fn test_empty_graph() {
 
         let test_time = 42;
         let result = graph.at(test_time);
-        assert!(result.start.is_some());
-        assert!(result.end.is_some());
+        assert!(result.start().is_some());
+        assert!(result.end().is_some());
 
         let result = graph.after(test_time);
-        assert!(result.start.is_some());
-        assert!(result.end.is_none());
+        assert!(result.start().is_some());
+        assert!(result.end().is_none());
 
         let result = graph.before(test_time);
-        assert!(result.start.is_none());
-        assert!(result.end.is_some());
+        assert!(result.start().is_none());
+        assert!(result.end().is_some());
 
         assert_eq!(
             graph.metadata_keys().collect::<Vec<_>>(),
@@ -247,7 +247,7 @@ fn add_edge_grows_graph_edge_len_proptest() {
 
 #[test]
 fn simple_add_edge() {
-    let edges = vec![(1, 1, 2), (2, 2, 3), (3, 3, 4)];
+    let edges = [(1, 1, 2), (2, 2, 3), (3, 3, 4)];
 
     let g = Graph::new();
     for &(t, src, dst) in edges.iter() {
@@ -1221,26 +1221,20 @@ fn temporal_node_rows_1_node() {
 #[test]
 fn temporal_node_rows_nodes() {
     let graph = Graph::new();
-    let mut nodes = Vec::new();
-    nodes.push(
+    let nodes = vec![
         graph
             .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None, None)
             .unwrap()
             .node,
-    );
-    nodes.push(
         graph
             .add_node(1, 2, [("cool".to_string(), Prop::U64(2))], None, None)
             .unwrap()
             .node,
-    );
-    nodes.push(
         graph
             .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None, None)
             .unwrap()
             .node,
-    );
-
+    ];
     let prop_ids: Arc<[usize]> = graph.node_meta().temporal_prop_mapper().ids().collect();
     for (id, n) in nodes.into_iter().enumerate() {
         let actual = graph
@@ -1941,7 +1935,9 @@ fn check_node_edge_history_count() {
     assert_eq!(node.after(3).edge_history_count(), 0);
 }
 
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
+use raphtory_storage::{
+    graph::nodes::node_storage_ops::NodeStorageOps, mutation::addition_ops::GraphMutationOps,
+};
 use raphtory_tests::utils::{prop, prop_type};
 
 #[test]
@@ -3793,7 +3789,7 @@ fn test_multilayer() {
 
     let expected = Graph::new();
     expected.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
-    expected.resolve_layer(Some("a")).unwrap();
+    expected.mutable().unwrap().resolve_layer(Some("a"));
     assert_graph_equal(&gw, &expected);
 }
 

@@ -2,8 +2,8 @@ use crate::{
     error::StorageError, pages::locked::node_type_index::WriteLockedNodeTypeIndex,
     segments::node_type_index::MemNodeTypeIndex,
 };
-use lock_api::ArcRwLockReadGuard;
-use parking_lot::{RawRwLock, RwLockWriteGuard};
+use parking_lot::RwLockWriteGuard;
+use raphtory_api::ArcRwLockReadGuard;
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 
 pub trait NodeTypeIndexOps: Send + Sync + Debug + 'static
@@ -18,7 +18,7 @@ where
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
-    fn head_shared_arc(&self) -> ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex>;
+    fn head_shared_arc(&self) -> ArcRwLockReadGuard<MemNodeTypeIndex>;
 
     fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 

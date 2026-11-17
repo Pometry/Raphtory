@@ -12,8 +12,9 @@ use crate::{
         GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
+    GQLError,
 };
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::{
     algorithms::components::{
         in_component, in_component_filtered, out_component, out_component_filtered,
@@ -22,11 +23,11 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
+            state::ops::DegreeBounds,
             view::{filter_ops::Select, Filter, *},
         },
         graph::node::NodeView,
     },
-    errors::GraphError,
     prelude::NodeStateOps,
 };
 use raphtory_api::core::utils::time::IntoTime;
@@ -42,6 +43,30 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<NodeView<'static, G>> for GqlNode
     fn from(value: NodeView<'static, G>) -> Self {
         Self {
             vv: NodeView::new_internal(value.graph.into_dynamic(), value.node),
+        }
+    }
+}
+
+/// `threshold` of the `approximate*Degree` fields when none is given.
+pub(crate) const DEFAULT_DEGREE_THRESHOLD: usize = 1000;
+
+/// Bounds on the degree of a node, as returned by `approximateDegree`,
+/// `approximateInDegree` and `approximateOutDegree`. Equal bounds mean the
+/// degree is exact.
+#[derive(SimpleObject, Clone)]
+#[graphql(name = "DegreeBounds")]
+pub struct GqlDegreeBounds {
+    /// Lower bound on the degree.
+    lower_bound: usize,
+    /// Upper bound on the degree.
+    upper_bound: usize,
+}
+
+impl From<DegreeBounds> for GqlDegreeBounds {
+    fn from(bounds: DegreeBounds) -> Self {
+        Self {
+            lower_bound: bounds.lower,
+            upper_bound: bounds.upper,
         }
     }
 }
@@ -125,7 +150,7 @@ impl GqlNode {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlNodeWindowSet, GraphError> {
+    ) -> Result<GqlNodeWindowSet, GQLError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if let Some(unit) = alignment_unit {
@@ -153,7 +178,7 @@ impl GqlNode {
             desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
         )]
         alignment_unit: Option<GqlAlignmentUnit>,
-    ) -> Result<GqlNodeWindowSet, GraphError> {
+    ) -> Result<GqlNodeWindowSet, GQLError> {
         let step = step.try_into_interval()?;
         let ws = if let Some(unit) = alignment_unit {
             self.vv.expanding_aligned(step, unit.into())?
@@ -345,20 +370,68 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.in_degree()).await
     }
 
+    /// Returns bounds on the number of unique counter parties for this node, counting them
+    /// exactly only when that walks at most `threshold` adjacency entries. Otherwise the bounds
+    /// are read from the node's adjacency sizes, ignoring any window or filter, so in a windowed
+    /// or filtered view the lower bound drops to 0.
+    pub async fn approximate_degree(
+        &self,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> GqlDegreeBounds {
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        blocking_compute(move || self_clone.vv.degree_bounds(threshold).into()).await
+    }
+
+    /// Returns bounds on the number of edges with this node as the source, counting them exactly
+    /// only when that is cheap; see `approximateDegree`.
+    pub async fn approximate_out_degree(
+        &self,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> GqlDegreeBounds {
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        blocking_compute(move || self_clone.vv.out_degree_bounds(threshold).into()).await
+    }
+
+    /// Returns bounds on the number of edges with this node as the destination, counting them
+    /// exactly only when that is cheap; see `approximateDegree`.
+    pub async fn approximate_in_degree(
+        &self,
+        #[graphql(
+            desc = "Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000."
+        )]
+        threshold: Option<usize>,
+    ) -> GqlDegreeBounds {
+        let self_clone = self.clone();
+        let threshold = threshold.unwrap_or(DEFAULT_DEGREE_THRESHOLD);
+        blocking_compute(move || self_clone.vv.in_degree_bounds(threshold).into()).await
+    }
+
     /// Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge
     /// predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
     /// steps through. The returned nodes are on the full graph so their other-layer neighbours stay
     /// queryable.
-    pub async fn in_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
+    pub async fn in_component(
+        &self,
+        #[graphql(
+            desc = "Filter expression scoping which nodes and edges the walk steps through; a node it excludes is neither returned nor walked through."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlNodes, GQLError> {
         let self_clone = self.clone();
         match select {
-            Some(select) => {
-                blocking_compute(move || {
-                    in_component_filtered(self_clone.vv.clone(), select)
-                        .map(|state| GqlNodes::new(state.nodes()))
-                })
-                .await
-            }
+            Some(select) => Ok(blocking_compute(move || {
+                in_component_filtered(self_clone.vv.clone(), select)
+                    .map(|state| GqlNodes::new(state.nodes()))
+            })
+            .await?),
             None => Ok(blocking_compute(move || {
                 GqlNodes::new(in_component(self_clone.vv.clone()).nodes())
             })
@@ -370,16 +443,20 @@ impl GqlNode {
     /// predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
     /// steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
     /// neighbours remain queryable.
-    pub async fn out_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
+    pub async fn out_component(
+        &self,
+        #[graphql(
+            desc = "Filter expression scoping which nodes and edges the walk steps through; a node it excludes is neither returned nor walked through."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlNodes, GQLError> {
         let self_clone = self.clone();
         match select {
-            Some(select) => {
-                blocking_compute(move || {
-                    out_component_filtered(self_clone.vv.clone(), select)
-                        .map(|state| GqlNodes::new(state.nodes()))
-                })
-                .await
-            }
+            Some(select) => Ok(blocking_compute(move || {
+                out_component_filtered(self_clone.vv.clone(), select)
+                    .map(|state| GqlNodes::new(state.nodes()))
+            })
+            .await?),
             None => Ok(blocking_compute(move || {
                 GqlNodes::new(out_component(self_clone.vv.clone()).nodes())
             })
@@ -388,7 +465,13 @@ impl GqlNode {
     }
 
     /// Returns all connected edges.
-    pub async fn edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn edges(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlEdges, GQLError> {
         let base = self.vv.edges();
         if let Some(sel) = select {
             let narrowed = blocking_compute(move || base.select(sel)).await?;
@@ -398,7 +481,13 @@ impl GqlNode {
     }
 
     /// Returns outgoing edges.
-    pub async fn out_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn out_edges(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlEdges, GQLError> {
         let base = self.vv.out_edges();
         if let Some(sel) = select {
             let narrowed = blocking_compute(move || base.select(sel)).await?;
@@ -408,7 +497,13 @@ impl GqlNode {
     }
 
     /// Returns incoming edges.
-    pub async fn in_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn in_edges(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<GqlEdges, GQLError> {
         let base = self.vv.in_edges();
         if let Some(sel) = select {
             let narrowed = blocking_compute(move || base.select(sel)).await?;
@@ -420,8 +515,11 @@ impl GqlNode {
     /// Returns neighbouring nodes.
     pub async fn neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -433,8 +531,11 @@ impl GqlNode {
     /// Returns the number of neighbours that have at least one in-going edge to this node.
     pub async fn in_neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.in_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -446,8 +547,11 @@ impl GqlNode {
     /// Returns the number of neighbours that have at least one out-going edge from this node.
     pub async fn out_neighbours(
         &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
         select: Option<GqlFilter>,
-    ) -> Result<GqlPathFromNode, GraphError> {
+    ) -> Result<GqlPathFromNode, GQLError> {
         let base = self.vv.out_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -456,13 +560,16 @@ impl GqlNode {
         Ok(GqlPathFromNode::new(base))
     }
 
+    /// Return this node with `expr` applied to everything reached through it:
+    /// its neighbours, edges, degrees and properties all see the filtered graph,
+    /// and so does every later traversal.
     pub async fn filter(
         &self,
         #[graphql(
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
         )]
         expr: GqlFilter,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filtered = self_clone.vv.filter(expr)?;

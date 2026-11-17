@@ -2,7 +2,7 @@ use super::{
     document::GqlDocument, edge::GqlEdge, node::GqlNode, node_id::GqlNodeId,
     vectorised_graph::VectorisedGraphWindow,
 };
-use crate::{model::graph::vectorised_graph::IntoWindowTuple, rayon::blocking_compute};
+use crate::{model::graph::vectorised_graph::IntoWindowTuple, rayon::blocking_compute, GQLError};
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::MaterializedGraph, errors::GraphResult};
 use raphtory_vectors::{vector_selection::VectorSelection, Embedding};
@@ -42,7 +42,7 @@ impl GqlVectorSelection {
     }
 
     /// Returns a list of documents in the current selection.
-    pub async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
+    pub async fn get_documents(&self) -> Result<Vec<GqlDocument>, GQLError> {
         let cloned = self.0.clone();
         let docs = cloned.get_documents_with_distances().await?.into_iter();
         Ok(docs
@@ -112,7 +112,7 @@ impl GqlVectorSelection {
             desc = "Optional `{start, end}` to restrict matches to entities active in that interval."
         )]
         window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<Self> {
+    ) -> Result<Self, GQLError> {
         let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
@@ -132,7 +132,7 @@ impl GqlVectorSelection {
             desc = "Optional `{start, end}` to restrict matches to nodes active in that interval."
         )]
         window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<Self> {
+    ) -> Result<Self, GQLError> {
         let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
@@ -152,7 +152,7 @@ impl GqlVectorSelection {
             desc = "Optional `{start, end}` to restrict matches to edges active in that interval."
         )]
         window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<Self> {
+    ) -> Result<Self, GQLError> {
         let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
