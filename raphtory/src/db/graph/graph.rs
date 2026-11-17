@@ -285,6 +285,7 @@ impl Graph {
     }
 }
 
+/// Stage and version methods.
 impl Graph {
     pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
         Stage::new(self).map_err(GraphError::from)

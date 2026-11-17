@@ -1,11 +1,8 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
-    model::{
-        graph::{
-            edge::GqlEdge, graph::GqlGraph, node::GqlNode, node_id::GqlNodeId, property::Value,
-            timeindex::GqlTimeInput,
-        },
-        GqlGraphType,
+    model::graph::{
+        edge::GqlEdge, graph::GqlGraph, node::GqlNode, node_id::GqlNodeId, property::Value,
+        timeindex::GqlTimeInput, GqlGraphType,
     },
     paths::ValidGraphPaths,
     rayon::blocking_write,
@@ -166,7 +163,9 @@ impl GqlMutableGraph {
     pub async fn graph(
         &self,
         #[graphql(
-            desc = "Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type."
+            desc = "Optional override for graph semantics — `EVENT` treats every update \
+                    as a point-in-time event, `PERSISTENT` carries values forward until \
+                    overwritten or deleted. Defaults to the stored graph's native type."
         )]
         graph_type: Option<GqlGraphType>,
     ) -> GqlGraph {
@@ -960,28 +959,26 @@ mod tests {
 
         let overwrite = false;
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(graph_name, overwrite)
             .unwrap();
+
         data.insert_graph(folder, graph).await.unwrap();
+
         let template = DocumentTemplate {
             node_template: Some("{{ name }} is a {{ node_type }}".to_string()),
             edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
         };
 
         let embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
-
         let config = OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}"));
-        let vector_cache = data.vector_cache.resolve().await.unwrap();
+        let vector_cache = data.inner.vector_cache.resolve().await.unwrap();
         let model = vector_cache.openai(config.into()).await.unwrap();
-        data.vectorise_folder(
-            &ExistingGraphFolder::try_from(data.work_dir_read().await, graph_name).unwrap(),
-            &template,
-            model,
-        )
-        .await
-        .unwrap();
+        data.vectorise_folder(graph_name, &template, model)
+            .await
+            .unwrap();
 
         let graph_with_vectors = data.get_graph_for_test(graph_name).await.unwrap();
         let mutable_graph = GqlMutableGraph::from(graph_with_vectors);

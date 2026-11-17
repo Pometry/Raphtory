@@ -3,7 +3,7 @@
 
 use crate::{
     auth_policy::AuthorizationPolicy,
-    data::{get_relative_path, Data, PermissionError, WorkDirGuard},
+    data::{Data, WorkDirGuard},
     model::graph::{
         collection::GqlCollection,
         meta_graph::MetaGraph,
@@ -13,7 +13,8 @@ use crate::{
         },
         namespaced_item::NamespacedItem,
     },
-    paths::{ExistingGraphFolder, PathValidationError, ValidPath},
+    paths::{get_relative_path, ExistingGraphFolder, PathValidationError, ValidPath},
+    permissions::PermissionError,
     rayon::blocking_compute,
     GQLError,
 };

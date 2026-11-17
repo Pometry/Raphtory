@@ -3,8 +3,7 @@
 
 use crate::{
     data::{WorkDirGuard, WorkDirWriteGuard},
-    model::blocking_io,
-    rayon::blocking_compute,
+    rayon::{blocking_compute, blocking_io},
 };
 use futures_util::io;
 use raphtory::{
@@ -83,25 +82,25 @@ pub trait ValidGraphPaths {
         Ok(name)
     }
 
-    async fn created_async(&self) -> Result<i64, PathValidationError> {
+    async fn created(&self) -> Result<i64, PathValidationError> {
         let cloned = self.graph_folder().root().to_path_buf();
         self.with_internal_errors_async(blocking_io(move || cloned.created()))
             .await
     }
 
-    async fn last_opened_async(&self) -> Result<i64, PathValidationError> {
+    async fn last_opened(&self) -> Result<i64, PathValidationError> {
         let cloned = self.graph_folder().root().to_path_buf();
         self.with_internal_errors_async(blocking_io(move || cloned.last_opened()))
             .await
     }
 
-    async fn last_updated_async(&self) -> Result<i64, PathValidationError> {
+    async fn last_updated(&self) -> Result<i64, PathValidationError> {
         let cloned = self.graph_folder().root().to_path_buf();
         self.with_internal_errors_async(blocking_io(move || cloned.last_updated()))
             .await
     }
 
-    async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
+    async fn read_metadata(&self) -> Result<GraphMetadata, PathValidationError> {
         let folder = self.graph_folder().root().to_path_buf();
         blocking_compute(move || folder.read_graph_meta().map(|graph_meta| graph_meta.meta))
             .await
@@ -502,6 +501,11 @@ impl ValidWriteableGraphFolder {
         })
     }
 
+    /// Absolute path to the graph folder.
+    pub fn graph_path(&self) -> Result<PathBuf, PathValidationError> {
+        self.with_internal_errors(|| self.global_path.graph_path())
+    }
+
     /// write graph data to folder (returns a flag to indicate if the graph should be considered dirty)
     pub fn write_graph_data(
         &self,
@@ -717,6 +721,30 @@ fn read_dirty_relative_path(
     validate_relative_path(path.path.as_ref())?;
 
     Ok(Some(path.path))
+}
+
+/// Get relative path as String joined with `"/"` for use with the validation methods.
+/// The path is not validated here!
+pub(crate) fn get_relative_path(
+    work_dir: &Path,
+    path: &Path,
+) -> Result<String, InternalPathValidationError> {
+    let relative = path.strip_prefix(work_dir)?;
+    let mut path_str = String::new();
+    let mut components = relative.components().map(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .ok_or(InternalPathValidationError::NonUTFCharacters)
+    });
+    if let Some(first) = components.next() {
+        path_str.push_str(first?);
+    }
+    for component in components {
+        path_str.push('/');
+        path_str.push_str(component?);
+    }
+    Ok(path_str)
 }
 
 pub(crate) fn ensure_clean_folder(base_path: &Path) -> Result<(), InternalPathValidationError> {

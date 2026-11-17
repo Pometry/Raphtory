@@ -2726,19 +2726,23 @@ mod test_node_property_filter {
         init_nodes_graph, init_nodes_layers_graph, IdentityGraphTransformer,
     };
     use raphtory::{
-        db::graph::views::filter::model::{
-            graph_filter::GraphFilter, node_filter::NodeFilter, ComposableFilter,
-            PropertyExprFactory, ViewWrapOps,
+        db::{
+            api::view::Select,
+            graph::views::filter::model::{
+                graph_filter::GraphFilter, node_filter::NodeFilter, ComposableFilter,
+                PropertyExprFactory, ViewWrapOps,
+            },
         },
         prelude::{
-            AdditionOps, EntityAggOps, EntityExprFilterOps, Graph, NodeFilterFactory, NO_PROPS,
+            AdditionOps, EntityAggOps, EntityExprFilterOps, Graph, GraphViewOps, NodeFilterFactory,
+            NodeViewOps, NO_PROPS,
         },
     };
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_tests::assertions::{
         assert_filter_nodes_results, assert_select_nodes_results, TestVariants,
     };
-    use std::vec;
+    use std::{iter, vec};
 
     #[test]
     fn test_exact_match() {
@@ -4302,6 +4306,67 @@ mod test_node_property_filter {
             filter,
             &expected_results,
             TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_property_filter_empty_lists() {
+        let g = Graph::new();
+        g.add_node(
+            0,
+            "empty",
+            [
+                ("empty", Prop::list(iter::empty::<Prop>()).unwrap()),
+                ("empty_empty", Prop::list(iter::empty::<Prop>()).unwrap()),
+            ],
+            None,
+            None,
+        )
+        .unwrap();
+        g.add_node(
+            0,
+            "empty_empty",
+            [
+                ("empty", Prop::list(iter::empty::<Prop>()).unwrap()),
+                (
+                    "empty_empty",
+                    Prop::list(iter::once(Prop::list(iter::empty::<Prop>()).unwrap())).unwrap(),
+                ),
+            ],
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            g.nodes()
+                .select(
+                    NodeFilter
+                        .property("empty")
+                        .eq(Prop::list(iter::empty::<Prop>()).unwrap())
+                )
+                .unwrap()
+                .id(),
+            ["empty", "empty_empty"]
+        );
+        assert_eq!(
+            g.nodes()
+                .select(
+                    NodeFilter
+                        .property("empty_empty")
+                        .eq(Prop::list(iter::empty::<Prop>()).unwrap())
+                )
+                .unwrap()
+                .id(),
+            ["empty"]
+        );
+        assert_eq!(
+            g.nodes()
+                .select(NodeFilter.property("empty_empty").eq(
+                    Prop::list(iter::once(Prop::list(iter::empty::<Prop>()).unwrap())).unwrap()
+                ))
+                .unwrap()
+                .id(),
+            ["empty_empty"]
         );
     }
 }
