@@ -1,8 +1,11 @@
 use crate::{
-    core::entities::{EID, VID},
-    db::api::{
-        state::{Index, IndexParIter},
-        view::Base,
+    core::entities::{LayerIds, EID, VID},
+    db::{
+        api::{
+            state::{Index, IndexParIter},
+            view::Base,
+        },
+        graph::views::window_graph::WindowMasks,
     },
 };
 use itertools::Itertools;
@@ -17,6 +20,24 @@ pub trait ListOps {
     fn node_list(&self) -> NodeList;
 
     fn edge_list(&self) -> EdgeList;
+
+    /// The number of nodes of the view when it is known without listing or
+    /// filtering them. Only meaningful to a view that filters by nothing but
+    /// time and layers.
+    fn node_count(&self) -> Option<usize> {
+        None
+    }
+
+    /// As `node_count`, for edges.
+    fn edge_count(&self) -> Option<usize> {
+        None
+    }
+
+    /// The nodes and edges of this view restricted to `layer_ids`, when the
+    /// view is a window the storage's time index can answer.
+    fn window_masks(&self, _layer_ids: &LayerIds) -> Option<WindowMasks> {
+        None
+    }
 }
 
 pub trait InheritListOps: Base {}
@@ -31,6 +52,18 @@ where
 
     fn edge_list(&self) -> EdgeList {
         self.base().edge_list()
+    }
+
+    fn node_count(&self) -> Option<usize> {
+        self.base().node_count()
+    }
+
+    fn edge_count(&self) -> Option<usize> {
+        self.base().edge_count()
+    }
+
+    fn window_masks(&self, layer_ids: &LayerIds) -> Option<WindowMasks> {
+        self.base().window_masks(layer_ids)
     }
 }
 

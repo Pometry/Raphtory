@@ -288,7 +288,8 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
         let iter = self.edges_iter(layer_ids, dir);
-        match view.filter_state() {
+        let state = view.filter_state();
+        match state {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
                 let gs = view.core_graph();
@@ -300,9 +301,16 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
                 view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
             FilterState::Edges | FilterState::BothIndependent | FilterState::Window => {
+                // a window alone may know the edge by id, without fetching it
+                let by_id = matches!(state, FilterState::Window);
                 FilterVariants::Edges(iter.filter(move |e| {
-                    let gs = view.core_graph();
-                    view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
+                    by_id
+                        .then(|| view.internal_filter_edge_id(e.pid(), layer_ids))
+                        .flatten()
+                        .unwrap_or_else(|| {
+                            let gs = view.core_graph();
+                            view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
+                        })
                 }))
             }
         }

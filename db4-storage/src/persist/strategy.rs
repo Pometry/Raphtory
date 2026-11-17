@@ -6,6 +6,7 @@ use crate::{
         nodes::{
             GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
         },
+        time_index::WindowCandidates,
     },
     error::StorageError,
     persist::{
@@ -14,19 +15,20 @@ use crate::{
     },
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
-        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
+        graph_prop::{segment::MemGraphPropSegment, GraphPropSegmentView},
         node::segment::{MemNodeSegment, NodeSegmentView},
         node_type_index::{MemNodeTypeIndex, NodeTypeIndexView},
     },
-    wal::{GraphWalOps, WalOps, no_wal::NoWal},
+    wal::{no_wal::NoWal, GraphWalOps, WalOps},
 };
+use raphtory_api::core::entities::LayerIds;
 use std::{
     fmt::Debug,
     ops::DerefMut,
     path::Path,
     sync::{
-        Arc,
         atomic::{AtomicUsize, Ordering},
+        Arc,
     },
 };
 
@@ -117,6 +119,36 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         _semantics: PropSemantics,
     ) -> Option<GlobalPropCandidates> {
         None
+    }
+
+    /// The nodes and edges of the window `[start, end)` over `layers` of the
+    /// whole graph, under event or persistent time semantics, if this
+    /// strategy keeps a time index that is up to date. `None` means scan as
+    /// usual.
+    fn window_candidates(
+        &self,
+        _persistent: bool,
+        _start: i64,
+        _end: i64,
+        _layers: &LayerIds,
+    ) -> Option<WindowCandidates> {
+        None
+    }
+
+    /// Rebuild the time index. A no-op for strategies without one.
+    fn build_time_index<'a>(
+        &self,
+        _nodes: impl Iterator<Item = &'a Self::NS> + Send,
+        _node_stride: u32,
+        _edges: impl Iterator<Item = &'a Self::ES> + Send,
+        _edge_stride: u32,
+    ) -> Result<(), StorageError>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+        Self::ES: 'a,
+    {
+        Ok(())
     }
 
     /// Rebuild the property indexes over `selected`. A no-op for

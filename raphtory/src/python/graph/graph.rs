@@ -258,6 +258,17 @@ impl PyGraph {
         Ok(())
     }
 
+    /// Build the time index that serves windowed views (`window`, `at`,
+    /// `before`, `after`, `latest`) of a disk graph without visiting every
+    /// node and edge. It stops answering after the next write, until rebuilt.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    pub fn build_time_index(&self) -> Result<(), GraphError> {
+        self.graph.core_graph().build_time_index()?;
+        Ok(())
+    }
+
     /// Choose which node properties later index builds consider, without
     /// building now.
     ///

@@ -22,7 +22,10 @@ use raphtory_api::core::{
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
 use storage::{
-    api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
+    api::{
+        nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
+        time_index::WindowCandidates,
+    },
     error::StorageError,
     pages::SegmentCounts,
     persist::strategy::PersistenceStrategy,
@@ -181,6 +184,34 @@ impl GraphStorage {
             metadata,
             predicate,
             semantics,
+        )
+    }
+
+    /// The nodes and edges of the window `[start, end)` over `layers` from the
+    /// backend's time index, if it has one that is up to date.
+    pub fn window_candidates(
+        &self,
+        persistent: bool,
+        start: i64,
+        end: i64,
+        layers: &LayerIds,
+    ) -> Option<WindowCandidates> {
+        self.temporal_graph()
+            .storage()
+            .extension()
+            .window_candidates(persistent, start, end, layers)
+    }
+
+    /// Rebuild the time index that serves windowed views. A no-op for
+    /// backends without one.
+    pub fn build_time_index(&self) -> Result<(), StorageError> {
+        let storage = self.temporal_graph().storage();
+        let (nodes, edges) = (storage.nodes(), storage.edges());
+        storage.extension().build_time_index(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            edges.segments().iter().map(|(_, segment)| segment.as_ref()),
+            edges.max_page_len(),
         )
     }
 
