@@ -31,3 +31,4 @@ mod graphgen_random_attachment;
 mod io_csv_loader;
 mod io_json_loader;
 mod io_parquet_loaders;
+mod prop_value;

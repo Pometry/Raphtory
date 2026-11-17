@@ -26,6 +26,7 @@ mod property_filter_matches;
 mod subgraph_tests;
 mod test_filters;
 mod test_layers;
+mod test_prop_type_comparisons;
 mod tests_node_type_filtered_subgraph;
 mod view_composition;
 mod views_test;

@@ -274,6 +274,14 @@ impl PartialEq<str> for GID {
         }
     }
 }
+impl PartialEq<&str> for GID {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            GID::U64(_) => false,
+            GID::Str(id) => id == *other,
+        }
+    }
+}
 
 impl PartialEq<String> for GID {
     fn eq(&self, other: &String) -> bool {
