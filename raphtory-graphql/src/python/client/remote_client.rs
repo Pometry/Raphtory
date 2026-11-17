@@ -1,5 +1,5 @@
 use crate::{
-    client::{is_online, remote_client::RemoteClient, ClientError},
+    client::{remote_client::RemoteClient, ClientError},
     data::GqlGraphType,
     python::{
         client::remote_graph::PyRemoteGraph, encode_graph, translate_from_python,
@@ -20,7 +20,7 @@ use url::Url;
 /// A client for handling GraphQL operations in the context of Raphtory.
 ///
 /// Arguments:
-///     url (str): the URL of the Raphtory GraphQL server
+///     url (str): the URL of the Raphtory GraphQL server (can also be a unix socket URL)
 ///     token (str, optional): a bearer token sent with every request; omit for
 ///         an unauthenticated server.
 #[derive(Clone)]
@@ -95,7 +95,8 @@ impl PyRaphtoryClient {
     /// Returns:
     ///     bool: Returns true if server is online otherwise false.
     fn is_server_online(&self) -> bool {
-        is_online(self.client.url.as_ref())
+        let client = self.client.clone();
+        execute_async_task(move || async move { client.is_online().await })
     }
 
     /// Make a GraphQL query against the server.

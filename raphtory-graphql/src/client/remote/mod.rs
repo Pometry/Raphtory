@@ -10,6 +10,7 @@
 //! Every type is re-exported from [`crate::client`], so `crate::client::RemoteGraph`
 //! and `crate::client::remote::RemoteGraph` name the same type.
 
+pub(crate) mod node_collection;
 pub mod remote_collection_metadata;
 pub mod remote_edge;
 pub mod remote_edges;
