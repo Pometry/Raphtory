@@ -36,6 +36,7 @@ use pyo3::PyErr;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
+use raphtory_storage::graph::graph::Immutable;
 #[cfg(feature = "io")]
 use tempfile::PersistError;
 
@@ -388,6 +389,12 @@ pub enum GraphError {
 
     #[error(transparent)]
     GraphFolder(#[from] GraphFolderError),
+}
+
+impl From<Immutable> for GraphError {
+    fn from(value: Immutable) -> Self {
+        Self::MutationError(value.into())
+    }
 }
 
 impl From<MetadataError> for GraphError {

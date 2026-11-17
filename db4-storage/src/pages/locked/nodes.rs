@@ -87,6 +87,16 @@ impl<'a, NS: NodeSegmentOps> WriteLockedNodeSegment<'a, NS> {
         if page == self.id { Some(pos) } else { None }
     }
 
+    pub fn resolver(&self) -> impl Fn(VID) -> Option<LocalPOS> + use<NS> {
+        let max_page_len = self.max_page_len;
+        let id = self.id;
+        move |node_id| {
+            let (page, pos) = resolve_pos(node_id, max_page_len);
+
+            if page == id { Some(pos) } else { None }
+        }
+    }
+
     pub fn ensure_layer(&mut self, layer_id: LayerId) {
         self.head.get_or_create_layer(layer_id);
         self.layer_counter.get(layer_id);

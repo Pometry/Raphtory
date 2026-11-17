@@ -8,7 +8,7 @@ use crate::{
     mutation::{addition_ops::InternalAdditionOps, MutationError},
 };
 
-pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError> {
+pub trait RecoveryOps: DurabilityOps + InternalAdditionOps {
     /// Recover from a crash if needed by replaying updates from the WAL.
     fn run_recovery(&self) -> Result<(), MutationError> {
         let wal = self.wal()?;

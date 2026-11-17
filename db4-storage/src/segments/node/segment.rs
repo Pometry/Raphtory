@@ -4,6 +4,7 @@ use crate::{
     error::StorageError,
     loop_lock_write, loop_lock_write_arc,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    properties::PropEntry,
     segments::{
         HasRow, SegmentContainer,
         node::entry::{MemNodeEntry, MemNodeRef},
@@ -20,7 +21,7 @@ use raphtory_api::{
             EID, LayerId, VID,
             properties::{
                 meta::Meta,
-                prop::{AsPropRef, Prop},
+                prop::{AsPropRef, Prop, PropRef},
             },
         },
     },
@@ -347,14 +348,15 @@ impl MemNodeSegment {
         (is_new, layer_est_size - est_size)
     }
 
-    pub fn check_metadata<P: AsPropRef>(
+    pub fn check_metadata(
         &self,
         node_pos: LocalPOS,
         layer_id: LayerId,
-        props: &[(usize, P)],
+        prop_id: usize,
+        prop: PropRef,
     ) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(layer_id.0) {
-            layer.check_metadata(node_pos, props)?;
+            layer.check_metadata(node_pos, prop_id, prop)?;
         }
         Ok(())
     }
@@ -387,6 +389,11 @@ impl MemNodeSegment {
     ) -> Option<Prop> {
         let segment_container = &self.layers[layer_id.0];
         segment_container.c_prop(node_pos, prop_id)
+    }
+
+    pub fn prop_entry(&self, node_pos: LocalPOS, layer_id: LayerId) -> Option<PropEntry<'_>> {
+        let layer = self.get_layer(layer_id)?;
+        layer.prop_entry(node_pos)
     }
 
     pub fn latest(&self) -> Option<EventTime> {
@@ -629,11 +636,12 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         None
     }
 
-    fn check_metadata_immut<PR: AsPropRef>(
+    fn check_metadata_immut(
         &self,
         _pos: LocalPOS,
         _layer_id: LayerId,
-        _props: &[(usize, PR)],
+        _prop_id: usize,
+        _prop_ref: PropRef,
     ) -> Result<(), StorageError> {
         Ok(())
     }

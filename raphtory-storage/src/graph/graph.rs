@@ -2,18 +2,22 @@ use super::{
     edges::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges},
     nodes::node_entry::NodeStorageEntry,
 };
-use crate::{
-    graph::{
-        edges::edges::{EdgesStorage, EdgesStorageRef},
-        locked::ReadLockedGraph,
-        nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
-    },
-    mutation::MutationError,
+use crate::graph::{
+    edges::edges::{EdgesStorage, EdgesStorageRef},
+    locked::ReadLockedGraph,
+    nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
 };
 use db4_graph::TemporalGraph;
 use itertools::Either;
-use raphtory_api::core::entities::{
-    properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
+use raphtory_api::core::{
+    entities::{
+        properties::meta::{LayerPresenceRef, Meta},
+        LayerId, LayerIds, LayerVariants, EID, VID,
+    },
+    storage::graph_folder::{
+        src_version as graph_src_version, version as graph_version, GraphFolder, GraphFolderError,
+        GraphPaths,
+    },
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
@@ -81,13 +85,6 @@ impl GraphStorage {
                 })
                 | GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(this_graph, other_graph),
             },
-        }
-    }
-
-    pub fn mutable(&self) -> Result<&Arc<TemporalGraph>, MutationError> {
-        match self {
-            GraphStorage::Locked(_) => Err(Immutable::ReadLockedImmutable)?,
-            GraphStorage::Unlocked(graph) => Ok(graph),
         }
     }
 
@@ -411,6 +408,54 @@ impl GraphStorage {
         }
     }
 
+    /// The graph's per-layer property presence bitset, may be locked or unlocked.
+    pub fn node_temporal_presence(&self) -> LayerPresenceRef<'_> {
+        match self {
+            GraphStorage::Locked(storage) => {
+                LayerPresenceRef::Locked(&storage.node_presence().temporal)
+            }
+            GraphStorage::Unlocked(storage) => {
+                LayerPresenceRef::Live(storage.node_meta().temporal_prop_mapper())
+            }
+        }
+    }
+
+    /// The graph's per-layer metadata presence bitset, may be locked or unlocked.
+    pub fn node_metadata_presence(&self) -> LayerPresenceRef<'_> {
+        match self {
+            GraphStorage::Locked(storage) => {
+                LayerPresenceRef::Locked(&storage.node_presence().metadata)
+            }
+            GraphStorage::Unlocked(storage) => {
+                LayerPresenceRef::Live(storage.node_meta().metadata_mapper())
+            }
+        }
+    }
+
+    /// The graph's per-layer property presence bitset, may be locked or unlocked.
+    pub fn edge_temporal_presence(&self) -> LayerPresenceRef<'_> {
+        match self {
+            GraphStorage::Locked(storage) => {
+                LayerPresenceRef::Locked(&storage.edge_presence().temporal)
+            }
+            GraphStorage::Unlocked(storage) => {
+                LayerPresenceRef::Live(storage.edge_meta().temporal_prop_mapper())
+            }
+        }
+    }
+
+    /// The graph's per-layer metadata presence bitset, may be locked or unlocked.
+    pub fn edge_metadata_presence(&self) -> LayerPresenceRef<'_> {
+        match self {
+            GraphStorage::Locked(storage) => {
+                LayerPresenceRef::Locked(&storage.edge_presence().metadata)
+            }
+            GraphStorage::Unlocked(storage) => {
+                LayerPresenceRef::Live(storage.edge_meta().metadata_mapper())
+            }
+        }
+    }
+
     pub fn extension(&self) -> &Extension {
         match self {
             GraphStorage::Locked(storage) => storage.graph.extension(),
@@ -457,5 +502,50 @@ impl GraphStorage {
             GraphStorage::Locked(storage) => storage.edges.segment_counts(),
             GraphStorage::Unlocked(storage) => storage.storage().edge_segment_counts(),
         }
+    }
+}
+
+impl GraphStorage {
+    /// The currently loaded version of this graph.
+    pub fn version(&self) -> Result<u32, StorageError> {
+        let graph_path = self.graph_path()?;
+        Ok(graph_version(&graph_path)?)
+    }
+
+    /// The source version this graph was created from.
+    pub fn src_version(&self) -> Result<Option<u32>, StorageError> {
+        let graph_path = self.graph_path()?;
+        Ok(graph_src_version(&graph_path)?)
+    }
+
+    /// The active version selected for this graph.
+    pub fn active_version(&self) -> Result<u32, StorageError> {
+        let folder = GraphFolder::from_graph_path(self.graph_path()?)?;
+        Ok(folder.active_version()?)
+    }
+
+    /// All versions available for this graph.
+    pub fn all_versions(&self) -> Result<Vec<u32>, StorageError> {
+        let folder = GraphFolder::from_graph_path(self.graph_path()?)?;
+        Ok(folder.all_versions()?)
+    }
+
+    /// Set the active version of this graph to `version`.
+    pub fn set_active_version(&self, version: u32) -> Result<(), StorageError> {
+        let folder = GraphFolder::from_graph_path(self.graph_path()?)?;
+        folder.set_active_version(version)?;
+        Ok(())
+    }
+
+    /// Path of this storage's `graph{id}` directory.
+    fn graph_path(&self) -> Result<String, StorageError> {
+        let graph_path = self.temporal_graph().graph_dir().ok_or_else(|| {
+            StorageError::GenericFailure("graph directory is missing".to_string())
+        })?;
+
+        Ok(graph_path
+            .to_str()
+            .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?
+            .to_owned())
     }
 }

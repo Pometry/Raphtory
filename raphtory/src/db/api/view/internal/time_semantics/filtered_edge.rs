@@ -420,7 +420,10 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a {
+        let prune_view = view.clone();
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            // through the view, so redacted props are skipped too
+            .filter(move |&layer_id| prune_view.edge_layer_has_temporal_prop(layer_id, prop_id))
             .map(move |layer_id| {
                 (
                     layer_id,
@@ -436,9 +439,11 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         layer_filter: impl Fn(LayerId) -> bool,
     ) -> Option<Prop> {
         let layer_ids = view.layer_ids();
+        let presence = view.core_graph().edge_metadata_presence();
         let mut values = self
-            .metadata_iter(layer_ids, prop_id)
-            .filter(|(layer, _)| layer_filter(*layer));
+            .layer_ids_iter(layer_ids)
+            .filter(|&layer| presence.has(layer, prop_id) && layer_filter(layer))
+            .filter_map(|layer| Some((layer, self.metadata_layer(layer, prop_id)?)));
         if view.num_layers() > 1 {
             let mut values = values.peekable();
             if values.peek().is_some() {

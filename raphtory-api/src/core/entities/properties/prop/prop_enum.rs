@@ -407,6 +407,12 @@ pub struct SerdeRow<P: Serialize> {
     value: Option<P>,
 }
 
+impl<P: Serialize> From<Option<P>> for SerdeRow<P> {
+    fn from(value: Option<P>) -> Self {
+        Self { value }
+    }
+}
+
 impl<'a> Serialize for SerdeArrowList<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

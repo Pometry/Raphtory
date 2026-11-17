@@ -1935,7 +1935,9 @@ fn check_node_edge_history_count() {
     assert_eq!(node.after(3).edge_history_count(), 0);
 }
 
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
+use raphtory_storage::{
+    graph::nodes::node_storage_ops::NodeStorageOps, mutation::addition_ops::GraphMutationOps,
+};
 use raphtory_tests::utils::{prop, prop_type};
 
 #[test]
@@ -3787,7 +3789,7 @@ fn test_multilayer() {
 
     let expected = Graph::new();
     expected.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
-    expected.resolve_layer(Some("a")).unwrap();
+    expected.mutable().unwrap().resolve_layer(Some("a"));
     assert_graph_equal(&gw, &expected);
 }
 

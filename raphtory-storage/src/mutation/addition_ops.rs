@@ -1,155 +1,92 @@
 use crate::{
-    graph::graph::GraphStorage,
+    graph::graph::{GraphStorage, Immutable},
     mutation::{
-        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
-        MutationError, NodeWriterT,
+        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, AtomicUpdateEdge},
+        GraphPropWriterT, MutationError,
     },
 };
-use db4_graph::WriteLockedGraph;
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::{
     core::{
         entities::{
+            edges::edge_ref::EdgeRef,
             properties::{
-                meta::{Meta, PropWithStatus},
-                prop::{Prop, PropType},
+                meta::Meta,
+                prop::{AsPropEntry, Prop, PropType},
             },
-            GidRef, LayerId, EID, VID,
+            GidRef, GidType, LayerId, EID, VID,
         },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
     inherit::Base,
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
-use storage::{pages::locked::nodes::MemNodeSegmentGuards, wal::LSN, Extension};
+use storage::{
+    properties::props_meta_writer::PropsMetaWriter, segments::node::segment::MemNodeSegment,
+    wal::LSN, Extension,
+};
 
 /// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.
 pub type NodeTypeResolution = MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>;
 
 pub trait InternalAdditionOps {
-    type Error: From<MutationError>;
-    type WS<'a>: SessionAdditionOps<Error = Self::Error>
-    where
-        Self: 'a;
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, MutationError>;
 
-    type AtomicAddEdge<'a>: EdgeWriteLock
-    where
-        Self: 'a;
+    fn mutable(&self) -> Result<&TemporalGraph, Immutable>;
+}
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error>;
-
-    /// map layer name to id and allocate a new layer if needed
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error>;
-
-    /// # Safety
-    /// this function assumes it is called from behind a sharded structure that does not
-    /// allow the same id to be resolved at the same time by more than 1 thread
-    unsafe fn bulk_load_resolve_node(
-        &self,
-        id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), Self::Error>;
-
-    /// validate the GidRef is the correct type
-    fn validate_gids<'a>(
-        &self,
-        gids: impl IntoIterator<Item = GidRef<'a>>,
-    ) -> Result<(), Self::Error>;
-
-    fn write_session(&self) -> Result<Self::WS<'_>, Self::Error>;
-
+pub trait GraphMutationOps: Send + Sync {
     fn atomic_add_edge(
         &self,
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error>;
+    ) -> Result<AtomicAddEdge<'_, Extension>, MutationError>;
+
+    fn atomic_update_edge(&self, edge: EdgeRef) -> AtomicUpdateEdge<'_>;
 
     /// Get or create writer for a node
-    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error>;
-
-    fn internal_add_node(
+    fn atomic_add_node(
         &self,
-        t: EventTime,
-        v: VID,
-        props: Vec<(usize, Prop)>,
-        layer_id: LayerId,
-    ) -> Result<NodeWriterT<'_>, Self::Error>;
+        node: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<AtomicAddNode<'_>, MutationError>;
 
-    fn validate_props<PN: AsRef<str>>(
+    fn atomic_update_graph_props(&self) -> GraphPropWriterT<'_>;
+
+    fn validate_props<'a, PN: AsRef<str> + 'a, P: Into<Prop>>(
         &self,
         is_static: bool,
-        meta: &Meta,
-        prop: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<(usize, Prop)>, Self::Error>;
+        meta: &'a Meta,
+        props: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<PropsMetaWriter<'a, PN>, MutationError>;
 
-    /// Validates props and returns them with their creation status (new vs existing)
-    fn validate_props_with_status<PN: AsRef<str>>(
+    unsafe fn bulk_load_resolve_node(
         &self,
-        is_static: bool,
-        meta: &Meta,
-        props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error>;
-}
+        id: GidRef<'_>,
+    ) -> Result<(MaybeNew<VID>, Option<ArcRwLockWriteGuard<MemNodeSegment>>), MutationError>;
+    fn resolve_layer(&self, layer: Option<&str>) -> MaybeNew<LayerId>;
 
-pub trait EdgeWriteLock: Send + Sync {
-    /// add edge update
-    fn internal_add_update(
-        &mut self,
-        t: EventTime,
-        layer: LayerId,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    );
-
-    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId);
-
-    fn set_lsn(&mut self, lsn: LSN);
-
-    fn src(&self) -> MaybeNew<VID>;
-
-    fn dst(&self) -> MaybeNew<VID>;
-
-    fn eid(&self) -> MaybeNew<EID>;
-}
-
-pub trait NodeWriteLock: Send + Sync {
-    fn internal_add_update(
-        &mut self,
-        t: EventTime,
-        layer: LayerId,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    );
-
-    fn can_set_type(&self) -> bool;
-
-    fn get_type(&self) -> usize;
-
-    fn set_type(&mut self, node_type: usize);
-
-    fn set_lsn(&mut self, lsn: LSN);
-
-    fn node(&self) -> MaybeNew<VID>;
-}
-
-pub trait SessionAdditionOps: Send + Sync {
-    type Error: From<MutationError>;
-
-    /// Reads the current event id.
-    fn read_event_id(&self) -> Result<usize, Self::Error>;
+    fn read_event_id(&self) -> usize;
 
     /// Sets the event_id to the provided event_id.
-    fn set_event_id(&self, event_id: usize) -> Result<(), Self::Error>;
+    fn set_event_id(&self, event_id: usize) -> ();
 
     /// get the sequence id for the next event
-    fn next_event_id(&self) -> Result<usize, Self::Error>;
+    fn next_event_id(&self) -> usize;
 
     /// Reserve a consecutive block of event_ids with length num_ids.
     /// Returns the starting event_id of the reserved block.
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error>;
+    fn reserve_event_ids(&self, num_ids: usize) -> usize;
 
     /// Sets the event_id to the maximum of the current event_id and the provided event_id.
     /// Returns the old value before the update.
-    fn set_max_event_id(&self, event_id: usize) -> Result<usize, Self::Error>;
+    fn set_max_event_id(&self, event_id: usize) -> usize;
 
-    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error>;
+    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), MutationError>;
+
+    fn id_type(&self) -> Option<GidType>;
 
     /// map property key to internal id, allocating new property if needed
     fn resolve_graph_property(
@@ -157,7 +94,7 @@ pub trait SessionAdditionOps: Send + Sync {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error>;
+    ) -> Result<MaybeNew<usize>, MutationError>;
 
     /// map property key to internal id, allocating new property if needed and checking property type.
     /// returns `None` if the type does not match
@@ -166,88 +103,71 @@ pub trait SessionAdditionOps: Send + Sync {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error>;
+    ) -> Result<MaybeNew<usize>, MutationError>;
 
     fn resolve_edge_property(
         &self,
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error>;
+    ) -> Result<MaybeNew<usize>, MutationError>;
+}
+
+pub trait PropertyMutationOps {
+    /// Add temporal property updates, not allowed to fail (all types should already be validated)
+    fn update_properties(
+        &mut self,
+        t: EventTime,
+        layer: LayerId,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    );
+}
+pub trait MetadataMutationOps {
+    /// Check metadata updates against existing values and error if any value changes
+    fn check_metadata<P: AsPropEntry>(
+        &self,
+        layer: LayerId,
+        props: impl Iterator<Item = P>,
+    ) -> Result<(), MutationError>;
+
+    /// Update the metadata, overwriting any existing values
+    fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>);
+}
+
+pub trait SetLsn {
+    fn set_lsn(&mut self, lsn: LSN);
+}
+
+pub trait EdgeWriteLock: SetLsn + MetadataMutationOps + PropertyMutationOps + Send + Sync {
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId);
+
+    fn src(&self) -> MaybeNew<VID>;
+
+    fn dst(&self) -> MaybeNew<VID>;
+
+    fn eid(&self) -> MaybeNew<EID>;
+}
+
+pub trait NodeWriteLock: SetLsn + MetadataMutationOps + PropertyMutationOps + Send + Sync {
+    fn can_set_type(&self) -> bool;
+
+    fn get_type(&self) -> usize;
+
+    fn set_type(&mut self, node_type: usize);
+
+    fn node(&self) -> MaybeNew<VID>;
 }
 
 impl InternalAdditionOps for GraphStorage {
-    type Error = MutationError;
-    type WS<'b> = UnlockedSession<'b>;
-
-    type AtomicAddEdge<'a> = AtomicAddEdge<'a, Extension>;
-
-    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, MutationError> {
         self.mutable()?.write_lock()
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
-        self.mutable()?.resolve_layer(layer)
-    }
-
-    fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
-        self.mutable()?.write_session()
-    }
-
-    fn atomic_add_edge(
-        &self,
-        src: NodeRef,
-        dst: NodeRef,
-        e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        self.mutable()?.atomic_add_edge(src, dst, e_id)
-    }
-
-    fn internal_add_node(
-        &self,
-        t: EventTime,
-        v: VID,
-        props: Vec<(usize, Prop)>,
-        layer_id: LayerId,
-    ) -> Result<NodeWriterT<'_>, Self::Error> {
-        self.mutable()?.internal_add_node(t, v, props, layer_id)
-    }
-
-    fn validate_props<PN: AsRef<str>>(
-        &self,
-        is_static: bool,
-        meta: &Meta,
-        prop: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        self.mutable()?.validate_props(is_static, meta, prop)
-    }
-
-    fn validate_props_with_status<PN: AsRef<str>>(
-        &self,
-        is_static: bool,
-        meta: &Meta,
-        props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
-        self.mutable()?
-            .validate_props_with_status(is_static, meta, props)
-    }
-
-    fn validate_gids<'a>(
-        &self,
-        gids: impl IntoIterator<Item = GidRef<'a>>,
-    ) -> Result<(), Self::Error> {
-        self.mutable()?.validate_gids(gids)
-    }
-
-    unsafe fn bulk_load_resolve_node(
-        &self,
-        id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), Self::Error> {
-        self.mutable()?.bulk_load_resolve_node(id)
-    }
-
-    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
-        self.mutable()?.atomic_add_node(node)
+    fn mutable(&self) -> Result<&TemporalGraph, Immutable> {
+        match self {
+            GraphStorage::Locked(_) => Err(Immutable::ReadLockedImmutable),
+            GraphStorage::Unlocked(graph) => Ok(graph),
+        }
     }
 }
 
@@ -257,92 +177,13 @@ impl<G: InheritAdditionOps> InternalAdditionOps for G
 where
     G::Base: InternalAdditionOps,
 {
-    type Error = <G::Base as InternalAdditionOps>::Error;
-    type WS<'a>
-        = <G::Base as InternalAdditionOps>::WS<'a>
-    where
-        <G as Base>::Base: 'a,
-        G: 'a;
-
-    type AtomicAddEdge<'a>
-        = <G::Base as InternalAdditionOps>::AtomicAddEdge<'a>
-    where
-        <G as Base>::Base: 'a,
-        G: 'a;
-
     #[inline]
-    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, MutationError> {
         self.base().write_lock()
     }
 
     #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
-        self.base().resolve_layer(layer)
-    }
-
-    #[inline]
-    fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
-        self.base().write_session()
-    }
-
-    #[inline]
-    fn atomic_add_edge(
-        &self,
-        src: NodeRef,
-        dst: NodeRef,
-        e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        self.base().atomic_add_edge(src, dst, e_id)
-    }
-
-    #[inline]
-    fn internal_add_node(
-        &self,
-        t: EventTime,
-        v: VID,
-        props: Vec<(usize, Prop)>,
-        layer_id: LayerId,
-    ) -> Result<NodeWriterT<'_>, Self::Error> {
-        self.base().internal_add_node(t, v, props, layer_id)
-    }
-
-    #[inline]
-    fn validate_props<PN: AsRef<str>>(
-        &self,
-        is_static: bool,
-        meta: &Meta,
-        prop: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        self.base().validate_props(is_static, meta, prop)
-    }
-
-    #[inline]
-    fn validate_props_with_status<PN: AsRef<str>>(
-        &self,
-        is_static: bool,
-        meta: &Meta,
-        props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
-        self.base()
-            .validate_props_with_status(is_static, meta, props)
-    }
-
-    #[inline]
-    fn validate_gids<'a>(
-        &self,
-        gids: impl IntoIterator<Item = GidRef<'a>>,
-    ) -> Result<(), Self::Error> {
-        self.base().validate_gids(gids)
-    }
-
-    unsafe fn bulk_load_resolve_node(
-        &self,
-        id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), Self::Error> {
-        self.base().bulk_load_resolve_node(id)
-    }
-
-    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
-        self.base().atomic_add_node(node)
+    fn mutable(&self) -> Result<&TemporalGraph, Immutable> {
+        self.base().mutable()
     }
 }

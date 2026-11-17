@@ -1,12 +1,9 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::{
-            mutation::time_from_input_session,
-            view::{
-                internal::{GraphView, InternalMaterialize},
-                StaticGraphViewOps,
-            },
+        api::view::{
+            internal::{GraphView, InternalMaterialize},
+            StaticGraphViewOps,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -23,12 +20,7 @@ use raphtory_api::core::{
     },
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
-use raphtory_storage::{
-    graph::graph::GraphStorage,
-    mutation::{
-        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
-    },
-};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::addition_ops::InternalAdditionOps};
 use std::{borrow::Borrow, fmt::Debug};
 
 pub trait ImportOps: Sized {
@@ -410,7 +402,6 @@ fn import_edge_internal<
     }
 
     // Add edges first to ensure associated nodes are present
-    let session = graph.write_session().map_err(|err| err.into())?;
     for ee in edge.explode_layers() {
         let layer_name = ee.layer_name().expect("exploded layers");
 
@@ -425,8 +416,7 @@ fn import_edge_internal<
         }
 
         for (t, _) in ee.deletions_hist() {
-            let ti = time_from_input_session(&session, t.t())?;
-            graph.delete_edge(ti.t(), src_id, dst_id, Some(&layer_name))?;
+            graph.delete_edge(t.t(), src_id, dst_id, Some(&layer_name))?;
         }
 
         graph
@@ -439,7 +429,7 @@ fn import_edge_internal<
 }
 
 fn check_existing_nodes<
-    G: StaticGraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + InternalMaterialize,
+    G: StaticGraphViewOps + InternalAdditionOps + InternalMaterialize,
     V: AsNodeRef,
 >(
     graph: &G,
@@ -461,7 +451,7 @@ fn check_existing_nodes<
 }
 
 fn check_existing_edges<
-    G: StaticGraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + InternalMaterialize,
+    G: StaticGraphViewOps + InternalAdditionOps + InternalMaterialize,
     V: AsNodeRef + Clone + Debug,
 >(
     graph: &G,

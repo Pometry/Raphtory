@@ -43,7 +43,9 @@ use raphtory_storage::{
     durability_ops::DurabilityOps,
     graph::graph::GraphStorage,
     mutation::{
-        addition_ops::{InternalAdditionOps, NodeWriteLock},
+        addition_ops::{
+            GraphMutationOps, MetadataMutationOps, NodeWriteLock, PropertyMutationOps, SetLsn,
+        },
         MutationError,
     },
 };
@@ -425,52 +427,36 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         properties: impl IntoIterator<Item = (PN, P)>,
         is_update: bool,
     ) -> Result<(), GraphError> {
-        let transaction_manager = self
-            .graph
-            .core_graph()
+        let mutable_graph = self.graph.mutable()?;
+        let transaction_manager = mutable_graph
             .transaction_manager()
             .map_err(into_graph_err)?;
-        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
+        let wal = mutable_graph.wal().map_err(into_graph_err)?;
         let transaction_id = transaction_manager.begin_transaction();
 
-        let props_with_status = self.graph.core_graph().validate_props_with_status(
-            true,
-            self.graph.node_meta(),
-            properties.into_iter().map(|(n, p)| (n, p.into())),
-        )?;
-
-        let props = props_with_status
+        let validated_props =
+            mutable_graph.validate_props(true, self.graph.node_meta(), properties)?;
+        let mut writer = mutable_graph.atomic_add_node(NodeRef::Internal(self.node), None)?;
+        if !is_update {
+            // check no existing property values have changed
+            writer.check_metadata(STATIC_GRAPH_LAYER_ID, validated_props.resolved())?;
+        }
+        // at this point we start modifying the graph, no failures allowed
+        let (prop_names, props) = validated_props.into_props_and_names();
+        mutable_graph
+            .node_meta()
+            .metadata_mapper()
+            .mark_props_in_layer(STATIC_GRAPH_LAYER_ID, props.iter().map(|(id, _)| *id));
+        let props_for_wal = prop_names
             .iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.as_ref().inner();
-                (*prop_id, prop.clone())
-            })
+            .zip(props.iter())
+            .map(|(prop_name, (prop_id, prop))| (prop_name.as_ref(), *prop_id, prop.clone()))
             .collect::<Vec<_>>();
-
-        let vid = self.node;
-
-        let mut writer = if is_update {
-            self.graph
-                .internal_update_node_metadata(vid, props)
-                .map_err(into_graph_err)?
-        } else {
-            self.graph
-                .internal_add_node_metadata(vid, props)
-                .map_err(into_graph_err)?
-        };
-
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
         let lsn = wal
-            .log_add_node_metadata(transaction_id, vid, props_for_wal)
+            .log_add_node_metadata(transaction_id, self.node, props_for_wal)
             .map_err(into_graph_err)?;
 
+        writer.update_metadata(STATIC_GRAPH_LAYER_ID, props);
         writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);
         drop(writer);
@@ -483,20 +469,10 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        let transaction_manager = self
-            .graph
-            .core_graph()
-            .transaction_manager()
-            .map_err(into_graph_err)?;
-        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
-        let transaction_id = transaction_manager.begin_transaction();
+        let mutable_graph = self.graph.mutable()?;
+        let transaction_manager = mutable_graph.transaction_manager()?;
         let vid = self.node;
-
-        let mut writer = self
-            .graph
-            .atomic_add_node(NodeRef::Internal(vid))
-            .map_err(into_graph_err)?;
-
+        let mut writer = mutable_graph.atomic_add_node(NodeRef::Internal(vid), None)?;
         if !writer.can_set_type() {
             // Ignore if the new type is the same as the existing type, else return an error.
             self.graph
@@ -504,7 +480,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 .get_node_type_id(new_type)
                 .filter(|&new_type_id| writer.get_type() == new_type_id)
                 .ok_or(MutationError::NodeTypeError)?;
+            return Ok(());
         }
+
+        let wal = mutable_graph.wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
 
         let new_type_id = self
             .graph
@@ -514,9 +494,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
 
         writer.set_type(new_type_id);
 
-        let lsn = wal
-            .log_set_node_type(transaction_id, vid, new_type, new_type_id)
-            .map_err(into_graph_err)?;
+        let lsn = wal.log_set_node_type(transaction_id, vid, new_type, new_type_id)?;
 
         writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);
@@ -540,56 +518,34 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         props: PII,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let transaction_manager = self
-            .graph
-            .core_graph()
-            .transaction_manager()
-            .map_err(into_graph_err)?;
-        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
+        let mutable_graph = self.graph.mutable()?;
+        let transaction_manager = mutable_graph.transaction_manager()?;
+        let wal = mutable_graph.wal()?;
         let transaction_id = transaction_manager.begin_transaction();
-        let session = self.graph.write_session().map_err(|err| err.into())?;
+        let t = time_from_input_session(&mutable_graph, time)?;
+        let validated_props =
+            mutable_graph.validate_props(false, mutable_graph.node_meta(), props)?;
 
-        let props_with_status = self
-            .graph
-            .validate_props_with_status(
-                false,
-                self.graph.node_meta(),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
+        let vid = self.node;
+        let mut writer = mutable_graph
+            .atomic_add_node(NodeRef::Internal(vid), None)
             .map_err(into_graph_err)?;
+
         let layer_id = match layer {
             None => STATIC_GRAPH_LAYER_ID,
-            Some(_) => self
-                .graph
-                .resolve_layer(layer)
-                .map_err(into_graph_err)?
-                .inner(),
+            Some(_) => mutable_graph.resolve_layer(layer).inner(),
         };
 
-        let t = time_from_input_session(&session, time)?;
-        let vid = self.node;
+        let (prop_names, props) = validated_props.into_props_and_names();
+        mutable_graph
+            .node_meta()
+            .temporal_prop_mapper()
+            .mark_props_in_layer(layer_id, props.iter().map(|(id, _)| *id));
 
-        let mut writer = self
-            .graph
-            .atomic_add_node(NodeRef::Internal(vid))
-            .map_err(into_graph_err)?;
-
-        let props = props_with_status
+        let props_for_wal = prop_names
             .iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.as_ref().inner();
-                (*prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
-        writer.internal_add_update(t, layer_id, props);
-
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
+            .zip(props.iter())
+            .map(|(prop_name, (prop_id, prop))| (prop_name.as_ref(), *prop_id, prop.clone()))
             .collect::<Vec<_>>();
 
         let lsn = wal
@@ -604,6 +560,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 layer_id,
             )
             .map_err(into_graph_err)?;
+
+        writer.update_properties(t, layer_id, props);
 
         writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);

@@ -1,42 +1,24 @@
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
     db::api::view::{
         internal::{
             InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps, Static,
         },
         Base, InheritViewOps,
     },
-    errors::{into_graph_err, GraphError},
+    errors::GraphError,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
-use raphtory_api::core::{
-    entities::{
-        properties::{
-            meta::{Meta, PropWithStatus},
-            prop::{AsPropRef, Prop, PropType},
-        },
-        GidRef, LayerId, EID, VID,
-    },
-    storage::{dict_mapper::MaybeNew, timeindex::EventTime},
-};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::graph::GraphStorage,
+    graph::graph::{GraphStorage, Immutable},
     layer_ops::InheritLayerOps,
-    mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
-        property_addition_ops::InternalPropertyAdditionOps,
-        EdgeWriterT, GraphPropWriterT, NodeWriterT,
-    },
+    mutation::{addition_ops::InternalAdditionOps, MutationError},
 };
 use std::{
     fmt::{Display, Formatter},
     path::Path,
     sync::Arc,
 };
-use storage::{pages::locked::nodes::MemNodeSegmentGuards, wal::LSN};
-
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
     error::StorageError,
@@ -209,256 +191,12 @@ impl InheritViewOps for Storage {}
 
 impl Static for Storage {}
 
-#[derive(Clone)]
-pub struct StorageWriteSession<'a> {
-    session: UnlockedSession<'a>,
-}
-
-pub struct AtomicAddEdgeSession<'a> {
-    session: AtomicAddEdge<'a, Extension>,
-}
-
-impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
-    fn internal_add_update(
-        &mut self,
-        t: EventTime,
-        layer: LayerId,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) {
-        self.session.internal_add_update(t, layer, props)
-    }
-
-    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
-        self.session.internal_delete_edge(t, layer)
-    }
-
-    fn set_lsn(&mut self, lsn: LSN) {
-        self.session.set_lsn(lsn);
-    }
-
-    fn src(&self) -> MaybeNew<VID> {
-        self.session.src()
-    }
-
-    fn dst(&self) -> MaybeNew<VID> {
-        self.session.dst()
-    }
-
-    fn eid(&self) -> MaybeNew<EID> {
-        self.session.eid()
-    }
-}
-
-impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
-    type Error = GraphError;
-
-    fn read_event_id(&self) -> Result<usize, Self::Error> {
-        Ok(self.session.read_event_id()?)
-    }
-
-    fn set_event_id(&self, event_id: usize) -> Result<(), Self::Error> {
-        Ok(self.session.set_event_id(event_id)?)
-    }
-
-    fn next_event_id(&self) -> Result<usize, Self::Error> {
-        Ok(self.session.next_event_id()?)
-    }
-
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
-        Ok(self.session.reserve_event_ids(num_ids)?)
-    }
-
-    fn set_max_event_id(&self, value: usize) -> Result<usize, Self::Error> {
-        Ok(self.session.set_max_event_id(value)?)
-    }
-
-    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
-        Ok(self.session.set_node(gid, vid)?)
-    }
-
-    fn resolve_graph_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error> {
-        let id = self
-            .session
-            .resolve_graph_property(prop, dtype.clone(), is_static)?;
-
-        Ok(id)
-    }
-
-    fn resolve_node_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error> {
-        let id = self
-            .session
-            .resolve_node_property(prop, dtype.clone(), is_static)?;
-
-        Ok(id)
-    }
-
-    fn resolve_edge_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, Self::Error> {
-        let id = self
-            .session
-            .resolve_edge_property(prop, dtype.clone(), is_static)?;
-
-        Ok(id)
-    }
-}
-
 impl InternalAdditionOps for Storage {
-    type Error = GraphError;
-
-    type WS<'a> = StorageWriteSession<'a>;
-    type AtomicAddEdge<'a> = AtomicAddEdgeSession<'a>;
-
-    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, MutationError> {
         Ok(self.graph.write_lock()?)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
-        let id = self.graph.resolve_layer(layer)?;
-        Ok(id)
-    }
-
-    fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
-        let session = self.graph.write_session()?;
-        Ok(StorageWriteSession { session })
-    }
-
-    fn atomic_add_edge(
-        &self,
-        src: NodeRef,
-        dst: NodeRef,
-        e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        let session = self.graph.atomic_add_edge(src, dst, e_id)?;
-        Ok(AtomicAddEdgeSession { session })
-    }
-
-    fn internal_add_node(
-        &self,
-        t: EventTime,
-        v: VID,
-        props: Vec<(usize, Prop)>,
-        layer_id: LayerId,
-    ) -> Result<NodeWriterT<'_>, Self::Error> {
-        // don't fail early on indexing, actually update the graph even if indexing failed
-        let writer = self.graph.internal_add_node(t, v, props, layer_id)?;
-        Ok(writer)
-    }
-
-    fn validate_props<PN: AsRef<str>>(
-        &self,
-        is_static: bool,
-        meta: &Meta,
-        prop: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        Ok(self.graph.validate_props(is_static, meta, prop)?)
-    }
-
-    fn validate_props_with_status<PN: AsRef<str>>(
-        &self,
-        is_static: bool,
-        meta: &Meta,
-        props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
-        Ok(self
-            .graph
-            .validate_props_with_status(is_static, meta, props)?)
-    }
-
-    fn validate_gids<'a>(
-        &self,
-        gids: impl IntoIterator<Item = GidRef<'a>>,
-    ) -> Result<(), Self::Error> {
-        Ok(self.graph.validate_gids(gids)?)
-    }
-
-    unsafe fn bulk_load_resolve_node(
-        &self,
-        id: GidRef<'_>,
-    ) -> Result<(MaybeNew<VID>, MemNodeSegmentGuards), Self::Error> {
-        Ok(self.graph.bulk_load_resolve_node(id)?)
-    }
-
-    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
-        self.graph.atomic_add_node(node).map_err(into_graph_err)
-    }
-}
-
-impl InternalPropertyAdditionOps for Storage {
-    type Error = GraphError;
-
-    fn internal_add_properties<P: AsPropRef>(
-        &self,
-        t: EventTime,
-        props: &[(usize, P)],
-    ) -> Result<GraphPropWriterT<'_>, GraphError> {
-        Ok(self.graph.internal_add_properties(t, props)?)
-    }
-
-    fn internal_add_metadata<P: AsPropRef>(
-        &self,
-        props: &[(usize, P)],
-    ) -> Result<GraphPropWriterT<'_>, GraphError> {
-        Ok(self.graph.internal_add_metadata(props)?)
-    }
-
-    fn internal_update_metadata(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<GraphPropWriterT<'_>, GraphError> {
-        Ok(self.graph.internal_update_metadata(props)?)
-    }
-
-    fn internal_add_node_metadata<P: AsPropRef>(
-        &self,
-        vid: VID,
-        props: Vec<(usize, P)>,
-    ) -> Result<NodeWriterT<'_>, Self::Error> {
-        let lock = self.graph.internal_add_node_metadata(vid, props)?;
-        Ok(lock)
-    }
-
-    fn internal_update_node_metadata(
-        &self,
-        vid: VID,
-        props: Vec<(usize, Prop)>,
-    ) -> Result<NodeWriterT<'_>, Self::Error> {
-        let lock = self.graph.internal_update_node_metadata(vid, props)?;
-        Ok(lock)
-    }
-
-    fn internal_add_edge_metadata<P: AsPropRef>(
-        &self,
-        eid: EID,
-        layer: LayerId,
-        props: Vec<(usize, P)>,
-    ) -> Result<EdgeWriterT<'_>, Self::Error> {
-        let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
-        Ok(lock)
-    }
-
-    fn internal_update_edge_metadata(
-        &self,
-        eid: EID,
-        layer: LayerId,
-        props: Vec<(usize, Prop)>,
-    ) -> Result<EdgeWriterT<'_>, Self::Error> {
-        let lock = self
-            .graph
-            .internal_update_edge_metadata(eid, layer, props)?;
-        Ok(lock)
+    fn mutable(&self) -> Result<&TemporalGraph, Immutable> {
+        self.graph.mutable()
     }
 }

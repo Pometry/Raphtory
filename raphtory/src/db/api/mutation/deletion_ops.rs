@@ -12,13 +12,11 @@ use crate::{
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
 use raphtory_storage::{
     durability_ops::DurabilityOps,
-    mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    mutation::addition_ops::{EdgeWriteLock, GraphMutationOps, InternalAdditionOps, SetLsn},
 };
 use storage::wal::{GraphWalOps, WalOps};
 
-pub trait DeletionOps:
-    InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Sized
-{
+pub trait DeletionOps: InternalAdditionOps + StaticGraphViewOps + Sized {
     fn delete_edge<V: AsNodeRef, T: TryIntoInputTime>(
         &self,
         t: T,
@@ -26,28 +24,22 @@ pub trait DeletionOps:
         dst: V,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
-        let transaction_manager = self.core_graph().transaction_manager()?;
-        let wal = self.core_graph().wal()?;
+        let mutable_graph = self.mutable()?;
+        let transaction_manager = mutable_graph.transaction_manager()?;
+        let wal = mutable_graph.wal()?;
         let transaction_id = transaction_manager.begin_transaction();
-        let session = self.write_session().map_err(|err| err.into())?;
         let src = src.as_node_ref();
         let dst = dst.as_node_ref();
 
-        self.validate_gids(
-            [src, dst]
-                .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref()),
-        )
-        .map_err(into_graph_err)?;
-
-        let ti = time_from_input_session(&session, t)?;
+        let ti = time_from_input_session(&mutable_graph, t)?;
         let src_gid = src.as_gid_ref();
         let dst_gid = dst.as_gid_ref();
-        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
-        let mut writer = self
+        let mut writer = mutable_graph
             .atomic_add_edge(src, dst, None)
             .map_err(into_graph_err)?;
+
+        let layer_id = mutable_graph.resolve_layer(layer).inner();
 
         let src_id = writer.src().inner();
         let dst_id = writer.dst().inner();
@@ -94,7 +86,4 @@ pub trait DeletionOps:
     }
 }
 
-impl<T: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Sized> DeletionOps
-    for T
-{
-}
+impl<T: InternalAdditionOps + StaticGraphViewOps + Sized> DeletionOps for T {}

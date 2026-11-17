@@ -1,11 +1,6 @@
 use crate::{
-    core_ops::CoreGraphOps,
-    graph::graph::Immutable,
-    mutation::{
-        addition_ops::InheritAdditionOps, property_addition_ops::InheritPropertyAdditionOps,
-    },
+    core_ops::CoreGraphOps, graph::graph::Immutable, mutation::addition_ops::InheritAdditionOps,
 };
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::entities::properties::prop::{InvalidBigDecimal, PropError},
     inherit::Base,
@@ -27,10 +22,9 @@ use thiserror::Error;
 
 pub mod addition_ops;
 pub mod addition_ops_ext;
-pub mod property_addition_ops;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS<Extension>>;
-pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
+pub type EdgeWriterT<'a> = EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES<Extension>>;
 pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 
 #[derive(Error, Debug)]
@@ -62,5 +56,4 @@ pub enum MutationError {
 pub trait InheritMutationOps: Base {}
 
 impl<G: InheritMutationOps> InheritAdditionOps for G {}
-impl<G: InheritMutationOps> InheritPropertyAdditionOps for G {}
 impl<T: CoreGraphOps + ?Sized> InheritMutationOps for Arc<T> {}

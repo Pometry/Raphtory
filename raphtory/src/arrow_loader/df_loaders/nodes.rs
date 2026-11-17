@@ -23,7 +23,7 @@ use raphtory_core::{
     entities::{GidRef, VID},
     storage::timeindex::AsTime,
 };
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -52,6 +52,7 @@ use crate::arrow_loader::{
     prop_handler::*,
     LOAD_POOL,
 };
+use db4_graph::TemporalGraph;
 #[cfg(feature = "progress")]
 use kdam::BarExt;
 
@@ -143,6 +144,8 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         return Ok(());
     }
 
+    let graph = graph.mutable()?;
+
     LOAD_POOL.install(move || {
         let properties_indices = properties
             .iter()
@@ -167,12 +170,13 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .map(|col| df_view.get_index(col))
             .transpose()?;
 
-        let session = graph.write_session().map_err(into_graph_err)?;
         let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-            session
+            graph
                 .resolve_node_property(key, dtype, true)
                 .map_err(into_graph_err)
         })?;
+        // resolved outside the chunk's columns, so marked separately below
+        let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
         #[cfg(feature = "progress")]
         let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
@@ -182,6 +186,14 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         // held for the whole load
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        let mut prop_presence = graph
+            .node_meta()
+            .temporal_prop_mapper()
+            .write_locked_layer_presence();
+        let mut meta_presence = graph
+            .node_meta()
+            .metadata_mapper()
+            .write_locked_layer_presence();
         let node_stats = write_locked_graph.node_stats().clone();
         let max_node_segment_len = write_locked_graph
             .graph()
@@ -194,14 +206,14 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             let prop_cols =
                 combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
-                    session
+                    graph
                         .resolve_node_property(key, dtype, false)
                         .map_err(into_graph_err)
                 })?;
 
             let metadata_cols =
                 combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                    session
+                    graph
                         .resolve_node_property(key, dtype, true)
                         .map_err(into_graph_err)
                 })?;
@@ -212,23 +224,37 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             // Two paths:
             // Fast path (parquet round-trip) when both layer_col and layer_id_col are provided.
             // Slow path (user-facing CSV/parquet without numeric ids) resolve by name
-            let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
-                let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
-                let layer_id_values = layer_id_index
-                    .map(|idx| {
-                        df.chunk[idx]
-                            .as_primitive_opt::<UInt64Type>()
-                            .ok_or_else(|| {
-                                LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
-                            })
-                            .map(|array| array.values().as_ref())
-                    })
-                    .transpose()?;
+            let (layer_col_resolved, distinct_layers) =
+                if layer.is_some() || layer_col_index.is_some() {
+                    let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
+                    let layer_id_values = layer_id_index
+                        .map(|idx| {
+                            df.chunk[idx]
+                                .as_primitive_opt::<UInt64Type>()
+                                .ok_or_else(|| {
+                                    LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
+                                })
+                                .map(|array| array.values().as_ref())
+                        })
+                        .transpose()?;
 
-                Some(layer_col.resolve_layer(layer_id_values, graph, true)?)
-            } else {
-                None
-            };
+                    let (layer_resolved, distinct_layers) =
+                        layer_col.resolve_layer(layer_id_values, graph, true)?;
+                    (Some(layer_resolved), distinct_layers)
+                } else {
+                    (None, vec![STATIC_GRAPH_LAYER_ID])
+                };
+
+            // mark this chunk's (layer, prop) presence once
+            mark_chunk_prop_presence(
+                &mut prop_presence,
+                &mut meta_presence,
+                layer_col_resolved.as_deref(),
+                &distinct_layers,
+                &prop_cols,
+                &metadata_cols,
+                &shared_metadata_ids,
+            );
 
             let time_col = df.time_col(time_index)?;
             let node_col = df.node_col(node_id_index)?;
@@ -238,7 +264,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             // Load the secondary index column if it exists, otherwise generate from start_id.
             let secondary_index_col =
-                extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
+                extract_secondary_index_col::<G>(secondary_index_index, graph, &df)?;
             node_col_resolved.resize_with(df.len(), Default::default);
 
             let (src_vids, gid_str_cache, new_segment_guards) = get_or_resolve_node_vids(
@@ -265,7 +291,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             }
 
             // node resolution may have created new node segments
-            write_locked_graph.extend_new(new_segment_guards);
+            write_locked_graph.extend_nodes(new_segment_guards);
 
             let rows_by_segment = group_rows_by_vid_segment(
                 src_vids,
@@ -361,6 +387,7 @@ pub fn load_node_props_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
+    let graph = graph.mutable()?;
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -380,13 +407,14 @@ pub fn load_node_props_from_df<
     let layer_col_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
 
     let node_gid_index = df_view.get_index(node_id)?;
-    let session = graph.write_session().map_err(into_graph_err)?;
 
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-        session
+        graph
             .resolve_node_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
+    // resolved outside the chunk's columns, marked separately below
+    let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
     let pre_resolved = node_type_ids_col.is_some() && node_id_index.is_some();
 
@@ -398,6 +426,10 @@ pub fn load_node_props_from_df<
 
     // held for the whole load
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+    let mut meta_presence = graph
+        .node_meta()
+        .metadata_mapper()
+        .write_locked_layer_presence();
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -406,7 +438,7 @@ pub fn load_node_props_from_df<
         }
         let metadata_cols =
             combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
+                graph
                     .resolve_node_property(key, dtype, true)
                     .map_err(into_graph_err)
             })?;
@@ -416,17 +448,27 @@ pub fn load_node_props_from_df<
             node_col.validate(graph, LoadError::InvalidNodeError)?;
         }
         // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
-        let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
+        let (layer_col_resolved, distinct_layers) = if layer.is_some() || layer_col_index.is_some()
+        {
             let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
-            Some(layer_col.resolve_layer(None, graph, true)?)
+            let (layer_resolved, distinct_layers) = layer_col.resolve_layer(None, graph, true)?;
+            (Some(layer_resolved), distinct_layers)
         } else {
-            None
+            (None, vec![STATIC_GRAPH_LAYER_ID])
         };
 
+        // mark this chunk's (layer, prop) presence once
+        mark_chunk_metadata_presence(
+            &mut meta_presence,
+            layer_col_resolved.as_deref(),
+            &distinct_layers,
+            &metadata_cols,
+            &shared_metadata_ids,
+        );
+
         let (node_col_resolved, node_type_col_resolved, new_segment_guards) =
-            get_or_resolve_node_vids_no_events::<G>(
+            get_or_resolve_node_vids_no_events(
                 graph,
-                &session,
                 &mut node_col_resolved,
                 &mut node_type_resolved,
                 node_type_ids_col,
@@ -450,7 +492,7 @@ pub fn load_node_props_from_df<
         }
 
         // node resolution may have created new node segments
-        write_locked_graph.extend_new(new_segment_guards);
+        write_locked_graph.extend_nodes(new_segment_guards);
 
         if pre_resolved {
             let max_vid = node_col_resolved
@@ -512,13 +554,8 @@ pub fn load_node_props_from_df<
 type Resolved<'a> = (GidRef<'a>, (VID, usize));
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-fn get_or_resolve_node_vids<
-    'a: 'c,
-    'b: 'c,
-    'c,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
+fn get_or_resolve_node_vids<'a: 'c, 'b: 'c, 'c>(
+    graph: &TemporalGraph,
     locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     src_index: usize,
     node_resolve_cache: &mut Option<NodeResolveCache<(VID, usize)>>,
@@ -559,11 +596,8 @@ fn get_or_resolve_node_vids<
 ///
 /// Cache hits and existing nodes that already have a matching type are skipped.
 /// A GID that reappears with a different node type is rejected.
-fn resolve_node_vids_and_types_with_cache<
-    'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
+fn resolve_node_vids_and_types_with_cache<'a>(
+    graph: &TemporalGraph,
     locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     cache: &mut NodeResolveCache<(VID, usize)>,
     node_col_resolved: &'a mut Vec<VID>,
@@ -672,10 +706,7 @@ fn existing_stored_node_type(
         .map(|id| id as usize)
 }
 
-fn node_type_name<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    graph: &G,
-    node_type: usize,
-) -> String {
+fn node_type_name(graph: &TemporalGraph, node_type: usize) -> String {
     graph
         .node_meta()
         .get_node_type_name_by_id(node_type)
@@ -684,14 +715,8 @@ fn node_type_name<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-fn get_or_resolve_node_vids_no_events<
-    'a: 'c,
-    'b: 'c,
-    'c,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
-    session: &<G as InternalAdditionOps>::WS<'_>,
+fn get_or_resolve_node_vids_no_events<'a: 'c, 'b: 'c, 'c>(
+    graph: &TemporalGraph,
     node_col_resolved: &'a mut Vec<VID>,
     node_type_resolved: &'a mut Vec<usize>,
     node_type_ids_col: Option<usize>,
@@ -705,7 +730,6 @@ fn get_or_resolve_node_vids_no_events<
     if let Some((node_type_index, node_id_col)) = node_type_ids_col.zip(node_id_col) {
         set_meta_for_pre_resolved_nodes_and_node_ids(
             graph,
-            session,
             df,
             src_col,
             node_type_col,
@@ -725,11 +749,8 @@ fn get_or_resolve_node_vids_no_events<
     }
 }
 
-fn resolve_node_and_meta_for_node_col<
-    'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
+fn resolve_node_and_meta_for_node_col<'a>(
+    graph: &TemporalGraph,
     node_col_resolved: &'a mut Vec<VID>,
     node_type_resolved: &'a mut Vec<usize>,
     df: &DFChunk,
@@ -784,7 +805,7 @@ fn resolve_node_and_meta_for_node_col<
             // Metadata can only be attached to a node that exists: an unknown id is an error,
             // the same one load_edge_metadata gives for an unknown endpoint, not a row to skip.
             graph
-                .internalise_node(gid.as_node_ref())
+                .resolve_node_ref(gid.as_node_ref())
                 .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?
         };
         *vid = res_vid;
@@ -798,12 +819,8 @@ fn resolve_node_and_meta_for_node_col<
     ))
 }
 
-fn set_meta_for_pre_resolved_nodes_and_node_ids<
-    'b,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
-    session: &<G as InternalAdditionOps>::WS<'_>,
+fn set_meta_for_pre_resolved_nodes_and_node_ids<'b>(
+    graph: &TemporalGraph,
     df: &'b DFChunk,
     src_col: &NodeCol,
     node_type_col: LayerCol<'_>,
@@ -839,7 +856,7 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
             locked_mapper.set_id(node_type_name, *node_type_id as usize);
         }
         last_node_type = node_type;
-        session
+        graph
             .set_node(gid, VID(*node_id as usize))
             .map_err(into_graph_err)?;
     }
