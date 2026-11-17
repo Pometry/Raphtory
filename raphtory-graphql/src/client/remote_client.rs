@@ -1,6 +1,6 @@
 use crate::{
     client::{error::classify_graphql_errors, ClientError, RemoteGraph},
-    data::GqlGraphType,
+    model::graph::GqlGraphType,
     url_encode::url_decode_graph,
 };
 use raphtory::{db::api::view::MaterializedGraph, prelude::Args};

@@ -1,7 +1,7 @@
 //! Error type for the GraphQL client, plus the classification of server-side
 //! GraphQL errors into it.
 
-use crate::data::{CODE_ACCESS_DENIED, CODE_GRAPH_NOT_FOUND};
+use crate::permissions::{CODE_ACCESS_DENIED, CODE_GRAPH_NOT_FOUND};
 use itertools::Itertools;
 use raphtory_api::core::{storage::graph_folder::GraphFolderError, utils::time::ParseTimeError};
 use serde_json::Value as JsonValue;

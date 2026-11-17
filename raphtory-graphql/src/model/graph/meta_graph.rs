@@ -65,7 +65,7 @@ impl MetaGraph {
             .meta
             .get_or_try_init(|| async {
                 match data.get_cached_graph(self.folder.local_path()).await {
-                    None => self.folder.read_metadata_async().await,
+                    None => self.folder.read_metadata().await,
                     Some(graph) => Ok(build_graph_metadata(graph)),
                 }
             })
@@ -146,11 +146,11 @@ impl MetaGraph {
     }
 
     pub(crate) async fn created_value(&self) -> Result<i64, GQLError> {
-        Ok(self.folder.created_async().await?)
+        Ok(self.folder.created().await?)
     }
 
     pub(crate) async fn last_updated_value(&self) -> Result<i64, GQLError> {
-        Ok(self.folder.last_updated_async().await?)
+        Ok(self.folder.last_updated().await?)
     }
 
     pub(crate) async fn node_count_value(
@@ -195,17 +195,17 @@ impl MetaGraph {
 
     /// Returns the timestamp for the creation of the graph.
     pub async fn created(&self) -> Result<i64, GQLError> {
-        Ok(self.folder.created_async().await?)
+        Ok(self.folder.created().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
     pub async fn last_opened(&self) -> Result<i64, GQLError> {
-        Ok(self.folder.last_opened_async().await?)
+        Ok(self.folder.last_opened().await?)
     }
 
     /// Returns the graph's last updated timestamp.
     pub async fn last_updated(&self) -> Result<i64, GQLError> {
-        Ok(self.folder.last_updated_async().await?)
+        Ok(self.folder.last_updated().await?)
     }
 
     /// Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
