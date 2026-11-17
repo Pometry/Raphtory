@@ -21,7 +21,7 @@ import pyarrow as pa
 import pytest
 from numpy.testing import assert_equal as check_arr
 from pytest import fixture
-from raphtory import Graph, PersistentGraph, algorithms, graph_loader
+from raphtory import Graph, PersistentGraph, algorithms, graph_loader, filter
 
 base_dir = Path(__file__).parent
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
@@ -283,8 +283,8 @@ def test_getitem():
     g.add_node(1, 1, {"cost": 1})
 
     assert (
-        g.node(1).properties.temporal.get("cost")
-        == g.node(1).properties.temporal["cost"]
+            g.node(1).properties.temporal.get("cost")
+            == g.node(1).properties.temporal["cost"]
     )
 
 
@@ -780,8 +780,8 @@ def test_node_properties():
     assert sorted(g.node(1).properties.temporal.keys()) == expected_names_no_static
     assert sorted(g.nodes.properties.temporal.keys()) == expected_names_no_static
     assert (
-        sorted(g.nodes.out_neighbours.properties.temporal.keys())
-        == expected_names_no_static
+            sorted(g.nodes.out_neighbours.properties.temporal.keys())
+            == expected_names_no_static
     )
 
     expected_names_no_static_at_1 = ["prop 1", "prop 2", "prop 3", "prop 4"]
@@ -791,12 +791,12 @@ def test_node_properties():
         "prop 4",
     ]
     assert (
-        sorted(g.at(1).nodes.properties.temporal.keys())
-        == expected_names_no_static_at_1
+            sorted(g.at(1).nodes.properties.temporal.keys())
+            == expected_names_no_static_at_1
     )
     assert (
-        sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
-        == expected_names_no_static_at_1
+            sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
+            == expected_names_no_static_at_1
     )
 
     # testing has_property
@@ -813,7 +813,7 @@ def test_node_properties():
     assert "prop 5" not in g.nodes.out_neighbours.properties
 
     assert (
-        "prop 2" not in g.at(1).node(1).properties.as_dict()
+            "prop 2" not in g.at(1).node(1).properties.as_dict()
     )  # TODO should be as dict?
     #       assert "prop 2" not in g.at(1).nodes.properties #TODO Do these make sense any more?
     #        assert "prop 2" not in g.at(1).nodes.out_neighbours.properties #TODO Do these make sense any more?
@@ -977,7 +977,7 @@ def test_edge_properties():
     assert "prop 2" in g.edge(1, 2).properties
     assert "prop 5" not in g.edge(1, 2).properties
     assert (
-        "prop 2" not in g.at(1).edge(1, 2).properties.as_dict()
+            "prop 2" not in g.at(1).edge(1, 2).properties.as_dict()
     )  # TODO should be as dict? - Properties now returns all keys here
 
     assert g.at(1).edge(1, 2).metadata.get("static prop") == 123
@@ -1653,18 +1653,18 @@ def test_layer():
     assert g.exclude_layer("layer2").count_edges() == 4
 
     with pytest.raises(
-        Exception,
-        match=re.escape(
-            """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
-        ),
+            Exception,
+            match=re.escape(
+                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
+            ),
     ):
         g.layers(["test_layer"])
 
     with pytest.raises(
-        Exception,
-        match=re.escape(
-            """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
-        ),
+            Exception,
+            match=re.escape(
+                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
+            ),
     ):
         g.edge(1, 2).layers(["test_layer"])
 
@@ -1735,20 +1735,20 @@ def test_layer_name():
     assert str(e.value) == error_msg
 
     assert [
-        list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
-    ] == [
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-    ]
+               list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
+           ] == [
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+           ]
     assert [
-        list(iterator)
-        for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
-    ] == [
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-    ]
+               list(iterator)
+               for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
+           ] == [
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+           ]
 
 
 def test_time():
@@ -2239,8 +2239,8 @@ def test_weird_windows():
     g.add_edge(1, 1, 2)
 
     with pytest.raises(
-        Exception,
-        match="'ddd' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
+            Exception,
+            match="'ddd' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
     ):
         g.window("ddd", "aaa")
 
@@ -2277,7 +2277,6 @@ def test_snapshot():
     assert g.latest() == g.snapshot_latest()
 
 
-@pytest.mark.skip(reason="Ignoring this test temporarily")
 def test_one_hop_filter_reset():
     g = Graph()
     g.add_edge(0, 1, 2, {"layer": 1}, "1")
@@ -2288,18 +2287,23 @@ def test_one_hop_filter_reset():
 
     v = g.node(1)
 
-    out_out = v.at(0).layer("1").out_neighbours.layer("2").out_neighbours.id
+    at_0_layer_1 = filter.Graph.at(0).layer("1")
+    layer_2 = filter.Graph.layer("2")
+    out_out = v.out_neighbours[at_0_layer_1].out_neighbours[layer_2].id
     assert out_out == [3]
 
     out_out = (
-        v.at(0).layer("1").out_neighbours.layer("2").out_edges.properties.get("layer")
+        v.out_neighbours[at_0_layer_1].out_edges[layer_2].properties.get("layer")
     )
     assert out_out == [2]
 
-    out_out = v.at(0).out_neighbours.after(1).out_neighbours.id
+    out = v.out_neighbours[filter.Graph.at(0)].id
+    assert out == [2, 3]
+
+    out_out = v.out_neighbours[filter.Graph.at(0)].out_neighbours[filter.Graph.after(1)].id
     assert out_out == [4]
 
-    earliest_time = v.at(0).out_neighbours.after(1).out_edges.earliest_time.min()
+    earliest_time = v.out_neighbours[filter.Graph.at(0)].out_edges[filter.Graph.after(1)].earliest_time.min()
     assert earliest_time == 2
 
     # filter applies to edges
@@ -2307,11 +2311,11 @@ def test_one_hop_filter_reset():
     assert layers == {"1"}
 
     # dst and src on edge reset the filter
-    degrees = v.at(0).layer("1").edges.dst.out_degree()
+    degrees = v.edges[at_0_layer_1].dst.out_degree()
     assert degrees == [1]
 
     # graph level filter is preserved
-    out_out_2 = g.at(0).node(1).layer("1").out_neighbours.layer("2").out_neighbours.id
+    out_out_2 = g.at(0).node(1).out_neighbours[filter.Graph.layer("1")].out_neighbours[filter.Graph.layer("2")].id
     assert len(out_out_2) == 0
 
 
@@ -2389,9 +2393,9 @@ def test_type_filter():
             (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.name),
         )
     ) == {
-        1: ["2"],
-        4: ["2", "5"],
-    }
+               1: ["2"],
+               4: ["2", "5"],
+           }
 
     assert g.nodes.degree() == {1: 1, 2: 3, 3: 2, 4: 2, 5: 2, 6: 2, 7: 0, 8: 0, 9: 0}
     assert g.nodes.type_filter(["a"]).degree() == {1: 1, 4: 2}
@@ -2409,19 +2413,19 @@ def test_type_filter():
             (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.name),
         )
     ) == {
-        1: ["2"],
-        4: ["2", "5"],
-    }
+               1: ["2"],
+               4: ["2", "5"],
+           }
     assert dict(
         zip(
             g.nodes.type_filter(["a", "c"]).id,
             (sorted(v) for v in g.nodes.type_filter(["a", "c"]).neighbours.name),
         )
     ) == {
-        1: ["2"],
-        4: ["2", "5"],
-        5: ["4", "6"],
-    }
+               1: ["2"],
+               4: ["2", "5"],
+               5: ["4", "6"],
+           }
 
     assert dict(
         zip(
@@ -2429,9 +2433,9 @@ def test_type_filter():
             g.nodes.type_filter(["a"]).neighbours.type_filter(["c"]).name.collect(),
         )
     ) == {
-        1: [],
-        4: ["5"],
-    }
+               1: [],
+               4: ["5"],
+           }
     assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
         [],
         [],
@@ -2442,8 +2446,8 @@ def test_type_filter():
             (
                 sorted(v)
                 for v in g.nodes.type_filter(["a"])
-                .neighbours.type_filter(["b", "c"])
-                .name
+            .neighbours.type_filter(["b", "c"])
+            .name
             ),
         )
     ) == {1: ["2"], 4: ["2", "5"]}
@@ -2457,17 +2461,17 @@ def test_type_filter():
             (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.neighbours.name),
         )
     ) == {
-        1: ["1", "3", "4"],
-        4: ["1", "3", "4", "4", "6"],
-    }
+               1: ["1", "3", "4"],
+               4: ["1", "3", "4", "4", "6"],
+           }
     assert dict(
         zip(
             g.nodes.type_filter(["a"]).id,
             (
                 sorted(v)
                 for v in g.nodes.type_filter(["a"])
-                .neighbours.type_filter(["c"])
-                .neighbours.name
+            .neighbours.type_filter(["c"])
+            .neighbours.name
             ),
         )
     ) == {1: [], 4: ["4", "6"]}
@@ -2514,18 +2518,18 @@ def test_time_exploded_edges():
         for edge in edges:
             time_nested.append(edge.time)
     assert [
-        item for sublist in g.nodes.edges.explode().time.collect() for item in sublist
-    ] == time_nested
+               item for sublist in g.nodes.edges.explode().time.collect() for item in sublist
+           ] == time_nested
 
     date_time_nested = []
     for edges in g.nodes.edges.explode():
         for edge in edges:
             date_time_nested.append(edge.time.dt)
     assert [
-        item
-        for sublist in g.nodes.edges.explode().time.dt.collect()
-        for item in sublist
-    ] == date_time_nested
+               item
+               for sublist in g.nodes.edges.explode().time.dt.collect()
+               for item in sublist
+           ] == date_time_nested
 
 
 def test_leading_zeroes_ids():
@@ -2714,9 +2718,9 @@ def test_unique_temporal_properties():
     assert sorted(
         list(v) for v in g.node(3).properties.temporal.get("list").unique()
     ) == [
-        [1, 2, 3],
-        [2, 3],
-    ]
+               [1, 2, 3],
+               [2, 3],
+           ]
     assert sorted(g.node(3).properties.temporal.get("date").unique()) == [
         datetime_obj,
         datetime_obj2,
