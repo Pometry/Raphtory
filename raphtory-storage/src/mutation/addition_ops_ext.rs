@@ -5,7 +5,8 @@ use crate::{
         addition_ops::{
             GraphMutationOps, InternalAdditionOps, MetadataMutationOps, PropertyMutationOps,
         },
-        EdgeWriterT, GraphPropWriterT, MutationError, NodeWriterT, NodeWritersT,
+        EdgeWriterT, GraphPropWriterT, MutationError, NodeTypeIndexWriterT, NodeWriterT,
+        NodeWritersT,
     },
     recovery_ops::RecoveryOps,
 };
@@ -22,7 +23,7 @@ use raphtory_api::{
         },
         storage::dict_mapper::MaybeNew,
     },
-    ArcRwLockReadGuard, ArcRwLockWriteGuard,
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::{
     entities::{
@@ -31,6 +32,7 @@ use raphtory_core::{
     },
     storage::timeindex::{AsTime, EventTime},
 };
+use std::sync::Arc;
 use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
     error::StorageError,
@@ -38,10 +40,7 @@ use storage::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
-    segments::{
-        graph_prop::segment::MemGraphPropSegment, node::segment::MemNodeSegment,
-        node_type_index::MemNodeTypeIndex,
-    },
+    segments::{graph_prop::segment::MemGraphPropSegment, node::segment::MemNodeSegment},
     transaction::TransactionGuard,
     wal::LSN,
     ControlFile, Extension, LocalPOS, Wal,
@@ -247,10 +246,10 @@ impl<'a> AtomicAddEdge<'a> {
 }
 
 pub struct AtomicUpdateEdge<'a> {
-    writer: EdgeWriterT<'a>,
     pos: LocalPOS,
     src: VID,
     dst: VID,
+    writer: EdgeWriterT<'a>,
 }
 
 impl<'a> MetadataMutationOps for AtomicUpdateEdge<'a> {
@@ -277,8 +276,8 @@ impl<'a> AtomicUpdateEdge<'a> {
 #[derive(Debug)]
 pub struct AtomicAddNode<'a> {
     vid: MaybeNew<VID>,
-    writer: NodeWriterT<'a>,
-    type_index: ArcRwLockReadGuard<MemNodeTypeIndex>,
+    node_writer: NodeWriterT<'a>,
+    type_index_writer: NodeTypeIndexWriterT,
 }
 
 impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
@@ -289,7 +288,7 @@ impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let pos = self.local_pos();
-        self.writer.add_props(t, pos, layer, props)
+        self.node_writer.add_props(t, pos, layer, props)
     }
 }
 
@@ -300,12 +299,12 @@ impl<'a> MetadataMutationOps for AtomicAddNode<'a> {
         props: impl Iterator<Item = P>,
     ) -> Result<(), MutationError> {
         let pos = self.local_pos();
-        Ok(self.writer.check_metadata(pos, layer, props)?)
+        Ok(self.node_writer.check_metadata(pos, layer, props)?)
     }
 
     fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>) {
         let pos = self.local_pos();
-        self.writer.update_c_props(pos, layer, props)
+        self.node_writer.update_c_props(pos, layer, props)
     }
 }
 
@@ -315,7 +314,7 @@ impl<'a> AtomicAddNode<'a> {
     }
 
     pub fn get_type(&self) -> usize {
-        self.writer
+        self.node_writer
             .get_metadata(self.local_pos(), STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
             .into_u64()
             .map(|u| u as usize)
@@ -323,15 +322,15 @@ impl<'a> AtomicAddNode<'a> {
     }
 
     pub fn store_node_id(&mut self, gid: GID) {
-        self.writer.store_node_id(self.local_pos(), gid);
+        self.node_writer.store_node_id(self.local_pos(), gid);
     }
 
     pub fn set_type(&mut self, node_type: usize) {
         let pos = self.local_pos();
-        self.writer.store_node_type(pos, node_type);
+        self.node_writer.store_node_type(pos, node_type);
 
         if node_type != DEFAULT_NODE_TYPE_ID {
-            self.type_index.insert(node_type, self.vid.inner());
+            self.type_index_writer.insert(node_type, self.vid.inner());
         }
     }
 
@@ -340,11 +339,11 @@ impl<'a> AtomicAddNode<'a> {
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
-        self.writer.writer.set_lsn(lsn)
+        self.node_writer.writer.set_lsn(lsn)
     }
 
     fn local_pos(&self) -> LocalPOS {
-        let (_, pos) = resolve_pos(self.vid.inner(), self.writer.writer.max_page_len());
+        let (_, pos) = resolve_pos(self.vid.inner(), self.node_writer.writer.max_page_len());
         pos
     }
 }
@@ -688,10 +687,10 @@ impl GraphMutationOps for TemporalGraph {
             .expect("resolve should not fail for writer matching eid");
 
         AtomicUpdateEdge {
-            writer,
             pos,
             src: edge.src(),
             dst: edge.dst(),
+            writer,
         }
     }
 
@@ -708,18 +707,23 @@ impl GraphMutationOps for TemporalGraph {
                     // This is a new node, reserve a pos and fill in node data.
                     let (pos, node_writer) =
                         self.storage().nodes().reserve_and_lock_segment(1, None);
-                    let type_index = self.storage().node_type_index().head_shared_arc();
                     let vid = pos.as_vid(
                         node_writer.segment.segment_id(),
                         node_writer.writer.max_page_len(),
+                    );
+
+                    let node_type_index = self.storage().node_type_index();
+                    let type_index_writer = NodeTypeIndexWriterT::new(
+                        node_type_index.head_shared_arc(),
+                        Arc::clone(node_type_index),
                     );
 
                     init.init(vid)?;
 
                     let mut atomic = AtomicAddNode {
                         vid: MaybeNew::New(vid),
-                        writer: node_writer,
-                        type_index,
+                        node_writer,
+                        type_index_writer,
                     };
 
                     atomic.store_node_id(gid.to_owned());
@@ -740,32 +744,36 @@ impl GraphMutationOps for TemporalGraph {
 
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
         let node_writer = self.storage().node_writer(segment_id);
-        let type_index = self.storage().node_type_index().head_shared_arc();
+        let node_type_index = self.storage().node_type_index();
+        let type_index_writer = NodeTypeIndexWriterT::new(
+            node_type_index.head_shared_arc(),
+            Arc::clone(node_type_index),
+        );
 
-        let mut writer = AtomicAddNode {
+        let mut atomic = AtomicAddNode {
             vid: MaybeNew::Existing(node_vid),
-            writer: node_writer,
-            type_index,
+            node_writer,
+            type_index_writer,
         };
 
         // The node already exists, set or validate the given node type.
         if let Some(node_type) = node_type {
-            if writer.can_set_type() {
+            if atomic.can_set_type() {
                 let node_type_id = self
                     .node_meta()
                     .get_or_create_node_type_id(node_type)
                     .inner();
 
-                writer.set_type(node_type_id);
+                atomic.set_type(node_type_id);
             } else {
                 self.node_meta()
                     .get_node_type_id(node_type)
-                    .filter(|&node_type_id| writer.get_type() == node_type_id)
+                    .filter(|&node_type_id| atomic.get_type() == node_type_id)
                     .ok_or(MutationError::NodeTypeError)?;
             }
         }
 
-        Ok(writer)
+        Ok(atomic)
     }
 
     unsafe fn bulk_load_resolve_node(

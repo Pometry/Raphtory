@@ -14,10 +14,11 @@ use storage::{
         edge_page::writer::EdgeWriter,
         graph_prop_page::writer::GraphPropWriter,
         node_page::writer::{NodeWriter, NodeWriters},
+        node_type_index::writer::NodeTypeIndexWriter,
     },
     resolver::mapping_resolver::InvalidNodeId,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    Extension, ES, GS, NS,
+    Extension, ES, GS, NS, NTI,
 };
 use thiserror::Error;
 
@@ -28,6 +29,7 @@ pub type NodeWriterT<'a> = NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, N
 pub type NodeWritersT<'a> = NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES<Extension>>;
 pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
+pub type NodeTypeIndexWriterT = NodeTypeIndexWriter<NTI>;
 
 #[derive(Error, Debug)]
 pub enum MutationError {
