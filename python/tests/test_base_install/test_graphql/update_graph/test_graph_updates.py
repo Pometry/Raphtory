@@ -1,7 +1,6 @@
 import tempfile
 import pytest
-from dateutil import parser
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 from datetime import datetime, timezone
 from numpy.testing import assert_equal as check_arr
 from utils import (

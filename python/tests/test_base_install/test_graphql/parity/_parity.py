@@ -22,7 +22,6 @@ Three pieces live here:
 from __future__ import annotations
 
 import contextlib
-import datetime
 import math
 import tempfile
 from collections.abc import Iterable

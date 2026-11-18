@@ -5,7 +5,7 @@ import threading
 
 from raphtory.graphql import GraphServer, RaphtoryClient
 
-from helpers import EMBEDDING_PORT, assert_correct_documents, embeddings, setup_graph
+from helpers import assert_correct_documents, embeddings, setup_graph
 from utils import graphql_server
 
 

@@ -15,7 +15,6 @@ def test_list_u64s():
 def test_list_i32s():
     xs = Prop.list([Prop.i32(-12), Prop.i32(0), Prop.i32(7)])
     assert xs.dtype() == PropType.list(PropType.i32())
-    r = repr(xs)
     assert repr(xs) == "[-12, 0, 7]"
 
 

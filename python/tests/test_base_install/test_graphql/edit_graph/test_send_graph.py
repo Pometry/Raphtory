@@ -2,7 +2,7 @@ import os
 import tempfile
 
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 import pytest
 
 

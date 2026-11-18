@@ -24,13 +24,13 @@ def _docstr_desc(item) -> str:
 
 def list_public_modules(public_modules, nav_loc_mod, doc_path, fd):
                 for member_name, sub_module in public_modules:
-                    sub_path = gen_module((*nav_loc_mod, member_name), sub_module)
+                    gen_module((*nav_loc_mod, member_name), sub_module)
                     print(f"### [`{member_name}`][{sub_module.path}]", file=fd)
                     print(f"{_docstr_desc(sub_module)}\n", file=fd)
 
 def list_public_classes(public_classes, nav_loc_cls, doc_path, fd):
                 for member_name, cls in public_classes:
-                    sub_path = gen_class((*nav_loc_cls, member_name), cls)
+                    gen_class((*nav_loc_cls, member_name), cls)
                     print(f"### [`{member_name}`][{cls.path}]", file=fd)
                     print(f"{_docstr_desc(cls)}\n", file=fd)
 

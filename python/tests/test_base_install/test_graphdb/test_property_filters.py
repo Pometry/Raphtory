@@ -1,6 +1,5 @@
 from raphtory import Graph, PersistentGraph
 from raphtory import filter
-import pytest
 
 
 def build_graph():
