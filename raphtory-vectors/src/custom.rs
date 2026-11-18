@@ -1,4 +1,4 @@
-use async_openai::types::{CreateEmbeddingResponse, Embedding, EmbeddingUsage};
+use async_openai::types::embeddings::{CreateEmbeddingResponse, Embedding, EmbeddingUsage};
 use axum::{
     extract::{Json, State},
     http::StatusCode,

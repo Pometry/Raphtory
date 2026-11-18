@@ -130,7 +130,7 @@ zip = "9.0.5"
 bzip2 = "0.6.1"
 tar = "0.4"
 async-trait = "0.1.89"
-async-openai = "0.28.3"
+async-openai = { version = "0.43.0", features = ["embedding"] }
 num = "0.4.3"
 display-error-chain = "0.2.2"
 bigdecimal = { version = "0.4.10", features = ["serde"] }
