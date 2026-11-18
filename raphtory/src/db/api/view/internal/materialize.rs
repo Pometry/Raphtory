@@ -4,16 +4,15 @@ use crate::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::{iter::BoxedLIter, GraphType};
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stage};
 use std::ops::Range;
 
 #[cfg(feature = "io")]
-use {
-    crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args,
-};
+use {raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args};
 
 #[derive(Clone)]
 pub enum MaterializedGraph {
@@ -238,6 +237,56 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at_window(prop_id, t, w))
+    }
+}
+
+pub enum MaterializedStage {
+    Event(Stage<Graph>),
+    Persistent(Stage<PersistentGraph>),
+}
+
+impl MaterializedStage {
+    pub fn new(graph: &MaterializedGraph) -> Result<Self, GraphError> {
+        match graph {
+            MaterializedGraph::EventGraph(g) => Ok(Self::Event(g.stage()?)),
+            MaterializedGraph::PersistentGraph(g) => Ok(Self::Persistent(g.stage()?)),
+        }
+    }
+
+    pub fn version(&self) -> Result<u32, GraphError> {
+        match self {
+            MaterializedStage::Event(stage) => stage.graph().version(),
+            MaterializedStage::Persistent(stage) => stage.graph().version(),
+        }
+    }
+
+    pub fn finish(self, set_active: bool) -> Result<MaterializedGraph, GraphError> {
+        match self {
+            MaterializedStage::Event(stage) => {
+                Ok(MaterializedGraph::EventGraph(stage.finish(set_active)?))
+            }
+            MaterializedStage::Persistent(stage) => Ok(MaterializedGraph::PersistentGraph(
+                stage.finish(set_active)?,
+            )),
+        }
+    }
+
+    pub fn discard(self) -> Result<(), GraphError> {
+        match self {
+            MaterializedStage::Event(stage) => stage.discard()?,
+            MaterializedStage::Persistent(stage) => stage.discard()?,
+        }
+
+        Ok(())
+    }
+
+    pub fn materialized_graph(&self) -> MaterializedGraph {
+        match self {
+            MaterializedStage::Event(stage) => MaterializedGraph::EventGraph(stage.graph().clone()),
+            MaterializedStage::Persistent(stage) => {
+                MaterializedGraph::PersistentGraph(stage.graph().clone())
+            }
+        }
     }
 }
 
