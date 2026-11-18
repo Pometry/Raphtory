@@ -206,7 +206,7 @@ impl GqlVectorisedGraph {
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
         let query =
-            blocking_compute(move || cloned.entities_by_similarity(&vector, limit, w)).await;
+            blocking_compute(move || cloned.entities_by_similarity(&vector, limit, w)).await?;
         Ok(query.execute().await?.into())
     }
 
@@ -225,7 +225,7 @@ impl GqlVectorisedGraph {
         let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        let query = blocking_compute(move || cloned.nodes_by_similarity(&vector, limit, w)).await;
+        let query = blocking_compute(move || cloned.nodes_by_similarity(&vector, limit, w)).await?;
         Ok(query.execute().await?.into())
     }
 
@@ -244,7 +244,7 @@ impl GqlVectorisedGraph {
         let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        let query = blocking_compute(move || cloned.edges_by_similarity(&vector, limit, w)).await;
+        let query = blocking_compute(move || cloned.edges_by_similarity(&vector, limit, w)).await?;
         Ok(query.execute().await?.into())
     }
 }

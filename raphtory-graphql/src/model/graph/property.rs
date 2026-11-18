@@ -547,9 +547,9 @@ impl GqlPropertyTuple {
 
     /// The value rendered as a human-readable string. For programmatic access use
     /// `value`, which returns a typed scalar.
-    pub async fn as_string(&self) -> String {
+    pub async fn as_string(&self) -> Result<String, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.to_string()).await
+        Ok(blocking_compute(move || self_clone.prop.to_string()).await?)
     }
 
     /// The value as a typed `PropertyOutput` scalar — numbers come back as numbers,
@@ -606,16 +606,19 @@ impl GqlTemporalProperty {
     /// raw `timestamps` / `datetimes` / `eventId` lists, analyse gaps between
     /// updates via `intervals` (mean/median/min/max), ask `isEmpty`, or
     /// paginate the events.
-    pub async fn history(&self) -> GqlHistory {
+    pub async fn history(&self) -> Result<GqlHistory, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.history().into()).await
+        Ok(blocking_compute(move || self_clone.prop.history().into()).await?)
     }
 
     /// All values this property has ever taken, in temporal order (one per update).
     /// Typed as `PropertyOutput` so numeric values stay numeric.
-    pub async fn values(&self) -> Vec<GqlPropertyOutputVal> {
+    pub async fn values(&self) -> Result<Vec<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.values().map(GqlPropertyOutputVal).collect()).await
+        Ok(
+            blocking_compute(move || self_clone.prop.values().map(GqlPropertyOutputVal).collect())
+                .await?,
+        )
     }
 
     /// The value at or before time `t` (latest update on or before `t`). Returns null
@@ -626,21 +629,24 @@ impl GqlTemporalProperty {
             desc = "A TimeInput (epoch millis integer, RFC3339 string, or `{timestamp, eventId}` object)."
         )]
         t: GqlTimeInput,
-    ) -> Option<GqlPropertyOutputVal> {
+    ) -> Result<Option<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.at(t.into_time()).map(GqlPropertyOutputVal)).await
+        Ok(
+            blocking_compute(move || self_clone.prop.at(t.into_time()).map(GqlPropertyOutputVal))
+                .await?,
+        )
     }
 
     /// The most recent value, or null if the property has never been set in this view.
-    pub async fn latest(&self) -> Option<GqlPropertyOutputVal> {
+    pub async fn latest(&self) -> Result<Option<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.latest().map(GqlPropertyOutputVal)).await
+        Ok(blocking_compute(move || self_clone.prop.latest().map(GqlPropertyOutputVal)).await?)
     }
 
     /// The set of distinct values this property has ever taken (order not guaranteed).
-    pub async fn unique(&self) -> Vec<GqlPropertyOutputVal> {
+    pub async fn unique(&self) -> Result<Vec<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .prop
                 .unique()
@@ -648,7 +654,7 @@ impl GqlTemporalProperty {
                 .map(GqlPropertyOutputVal)
                 .collect_vec()
         })
-        .await
+        .await?)
     }
 
     /// Collapses runs of consecutive-equal updates into a single `(time, value)` pair.
@@ -658,9 +664,9 @@ impl GqlTemporalProperty {
             desc = "If true, each run is represented by its *last* timestamp; if false, by its *first*. Useful for compressing chatter in a timeline."
         )]
         latest_time: bool,
-    ) -> Vec<GqlPropertyTuple> {
+    ) -> Result<Vec<GqlPropertyTuple>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .prop
                 .ordered_dedupe(latest_time)
@@ -668,53 +674,53 @@ impl GqlTemporalProperty {
                 .map(|(k, p)| (k, p).into())
                 .collect()
         })
-        .await
+        .await?)
     }
 
     /// Sum of all updates. Returns null if the dtype is not additive or the property is empty.
-    pub async fn sum(&self) -> Option<GqlPropertyOutputVal> {
+    pub async fn sum(&self) -> Result<Option<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.sum().map(GqlPropertyOutputVal)).await
+        Ok(blocking_compute(move || self_clone.prop.sum().map(GqlPropertyOutputVal)).await?)
     }
 
     /// Mean of all updates as an F64. Returns null if any value is non-numeric or the property is
     /// empty.
-    pub async fn mean(&self) -> Option<GqlPropertyOutputVal> {
+    pub async fn mean(&self) -> Result<Option<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.mean().map(GqlPropertyOutputVal)).await
+        Ok(blocking_compute(move || self_clone.prop.mean().map(GqlPropertyOutputVal)).await?)
     }
 
     /// Alias for `mean` — same F64 average, same null cases.
-    pub async fn average(&self) -> Option<GqlPropertyOutputVal> {
+    pub async fn average(&self) -> Result<Option<GqlPropertyOutputVal>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.average().map(GqlPropertyOutputVal)).await
+        Ok(blocking_compute(move || self_clone.prop.average().map(GqlPropertyOutputVal)).await?)
     }
 
     /// Minimum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
     /// empty.
-    pub async fn min(&self) -> Option<GqlPropertyTuple> {
+    pub async fn min(&self) -> Result<Option<GqlPropertyTuple>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.min().map(GqlPropertyTuple::from)).await
+        Ok(blocking_compute(move || self_clone.prop.min().map(GqlPropertyTuple::from)).await?)
     }
 
     /// Maximum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
     /// empty.
-    pub async fn max(&self) -> Option<GqlPropertyTuple> {
+    pub async fn max(&self) -> Result<Option<GqlPropertyTuple>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.max().map(GqlPropertyTuple::from)).await
+        Ok(blocking_compute(move || self_clone.prop.max().map(GqlPropertyTuple::from)).await?)
     }
 
     /// Median `(time, value)` pair (lower median on even-length inputs). Returns null if the dtype
     /// is not comparable or the property is empty.
-    pub async fn median(&self) -> Option<GqlPropertyTuple> {
+    pub async fn median(&self) -> Result<Option<GqlPropertyTuple>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.median().map(GqlPropertyTuple::from)).await
+        Ok(blocking_compute(move || self_clone.prop.median().map(GqlPropertyTuple::from)).await?)
     }
 
     /// Number of updates recorded for this property in the current view.
-    pub async fn count(&self) -> usize {
+    pub async fn count(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.count()).await
+        Ok(blocking_compute(move || self_clone.prop.count()).await?)
     }
 }
 
@@ -818,16 +824,16 @@ impl GqlProperties {
 
     /// All property keys present in the current view. Does not include metadata
     /// — metadata is exposed separately via the entity's `metadata` field.
-    pub async fn keys(&self) -> Vec<String> {
+    pub async fn keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .props
                 .iter_filtered()
                 .map(|(k, _)| k.into())
                 .collect()
         })
-        .await
+        .await?)
     }
 
     /// Snapshot of property values, one `{key, value}` entry per property.
@@ -837,9 +843,9 @@ impl GqlProperties {
             desc = "Optional whitelist. If provided, only properties with these keys are returned; if omitted or null, every property in the view is returned."
         )]
         keys: Option<Vec<String>>,
-    ) -> Vec<GqlProperty> {
+    ) -> Result<Vec<GqlProperty>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || match keys {
+        Ok(blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
                 .iter_filtered()
@@ -854,7 +860,7 @@ impl GqlProperties {
                 .map(|(k, prop)| (k.to_string(), prop).into())
                 .collect(),
         })
-        .await
+        .await?)
     }
 
     /// The temporal-only view of these properties — excludes metadata (which has no
@@ -886,9 +892,12 @@ impl GqlMetadata {
     }
 
     /// All metadata keys present on this entity.
-    pub async fn keys(&self) -> Vec<String> {
+    pub async fn keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.props.keys().map(|k| k.clone().into()).collect()).await
+        Ok(
+            blocking_compute(move || self_clone.props.keys().map(|k| k.clone().into()).collect())
+                .await?,
+        )
     }
 
     /// All metadata values as `{key, value}` entries.
@@ -898,9 +907,9 @@ impl GqlMetadata {
             desc = "Optional whitelist. If provided, only metadata with these keys is returned; if omitted, every metadata entry is returned."
         )]
         keys: Option<Vec<String>>,
-    ) -> Vec<GqlProperty> {
+    ) -> Result<Vec<GqlProperty>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || match keys {
+        Ok(blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
                 .iter_filtered()
@@ -915,7 +924,7 @@ impl GqlMetadata {
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
         })
-        .await
+        .await?)
     }
 }
 
@@ -939,16 +948,16 @@ impl GqlTemporalProperties {
     }
 
     /// All temporal-property keys present in this view.
-    pub async fn keys(&self) -> Vec<String> {
+    pub async fn keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .props
                 .iter_filtered()
                 .map(|(k, _)| k.into())
                 .collect()
         })
-        .await
+        .await?)
     }
 
     /// All temporal properties, each as a `TemporalProperty` with its full timeline
@@ -959,9 +968,9 @@ impl GqlTemporalProperties {
             desc = "Optional whitelist. If provided, only temporal properties with these keys are returned; if omitted, every temporal property in the view is returned."
         )]
         keys: Option<Vec<String>>,
-    ) -> Vec<GqlTemporalProperty> {
+    ) -> Result<Vec<GqlTemporalProperty>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || match keys {
+        Ok(blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
                 .iter_filtered()
@@ -976,7 +985,7 @@ impl GqlTemporalProperties {
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
         })
-        .await
+        .await?)
     }
 }
 

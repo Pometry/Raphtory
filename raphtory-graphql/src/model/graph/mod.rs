@@ -39,7 +39,7 @@ pub mod document;
 #[cfg(feature = "rdf")]
 pub mod rdf_graph;
 
-#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[graphql(name = "GraphType")]
 pub enum GqlGraphType {
     /// Persistent.

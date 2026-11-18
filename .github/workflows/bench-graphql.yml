@@ -38,8 +38,20 @@ jobs:
       - uses: grafana/setup-k6-action@v1
         with:
           k6-version: "1.0.0"
+      # A crashing server leaves nothing but "Segmentation fault" in server.log, so have the kernel
+      # write a core we can collect below. The runner's default pattern pipes cores to apport.
+      - name: Enable core dumps
+        run: |
+          sudo mkdir -p /tmp/cores && sudo chmod 1777 /tmp/cores
+          sudo sysctl -w kernel.core_pattern=/tmp/cores/core.%e.%p.%t
       - name: Run GraphQL benchmarks
-        run: cd graphql-bench && make bench-local
+        run: |
+          ulimit -c unlimited
+          cd graphql-bench
+          # memory over time, so a crash under memory pressure can be told from one that is not
+          bash mem-sampler.sh 5 > mem.log 2>&1 &
+          trap 'kill %1 2>/dev/null' EXIT
+          make bench-local
       # Failure only, so green runs stay quiet. `make bench-local` runs the server and k6 under
       # `concurrently --kill-others`, so a server that died (or was still building its bench graph
       # when k6's setup() tried to connect) shows up only in these logs.
@@ -53,6 +65,15 @@ jobs:
           echo "::group::raphtory server log (last 300 lines)"
           tail -n 300 server.log || echo "(no server.log)"
           echo "::endgroup::"
+          # An OOM kill is SIGKILL ("Killed", exit 137) and leaves "Out of memory: Killed process";
+          # a segfault leaves "segfault at <addr> ip <pc> sp <sp> error <n> in <lib>".
+          echo "::group::kernel log (oom / segfault)"
+          sudo dmesg -T | grep -i -E 'out of memory|oom|killed process|segfault|general protection|traps:' \
+            || echo "(nothing relevant in dmesg)"
+          echo "::endgroup::"
+          echo "::group::memory over time (last 60 samples, 5s apart)"
+          tail -n 60 mem.log || echo "(no mem.log)"
+          echo "::endgroup::"
           echo "::group::k6 log (last 300 lines)"
           # gzipped as it is written; a long run's log is far too big to keep uncompressed
           gzip -dc k6.log.gz 2>/dev/null | tail -n 300 || echo "(no k6.log.gz)"
@@ -63,6 +84,24 @@ jobs:
           echo "--- header + first rows ---"
           { gzip -dc output.csv.gz 2>/dev/null || true; } | head -n 5 || true
           echo "::endgroup::"
+      # Prints every thread's backtrace and bundles core + mapped libraries; see collect-core.sh
+      # for how to open the bundle elsewhere.
+      - name: Collect core dumps
+        if: failure()
+        run: |
+          echo "::group::core dumps"
+          bash graphql-bench/collect-core.sh /tmp/cores graphql-bench/crash
+          echo "::endgroup::"
+      - name: Upload core dumps
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: graphql-bench-core
+          path: graphql-bench/crash/
+          if-no-files-found: ignore
+          retention-days: 7
+          # already zstd-compressed
+          compression-level: 0
       - name: Upload bench diagnostics
         if: failure()
         uses: actions/upload-artifact@v6
@@ -74,6 +113,7 @@ jobs:
             graphql-bench/build.log
             graphql-bench/server.log
             graphql-bench/k6.log.gz
+            graphql-bench/mem.log
           if-no-files-found: warn
           retention-days: 7
       # github-action-benchmark below has to `git switch gh-pages`, which aborts if any tracked
