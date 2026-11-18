@@ -21,7 +21,6 @@ use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMa
 use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
     collections::HashMap,
-    ffi::OsStr,
     fs,
     fs::File,
     ops::Deref,
@@ -33,10 +32,10 @@ use std::{
 pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     if path.is_dir() {
         Ok(fs::read_dir(path)?.any(|entry| {
-            entry.is_ok_and(|e| e.path().extension().and_then(OsStr::to_str) == Some("parquet"))
+            entry.is_ok_and(|e| e.path().extension().and_then(|s| s.to_str()) == Some("parquet"))
         }))
     } else {
-        Ok(path.extension().and_then(OsStr::to_str) == Some("parquet"))
+        Ok(path.extension().and_then(|s| s.to_str()) == Some("parquet"))
     }
 }
 
