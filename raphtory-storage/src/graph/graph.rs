@@ -23,7 +23,10 @@ use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef
 use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
 use storage::{
     api::{
-        nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
+        edges::EdgeSegmentOps,
+        nodes::{
+            GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
+        },
         time_index::WindowCandidates,
     },
     error::StorageError,
@@ -195,10 +198,22 @@ impl GraphStorage {
         end: i64,
         layers: &LayerIds,
     ) -> Option<WindowCandidates> {
-        self.temporal_graph()
-            .storage()
+        let storage = self.temporal_graph().storage();
+        let (nodes, edges) = (storage.nodes(), storage.edges());
+        let found = storage
             .extension()
-            .window_candidates(persistent, start, end, layers)
+            .window_candidates(persistent, start, end, layers)?;
+        Some(
+            found.scan_unanswered(
+                nodes
+                    .segments_iter()
+                    .map(|s| (s.segment_id(), s.num_nodes())),
+                edges
+                    .segments()
+                    .iter()
+                    .map(|(_, s)| (s.segment_id(), s.num_edges())),
+            ),
+        )
     }
 
     /// No-op for backends without a time index.

@@ -42,4 +42,35 @@ pub struct WindowCandidates {
     pub maybe_nodes: SegmentBitmaps,
     pub sure_edges: SegmentBitmaps,
     pub maybe_edges: SegmentBitmaps,
+    /// Sorted segments with no answer, as are segments past the bitmaps: check every id.
+    pub scan_nodes: Vec<usize>,
+    pub scan_edges: Vec<usize>,
+}
+
+impl WindowCandidates {
+    /// Moves every id of the unanswered segments into `maybe_*`; segments are `(id, len)`.
+    pub fn scan_unanswered(
+        mut self,
+        nodes: impl Iterator<Item = (usize, u32)>,
+        edges: impl Iterator<Item = (usize, u32)>,
+    ) -> Self {
+        fn fill(
+            maybe: &mut SegmentBitmaps,
+            scan: &[usize],
+            segments: impl Iterator<Item = (usize, u32)>,
+        ) {
+            let answered = maybe.segments.len();
+            for (id, len) in segments {
+                if id >= answered || scan.binary_search(&id).is_ok() {
+                    if id >= maybe.segments.len() {
+                        maybe.segments.resize(id + 1, RoaringBitmap::new());
+                    }
+                    maybe.segments[id].insert_range(0..len);
+                }
+            }
+        }
+        fill(&mut self.maybe_nodes, &self.scan_nodes, nodes);
+        fill(&mut self.maybe_edges, &self.scan_edges, edges);
+        self
+    }
 }
