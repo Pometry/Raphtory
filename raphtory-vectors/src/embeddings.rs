@@ -2,7 +2,7 @@ use crate::errors::VectorResult;
 use std::{hash::Hash, sync::Arc};
 
 use async_openai::{
-    types::{CreateEmbeddingRequest, EmbeddingInput},
+    types::embeddings::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
 use futures_util::{future::BoxFuture, stream::BoxStream, Stream, StreamExt};
