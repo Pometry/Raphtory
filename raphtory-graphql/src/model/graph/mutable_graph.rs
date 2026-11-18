@@ -934,7 +934,7 @@ impl GqlMutableEdge {
 #[cfg(all(test, feature = "vectors"))]
 mod tests {
     use super::*;
-    use crate::{config::app_config::AppConfig, data::Data, paths::ExistingGraphFolder};
+    use crate::{config::app_config::AppConfig, data::Data};
     use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
     use raphtory_vectors::{
         custom::{serve_custom_embedding, EmbeddingServer},

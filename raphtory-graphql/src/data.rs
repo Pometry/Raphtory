@@ -2,7 +2,6 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-    auth::ContextValidation,
     auth_policy::{
         AuthorizationPolicy, DynGraphWithFolder, GraphPermission, GraphPin,
         MaybeCachedFilteredRead, MutationNotifier, PermissionLevel,
@@ -375,7 +374,7 @@ impl Data {
     }
 
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
-        self.cache.set_auth_policy(&policy);
+        self.inner.cache.set_auth_policy(&policy);
         self.auth_policy = Some(policy)
     }
 
@@ -741,12 +740,12 @@ impl Data {
         if set_active {
             let work_dir = self.inner.work_dir.read().await.into();
             let folder = ExistingGraphFolder::try_from(work_dir, &graph_path)?;
-            let key = graph_path.clone();
             let read_only = self.inner.read_only.is_read_only(&graph_path);
+            let data = self.clone();
 
             self.inner
                 .cache
-                .insert_or_replace_with(&key, |old_graph| async move {
+                .insert_or_replace_with(&graph_path.clone(), |old_graph| async move {
                     // The old graph needs to stay pinned and read-locked until it is swapped out
                     // from the cache, which means `finish` has to happen under the cache guard.
                     let new_graph = graph
@@ -769,6 +768,7 @@ impl Data {
 
                     let graph = GraphWithVectors::new(new_graph, None, folder);
                     graph.set_dirty(false);
+                    data.notify_graph_mutated(&graph_path);
 
                     Ok::<_, InsertionError>(if read_only {
                         graph.into_read_only()
@@ -791,12 +791,12 @@ impl Data {
     ) -> Result<(), GQLError> {
         let work_dir = self.inner.work_dir.read().await.into();
         let folder = ExistingGraphFolder::try_from(work_dir, path)?;
-        let key = path.to_string();
-        let path = path.to_string();
+        let path_owned = path.to_string();
+        let data = self.clone();
 
         self.inner
             .cache
-            .insert_or_replace_with(&key, |old_graph| async move {
+            .insert_or_replace_with(path, |old_graph| async move {
                 flush_graph(old_graph).await;
 
                 let folder_clone = folder.clone();
@@ -804,11 +804,11 @@ impl Data {
                     Ok(folder_clone.graph_folder().set_active_version(version)?)
                 })
                 .await
-                .map_err(|e| InsertionError::from_graph_err(&path, e))?;
-
+                .map_err(|e| InsertionError::from_graph_err(&path_owned, e))?;
+                data.notify_graph_mutated(&path_owned);
                 self.read_graph_from_disk(folder)
                     .await
-                    .map_err(|e| InsertionError::from_graph_err(&path, e))
+                    .map_err(|e| InsertionError::from_graph_err(&path_owned, e))
             })
             .await?;
 
@@ -998,7 +998,7 @@ impl Data {
 async fn flush_graph(graph: Option<GraphWithVectors>) {
     if let Some(old_graph) = graph {
         let inner = old_graph.into_inner().await;
-        blocking_compute(move || {
+        if let Err(panic) = blocking_compute(move || {
             if let Err(e) = inner.graph.flush() {
                 error!(
                     "Failed to flush old graph {} before replacing: {e}",
@@ -1006,7 +1006,10 @@ async fn flush_graph(graph: Option<GraphWithVectors>) {
                 )
             }
         })
-        .await;
+        .await
+        {
+            error!("Flush panic: {panic}")
+        };
     }
 }
 
@@ -1063,7 +1066,7 @@ pub(crate) async fn apply_access_filter(
                     GQLError::AccessFilterMisconfigured
                 })
         })
-        .await?
+        .await??
     } else {
         graph
     };

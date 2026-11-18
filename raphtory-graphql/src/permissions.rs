@@ -186,7 +186,7 @@ pub(crate) fn require_at_least_read(
 ///
 /// A denial comes back as a [`GQLError::Permission`]. A read the policy allowed but could not
 /// prepare comes back as the error preparing it raised, as it would from [`Data::load_refined`].
-async fn refine(
+pub(crate) async fn refine(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
