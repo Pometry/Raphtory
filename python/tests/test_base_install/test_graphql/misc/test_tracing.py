@@ -1,7 +1,7 @@
 import tempfile
 
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 
 # TODO this doesn't work currently due to how we terminate with Tracing

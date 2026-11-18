@@ -5,7 +5,6 @@ from numpy.testing import assert_equal as check_arr
 from utils import assert_set_eq, assert_has_metadata, truncate_dt_to_ms
 from raphtory.graphql import (
     GraphServer,
-    RaphtoryClient,
     RemoteGraph,
     RemoteUpdate,
     RemoteNodeAddition,

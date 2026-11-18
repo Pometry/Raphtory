@@ -2,7 +2,7 @@ import tempfile
 from datetime import datetime, timezone
 import pytest
 from utils import assert_has_metadata, assert_has_properties, truncate_dt_to_ms
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 from numpy.testing import assert_equal as check_arr
 
 

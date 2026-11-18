@@ -135,7 +135,7 @@ def test_import_nodes_as():
 
     assert "Nodes already exist" in str(excinfo.value)
 
-    assert gg.node("X") == None
+    assert gg.node("X") is None
 
     assert sorted(gg.nodes.name) == ["Y"]
     y = gg.node("Y")
@@ -169,7 +169,7 @@ def test_import_nodes_as_merge():
 
 def test_import_edge_as():
     g = Graph()
-    a = g.add_node(1, "A")
+    g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
     b.add_metadata({"con": 11})
 
@@ -202,7 +202,7 @@ def test_import_edge_as():
 
 def test_import_edge_as_merge():
     g = Graph()
-    a = g.add_node(1, "A")
+    g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
     b.add_metadata({"con": 11})
 
@@ -230,10 +230,10 @@ def test_import_edge_as_merge():
 
 def test_import_edges_as():
     g = Graph()
-    a = g.add_node(1, "A")
+    g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
     b.add_metadata({"con": 11})
-    c = g.add_node(1, "C")
+    g.add_node(1, "C")
 
     e_a_b = g.add_edge(2, "A", "B", {"e_temp": True})
     e_b_c = g.add_edge(2, "B", "C")
@@ -260,10 +260,10 @@ def test_import_edges_as():
 
 def test_import_edges_as_merge():
     g = Graph()
-    a = g.add_node(1, "A")
+    g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
     b.add_metadata({"con": 11})
-    c = g.add_node(1, "C")
+    g.add_node(1, "C")
 
     e_a_b = g.add_edge(2, "A", "B", {"e_temp": True})
     e_b_c = g.add_edge(2, "B", "C")

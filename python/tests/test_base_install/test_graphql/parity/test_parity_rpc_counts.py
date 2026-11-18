@@ -308,7 +308,7 @@ TERMINALS = {
     "edge.is_self_loop": (lambda rg: rg.edge("a", "b"), lambda e: e.is_self_loop()),
     "edge.is_active": (lambda rg: rg.edge("a", "b"), lambda e: e.is_active()),
     # nodes collection
-    "nodes.len": (lambda rg: rg.nodes, lambda ns: len(ns)),
+    "nodes.len": (lambda rg: rg.nodes, len),
     "nodes.degree": (lambda rg: rg.nodes, lambda ns: ns.degree()),
     "nodes.in_degree": (lambda rg: rg.nodes, lambda ns: ns.in_degree()),
     "nodes.out_degree": (lambda rg: rg.nodes, lambda ns: ns.out_degree()),
@@ -322,13 +322,13 @@ TERMINALS = {
         lambda ns: ns.edge_history_count(),
     ),
     # edges collection
-    "edges.len": (lambda rg: rg.edges, lambda es: len(es)),
+    "edges.len": (lambda rg: rg.edges, len),
     "edges.collect": (lambda rg: rg.edges, lambda es: es.collect()),
     "edges.earliest_time": (lambda rg: rg.edges, lambda es: es.earliest_time),
     # paths
     "path_from_node.len": (
         lambda rg: rg.node("a").neighbours,
-        lambda p: len(p),
+        len,
     ),
     "path_from_node.degree": (
         lambda rg: rg.node("a").neighbours,
@@ -340,7 +340,7 @@ TERMINALS = {
     ),
     "path_from_graph.len": (
         lambda rg: rg.nodes.neighbours,
-        lambda p: len(p),
+        len,
     ),
     "path_from_graph.degree": (
         lambda rg: rg.nodes.neighbours,
@@ -431,7 +431,7 @@ TERMINALS = {
         lambda tp: tp.median(),
     ),
     # history terminals
-    "history.len": (lambda rg: rg.node("a").history, lambda h: len(h)),
+    "history.len": (lambda rg: rg.node("a").history, len),
     "history.is_empty": (lambda rg: rg.node("a").history, lambda h: h.is_empty()),
     "history.earliest_time": (
         lambda rg: rg.node("a").history,
@@ -673,7 +673,7 @@ def test_list_builtin_adds_the_length_hint_len_rpc(counted):
 # conveniences `histories()` / `latest()` document `1 + 2·P` / `1 + P` — node
 # "a" has P=1 temporal property, so 3 and 2.
 DUNDERS = {
-    "history.len": (lambda rg: rg.node("a").history, lambda h: len(h), 1),
+    "history.len": (lambda rg: rg.node("a").history, len, 1),
     "history.getitem": (lambda rg: rg.node("a").history, lambda h: h[0], 1),
     "history.getitem_negative": (
         lambda rg: rg.node("a").history,
@@ -681,13 +681,13 @@ DUNDERS = {
         1,
     ),
     "history.contains": (lambda rg: rg.node("a").history, lambda h: 1 in h, 1),
-    "history.iter": (lambda rg: rg.node("a").history, lambda h: _drain(h), 1),
+    "history.iter": (lambda rg: rg.node("a").history, _drain, 1),
     "history.reversed": (
         lambda rg: rg.node("a").history,
         lambda h: list(reversed(h)),
         1,
     ),
-    "history.t.len": (lambda rg: rg.node("a").history.t, lambda t: len(t), 1),
+    "history.t.len": (lambda rg: rg.node("a").history.t, len, 1),
     "history.t.contains": (lambda rg: rg.node("a").history.t, lambda t: 1 in t, 1),
     "history.event_id.contains": (
         lambda rg: rg.node("a").history.event_id,
@@ -696,7 +696,7 @@ DUNDERS = {
     ),
     "history.intervals.len": (
         lambda rg: rg.node("a").history.intervals,
-        lambda i: len(i),
+        len,
         1,
     ),
     "history.intervals.contains": (
@@ -719,24 +719,24 @@ DUNDERS = {
         lambda d: __import__("datetime").datetime(1970, 1, 1) in d,
         0,
     ),
-    "nodes.len": (lambda rg: rg.nodes, lambda ns: len(ns), 1),
-    "nodes.bool": (lambda rg: rg.nodes, lambda ns: bool(ns), 1),
-    "edges.len": (lambda rg: rg.edges, lambda es: len(es), 1),
-    "edges.bool": (lambda rg: rg.edges, lambda es: bool(es), 1),
+    "nodes.len": (lambda rg: rg.nodes, len, 1),
+    "nodes.bool": (lambda rg: rg.nodes, bool, 1),
+    "edges.len": (lambda rg: rg.edges, len, 1),
+    "edges.bool": (lambda rg: rg.edges, bool, 1),
     "properties.contains": (
         lambda rg: rg.node("a").properties,
         lambda p: "score" in p,
         1,
     ),
-    "properties.len": (lambda rg: rg.node("a").properties, lambda p: len(p), 1),
-    "properties.iter": (lambda rg: rg.node("a").properties, lambda p: _drain(p), 1),
+    "properties.len": (lambda rg: rg.node("a").properties, len, 1),
+    "properties.iter": (lambda rg: rg.node("a").properties, _drain, 1),
     "metadata.contains": (
         lambda rg: rg.node("a").metadata,
         lambda m: "country" in m,
         1,
     ),
-    "metadata.len": (lambda rg: rg.node("a").metadata, lambda m: len(m), 1),
-    "metadata.iter": (lambda rg: rg.node("a").metadata, lambda m: _drain(m), 1),
+    "metadata.len": (lambda rg: rg.node("a").metadata, len, 1),
+    "metadata.iter": (lambda rg: rg.node("a").metadata, _drain, 1),
     "temporal.contains": (
         lambda rg: rg.node("a").properties.temporal,
         lambda t: "score" in t,
@@ -744,12 +744,12 @@ DUNDERS = {
     ),
     "temporal.len": (
         lambda rg: rg.node("a").properties.temporal,
-        lambda t: len(t),
+        len,
         1,
     ),
     "temporal.iter": (
         lambda rg: rg.node("a").properties.temporal,
-        lambda t: _drain(t),
+        _drain,
         1,
     ),
     "temporal_property.items": (
@@ -759,7 +759,7 @@ DUNDERS = {
     ),
     "temporal_property.iter": (
         lambda rg: rg.node("a").properties.temporal.get("score"),
-        lambda tp: list(tp),
+        list,
         2,
     ),
     "temporal.histories": (
