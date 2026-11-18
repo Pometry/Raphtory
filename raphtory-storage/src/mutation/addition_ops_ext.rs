@@ -32,7 +32,6 @@ use raphtory_core::{
     },
     storage::timeindex::{AsTime, EventTime},
 };
-use std::sync::Arc;
 use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
     error::StorageError,
@@ -277,7 +276,7 @@ impl<'a> AtomicUpdateEdge<'a> {
 pub struct AtomicAddNode<'a> {
     vid: MaybeNew<VID>,
     node_writer: NodeWriterT<'a>,
-    type_index_writer: NodeTypeIndexWriterT,
+    type_index_writer: NodeTypeIndexWriterT<'a>,
 }
 
 impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
@@ -715,7 +714,7 @@ impl GraphMutationOps for TemporalGraph {
                     let node_type_index = self.storage().node_type_index();
                     let type_index_writer = NodeTypeIndexWriterT::new(
                         node_type_index.head_shared_arc(),
-                        Arc::clone(node_type_index),
+                        node_type_index.as_ref(),
                     );
 
                     init.init(vid)?;
@@ -745,10 +744,8 @@ impl GraphMutationOps for TemporalGraph {
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
         let node_writer = self.storage().node_writer(segment_id);
         let node_type_index = self.storage().node_type_index();
-        let type_index_writer = NodeTypeIndexWriterT::new(
-            node_type_index.head_shared_arc(),
-            Arc::clone(node_type_index),
-        );
+        let type_index_writer =
+            NodeTypeIndexWriterT::new(node_type_index.head_shared_arc(), node_type_index.as_ref());
 
         let mut atomic = AtomicAddNode {
             vid: MaybeNew::Existing(node_vid),

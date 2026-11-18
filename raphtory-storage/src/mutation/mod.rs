@@ -29,7 +29,7 @@ pub type NodeWriterT<'a> = NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, N
 pub type NodeWritersT<'a> = NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES<Extension>>;
 pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
-pub type NodeTypeIndexWriterT = NodeTypeIndexWriter<NTI>;
+pub type NodeTypeIndexWriterT<'a> = NodeTypeIndexWriter<'a, NTI>;
 
 #[derive(Error, Debug)]
 pub enum MutationError {

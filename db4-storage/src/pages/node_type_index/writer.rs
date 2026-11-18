@@ -1,20 +1,19 @@
 use crate::{api::node_type_index::NodeTypeIndexOps, segments::node_type_index::MemNodeTypeIndex};
 use raphtory_api::{ArcRwLockReadGuard, core::entities::VID};
-use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct NodeTypeIndexWriter<NTI: NodeTypeIndexOps> {
+pub struct NodeTypeIndexWriter<'a, NTI: NodeTypeIndexOps> {
     /// The in-memory head of the node type index.
     ///
-    /// Uses a read instead of a write guard since `MemNodeTypeIndex` has
+    /// Holds a read instead of a write guard since `MemNodeTypeIndex` has
     /// interior mutability.
     head: ArcRwLockReadGuard<MemNodeTypeIndex>,
-    index: Arc<NTI>,
+    index: &'a NTI,
     initial_est_size: usize,
 }
 
-impl<NTI: NodeTypeIndexOps> NodeTypeIndexWriter<NTI> {
-    pub fn new(head: ArcRwLockReadGuard<MemNodeTypeIndex>, index: Arc<NTI>) -> Self {
+impl<'a, NTI: NodeTypeIndexOps> NodeTypeIndexWriter<'a, NTI> {
+    pub fn new(head: ArcRwLockReadGuard<MemNodeTypeIndex>, index: &'a NTI) -> Self {
         let initial_est_size = head.est_size();
 
         Self {
@@ -29,7 +28,7 @@ impl<NTI: NodeTypeIndexOps> NodeTypeIndexWriter<NTI> {
     }
 }
 
-impl<NTI: NodeTypeIndexOps> Drop for NodeTypeIndexWriter<NTI> {
+impl<'a, NTI: NodeTypeIndexOps> Drop for NodeTypeIndexWriter<'a, NTI> {
     fn drop(&mut self) {
         if self.head.est_size() != self.initial_est_size {
             self.index.set_dirty(true);
