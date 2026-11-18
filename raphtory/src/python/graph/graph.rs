@@ -258,7 +258,7 @@ impl PyGraph {
         Ok(())
     }
 
-    /// Build the time index for windowed views of a disk graph; stale after the next write.
+    /// Add the time index for windowed views to stored data of a disk graph that has none.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.

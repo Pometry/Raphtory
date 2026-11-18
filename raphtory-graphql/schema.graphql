@@ -3778,7 +3778,7 @@ type MutableGraph {
 	"""
 	buildPropertyIndex(props: [String!], indexGid: Boolean): Boolean!
 	"""
-	Build the time index that serves windowed views. Stale after the next write.
+	Add the time index that serves windowed views to stored data that has none.
 	"""
 	buildTimeIndex: Boolean!
 	"""

@@ -122,13 +122,22 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     }
 
     /// Time-index candidates for `[start, end)` over `layers`; `None` means scan.
-    fn window_candidates(
+    fn window_candidates<'a>(
         &self,
+        _nodes: impl Iterator<Item = &'a Self::NS> + Send,
+        _node_stride: u32,
+        _edges: impl Iterator<Item = &'a Self::ES> + Send,
+        _edge_stride: u32,
         _persistent: bool,
         _start: i64,
         _end: i64,
         _layers: &LayerIds,
-    ) -> Option<WindowCandidates> {
+    ) -> Option<WindowCandidates>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+        Self::ES: 'a,
+    {
         None
     }
 

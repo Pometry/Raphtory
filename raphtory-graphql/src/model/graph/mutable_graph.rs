@@ -581,7 +581,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Build the time index that serves windowed views. Stale after the next write.
+    /// Add the time index that serves windowed views to stored data that has none.
     pub async fn build_time_index(&self) -> Result<bool, GQLError> {
         let graph = self.graph.graph().clone();
         blocking_write(move || {

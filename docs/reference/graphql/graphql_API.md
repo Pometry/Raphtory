@@ -6429,7 +6429,7 @@ later builds reuse; omit it to keep the saved one.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Build the time index that serves windowed views. Stale after the next write.
+Add the time index that serves windowed views to stored data that has none.
 
 </td>
 </tr>

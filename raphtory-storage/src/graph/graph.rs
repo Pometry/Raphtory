@@ -23,10 +23,7 @@ use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef
 use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
 use storage::{
     api::{
-        edges::EdgeSegmentOps,
-        nodes::{
-            GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
-        },
+        nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
         time_index::WindowCandidates,
     },
     error::StorageError,
@@ -200,19 +197,15 @@ impl GraphStorage {
     ) -> Option<WindowCandidates> {
         let storage = self.temporal_graph().storage();
         let (nodes, edges) = (storage.nodes(), storage.edges());
-        let found = storage
-            .extension()
-            .window_candidates(persistent, start, end, layers)?;
-        Some(
-            found.scan_unanswered(
-                nodes
-                    .segments_iter()
-                    .map(|s| (s.segment_id(), s.num_nodes())),
-                edges
-                    .segments()
-                    .iter()
-                    .map(|(_, s)| (s.segment_id(), s.num_edges())),
-            ),
+        storage.extension().window_candidates(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            edges.segments().iter().map(|(_, segment)| segment.as_ref()),
+            edges.max_page_len(),
+            persistent,
+            start,
+            end,
+            layers,
         )
     }
 
