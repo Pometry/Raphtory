@@ -144,11 +144,11 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
         let (edges, nodes, layer_ids) = (&edges, &nodes, graph.layer_ids());
         let candidates = Index::from_bitmap(global_nodes_mask.clone(), true)
             .into_par_iter()
-            .flat_map_iter(move |vid| {
+            .flat_map_iter(|vid| {
                 nodes
                     .node_entry(vid)
                     .edges_iter(layer_ids, Direction::OUT)
-                    .map(move |edge| edges.edge(Either::Right(edge)))
+                    .map(|edge| edges.edge(Either::Right(edge)))
             });
 
         // Endpoints are checked against the node masks rather than the node filter for efficiency.

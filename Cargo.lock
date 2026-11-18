@@ -7103,7 +7103,6 @@ name = "raphtory-graphql"
 version = "0.18.0"
 dependencies = [
  "ahash",
- "arrow",
  "async-graphql",
  "async-graphql-poem",
  "base64 0.23.1",
@@ -7127,7 +7126,6 @@ dependencies = [
  "opentelemetry-stdout",
  "opentelemetry_sdk",
  "parking_lot",
- "parquet",
  "poem",
  "pometry-oxigraph",
  "pretty_assertions",
@@ -7144,7 +7142,6 @@ dependencies = [
  "rayon",
  "reqwest 0.13.5",
  "rust-embed",
- "rustc-hash",
  "serde",
  "serde_json",
  "spki",
