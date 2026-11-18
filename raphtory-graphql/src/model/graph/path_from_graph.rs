@@ -115,24 +115,27 @@ impl GqlPathFromGraph {
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await?)
     }
 
     /// Return a view of PathFromGraph restricted to the default layer.
-    pub async fn default_layer(&self) -> Self {
+    pub async fn default_layer(&self) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await?)
     }
 
     /// Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names))).await
+        Ok(
+            blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names)))
+                .await?,
+        )
     }
 
     /// Return a view of PathFromGraph containing the specified layer, errors if the layer does not exist.
@@ -166,9 +169,9 @@ impl GqlPathFromGraph {
     }
 
     /// Create a view of the PathFromGraph including all events that are valid at the latest time.
-    pub async fn snapshot_latest(&self) -> Self {
+    pub async fn snapshot_latest(&self) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await?)
     }
 
     /// Create a view of the PathFromGraph including all events that are valid at the specified time.
@@ -180,9 +183,9 @@ impl GqlPathFromGraph {
     }
 
     /// Create a view of the PathFromGraph including all events at the latest time.
-    pub async fn latest(&self) -> Self {
+    pub async fn latest(&self) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
+        Ok(blocking_compute(move || self_clone.update(self_clone.nn.latest())).await?)
     }
 
     /// Create a view of the PathFromGraph including all events before the specified end (exclusive).
@@ -223,9 +226,12 @@ impl GqlPathFromGraph {
     pub async fn type_filter(
         &self,
         #[graphql(desc = "Node types to keep.")] node_types: Vec<String>,
-    ) -> Self {
+    ) -> Result<Self, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
+        Ok(
+            blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types)))
+                .await?,
+        )
     }
 
     ////////////////////////
@@ -243,21 +249,21 @@ impl GqlPathFromGraph {
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    pub async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Result<Option<i64>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+        Ok(blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await?)
     }
 
     /// Check if a layer with the given name is present in this view.
-    pub async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.has_layer(name)).await
+        Ok(blocking_compute(move || self_clone.nn.has_layer(name)).await?)
     }
 
     /// Returns a single history object combining the time entries of all nodes in this view.
-    pub async fn combined_history(&self) -> GqlHistory {
+    pub async fn combined_history(&self) -> Result<GqlHistory, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.combined_history().into()).await
+        Ok(blocking_compute(move || self_clone.nn.combined_history().into()).await?)
     }
 
     /////////////////
@@ -269,9 +275,9 @@ impl GqlPathFromGraph {
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
     /// `properties.keys()`.
-    pub async fn property_keys(&self) -> Vec<String> {
+    pub async fn property_keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .nn
                 .properties()
@@ -280,15 +286,15 @@ impl GqlPathFromGraph {
                 .map(|p| p.keys().map(|k| k.to_string()).collect())
                 .unwrap_or_default()
         })
-        .await
+        .await?)
     }
 
     /// The metadata keys this collection reports: the first non-empty source's first member's registry
     /// view, or an empty list when there are no members. Mirrors the local
     /// collection `metadata.keys()`.
-    pub async fn metadata_keys(&self) -> Vec<String> {
+    pub async fn metadata_keys(&self) -> Result<Vec<String>, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .nn
                 .metadata()
@@ -297,12 +303,12 @@ impl GqlPathFromGraph {
                 .map(|p| p.keys().map(|k| k.to_string()).collect())
                 .unwrap_or_default()
         })
-        .await
+        .await?)
     }
 
-    pub async fn count(&self) -> usize {
+    pub async fn count(&self) -> Result<usize, GQLError> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.len()).await
+        Ok(blocking_compute(move || self_clone.nn.len()).await?)
     }
 
     /// Fetch one page of source paths up to a specified limit, optionally offset by a specified amount.
@@ -333,7 +339,7 @@ impl GqlPathFromGraph {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await?)
     }
 
     /// Materialise every source path — one `PathFromNode` per source node,
@@ -344,7 +350,7 @@ impl GqlPathFromGraph {
     pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlPathFromNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.per_source()).await)
+        Ok(blocking_compute(move || self_clone.per_source()).await?)
     }
 
     /// Columnar `ids`: every source node's neighbour ids as `[[String]]`,
@@ -363,7 +369,7 @@ impl GqlPathFromGraph {
                     .collect(),
             )
         })
-        .await)
+        .await?)
     }
 
     /// Columnar `sourceIds`: the id of the source node each path hangs off, in
@@ -376,7 +382,7 @@ impl GqlPathFromGraph {
         let self_clone = self.clone();
         Ok(
             blocking_compute(move || self_clone.nn.iter().map(|(src, _)| src.name()).collect())
-                .await,
+                .await?,
         )
     }
 
@@ -394,7 +400,7 @@ impl GqlPathFromGraph {
                     .collect(),
             )
         })
-        .await)
+        .await?)
     }
 
     /// Columnar `inDegree`. Fast-path for `list { inDegree }`.
@@ -410,7 +416,7 @@ impl GqlPathFromGraph {
                     .collect(),
             )
         })
-        .await)
+        .await?)
     }
 
     /// Columnar `outDegree`. Fast-path for `list { outDegree }`.
@@ -426,7 +432,7 @@ impl GqlPathFromGraph {
                     .collect(),
             )
         })
-        .await)
+        .await?)
     }
 
     /// Narrow the neighbour set to nodes matching `expr`. The filter sticks to
@@ -446,7 +452,7 @@ impl GqlPathFromGraph {
             let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
-        .await
+        .await?
     }
 
     /// Narrow the neighbour set to nodes matching `expr`, but only at this hop
@@ -465,7 +471,7 @@ impl GqlPathFromGraph {
             let filtered = self_clone.nn.select(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
-        .await
+        .await?
     }
 
     /////////////////////
@@ -483,7 +489,7 @@ impl GqlPathFromGraph {
     ) -> Result<Self, GQLError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
@@ -500,7 +506,7 @@ impl GqlPathFromGraph {
     ) -> Result<Self, GQLError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
@@ -517,7 +523,7 @@ impl GqlPathFromGraph {
     ) -> Result<Self, GQLError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let narrowed = blocking_compute(move || base.select(expr)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await??;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))

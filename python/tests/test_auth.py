@@ -1,12 +1,10 @@
 from time import time
 import pytest
 import jwt
-import base64
 import gzip
 import json
 import requests
 import tempfile
-from datetime import datetime, timezone
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 
@@ -398,7 +396,7 @@ def test_raphtory_client():
         client.new_graph("test", "EVENT")
         g = client.remote_graph("test")
         g.add_node(0, "test")
-        node = g.node("test")
+        g.node("test")
         g = client.receive_graph("test")
         assert g.node("test") is not None
 

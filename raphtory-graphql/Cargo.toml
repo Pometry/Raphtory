@@ -48,7 +48,6 @@ chrono = { workspace = true }
 config = { workspace = true }
 url = { workspace = true }
 reqwest = { workspace = true }
-rustc-hash = { workspace = true }
 rayon = { workspace = true }
 ahash = { workspace = true }
 strum = { workspace = true }
@@ -61,22 +60,19 @@ indexmap = { workspace = true }
 dyn-clone = { workspace = true }
 inventory = { workspace = true }
 raphtory-rdf = { workspace = true, optional = true }
-
-# python binding optional dependencies
-pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
 parking_lot = { workspace = true }
 zip = { workspace = true }
 clap = { workspace = true }
 rust-embed = { workspace = true }
 
+# python binding optional dependencies
+pyo3 = { workspace = true, optional = true }
+
 [dev-dependencies]
-parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
-arrow = { workspace = true }
 oxigraph = { workspace = true }
-parquet = { workspace = true }
 # The deny_unknown_fields lint test parses source with syn.
 syn = { version = "2", features = ["full"] }
 quote = "1"

@@ -1,7 +1,5 @@
 import contextlib
 import json
-import os
-import re
 import tempfile
 import time
 from datetime import datetime
@@ -9,7 +7,6 @@ from functools import wraps
 from typing import Callable, TypeVar
 
 import pytest
-from dateutil import parser
 from raphtory import Graph, PersistentGraph
 from raphtory.graphql import GraphServer
 

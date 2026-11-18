@@ -1,4 +1,4 @@
-from raphtory.graphql import GraphServer, schema
+from raphtory.graphql import schema
 from pathlib import Path
 
 root = Path(__file__).parent.parent.parent.parent.parent

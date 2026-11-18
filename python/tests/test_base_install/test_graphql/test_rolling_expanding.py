@@ -1175,32 +1175,6 @@ def test_edge():
                 },
                 "after": {
                     "expanding": {
-                        "list": [
-                            {
-                                "start": {"timestamp": None},
-                                "end": {"timestamp": 3},
-                                "earliestTime": {"timestamp": 2},
-                                "latestTime": {"timestamp": 2},
-                            },
-                            {
-                                "start": {"timestamp": None},
-                                "end": {"timestamp": 4},
-                                "earliestTime": {"timestamp": 2},
-                                "latestTime": {"timestamp": 3},
-                            },
-                            {
-                                "start": {"timestamp": None},
-                                "end": {"timestamp": 5},
-                                "earliestTime": {"timestamp": 2},
-                                "latestTime": {"timestamp": 3},
-                            },
-                            {
-                                "start": {"timestamp": None},
-                                "end": {"timestamp": 6},
-                                "earliestTime": {"timestamp": 2},
-                                "latestTime": {"timestamp": 3},
-                            },
-                        ],
                         "count": 4,
                         "list": [
                             {

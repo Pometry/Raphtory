@@ -119,6 +119,5 @@ def permuted_timestamps_model(
         )
 
     if inplace:
-        return
-    else:
-        return shuffled_df
+        return None
+    return shuffled_df

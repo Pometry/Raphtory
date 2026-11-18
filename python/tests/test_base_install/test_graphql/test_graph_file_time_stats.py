@@ -2,7 +2,7 @@ import os
 import tempfile
 
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 
 def test_graph_file_time_stats():

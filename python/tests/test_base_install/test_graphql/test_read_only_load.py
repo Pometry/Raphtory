@@ -22,7 +22,7 @@ import tempfile
 
 import pytest
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 # Disk-backed Graph(graph_dir) requires the storage feature, which is not
 # compiled into the base test wheel. Same gate as test_disk_graph.py.

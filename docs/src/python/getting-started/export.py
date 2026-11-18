@@ -107,7 +107,6 @@ print(nx_g.nodes["ServerA"])
 
 # --8<-- [start:networkX_vis]
 # mkdocs: render
-import matplotlib.pyplot as plt
 import networkx as nx
 
 from raphtory import Graph

@@ -1,16 +1,6 @@
-import math
-import sys
-from email.policy import strict
-
-import pandas as pd
-import pandas.core.frame
-import pytest
 from raphtory import Graph, PersistentGraph
 from raphtory import algorithms
 from raphtory import graph_loader
-import tempfile
-from math import isclose
-import datetime
 
 
 def test_pyprophistvaluelist():
@@ -117,9 +107,7 @@ def test_empty_lists():
 
 
 def test_propiterable():
-    import raphtory
-
-    g = raphtory.Graph()
+    g = Graph()
     edges_str = [
         ("1", "2", 10, 1),
         ("1", "2", 10, 1),
