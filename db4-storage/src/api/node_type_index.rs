@@ -3,7 +3,7 @@ use crate::{
     segments::node_type_index::MemNodeTypeIndex,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::ArcRwLockReadGuard;
+use raphtory_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard};
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 
 pub trait NodeTypeIndexOps: Send + Sync + Debug + 'static
@@ -22,6 +22,8 @@ where
 
     fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 
+    fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<MemNodeTypeIndex>;
+
     fn entry(&self, type_ids: &[usize]) -> Self::Entry;
 
     /// Returns `true` if the index has no `(type_id, VID)` entries.
@@ -33,21 +35,11 @@ where
 
     fn set_dirty(&self, dirty: bool);
 
-    fn notify_write(&self);
-
-    fn notify_write_with_head(&self, head: impl DerefMut<Target = MemNodeTypeIndex>);
+    fn notify_write(&self, head: Option<impl DerefMut<Target = MemNodeTypeIndex>>);
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self>;
 
-    fn flush(&self) -> Result<(), StorageError> {
-        let head = self.head_exclusive();
-        self.flush_with_head(head)
-    }
-
-    fn flush_with_head(
-        &self,
-        head: impl DerefMut<Target = MemNodeTypeIndex>,
-    ) -> Result<(), StorageError>;
+    fn flush(&self, head: impl DerefMut<Target = MemNodeTypeIndex>) -> Result<(), StorageError>;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 }

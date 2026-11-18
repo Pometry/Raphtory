@@ -1,4 +1,5 @@
 use crate::{api::node_type_index::NodeTypeIndexOps, segments::node_type_index::MemNodeTypeIndex};
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::{ArcRwLockReadGuard, core::entities::VID};
 
 #[derive(Debug)]
@@ -32,7 +33,8 @@ impl<'a, NTI: NodeTypeIndexOps> Drop for NodeTypeIndexWriter<'a, NTI> {
     fn drop(&mut self) {
         if self.head.est_size() != self.initial_est_size {
             self.index.set_dirty(true);
-            self.index.notify_write();
+            self.index
+                .notify_write(None::<RwLockWriteGuard<'_, MemNodeTypeIndex>>);
         }
     }
 }

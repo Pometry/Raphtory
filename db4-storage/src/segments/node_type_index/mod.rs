@@ -6,7 +6,7 @@ use crate::{
     persist::strategy::PersistenceStrategy,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::ArcRwLockReadGuard;
+use raphtory_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard};
 use std::{
     ops::DerefMut,
     path::Path,
@@ -53,6 +53,10 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head.write()
     }
 
+    fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<MemNodeTypeIndex> {
+        self.head.write_arc()
+    }
+
     fn entry(&self, type_ids: &[usize]) -> Self::Entry {
         MemNodeTypeEntry::with_types(self.head_shared_arc(), type_ids)
     }
@@ -73,26 +77,23 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.is_dirty.store(dirty, Ordering::Release);
     }
 
-    fn notify_write(&self) {
-        self.est_size
-            .store(self.head_shared_arc().est_size(), Ordering::Relaxed);
-    }
+    fn notify_write(&self, head: Option<impl DerefMut<Target = MemNodeTypeIndex>>) {
+        let est_size = match &head {
+            Some(head) => head.est_size(),
+            None => self.head_shared_arc().est_size(),
+        };
 
-    fn notify_write_with_head(&self, head: impl DerefMut<Target = MemNodeTypeIndex>) {
-        self.est_size.store(head.est_size(), Ordering::Relaxed);
+        self.est_size.store(est_size, Ordering::Relaxed);
     }
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
-        let head = self.head.write_arc();
+        let head = self.head_exclusive_arc();
         let index = self.clone();
 
         WriteLockedNodeTypeIndex::new(head, index)
     }
 
-    fn flush_with_head(
-        &self,
-        _head: impl DerefMut<Target = MemNodeTypeIndex>,
-    ) -> Result<(), StorageError> {
+    fn flush(&self, _head: impl DerefMut<Target = MemNodeTypeIndex>) -> Result<(), StorageError> {
         Ok(())
     }
 

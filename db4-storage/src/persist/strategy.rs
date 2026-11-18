@@ -76,14 +76,10 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     ) where
         Self: Sized;
 
-    fn persist_node_type_index(&self, index: &Self::NTI)
-    where
-        Self: Sized;
-
-    fn persist_node_type_index_with_head(
+    fn persist_node_type_index(
         &self,
         index: &Self::NTI,
-        head: impl DerefMut<Target = MemNodeTypeIndex>,
+        head: Option<impl DerefMut<Target = MemNodeTypeIndex>>,
     ) where
         Self: Sized;
 
@@ -232,14 +228,10 @@ impl PersistenceStrategy for NoOpStrategy {
         // No operation
     }
 
-    fn persist_node_type_index(&self, _index: &Self::NTI) {
-        // No operation
-    }
-
-    fn persist_node_type_index_with_head(
+    fn persist_node_type_index(
         &self,
         _index: &Self::NTI,
-        _head: impl DerefMut<Target = MemNodeTypeIndex>,
+        _head: Option<impl DerefMut<Target = MemNodeTypeIndex>>,
     ) {
         // No operation
     }

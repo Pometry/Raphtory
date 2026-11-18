@@ -765,7 +765,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.segments_par_iter()
             .try_for_each(|segment| segment.flush())?;
 
-        self.type_index.flush()
+        self.type_index.flush(self.type_index.head_exclusive())
     }
 
     /// Copy flushed data into `dst`.
