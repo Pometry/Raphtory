@@ -583,6 +583,20 @@ pub fn prop_type(nested_prop_size: usize) -> impl Strategy<Value = PropType> {
     })
 }
 
+pub fn numeric_prop_type() -> impl Strategy<Value = PropType> {
+    proptest::sample::select(&[
+        PropType::U8,
+        PropType::U16,
+        PropType::U32,
+        PropType::I32,
+        PropType::U64,
+        PropType::I64,
+        PropType::F32,
+        PropType::F64,
+        PropType::Decimal { scale: 7 },
+    ])
+}
+
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphFixture {
     pub nodes: NodeFixture,

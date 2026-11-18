@@ -3005,11 +3005,11 @@ mod tests {
             Column, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
             RemotePropertyTuple,
         },
-        data::GqlGraphType,
         model::graph::{
             filter_expr_input::{CmpOp, NamedRead, NodeComparison, NodeExpr, NodeRead},
             filtering::Wrapped,
             property::Value as GqlValue,
+            GqlGraphType,
         },
         server::GraphServer,
     };

@@ -1,6 +1,6 @@
 use crate::{
     data::Data,
-    graph::GraphWithVectors,
+    graph::{GraphWithVectors, PluginData},
     model::{
         algorithms::GqlAlgorithms,
         graph::{
@@ -38,7 +38,10 @@ use raphtory::{
     },
     prelude::*,
 };
-use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
+use raphtory_api::core::{
+    storage::{graph_folder::GraphPaths, timeindex::AsTime},
+    utils::time::IntoTime,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{collections::HashSet, convert::Into};
 
@@ -50,11 +53,13 @@ use std::{collections::HashSet, convert::Into};
 pub struct GqlGraph {
     path: UnlockedGraphFolder,
     pub(crate) graph: DynamicGraph,
+    plugin_data: PluginData,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
     fn from(value: GraphWithVectors) -> Self {
         GqlGraph::new(value.folder().clone(), value.graph().clone())
+            .with_plugin_data(value.plugin_data().clone())
     }
 }
 
@@ -63,7 +68,26 @@ impl GqlGraph {
         Self {
             path,
             graph: graph.into_dynamic(),
+            plugin_data: PluginData::default(),
         }
+    }
+
+    /// This view with the plugin data of the served graph it was made from.
+    pub fn with_plugin_data(self, plugin_data: PluginData) -> Self {
+        Self {
+            plugin_data,
+            ..self
+        }
+    }
+
+    /// The view this object resolves against, for schema extensions that read it directly.
+    pub fn graph(&self) -> &DynamicGraph {
+        &self.graph
+    }
+
+    /// The served graph's plugin data; views derived from it share it.
+    pub fn plugin_data(&self) -> &PluginData {
+        &self.plugin_data
     }
 
     fn apply<F, G>(&self, graph_operation: F) -> Self
@@ -74,6 +98,7 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
+            plugin_data: self.plugin_data.clone(),
         }
     }
 }
@@ -340,17 +365,17 @@ impl GqlGraph {
     /// — i.e. when this graph was first saved to the server, not when its earliest
     /// event occurred. Use `earliestTime` for the latter.
     pub async fn created(&self) -> Result<i64, GQLError> {
-        Ok(self.path.created_async().await?)
+        Ok(self.path.created().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
     pub async fn last_opened(&self) -> Result<i64, GQLError> {
-        Ok(self.path.last_opened_async().await?)
+        Ok(self.path.last_opened().await?)
     }
 
     /// Returns the graph's last updated timestamp.
     pub async fn last_updated(&self) -> Result<i64, GQLError> {
-        Ok(self.path.last_updated_async().await?)
+        Ok(self.path.last_updated().await?)
     }
 
     /// Returns the time entry of the earliest activity in the graph.
@@ -696,7 +721,13 @@ impl GqlGraph {
     pub async fn filter(
         &self,
         #[graphql(
-            desc = "Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. Views alone combine under `or` and `not` into one view; a `view` beside a predicate cannot appear under `or` or `not`. If omitted, applies the identity filter."
+            desc = "Optional filter expression made of node/edge predicates, graph views (window, \
+                    layer, ...), or and/or/not combinations of them. `and` is an intersection, \
+                    each expression evaluated independently on the same graph and the results \
+                    intersected. A `view` expression keeps what exists in the view; to filter \
+                    inside a window use `graph.window(..).filter(expr)`. Views alone combine under \
+                    `or` and `not` into one view; a `view` beside a predicate cannot appear under \
+                    `or` or `not`. If omitted, applies the identity filter."
         )]
         expr: Option<GqlFilter>,
     ) -> Result<Self, GQLError> {
@@ -712,5 +743,21 @@ impl GqlGraph {
             ))
         })
         .await?
+    }
+
+    ////////////////////////
+    //////// VERSIONS //////
+    ////////////////////////
+
+    /// Version id of the active data snapshot for this graph path.
+    pub async fn active_version(&self) -> Result<u32, GQLError> {
+        let path = self.path.clone();
+        Ok(blocking_compute(move || path.graph_folder().active_version()).await?)
+    }
+
+    /// All version ids for this graph, excluding versions that are being modified.
+    pub async fn versions(&self) -> Result<Vec<u32>, GQLError> {
+        let path = self.path.clone();
+        Ok(blocking_compute(move || path.graph_folder().all_versions()).await?)
     }
 }

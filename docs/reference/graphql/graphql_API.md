@@ -313,249 +313,6 @@ Graph path relative to the root namespace.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="mutroot.deletegraph">deleteGraph</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-Delete graph from a path on the server.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">path</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Graph path relative to the root namespace.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="mutroot.loadnodes">loadNodes</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-Load nodes
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">graphPath</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Graph path relative to the root namespace.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">dataPath</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Path to the parquet directory.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-The column name for the timestamps.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">id</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-The column name for the node IDs.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">nodeType</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">nodeTypeCol</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-The node type column name in a dataframe. Cannot be used in combination with node_type.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">properties</td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of node property column names.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">metadata</td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of node metadata column names.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">schema</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">eventId</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-The column name for the secondary index.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">layer</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">layerCol</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-The node layer column name in a dataframe. Cannot be used in combination with layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="mutroot.loadedges">loadEdges</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-Load edges
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">graphPath</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Graph path relative to the root namespace.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">dataPath</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Path to the parquet directory.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-The column name for the update timestamps.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">src</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-The column name for the source node IDs.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">dst</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-The column name for the destination node IDs.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">properties</td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of edge property column names. Defaults to None.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">metadata</td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of edge metadata column names. Defaults to None.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">schema</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">eventId</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-The column name for the secondary index.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">layer</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">layerCol</td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="mutroot.newgraph">newGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
@@ -577,6 +334,24 @@ Destination path relative to the root namespace.
 <td colspan="2" align="right" valign="top">graphType</td>
 <td valign="top"><a href="#graphtype">GraphType</a>!</td>
 <td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.deletegraph">deleteGraph</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Delete graph from a path on the server.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.movegraph">moveGraph</strong></td>
@@ -725,6 +500,60 @@ Base64-encoded bincode of the serialised graph.
 <td>
 
 If true, replace any graph already at `path`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.stage">stage</strong></td>
+<td valign="top"><a href="#stagedgraph">StagedGraph</a>!</td>
+<td>
+
+Begin staging the graph at `graphPath`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">graphPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">setActive</td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+When true, promotes the staged version as the active graph after the stage is complete. When false, the staged version is saved to disk as an inactive version.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.setactiveversion">setActiveVersion</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Set the active version and start serving it immediately.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">graphPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">version</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Version id to serve.
 
 </td>
 </tr>
@@ -4597,6 +4426,24 @@ expression and narrows nodes, edges, and their properties to what matches.
 <td>
 
 Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. Views alone combine under `or` and `not` into one view; a `view` beside a predicate cannot appear under `or` or `not`. If omitted, applies the identity filter.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.activeversion">activeVersion</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Version id of the active data snapshot for this graph path.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.versions">versions</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+All version ids for this graph, excluding versions that are being modified.
 
 </td>
 </tr>
@@ -11842,6 +11689,235 @@ Zero-based page number; multiplies `limit` to determine where to start (default 
 <td>
 
 Every window, as `GraphWindowSet.list`. Rejected when the server sets `disable_lists`.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### StagedGraph
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="stagedgraph.version">version</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="stagedgraph.loadnodes">loadNodes</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dataPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Path to the parquet directory.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">id</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeType</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeTypeCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The node type column name in a dataframe. Cannot be used in combination with node_type.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">properties</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of node property column names.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">metadata</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of node metadata column names.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">schema</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">eventId</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The column name for the secondary index.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layerCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The node layer column name in a dataframe. Cannot be used in combination with layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="stagedgraph.loadedges">loadEdges</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dataPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Path to the parquet directory.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the update timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the source node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the destination node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">properties</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of edge property column names. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">metadata</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of edge metadata column names. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">schema</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">eventId</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The column name for the secondary index.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layerCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="stagedgraph.finish">finish</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Promote the staged snapshot and reload the graph in the server cache.
+If any load in this stage failed, the stage is discarded instead.
 
 </td>
 </tr>

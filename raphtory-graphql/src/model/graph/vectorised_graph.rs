@@ -5,7 +5,6 @@ use crate::{
         graph::{timeindex::GqlTimeInput, vector_selection::GqlVectorSelection},
         resolve, QueryRoot, Template,
     },
-    paths::ExistingGraphFolder,
     rayon::blocking_compute,
     GQLError,
 };
@@ -56,7 +55,7 @@ impl EmbeddingModel {
                     project_id,
                     dim: None,
                 };
-                let vector_cache = data.vector_cache.resolve().await?;
+                let vector_cache = data.inner.vector_cache.resolve().await?;
                 Ok(vector_cache.openai(embeddings.into()).await?)
             }
         }
@@ -94,8 +93,7 @@ impl<'b> VectorQuery<'b> {
                 .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
                 .cache(ctx)
                 .await?;
-            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
-            data.vectorise_folder(&folder, &template, cached_model)
+            data.vectorise_folder(&path, &template, cached_model)
                 .await?;
             Ok(true)
         }
@@ -128,8 +126,7 @@ impl<'b> VectorQuery<'b> {
             .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
             .cache(ctx)
             .await?;
-        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
-        data.vectorise_missing_in_folder(&folder, &template, cached_model)
+        data.vectorise_missing_in_folder(&path, &template, cached_model)
             .await?;
         Ok(true)
     }

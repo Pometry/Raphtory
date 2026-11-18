@@ -91,6 +91,16 @@ pub static EVICT_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
+/// A thin wrapper around spawn_blocking that unwraps the join handle.
+pub async fn blocking_io<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    tokio::task::spawn_blocking(f).await.unwrap()
+}
+
+/// Query work on the compute pool.
 /// How many compute jobs may be on the compute pool at once. Generous, so short queries rarely
 /// wait behind long ones, while still bounding the nesting (see [`COMPUTE_PERMITS`]). The stack
 /// size follows it (see [`compute_stack_size`]), so it scales with the cores without a cap.

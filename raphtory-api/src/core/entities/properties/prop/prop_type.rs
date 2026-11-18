@@ -1,4 +1,7 @@
+use crate::core::entities::properties::prop::Prop;
 use arrow_schema::{ArrowError, DataType};
+use bigdecimal::BigDecimal;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -159,9 +162,77 @@ impl PropType {
         }
     }
 
+    pub fn inner_and_depth(&self) -> (&PropType, usize) {
+        let mut depth = 0;
+        let mut inner = self;
+        while let Some(next) = inner.inner() {
+            inner = next;
+            depth += 1;
+        }
+        (inner, depth)
+    }
+
     pub fn map(fields: impl IntoIterator<Item = (impl Into<String>, PropType)>) -> Self {
         let map: HashMap<_, _> = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
         PropType::Map(Arc::from(map))
+    }
+
+    /// Minimum possible value for a numeric property
+    pub fn min_value(&self) -> Option<Prop> {
+        match self {
+            PropType::U8 => Some(Prop::U8(u8::MIN)),
+            PropType::U16 => Some(Prop::U16(u16::MIN)),
+            PropType::I32 => Some(Prop::I32(i32::MIN)),
+            PropType::I64 => Some(Prop::I64(i64::MIN)),
+            PropType::U32 => Some(Prop::U32(u32::MIN)),
+            PropType::U64 => Some(Prop::U64(u64::MIN)),
+            PropType::F32 => Some(Prop::F32(f32::NEG_INFINITY)),
+            PropType::F64 => Some(Prop::F64(f64::NEG_INFINITY)),
+            PropType::NDTime => Some(Prop::NDTime(NaiveDateTime::MIN)),
+            PropType::DTime => Some(Prop::DTime(DateTime::<Utc>::MIN_UTC)),
+            PropType::Decimal { scale } => Some(Prop::Decimal(BigDecimal::from_bigint(
+                i128::MIN.into(),
+                *scale,
+            ))),
+            _ => None,
+        }
+    }
+
+    /// Maximum possible value for a numeric property
+    pub fn max_value(&self) -> Option<Prop> {
+        match self {
+            PropType::U8 => Some(Prop::U8(u8::MAX)),
+            PropType::U16 => Some(Prop::U16(u16::MAX)),
+            PropType::I32 => Some(Prop::I32(i32::MAX)),
+            PropType::I64 => Some(Prop::I64(i64::MAX)),
+            PropType::U32 => Some(Prop::U32(u32::MAX)),
+            PropType::U64 => Some(Prop::U64(u64::MAX)),
+            PropType::F32 => Some(Prop::F32(f32::INFINITY)),
+            PropType::F64 => Some(Prop::F64(f64::INFINITY)),
+            PropType::NDTime => Some(Prop::NDTime(NaiveDateTime::MAX)),
+            PropType::DTime => Some(Prop::DTime(DateTime::<Utc>::MAX_UTC)),
+            PropType::Decimal { scale } => Some(Prop::Decimal(BigDecimal::from_bigint(
+                i128::MAX.into(),
+                *scale,
+            ))),
+            _ => None,
+        }
+    }
+
+    /// Remove `List` from self until it has the same level of nested lists as `other`.
+    /// Returns `None` if `other` is more deeply nested than `self`.
+    pub fn at_same_list_depth(&self, other: &PropType) -> Option<&PropType> {
+        let (_, this_depth) = self.inner_and_depth();
+        let (_, other_depth) = other.inner_and_depth();
+        if this_depth >= other_depth {
+            let mut inner = self;
+            for _ in 0..(this_depth - other_depth) {
+                inner = inner.inner()?;
+            }
+            Some(inner)
+        } else {
+            None
+        }
     }
 
     pub fn is_numeric(&self) -> bool {
@@ -176,6 +247,18 @@ impl PropType {
                 | PropType::F32
                 | PropType::F64
                 | PropType::Decimal { .. }
+        )
+    }
+
+    pub fn is_int(&self) -> bool {
+        matches!(
+            self,
+            PropType::U8
+                | PropType::U16
+                | PropType::U32
+                | PropType::U64
+                | PropType::I32
+                | PropType::I64
         )
     }
 

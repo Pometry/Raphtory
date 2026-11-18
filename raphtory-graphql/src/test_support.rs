@@ -26,7 +26,8 @@ pub(crate) async fn setup_with_graphs(
     let data = Data::new(work_dir, &AppConfig::default(), Args::default());
     for (path, graph) in graphs {
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(path, false)
             .unwrap();
@@ -44,7 +45,8 @@ pub(crate) async fn setup_with_policy(
     let mut data = Data::new(work_dir, &AppConfig::default(), Args::default());
     for (path, graph) in graphs {
         let folder = data
-            .work_dir_write()
+            .work_dir()
+            .write()
             .await
             .validate_path_for_insert(path, false)
             .unwrap();
