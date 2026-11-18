@@ -1,10 +1,9 @@
 from raphtory import Graph, PersistentGraph
 from raphtory import filter
 import unittest
-from unittest import TestCase
 
 
-class PyReprTest(TestCase):
+class PyReprTest(unittest.TestCase):
     # event graph with no layers
     def test_no_layers(self):
         G = Graph()
@@ -63,7 +62,7 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class FilterExprReprTest(TestCase):
+class FilterExprReprTest(unittest.TestCase):
     """`repr` is the Python that builds the expression, module-qualified, so
     `eval` rebuilds it after `import raphtory`."""
 

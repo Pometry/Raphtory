@@ -8,7 +8,6 @@ import textwrap
 import types
 from importlib.machinery import ExtensionFileLoader
 from itertools import chain
-from logging import ERROR
 from pathlib import Path
 from types import (
     BuiltinFunctionType,
@@ -220,7 +219,7 @@ def cls_signature(cls: type) -> Optional[inspect.Signature]:
     try:
         return inspect.signature(cls)
     except ValueError:
-        pass
+        return None
 
 
 def from_module(obj, obj_name: str, name: str) -> bool:
@@ -381,7 +380,7 @@ def gen_class(cls: type, name) -> str:
             obj_name == "__init__" or obj_name == "__new__"
         ):
             # Cannot get doc strings for __ methods (except for __new__ which we special-case by passing in the class docstring)
-            fn_logger.setLevel(ERROR)
+            fn_logger.setLevel(logging.ERROR)
         entity = inspect.unwrap(entity)
         if obj_name == "__init__" or obj_name == "__new__":
             # Get __init__ signature from class info

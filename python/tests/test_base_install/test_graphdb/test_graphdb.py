@@ -1358,20 +1358,10 @@ def test_all_edge_window():
 
 
 def test_static_prop_change():
-    # with pytest.raises(Exception):
     g = Graph()
     v = g.add_node(0, 1)
     v.add_metadata({"name": "value1"})
 
-    expected_msg = (
-        """Exception: Failed to mutate graph\n"""
-        """Caused by:\n"""
-        """  -> cannot change property for node '1'\n"""
-        """  -> cannot mutate static property 'name'\n"""
-        """  -> cannot set previous value 'Some(Str("value1"))' to 'Some(Str("value2"))' in position '0'"""
-    )
-
-    # with pytest.raises(Exception, match=re.escape(expected_msg)):
     with pytest.raises(Exception):
         v.add_metadata({"name": "value2"})
 
@@ -1642,25 +1632,6 @@ def test_lotr_edge_history():
         g.edge("Frodo", "Gandalf").window(100, 1000).history.t.collect(),
         [329, 555, 861],
     )
-
-
-# def test_generic_taint_loader():
-#     g = graph_loader.stable_coin_graph("/tmp/stablecoin",true, 1)
-#
-#     start_time = time.time()
-#     algorithms.pagerank(g, 20)
-#     end_time = time.time()
-#
-#     print("Time taken (in secs) to run pagerank on stablecoin data", end_time - start_time)
-#
-#     actual = algorithms.generic_taint(g, 20, 1651105815000, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
-#     print(actual)
-#     expected = {
-#         '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815000, 'start')],
-#         '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815000, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-#     }
-#
-#     assert (actual == expected)
 
 
 def test_layer():
@@ -2132,7 +2103,7 @@ def test_edge_layer():
 
 def test_layers_earliest_time():
     g = Graph()
-    e = g.add_edge(1, 1, 2, layer="test")
+    g.add_edge(1, 1, 2, layer="test")
     e = g.edge(1, 2)
 
     assert e.earliest_time == 1

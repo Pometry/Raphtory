@@ -107,9 +107,7 @@ def test_empty_lists():
 
 
 def test_propiterable():
-    import raphtory
-
-    g = raphtory.Graph()
+    g = Graph()
     edges_str = [
         ("1", "2", 10, 1),
         ("1", "2", 10, 1),

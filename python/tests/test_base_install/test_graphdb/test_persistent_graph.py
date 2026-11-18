@@ -1,3 +1,4 @@
+import pytest
 from raphtory import PersistentGraph, Graph, filter
 
 
@@ -283,32 +284,30 @@ def test_filtering_valid():
     assert list(e.properties.temporal.get("weight").values()) == []
 
 
-# TODO this will not pass until we fix hanging edges
-# def test_window_boundaries_same_time_op():
-#     G = PersistentGraph()
-#     G.add_edge(2, "Alice", "Bob")
-#     G.delete_edge(2, "Alice", "Bob")
-#
-#     assert G.window(0, 2).count_nodes() == 0
-#     assert G.window(0, 2).count_edges() == 0
-#
-#     assert G.window(2, 3).count_nodes() == 2
-#     assert G.window(2, 3).count_edges() == 1
-#
-#     assert G.window(3, 10).count_nodes() == 2
-#     assert G.window(3, 10).count_edges() == 0
-#
-#
-#     G = PersistentGraph()
-#     G.delete_edge(2, "Alice", "Bob")
-#     G.add_edge(2, "Alice", "Bob")
-#     print(G.window(0, 2).count_nodes(),G.window(0, 2).count_edges())
-#
-#     assert G.window(0, 2).count_nodes() == 0
-#     assert G.window(0, 2).count_edges() == 0
-#
-#     assert G.window(2, 3).count_nodes() == 2
-#     assert G.window(2, 3).count_edges() == 1
-#
-#     assert G.window(3, 10).count_nodes() == 2
-#     assert G.window(3, 10).count_edges() == 0
+@pytest.mark.skip(reason="will not pass until hanging edges are fixed")
+def test_window_boundaries_same_time_op():
+    G = PersistentGraph()
+    G.add_edge(2, "Alice", "Bob")
+    G.delete_edge(2, "Alice", "Bob")
+
+    assert G.window(0, 2).count_nodes() == 0
+    assert G.window(0, 2).count_edges() == 0
+
+    assert G.window(2, 3).count_nodes() == 2
+    assert G.window(2, 3).count_edges() == 1
+
+    assert G.window(3, 10).count_nodes() == 2
+    assert G.window(3, 10).count_edges() == 0
+
+    G = PersistentGraph()
+    G.delete_edge(2, "Alice", "Bob")
+    G.add_edge(2, "Alice", "Bob")
+
+    assert G.window(0, 2).count_nodes() == 0
+    assert G.window(0, 2).count_edges() == 0
+
+    assert G.window(2, 3).count_nodes() == 2
+    assert G.window(2, 3).count_edges() == 1
+
+    assert G.window(3, 10).count_nodes() == 2
+    assert G.window(3, 10).count_edges() == 0
