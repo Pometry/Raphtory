@@ -66,9 +66,11 @@ def test_graph_pickle():
     g = create_graph()
     # pickle graph
     with tempfile.TemporaryDirectory() as tmpdirname:
-        pickle.dump(g, open(tmpdirname + "/graph.p", "wb"))
+        with open(tmpdirname + "/graph.p", "wb") as f:
+            pickle.dump(g, f)
         # unpickle graph
-        g2 = pickle.load(open(tmpdirname + "/graph.p", "rb"))
+        with open(tmpdirname + "/graph.p", "rb") as f:
+            g2 = pickle.load(f)
 
         assert g2.count_nodes() == 3
         assert g2.count_edges() == 5
@@ -78,9 +80,11 @@ def test_persistent_graph_pickle():
     g = create_graph_with_deletions()
     # pickle graph
     with tempfile.TemporaryDirectory() as tmpdirname:
-        pickle.dump(g, open(tmpdirname + "/graph.p", "wb"))
+        with open(tmpdirname + "/graph.p", "wb") as f:
+            pickle.dump(g, f)
         # unpickle graph
-        g2 = pickle.load(open(tmpdirname + "/graph.p", "rb"))
+        with open(tmpdirname + "/graph.p", "rb") as f:
+            g2 = pickle.load(f)
 
         assert g2.count_nodes() == 3
         assert g2.count_edges() == 5
@@ -2577,7 +2581,7 @@ def test_node_types():
     a = g.add_node(0, "A", None, None)
     b = g.add_node(0, "B", None, "BTYPE")
 
-    assert a.node_type == None
+    assert a.node_type is None
     assert b.node_type == "BTYPE"
     assert set(g.nodes.node_type) == {None, "BTYPE"}
 
@@ -2585,7 +2589,7 @@ def test_node_types():
 def test_node_types_change():
     g = Graph()
     a = g.add_node(0, "A", None, None)
-    assert a.node_type == None
+    assert a.node_type is None
     a.set_node_type("YO")
     assert a.node_type == "YO"
 

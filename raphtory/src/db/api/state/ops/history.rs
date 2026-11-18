@@ -116,8 +116,7 @@ impl<'graph, G: GraphView + 'graph> NodeOp for HistoryOp<'graph, G> {
         self.graph.node_list()
     }
 
-    #[allow(unused_variables)]
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         History::new(NodeView::new_internal(self.graph.clone(), node))
     }
 }

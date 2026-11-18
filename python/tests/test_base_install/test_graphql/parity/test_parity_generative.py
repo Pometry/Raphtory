@@ -44,8 +44,6 @@ from hypothesis import strategies as st
 from _parity import GraphPair, assert_parity, canonical
 from _rpc import counting_remote_graph
 from _strategies import (
-    LAYERS,
-    NODE_TYPES,
     apply_op,
     apply_ops,
     apply_view_chain,

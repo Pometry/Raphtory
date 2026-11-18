@@ -14,12 +14,10 @@ RPC model:
 """
 
 import contextlib
-import tempfile
 
 import pytest
 
 from raphtory import EdgeSortBy, NodeSortBy, SortByTime
-from raphtory.graphql import GraphServer
 
 # The shared server-startup context managers live in test_utils so every test
 # file stands servers up the same way; population differs per test, so callers

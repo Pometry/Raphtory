@@ -6,13 +6,7 @@ import time
 import pytest
 from utils import sort_by_gql_name_or_id
 from raphtory import Graph, graph_loader
-from raphtory.graphql import (
-    GraphServer,
-    RaphtoryClient,
-    RemoteGraph,
-    decode_graph,
-    encode_graph,
-)
+from raphtory.graphql import GraphServer, RaphtoryClient, decode_graph, encode_graph
 
 
 def normalize_path(path):
@@ -46,7 +40,7 @@ def test_failed_server_start_in_time():
 
 def test_wrong_url():
     with pytest.raises(Exception) as excinfo:
-        client = RaphtoryClient("http://broken_url.com")
+        RaphtoryClient("http://broken_url.com")
     assert (
         str(excinfo.value)
         == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"

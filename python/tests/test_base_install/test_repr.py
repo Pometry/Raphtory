@@ -1,9 +1,7 @@
 from raphtory import Graph, PersistentGraph
 from raphtory import filter
-from io import StringIO
 import unittest
 from unittest import TestCase
-from unittest.mock import patch
 
 
 class PyReprTest(TestCase):
