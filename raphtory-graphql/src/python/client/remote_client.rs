@@ -1,6 +1,6 @@
 use crate::{
     client::{is_online, remote_client::RemoteClient, ClientError},
-    data::GqlGraphType,
+    model::graph::GqlGraphType,
     python::{
         client::remote_graph::PyRemoteGraph, encode_graph, translate_from_python,
         translate_map_to_python,
