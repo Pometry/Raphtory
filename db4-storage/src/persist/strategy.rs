@@ -15,11 +15,11 @@ use crate::{
     },
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
-        graph_prop::{segment::MemGraphPropSegment, GraphPropSegmentView},
+        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
         node_type_index::{MemNodeTypeIndex, NodeTypeIndexView},
     },
-    wal::{no_wal::NoWal, GraphWalOps, WalOps},
+    wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
 use raphtory_api::core::entities::LayerIds;
 use std::{
@@ -27,8 +27,8 @@ use std::{
     ops::DerefMut,
     path::Path,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
