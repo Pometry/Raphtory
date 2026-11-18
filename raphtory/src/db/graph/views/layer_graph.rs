@@ -36,8 +36,7 @@ pub struct LayeredGraph<G> {
     pub graph: G,
     /// The layer this graphs points to.
     pub layers: LayerIds,
-    /// The nodes and edges of these layers of a windowed `graph`, from the
-    /// storage's time index.
+    /// Time-index masks for these layers of a windowed `graph`.
     masks: ViewMasks,
 }
 
@@ -158,7 +157,7 @@ impl<G: GraphView> LayeredGraph<G> {
         }
     }
 
-    /// A layered view that always scans.
+    /// Always scans.
     pub(crate) fn unmasked(graph: G, layers: LayerIds) -> Self {
         Self {
             graph,
@@ -169,7 +168,7 @@ impl<G: GraphView> LayeredGraph<G> {
 
     fn masks(&self) -> Option<&WindowMasks> {
         self.masks.get_or_resolve(|| {
-            // only a window that nothing else filters has masks to narrow
+            // masks exist only for an otherwise unfiltered window
             if self.layers.is_all() || self.graph.filtered_inner() || !self.graph.window_filtered()
             {
                 None
@@ -246,7 +245,7 @@ impl<G: GraphView> InternalEdgeFilterOps for LayeredGraph<G> {
         self.graph.edge_layer_filter_includes_edge_filter()
     }
 
-    // the window's own masks cover more layers, so only these count
+    // the window's own masks cover more layers
     fn edge_filter_includes_window_filter(&self) -> bool {
         self.masks.resolved().is_some()
     }

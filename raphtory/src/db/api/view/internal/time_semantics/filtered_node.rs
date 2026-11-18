@@ -301,7 +301,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
                 view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
             FilterState::Edges | FilterState::BothIndependent | FilterState::Window => {
-                // a window alone may know the edge by id, without fetching it
+                // only a window-only filter answers by id
                 let by_id = matches!(state, FilterState::Window);
                 FilterVariants::Edges(iter.filter(move |e| {
                     by_id

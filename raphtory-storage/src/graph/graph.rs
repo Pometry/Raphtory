@@ -187,8 +187,7 @@ impl GraphStorage {
         )
     }
 
-    /// The nodes and edges of the window `[start, end)` over `layers` from the
-    /// backend's time index, if it has one that is up to date.
+    /// Time-index candidates for `[start, end)` over `layers`; `None` means scan.
     pub fn window_candidates(
         &self,
         persistent: bool,
@@ -202,8 +201,7 @@ impl GraphStorage {
             .window_candidates(persistent, start, end, layers)
     }
 
-    /// Rebuild the time index that serves windowed views. A no-op for
-    /// backends without one.
+    /// No-op for backends without a time index.
     pub fn build_time_index(&self) -> Result<(), StorageError> {
         let storage = self.temporal_graph().storage();
         let (nodes, edges) = (storage.nodes(), storage.edges());

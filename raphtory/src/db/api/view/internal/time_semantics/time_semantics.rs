@@ -421,7 +421,7 @@ impl TimeSemantics {
         TimeSemantics::Base(BaseTimeSemantics::Event(EventSemantics))
     }
 
-    /// Whether edges last from an addition to the next deletion.
+    /// Edges last from an addition to the next deletion.
     pub fn is_persistent(&self) -> bool {
         matches!(self.base(), BaseTimeSemantics::Persistent(_))
     }

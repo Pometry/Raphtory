@@ -80,8 +80,7 @@ pub trait InternalEdgeFilterOps {
         false
     }
 
-    /// Whether the edge is in the view, when the view can tell from the id
-    /// alone. `None` means fetch the edge and use `internal_filter_edge`.
+    /// Membership by id alone; `None` means use `internal_filter_edge`.
     fn internal_filter_edge_id(&self, _eid: EID, _layer_ids: &LayerIds) -> Option<bool> {
         None
     }

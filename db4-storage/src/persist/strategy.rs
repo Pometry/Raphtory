@@ -121,10 +121,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         None
     }
 
-    /// The nodes and edges of the window `[start, end)` over `layers` of the
-    /// whole graph, under event or persistent time semantics, if this
-    /// strategy keeps a time index that is up to date. `None` means scan as
-    /// usual.
+    /// Time-index candidates for `[start, end)` over `layers`; `None` means scan.
     fn window_candidates(
         &self,
         _persistent: bool,
@@ -135,7 +132,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         None
     }
 
-    /// Rebuild the time index. A no-op for strategies without one.
+    /// No-op without a time index.
     fn build_time_index<'a>(
         &self,
         _nodes: impl Iterator<Item = &'a Self::NS> + Send,

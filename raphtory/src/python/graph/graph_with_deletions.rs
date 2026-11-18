@@ -212,9 +212,7 @@ impl PyPersistentGraph {
         Ok(())
     }
 
-    /// Build the time index that serves windowed views (`window`, `at`,
-    /// `before`, `after`, `latest`) of a disk graph without visiting every
-    /// node and edge. It stops answering after the next write, until rebuilt.
+    /// Build the time index for windowed views of a disk graph; stale after the next write.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.

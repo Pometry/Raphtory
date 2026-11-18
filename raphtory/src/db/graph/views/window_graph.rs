@@ -101,19 +101,16 @@ pub struct WindowedGraph<G> {
     /// The time the view keeps: one window, or ranges already resolved against
     /// `graph` when the view was built, so no call resolves them again.
     bounds: WindowBounds,
-    /// The nodes and edges of the view, from the storage's time index. Filled
-    /// by the first listing or count; shared by clones.
+    /// Time-index masks, filled by the first listing or count; shared by clones.
     masks: ViewMasks,
 }
 
-/// The exact nodes and edges of a window over some layers of an otherwise
-/// unfiltered graph.
+/// Exact nodes and edges of a window over some layers of an otherwise unfiltered graph.
 #[derive(Debug)]
 pub struct WindowMasks {
     nodes: SegmentBitmaps,
     edges: SegmentBitmaps,
-    // shortcut: 8 bytes per node in the view; give `Index` a bitmap variant
-    // before listing views of billions of nodes
+    // shortcut: 8 bytes per listed node, give `Index` a bitmap variant for billions of nodes
     node_list: OnceLock<Index<VID>>,
 }
 
@@ -146,14 +143,12 @@ impl WindowMasks {
     }
 }
 
-/// A view's masks, filled by its first listing or count and shared by its
-/// clones. Per-entity checks only read them, so a view made for one node
-/// never pays for the index.
+/// Filled by the first listing or count, shared by clones; per-entity checks only read.
 #[derive(Clone, Default)]
 pub(crate) struct ViewMasks(Arc<OnceLock<Option<WindowMasks>>>);
 
 impl ViewMasks {
-    /// Masks that never resolve: the view always scans.
+    /// Never resolves.
     pub(crate) fn none() -> Self {
         Self(Arc::new(OnceLock::from(None)))
     }
@@ -630,7 +625,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
             end.map_or(i64::MAX, |end| end.t()),
             layer_ids,
         )?;
-        // the same view with the index switched off checks what it is unsure of
+        // an unmasked copy of this view checks `maybe_*`
         let scan = LayeredGraph::unmasked(
             WindowedGraph {
                 graph: &self.graph,
@@ -874,7 +869,7 @@ impl<G: GraphView> InternalEdgeFilterOps for WindowedGraph<G> {
 
     #[inline]
     fn internal_filter_edge_id(&self, eid: EID, layer_ids: &LayerIds) -> Option<bool> {
-        // the masks are for this view's layers, so cannot answer for fewer
+        // masks cover this view's layers only
         let masks = self
             .masks
             .resolved()

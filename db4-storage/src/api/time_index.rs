@@ -1,7 +1,6 @@
 use roaring::RoaringBitmap;
 
-/// A set of node or edge ids, held as one bitmap of local positions per
-/// segment. Segment `i` covers ids `i * stride..(i + 1) * stride`.
+/// Id set as per-segment bitmaps; segment `i` holds ids `i * stride..(i + 1) * stride`.
 #[derive(Debug, Clone, Default)]
 pub struct SegmentBitmaps {
     pub stride: usize,
@@ -23,7 +22,7 @@ impl SegmentBitmaps {
         self.segments.iter().all(|s| s.is_empty())
     }
 
-    /// Ids in ascending order.
+    /// Ascending.
     pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
         self.segments
             .iter()
@@ -36,9 +35,7 @@ impl SegmentBitmaps {
     }
 }
 
-/// What a time index knows about the nodes and edges of a window over some
-/// layers of the whole graph: every id in `sure_*` is in the view, no id outside
-/// `sure_* ∪ maybe_*` is, and the two are disjoint. The caller checks `maybe_*`.
+/// `sure_*` are in the window, nothing outside `sure_* ∪ maybe_*` is; the two are disjoint.
 #[derive(Debug, Clone, Default)]
 pub struct WindowCandidates {
     pub sure_nodes: SegmentBitmaps,

@@ -21,9 +21,7 @@ pub trait ListOps {
 
     fn edge_list(&self) -> EdgeList;
 
-    /// The number of nodes of the view when it is known without listing or
-    /// filtering them. Only meaningful to a view that filters by nothing but
-    /// time and layers.
+    /// Count without listing; valid only for views filtered by time and layers alone.
     fn node_count(&self) -> Option<usize> {
         None
     }
@@ -33,8 +31,7 @@ pub trait ListOps {
         None
     }
 
-    /// The nodes and edges of this view restricted to `layer_ids`, when the
-    /// view is a window the storage's time index can answer.
+    /// Time-index masks for this view over `layer_ids`.
     fn window_masks(&self, _layer_ids: &LayerIds) -> Option<WindowMasks> {
         None
     }
