@@ -94,16 +94,16 @@ impl GqlRdfGraph {
     async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
-    ) -> Self {
-        self.graph.layers(names).await.into()
+    ) -> Result<Self, GQLError> {
+        Ok(self.graph.layers(names).await?.into())
     }
 
     /// View with the named layers hidden.
     async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
-    ) -> Self {
-        self.graph.exclude_layers(names).await.into()
+    ) -> Result<Self, GQLError> {
+        Ok(self.graph.exclude_layers(names).await?.into())
     }
 
     /// View restricted to a single layer.
@@ -120,8 +120,11 @@ impl GqlRdfGraph {
     }
 
     /// View restricted to a set of nodes and the edges between them.
-    async fn subgraph(&self, #[graphql(desc = "Node ids to keep.")] nodes: Vec<GqlNodeId>) -> Self {
-        self.graph.subgraph(nodes).await.into()
+    async fn subgraph(
+        &self,
+        #[graphql(desc = "Node ids to keep.")] nodes: Vec<GqlNodeId>,
+    ) -> Result<Self, GQLError> {
+        Ok(self.graph.subgraph(nodes).await?.into())
     }
 
     /// View of the triples valid at the end of this view: on the whole graph, the current
@@ -134,16 +137,16 @@ impl GqlRdfGraph {
     async fn subgraph_node_types(
         &self,
         #[graphql(desc = "Node types to include.")] node_types: Vec<String>,
-    ) -> Self {
-        self.graph.subgraph_node_types(node_types).await.into()
+    ) -> Result<Self, GQLError> {
+        Ok(self.graph.subgraph_node_types(node_types).await?.into())
     }
 
     /// View with a set of nodes removed, along with their edges.
     async fn exclude_nodes(
         &self,
         #[graphql(desc = "Node ids to exclude.")] nodes: Vec<GqlNodeId>,
-    ) -> Self {
-        self.graph.exclude_nodes(nodes).await.into()
+    ) -> Result<Self, GQLError> {
+        Ok(self.graph.exclude_nodes(nodes).await?.into())
     }
 
     /// Windows of a fixed size that move forward by a step, as `Graph.rolling`; each window is
@@ -189,8 +192,8 @@ impl GqlRdfGraph {
     }
 
     /// View of the state at the latest time.
-    async fn latest(&self) -> Self {
-        self.graph.latest().await.into()
+    async fn latest(&self) -> Result<Self, GQLError> {
+        Ok(self.graph.latest().await?.into())
     }
 
     /// View of the triples valid at a time.
@@ -325,7 +328,7 @@ pub struct GqlRdfGraphWindowSet {
 #[ResolvedObjectFields]
 impl GqlRdfGraphWindowSet {
     /// Number of windows in this set.
-    async fn count(&self) -> usize {
+    async fn count(&self) -> Result<usize, GQLError> {
         self.windows.count().await
     }
 

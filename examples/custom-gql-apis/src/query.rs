@@ -1,6 +1,9 @@
 use dynamic_graphql::{ExpandObject, ExpandObjectFields};
 use raphtory::prelude::GraphViewOps;
-use raphtory_graphql::model::{GqlAlgorithms, QueryRoot};
+use raphtory_graphql::{
+    model::{GqlAlgorithms, QueryRoot},
+    GQLError,
+};
 
 #[derive(ExpandObject)]
 pub(crate) struct HelloQuery<'a>(&'a QueryRoot);
@@ -17,7 +20,7 @@ pub(crate) struct FancyAlgorithm<'a>(&'a GqlAlgorithms);
 
 #[ExpandObjectFields]
 impl<'a> FancyAlgorithm<'a> {
-    async fn fancy_node_count(&self) -> usize {
+    async fn fancy_node_count(&self) -> Result<usize, GQLError> {
         self.0.run(|graph| graph.count_nodes()).await
     }
 }
