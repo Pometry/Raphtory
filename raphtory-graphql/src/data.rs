@@ -2,7 +2,10 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-    auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
+    auth_policy::{
+        AuthorizationPolicy, DynGraphWithFolder, GraphPermission, GraphPin,
+        MaybeCachedFilteredRead, MutationNotifier, PermissionLevel,
+    },
     cache::GraphCache,
     config::{app_config::AppConfig, cache_config::CacheConfig},
     graph::{GraphWithVectors, PluginData},
@@ -92,6 +95,8 @@ pub enum InsertionError {
     PathValidation(#[from] PathValidationError),
     #[error("Failed to insert graph {graph}: {error}")]
     GraphError { graph: String, error: GraphError },
+    #[error(transparent)]
+    Compute(#[from] crate::rayon::ComputeError),
 }
 
 impl InsertionError {
@@ -328,6 +333,8 @@ impl Drop for DataInner {
 #[derive(Clone)]
 pub struct Data {
     pub inner: Arc<DataInner>,
+    /// Enforced on requests through this `Data`; `None` on the policy's unrestricted probe `Data`.
+    /// Keeps the policy alive, as `DataInner` only holds it weakly.
     pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
@@ -354,7 +361,20 @@ impl Data {
         &self.inner.work_dir
     }
 
+    /// Handed to whatever writes to the graph at `path`, so its successful writes reach the policy.
+    pub(crate) fn mutation_notifier(&self, path: &str) -> MutationNotifier {
+        MutationNotifier::new(self.auth_policy.clone(), path)
+    }
+
+    /// Report a successful whole-graph mutation (create, delete, replace, move, ...) of `path`.
+    pub(crate) fn notify_graph_mutated(&self, path: &str) {
+        if let Some(policy) = &self.auth_policy {
+            policy.on_graph_mutated(path);
+        }
+    }
+
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
+        self.inner.cache.set_auth_policy(&policy);
         self.auth_policy = Some(policy)
     }
 
@@ -443,6 +463,7 @@ impl Data {
         let filter = filter.clone();
         blocking_compute(move || graph.filter(filter).map(|_| ()))
             .await
+            .map_err(|error| AccessFilterError::Load(error.into()))?
             .map_err(AccessFilterError::DoesNotApply)
     }
 
@@ -484,9 +505,10 @@ impl Data {
                         graph
                     })
                 })
-                .await
+                .await?
             })
             .await?;
+        self.notify_graph_mutated(&key);
 
         Ok(())
     }
@@ -517,7 +539,7 @@ impl Data {
                     .map_err(|e| InsertionError::from_graph_err(&path, e))
             })
             .await?;
-
+        self.notify_graph_mutated(&key);
         Ok(())
     }
 
@@ -543,7 +565,7 @@ impl Data {
             })
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
-
+        self.notify_graph_mutated(path);
         Ok(())
     }
 
@@ -581,7 +603,11 @@ impl Data {
         })
         .await
         .map_err(|err| DeletionError::from_inner(path, err))?;
-
+        for item in descendants {
+            if let NamespacedItem::MetaGraph(g) = item {
+                self.notify_graph_mutated(g.local_path());
+            }
+        }
         Ok(())
     }
 
@@ -714,12 +740,12 @@ impl Data {
         if set_active {
             let work_dir = self.inner.work_dir.read().await.into();
             let folder = ExistingGraphFolder::try_from(work_dir, &graph_path)?;
-            let key = graph_path.clone();
             let read_only = self.inner.read_only.is_read_only(&graph_path);
+            let data = self.clone();
 
             self.inner
                 .cache
-                .insert_or_replace_with(&key, |old_graph| async move {
+                .insert_or_replace_with(&graph_path.clone(), |old_graph| async move {
                     // The old graph needs to stay pinned and read-locked until it is swapped out
                     // from the cache, which means `finish` has to happen under the cache guard.
                     let new_graph = graph
@@ -742,6 +768,7 @@ impl Data {
 
                     let graph = GraphWithVectors::new(new_graph, None, folder);
                     graph.set_dirty(false);
+                    data.notify_graph_mutated(&graph_path);
 
                     Ok::<_, InsertionError>(if read_only {
                         graph.into_read_only()
@@ -764,12 +791,12 @@ impl Data {
     ) -> Result<(), GQLError> {
         let work_dir = self.inner.work_dir.read().await.into();
         let folder = ExistingGraphFolder::try_from(work_dir, path)?;
-        let key = path.to_string();
-        let path = path.to_string();
+        let path_owned = path.to_string();
+        let data = self.clone();
 
         self.inner
             .cache
-            .insert_or_replace_with(&key, |old_graph| async move {
+            .insert_or_replace_with(path, |old_graph| async move {
                 flush_graph(old_graph).await;
 
                 let folder_clone = folder.clone();
@@ -777,11 +804,11 @@ impl Data {
                     Ok(folder_clone.graph_folder().set_active_version(version)?)
                 })
                 .await
-                .map_err(|e| InsertionError::from_graph_err(&path, e))?;
-
+                .map_err(|e| InsertionError::from_graph_err(&path_owned, e))?;
+                data.notify_graph_mutated(&path_owned);
                 self.read_graph_from_disk(folder)
                     .await
-                    .map_err(|e| InsertionError::from_graph_err(&path, e))
+                    .map_err(|e| InsertionError::from_graph_err(&path_owned, e))
             })
             .await?;
 
@@ -816,13 +843,26 @@ impl Data {
 // ---------------------------------------------------------------------------
 
 impl Data {
-    /// Loads and filters the graph using an already-verified permission. Private shared core.
-    async fn load_and_filter(
+    /// Loads and filters the graph using an already-verified permission.
+    async fn load_filtered(
         &self,
         path: &str,
-        perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
-    ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
+        filter: Option<&GraphAccessFilter>,
+    ) -> Result<DynGraphWithFolder, GQLError> {
+        let (view, _pin) = self.load_filtered_pinned(path, graph_type, filter).await?;
+        Ok(view)
+    }
+
+    /// [`Self::load_filtered`], with the graph pinned in the cache until the [`GraphPin`] drops.
+    ///
+    /// ⚠ Skips permission checks: `filter` must come from an already-verified permission.
+    pub async fn load_filtered_pinned(
+        &self,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+        filter: Option<&GraphAccessFilter>,
+    ) -> Result<(DynGraphWithFolder, GraphPin), GQLError> {
         let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
@@ -843,18 +883,28 @@ impl Data {
         };
 
         let raw = typed_graph.into_dynamic();
-        let graph = if let GraphPermission::Read {
-            filter: Some(ref f),
-        } = perm
-        {
-            apply_access_filter(raw, f).await?
-        } else {
-            raw
+        let graph = match filter {
+            Some(f) => apply_access_filter(raw, f).await?,
+            None => raw,
         };
+        let view = DynGraphWithFolder::new(gwv.folder().clone(), graph);
+        Ok((view, GraphPin::new(gwv)))
+    }
 
-        // FIXME: This drops the GraphWithVectors clone returned from the cache.
-        // As a result, it does not keep the graph pinned in the cache.
-        Ok((gwv.folder().clone(), graph))
+    /// The read a refinement resolved to, applying its filter if it has one.
+    async fn load_refined(
+        &self,
+        path: &str,
+        refined: MaybeCachedFilteredRead,
+        graph_type: Option<GqlGraphType>,
+    ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
+        match refined {
+            MaybeCachedFilteredRead::FromCache(prepared) => Ok(prepared.into_parts()),
+            MaybeCachedFilteredRead::Filter(filter) => Ok(self
+                .load_filtered(path, graph_type, filter.as_ref())
+                .await?
+                .into_parts()),
+        }
     }
 
     /// For the `graph()` resolver: permission denial → `Ok(None)` (null to client, hides
@@ -866,10 +916,12 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> Result<Option<(UnlockedGraphFolder, DynamicGraph)>, GQLError> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
-            Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
-                Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Ok(perm) => match refine(ctx, &self.auth_policy, path, graph_type, perm).await {
+                Ok(refined) => self.load_refined(path, refined, graph_type).await.map(Some),
                 // Refinement denied access — hide the graph, as with any other read denial.
-                Err(_) => Ok(None),
+                Err(GQLError::Permission(_)) => Ok(None),
+                // The read was allowed but could not be prepared, as `load_refined` reports it.
+                Err(e) => Err(e),
             },
             Err(_) => Ok(None),
         }
@@ -886,8 +938,8 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> Result<(UnlockedGraphFolder, DynamicGraph), GQLError> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
-        let perm = refine(ctx, &self.auth_policy, path, perm).await?;
-        self.load_and_filter(path, perm, graph_type).await
+        let refined = refine(ctx, &self.auth_policy, path, graph_type, perm).await?;
+        self.load_refined(path, refined, graph_type).await
     }
 
     /// Checks read permission then returns the raw `GraphWithVectors` (unfiltered).
@@ -946,7 +998,7 @@ impl Data {
 async fn flush_graph(graph: Option<GraphWithVectors>) {
     if let Some(old_graph) = graph {
         let inner = old_graph.into_inner().await;
-        blocking_compute(move || {
+        if let Err(panic) = blocking_compute(move || {
             if let Err(e) = inner.graph.flush() {
                 error!(
                     "Failed to flush old graph {} before replacing: {e}",
@@ -954,7 +1006,10 @@ async fn flush_graph(graph: Option<GraphWithVectors>) {
                 )
             }
         })
-        .await;
+        .await
+        {
+            error!("Flush panic: {panic}")
+        };
     }
 }
 
@@ -1011,7 +1066,7 @@ pub(crate) async fn apply_access_filter(
                     GQLError::AccessFilterMisconfigured
                 })
         })
-        .await?
+        .await??
     } else {
         graph
     };

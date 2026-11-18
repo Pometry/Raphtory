@@ -1,7 +1,8 @@
 use crate::{
     auth::ContextValidation,
     auth_policy::{AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission},
-    GQLError,
+    model::graph::GqlGraphType,
+    GQLError, MaybeCachedFilteredRead,
 };
 use async_graphql::{Context, ErrorExtensions};
 use std::sync::Arc;
@@ -182,24 +183,35 @@ pub(crate) fn require_at_least_read(
 
 /// Gives the policy an asynchronous pass at an already-granted permission before its filter is
 /// applied (see [`AuthorizationPolicy::refine_permission`]). A no-op without a policy.
+///
+/// A denial comes back as a [`GQLError::Permission`]. A read the policy allowed but could not
+/// prepare comes back as the error preparing it raised, as it would from [`Data::load_refined`].
 pub(crate) async fn refine(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
+    graph_type: Option<GqlGraphType>,
     perm: GraphPermission,
-) -> Result<GraphPermission, GQLError> {
+) -> Result<MaybeCachedFilteredRead, GQLError> {
     match policy {
         Some(policy) => policy
-            .refine_permission(ctx, path, perm)
+            .refine_permission(ctx, path, graph_type, perm)
             .await
-            .map_err(|msg| {
-                error!(
-                    graph = path,
-                    "Authpolicy failure when refining permissions: {msg}"
-                );
-                PermissionError::AuthPolicyError.into()
+            .map_err(|e| match e.into_read_error() {
+                Ok(read) => read,
+                Err(msg) => {
+                    error!(
+                        graph = path,
+                        "Authpolicy failure when refining permissions: {msg}"
+                    );
+                    PermissionError::AuthPolicyError.into()
+                }
             }),
-        None => Ok(perm),
+        // No policy: whatever the permission carried is what gets applied.
+        None => Ok(MaybeCachedFilteredRead::Filter(match perm {
+            GraphPermission::Read { filter } => filter,
+            _ => None,
+        })),
     }
 }
 
