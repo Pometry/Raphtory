@@ -8,7 +8,11 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::{iter::BoxedLIter, GraphType};
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stage};
+use raphtory_storage::{
+    graph::graph::GraphStorage,
+    mutation::InheritMutationOps,
+    stage::{Stage, Stageable},
+};
 use std::ops::Range;
 
 #[cfg(feature = "io")]
@@ -240,56 +244,6 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
     }
 }
 
-pub enum MaterializedStage {
-    Event(Stage<Graph>),
-    Persistent(Stage<PersistentGraph>),
-}
-
-impl MaterializedStage {
-    pub fn new(graph: &MaterializedGraph) -> Result<Self, GraphError> {
-        match graph {
-            MaterializedGraph::EventGraph(g) => Ok(Self::Event(g.stage()?)),
-            MaterializedGraph::PersistentGraph(g) => Ok(Self::Persistent(g.stage()?)),
-        }
-    }
-
-    pub fn version(&self) -> Result<u32, GraphError> {
-        match self {
-            MaterializedStage::Event(stage) => stage.graph().version(),
-            MaterializedStage::Persistent(stage) => stage.graph().version(),
-        }
-    }
-
-    pub fn finish(self, set_active: bool) -> Result<MaterializedGraph, GraphError> {
-        match self {
-            MaterializedStage::Event(stage) => {
-                Ok(MaterializedGraph::EventGraph(stage.finish(set_active)?))
-            }
-            MaterializedStage::Persistent(stage) => Ok(MaterializedGraph::PersistentGraph(
-                stage.finish(set_active)?,
-            )),
-        }
-    }
-
-    pub fn discard(self) -> Result<(), GraphError> {
-        match self {
-            MaterializedStage::Event(stage) => stage.discard()?,
-            MaterializedStage::Persistent(stage) => stage.discard()?,
-        }
-
-        Ok(())
-    }
-
-    pub fn materialized_graph(&self) -> MaterializedGraph {
-        match self {
-            MaterializedStage::Event(stage) => MaterializedGraph::EventGraph(stage.graph().clone()),
-            MaterializedStage::Persistent(stage) => {
-                MaterializedGraph::PersistentGraph(stage.graph().clone())
-            }
-        }
-    }
-}
-
 pub trait InternalMaterialize {
     fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
         match self.graph_type() {
@@ -317,5 +271,22 @@ where
     #[inline]
     fn graph_type(&self) -> GraphType {
         self.base().graph_type()
+    }
+}
+
+impl Stageable for MaterializedGraph {
+    fn from_storage(src: &Self, storage: GraphStorage) -> Self {
+        src.new_base_graph(storage)
+    }
+}
+
+// Stage and version methods.
+impl MaterializedGraph {
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self).map_err(GraphError::from)
+    }
+
+    pub fn version(&self) -> Result<u32, GraphError> {
+        for_all!(self, g => g.version())
     }
 }

@@ -11,13 +11,11 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use parking_lot::Mutex;
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
-    db::api::view::{
-        internal::{InternalStorageOps, MaterializedStage},
-        MaterializedGraph,
-    },
+    db::api::view::{internal::InternalStorageOps, MaterializedGraph},
     errors::GraphError,
     io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
 };
+use raphtory_storage::stage::Stage;
 use std::{
     path::PathBuf,
     sync::{
@@ -277,7 +275,7 @@ impl GqlStagedGraph {
         }
 
         let graph = blocking_write(move || -> Result<_, GqlStageError> {
-            let stage = MaterializedStage::new(source.graph())?;
+            let stage = source.graph().stage()?;
 
             let staged_graph = StagedGraph { source, stage };
 
@@ -296,7 +294,7 @@ impl GqlStagedGraph {
 pub(crate) struct StagedGraph {
     /// Cache pin for the graph being staged.
     source: GraphWithVectors,
-    stage: MaterializedStage,
+    stage: Stage<MaterializedGraph>,
 }
 
 impl StagedGraph {
@@ -305,7 +303,7 @@ impl StagedGraph {
     }
 
     pub(crate) fn version(&self) -> Result<u32, GraphError> {
-        self.stage.version()
+        self.stage.graph().version()
     }
 
     // Finalize the snapshot without promoting it to the active version.
@@ -315,7 +313,7 @@ impl StagedGraph {
             let Self { stage, .. } = self;
             let set_active = false; // Don't promote to active version.
 
-            stage.finish(set_active)
+            stage.finish(set_active).map_err(GraphError::from)
         })
         .await
     }
@@ -325,12 +323,12 @@ impl StagedGraph {
             // NOTE: We are dropping the source here and decrementing the pin count.
             let Self { stage, .. } = self;
 
-            stage.discard()
+            stage.discard().map_err(GraphError::from)
         })
         .await
     }
 
     fn materialized_graph(&self) -> MaterializedGraph {
-        self.stage.materialized_graph()
+        self.stage.graph().clone()
     }
 }
