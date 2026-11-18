@@ -709,6 +709,22 @@ type CollectionOfNamespacedItem {
 }
 
 """
+Bounds on the degree of a node, as returned by `approximateDegree`,
+`approximateInDegree` and `approximateOutDegree`. Equal bounds mean the
+degree is exact.
+"""
+type DegreeBounds {
+	"""
+	Lower bound on the degree.
+	"""
+	lowerBound: Int!
+	"""
+	Upper bound on the degree.
+	"""
+	upperBound: Int!
+}
+
+"""
 Edge direction to follow during traversal.
 """
 enum Direction {
@@ -1316,30 +1332,6 @@ input EdgeRead @oneOf {
 	A node expression evaluated on the edge's destination node.
 	"""
 	dst: EndpointRead
-}
-
-"""
-Describes edges between a specific pair of node types — the property and
-metadata keys seen on such edges, along with their observed value types.
-One `EdgeSchema` per `(srcType, dstType)` pair per layer.
-"""
-type EdgeSchema {
-	"""
-	Returns the type of source for these edges
-	"""
-	srcType: String!
-	"""
-	Returns the type of destination for these edges
-	"""
-	dstType: String!
-	"""
-	Returns the list of property schemas for edges connecting these types of nodes
-	"""
-	properties: [PropertySchema!]!
-	"""
-	Returns the list of metadata schemas for edges connecting these types of nodes
-	"""
-	metadata: [PropertySchema!]!
 }
 
 input EdgeSortBy {
@@ -2501,6 +2493,14 @@ type Graph {
 		"""
 		expr: FilterExpr
 	): Graph!
+	"""
+	Version id of the active data snapshot for this graph path.
+	"""
+	activeVersion: Int!
+	"""
+	All version ids for this graph, excluding versions that are being modified.
+	"""
+	versions: [Int!]!
 }
 
 type GraphSchema {
@@ -2974,8 +2974,8 @@ type Intervals {
 }
 
 """
-Describes a single edge layer — its name and the per `(srcType, dstType)`
-edge schemas observed within it.
+Describes a single edge layer: its name and the edge property/metadata keys
+present in it, with observed variants (property values) on small graphs
 """
 type LayerSchema {
 	"""
@@ -2983,9 +2983,13 @@ type LayerSchema {
 	"""
 	name: String!
 	"""
-	Returns the list of edge schemas for this edge layer
+	Returns the list of property schemas present on edges in this layer
 	"""
-	edges: [EdgeSchema!]!
+	properties: [PropertySchema!]!
+	"""
+	Returns the list of metadata schemas present on edges in this layer
+	"""
+	metadata: [PropertySchema!]!
 }
 
 """
@@ -3281,117 +3285,6 @@ type MotifCounts {
 
 type MutRoot {
 	"""
-	Delete graph from a path on the server.
-	"""
-	deleteGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!
-	): Boolean!
-	"""
-	Load nodes
-	"""
-	loadNodes(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		graphPath: String!,
-		"""
-		Path to the parquet directory.
-		"""
-		dataPath: String!,
-		"""
-		The column name for the timestamps.
-		"""
-		time: String!,
-		"""
-		The column name for the node IDs.
-		"""
-		id: String!,
-		"""
-		A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
-		"""
-		nodeType: String,
-		"""
-		The node type column name in a dataframe. Cannot be used in combination with node_type.
-		"""
-		nodeTypeCol: String,
-		"""
-		List of node property column names.
-		"""
-		properties: [String!],
-		"""
-		List of node metadata column names.
-		"""
-		metadata: [String!],
-		"""
-		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
-		"""
-		schema: String,
-		"""
-		The column name for the secondary index.
-		"""
-		eventId: String,
-		"""
-		A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
-		"""
-		layer: String,
-		"""
-		The node layer column name in a dataframe. Cannot be used in combination with layer.
-		"""
-		layerCol: String
-	): Boolean!
-	"""
-	Load edges
-	"""
-	loadEdges(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		graphPath: String!,
-		"""
-		Path to the parquet directory.
-		"""
-		dataPath: String!,
-		"""
-		The column name for the update timestamps.
-		"""
-		time: String!,
-		"""
-		The column name for the source node IDs.
-		"""
-		src: String!,
-		"""
-		The column name for the destination node IDs.
-		"""
-		dst: String!,
-		"""
-		List of edge property column names. Defaults to None.
-		"""
-		properties: [String!],
-		"""
-		List of edge metadata column names. Defaults to None.
-		"""
-		metadata: [String!],
-		"""
-		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
-		"""
-		schema: String,
-		"""
-		The column name for the secondary index.
-		"""
-		eventId: String,
-		"""
-		A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-		"""
-		layer: String,
-		"""
-		The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
-		"""
-		layerCol: String
-	): Boolean!
-	"""
 	Creates a new graph.
 	"""
 	newGraph(
@@ -3399,6 +3292,15 @@ type MutRoot {
 		Destination path relative to the root namespace.
 		"""
 		path: String!,		graphType: GraphType!
+	): Boolean!
+	"""
+	Delete graph from a path on the server.
+	"""
+	deleteGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!
 	): Boolean!
 	"""
 	Move graph from a path on the server to a new_path on the server.
@@ -3474,6 +3376,32 @@ type MutRoot {
 		"""
 		overwrite: Boolean!
 	): String!
+	"""
+	Begin staging the graph at `graphPath`.
+	"""
+	stage(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!,
+		"""
+		When true, promotes the staged version as the active graph after the stage is complete. When false, the staged version is saved to disk as an inactive version.
+		"""
+		setActive: Boolean!
+	): StagedGraph!
+	"""
+	Set the active version and start serving it immediately.
+	"""
+	setActiveVersion(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!,
+		"""
+		Version id to serve.
+		"""
+		version: Int!
+	): Boolean!
 	"""
 	Create an empty namespace at `path`.
 	
@@ -4551,6 +4479,38 @@ type Node {
 	"""
 	inDegree: Int!
 	"""
+	Returns bounds on the number of unique counter parties for this node, counting them
+	exactly only when that walks at most `threshold` adjacency entries. Otherwise the bounds
+	are read from the node's adjacency sizes, ignoring any window or filter, so in a windowed
+	or filtered view the lower bound drops to 0.
+	"""
+	approximateDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): DegreeBounds!
+	"""
+	Returns bounds on the number of edges with this node as the source, counting them exactly
+	only when that is cheap; see `approximateDegree`.
+	"""
+	approximateOutDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): DegreeBounds!
+	"""
+	Returns bounds on the number of edges with this node as the destination, counting them
+	exactly only when that is cheap; see `approximateDegree`.
+	"""
+	approximateInDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): DegreeBounds!
+	"""
 	Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge
 	predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
 	steps through. The returned nodes are on the full graph so their other-layer neighbours stay
@@ -5484,6 +5444,33 @@ type Nodes {
 	"""
 	outDegree: [Int!]!
 	"""
+	Bounds on the degree of every node, in collection order; see `Node.approximateDegree`.
+	"""
+	approximateDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
+	Bounds on the in-degree of every node, in collection order; see `Node.approximateInDegree`.
+	"""
+	approximateInDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
+	Bounds on the out-degree of every node, in collection order; see `Node.approximateOutDegree`.
+	"""
+	approximateOutDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
 	The number of edge updates incident to every node, in collection order.
 	"""
 	edgeHistoryCount: [Int!]!
@@ -6200,6 +6187,33 @@ type PathFromNode {
 	The out-degree (number of outgoing edges) of every node in the path, in order.
 	"""
 	outDegree: [Int!]!
+	"""
+	Bounds on the degree of every node in the path, in order; see `Node.approximateDegree`.
+	"""
+	approximateDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
+	Bounds on the in-degree of every node in the path, in order; see `Node.approximateInDegree`.
+	"""
+	approximateInDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
+	"""
+	Bounds on the out-degree of every node in the path, in order; see `Node.approximateOutDegree`.
+	"""
+	approximateOutDegree(
+		"""
+		Maximum number of adjacency entries to walk for an exact count; above it, bounds are returned instead. Defaults to 1000.
+		"""
+		threshold: Int
+	): [DegreeBounds!]!
 	"""
 	The number of edge updates incident to every node in the path, in order.
 	"""
@@ -7188,6 +7202,103 @@ enum SpecialFloat {
 	NEG_INFINITY
 }
 
+type StagedGraph {
+	version: Int!
+	loadNodes(
+		"""
+		Path to the parquet directory.
+		"""
+		dataPath: String!,
+		"""
+		The column name for the timestamps.
+		"""
+		time: String!,
+		"""
+		The column name for the node IDs.
+		"""
+		id: String!,
+		"""
+		A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
+		"""
+		nodeType: String,
+		"""
+		The node type column name in a dataframe. Cannot be used in combination with node_type.
+		"""
+		nodeTypeCol: String,
+		"""
+		List of node property column names.
+		"""
+		properties: [String!],
+		"""
+		List of node metadata column names.
+		"""
+		metadata: [String!],
+		"""
+		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+		"""
+		schema: String,
+		"""
+		The column name for the secondary index.
+		"""
+		eventId: String,
+		"""
+		A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
+		"""
+		layer: String,
+		"""
+		The node layer column name in a dataframe. Cannot be used in combination with layer.
+		"""
+		layerCol: String
+	): Boolean!
+	loadEdges(
+		"""
+		Path to the parquet directory.
+		"""
+		dataPath: String!,
+		"""
+		The column name for the update timestamps.
+		"""
+		time: String!,
+		"""
+		The column name for the source node IDs.
+		"""
+		src: String!,
+		"""
+		The column name for the destination node IDs.
+		"""
+		dst: String!,
+		"""
+		List of edge property column names. Defaults to None.
+		"""
+		properties: [String!],
+		"""
+		List of edge metadata column names. Defaults to None.
+		"""
+		metadata: [String!],
+		"""
+		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+		"""
+		schema: String,
+		"""
+		The column name for the secondary index.
+		"""
+		eventId: String,
+		"""
+		A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
+		"""
+		layer: String,
+		"""
+		The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+		"""
+		layerCol: String
+	): Boolean!
+	"""
+	Promote the staged snapshot and reload the graph in the server cache.
+	If any load in this stage failed, the stage is discarded instead.
+	"""
+	finish: Boolean!
+}
+
 """
 How one string is tested against another.
 """
@@ -7822,3 +7933,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+
