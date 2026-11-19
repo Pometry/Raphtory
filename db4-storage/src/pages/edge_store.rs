@@ -542,7 +542,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     ) -> EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES> {
         let (chunk, _) = resolve_pos(e_id, self.max_page_len());
         let page = self.wait_for_segment(chunk); // segment for EID must already exist
-        EdgeWriter::new(page, page.head_mut_arc(), &self.layer_counter)
+        EdgeWriter::new(page.head_mut_arc(), page, &self.layer_counter)
     }
 
     pub fn try_get_writer<'a>(
@@ -552,7 +552,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         let (segment_id, _) = resolve_pos(e_id, self.max_page_len());
         let page = self.wait_for_segment(segment_id); // segment for EID must already exist
         let writer = page.head_mut();
-        Ok(EdgeWriter::new(page, writer, &self.layer_counter))
+        Ok(EdgeWriter::new(writer, page, &self.layer_counter))
     }
 
     /// Get a free writer for inserting a new edge.
@@ -565,13 +565,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         let segment = self.wait_for_segment(*slot);
         let guard = segment.head_mut_arc();
         if segment.num_edges() < self.max_page_len() {
-            EdgeWriter::new(segment, guard, &self.layer_counter)
+            EdgeWriter::new(guard, segment, &self.layer_counter)
         } else {
             //existing segment is full and needs to be replaced
             let new_guard = self.push_new_segment();
             let segment = self.wait_for_segment(new_guard.segment_id());
             *slot = new_guard.segment_id();
-            EdgeWriter::new(segment, new_guard, &self.layer_counter)
+            EdgeWriter::new(new_guard, segment, &self.layer_counter)
         }
     }
 

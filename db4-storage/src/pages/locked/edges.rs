@@ -46,12 +46,12 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
 
     #[inline(always)]
     pub fn writer(&mut self) -> EdgeWriter<'_, &mut MemEdgeSegment, ES> {
-        EdgeWriter::new(self.segment, self.head.deref_mut(), self.num_edges)
+        EdgeWriter::new(self.head.deref_mut(), self.segment, self.num_edges)
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkEdgeWriter<'_, &mut MemEdgeSegment, ES> {
-        EdgeWriter::new(self.segment, self.head.deref_mut(), self.num_edges).into()
+        EdgeWriter::new(self.head.deref_mut(), self.segment, self.num_edges).into()
     }
 
     #[inline(always)]

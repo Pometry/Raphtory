@@ -132,12 +132,12 @@ impl<'a> AtomicAddEdge<'a> {
         let e_id = edge.inner();
         let layer = e_id.layer();
 
-        let (_, src_pos) = resolve_pos(src, self.node_writers.get_mut_src().writer.max_page_len());
-        let (_, dst_pos) = resolve_pos(dst, self.node_writers.get_mut_dst().writer.max_page_len());
+        let (_, src_pos) = resolve_pos(src, self.node_writers.get_mut_src().head.max_page_len());
+        let (_, dst_pos) = resolve_pos(dst, self.node_writers.get_mut_dst().head.max_page_len());
 
         let edge_max_page_len = self
             .edge_writer
-            .writer
+            .head
             .get_or_create_layer(layer)
             .max_page_len();
         let (_, edge_pos) = resolve_pos(e_id.eid(), edge_max_page_len);
@@ -182,12 +182,12 @@ impl<'a> AtomicAddEdge<'a> {
         let e_id = edge.inner();
         let layer = e_id.layer();
 
-        let (_, src_pos) = resolve_pos(src, self.node_writers.get_mut_src().writer.max_page_len());
-        let (_, dst_pos) = resolve_pos(dst, self.node_writers.get_mut_dst().writer.max_page_len());
+        let (_, src_pos) = resolve_pos(src, self.node_writers.get_mut_src().head.max_page_len());
+        let (_, dst_pos) = resolve_pos(dst, self.node_writers.get_mut_dst().head.max_page_len());
 
         let edge_max_page_len = self
             .edge_writer
-            .writer
+            .head
             .get_or_create_layer(layer)
             .max_page_len();
         let (_, edge_pos) = resolve_pos(e_id.eid(), edge_max_page_len);
@@ -338,11 +338,11 @@ impl<'a> AtomicAddNode<'a> {
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
-        self.node_writer.writer.set_lsn(lsn)
+        self.node_writer.head.set_lsn(lsn)
     }
 
     fn local_pos(&self) -> LocalPOS {
-        let (_, pos) = resolve_pos(self.vid.inner(), self.node_writer.writer.max_page_len());
+        let (_, pos) = resolve_pos(self.vid.inner(), self.node_writer.head.max_page_len());
         pos
     }
 }
@@ -449,7 +449,7 @@ impl GraphMutationOps for TemporalGraph {
                     MaybeInit::Init(init) => {
                         let (pos, writer) = nodes.reserve_and_lock_segment(1, None);
                         let vid =
-                            pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
+                            pos.as_vid(writer.segment.segment_id(), writer.head.max_page_len());
 
                         init.init(vid)?;
 
@@ -467,9 +467,9 @@ impl GraphMutationOps for TemporalGraph {
             (MaybeInit::Init(src_init), Some(MaybeInit::Init(dst_init))) => {
                 // both new, put them in the same segment
                 let (pos, writer) = nodes.reserve_and_lock_segment(2, None);
-                let src_id = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
+                let src_id = pos.as_vid(writer.segment.segment_id(), writer.head.max_page_len());
                 let dst_id = LocalPOS(pos.0 + 1)
-                    .as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
+                    .as_vid(writer.segment.segment_id(), writer.head.max_page_len());
 
                 src_init.init(src_id)?;
                 dst_init.init(dst_id)?;
@@ -495,7 +495,7 @@ impl GraphMutationOps for TemporalGraph {
                             nodes.reserve_and_lock_segment(1, Some(&dst_writer));
                         let src_id = src_pos.as_vid(
                             src_writer.segment.segment_id(),
-                            src_writer.writer.max_page_len(),
+                            src_writer.head.max_page_len(),
                         );
 
                         src_init.init(src_id)?;
@@ -512,7 +512,7 @@ impl GraphMutationOps for TemporalGraph {
                     Some(src_pos) => {
                         let src_id = LocalPOS(src_pos).as_vid(
                             dst_writer.segment.segment_id(),
-                            dst_writer.writer.max_page_len(),
+                            dst_writer.head.max_page_len(),
                         );
 
                         src_init.init(src_id)?;
@@ -537,7 +537,7 @@ impl GraphMutationOps for TemporalGraph {
                             nodes.reserve_and_lock_segment(1, Some(&src_writer));
                         let dst_id = dst_pos.as_vid(
                             dst_writer.segment.segment_id(),
-                            dst_writer.writer.max_page_len(),
+                            dst_writer.head.max_page_len(),
                         );
 
                         dst_init.init(dst_id)?;
@@ -554,7 +554,7 @@ impl GraphMutationOps for TemporalGraph {
                     Some(dst_pos) => {
                         let dst_id = LocalPOS(dst_pos).as_vid(
                             src_writer.segment.segment_id(),
-                            src_writer.writer.max_page_len(),
+                            src_writer.head.max_page_len(),
                         );
                         dst_init.init(dst_id)?;
                         (
@@ -654,7 +654,7 @@ impl GraphMutationOps for TemporalGraph {
                     already_counted,
                 );
                 let edge_id =
-                    edge_pos.as_eid(edge_writer.segment_id(), edge_writer.writer.max_page_len());
+                    edge_pos.as_eid(edge_writer.segment_id(), edge_writer.head.max_page_len());
 
                 node_writers.get_mut_src().add_static_outbound_edge(
                     src_pos,
@@ -708,7 +708,7 @@ impl GraphMutationOps for TemporalGraph {
                         self.storage().nodes().reserve_and_lock_segment(1, None);
                     let vid = pos.as_vid(
                         node_writer.segment.segment_id(),
-                        node_writer.writer.max_page_len(),
+                        node_writer.head.max_page_len(),
                     );
 
                     let node_type_index = self.storage().node_type_index();

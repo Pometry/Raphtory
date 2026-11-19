@@ -51,7 +51,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         if !edge_exists
             && self
                 .ew
-                .writer
+                .head
                 .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
         {
             self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
@@ -59,7 +59,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 
         if self
             .ew
-            .writer
+            .head
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props)
             && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
         {
@@ -69,7 +69,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.update_time(t);
 
         self.ew
-            .writer
+            .head
             .update_const_properties(edge_pos, src, dst, layer_id, c_props);
     }
 
@@ -85,7 +85,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         if !exists
             && self
                 .ew
-                .writer
+                .head
                 .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
         {
             self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
@@ -94,7 +94,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.update_time(t);
         if self
             .ew
-            .writer
+            .head
             .delete_edge_internal(t, edge_pos, src, dst, layer_id)
             && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
         {

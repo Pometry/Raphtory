@@ -54,12 +54,12 @@ impl<'a, NS: NodeSegmentOps> WriteLockedNodeSegment<'a, NS> {
 
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.segment, self.head.deref_mut(), self.layer_counter)
+        NodeWriter::new(self.head.deref_mut(), self.segment, self.layer_counter)
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkNodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.segment, self.head.deref_mut(), self.layer_counter).into()
+        NodeWriter::new(self.head.deref_mut(), self.segment, self.layer_counter).into()
     }
 
     pub fn head(&mut self) -> &mut MemNodeSegment {

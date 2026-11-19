@@ -19,19 +19,19 @@ use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct EdgeWriter<'a, MP: DerefMut<Target = MemEdgeSegment> + 'a, ES: EdgeSegmentOps> {
-    pub writer: MP,
+    pub head: MP,
     pub segment: &'a ES,
     pub graph_stats: &'a GraphStats,
     initial_est_size: usize,
 }
 
 impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'a, MP, ES> {
-    pub fn new(segment: &'a ES, writer: MP, graph_stats: &'a GraphStats) -> Self {
-        let initial_est_size = writer.est_size();
+    pub fn new(head: MP, segment: &'a ES, graph_stats: &'a GraphStats) -> Self {
+        let initial_est_size = head.est_size();
 
         Self {
+            head,
             segment,
-            writer,
             graph_stats,
             initial_est_size,
         }
@@ -54,7 +54,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     ) -> LocalPOS {
         self.graph_stats.update_time(t.t());
         if self
-            .writer
+            .head
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, props)
             && !self.segment.immut_has_edge(edge_pos, layer_id)
         {
@@ -75,7 +75,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     ) {
         self.graph_stats.update_time(t.t());
         if self
-            .writer
+            .head
             .delete_edge_internal(t, edge_pos, src, dst, layer_id)
             && !self.segment.immut_has_edge(edge_pos, layer_id)
         {
@@ -102,7 +102,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         }
 
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(STATIC_GRAPH_LAYER_ID));
-        self.writer
+        self.head
             .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID);
 
         edge_pos
@@ -122,14 +122,14 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     ) {
         if !edge_exists
             && self
-                .writer
+                .head
                 .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
         {
             self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
         }
 
         if self
-            .writer
+            .head
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props)
             && !self.segment.immut_has_edge(edge_pos, layer_id)
         {
@@ -138,7 +138,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
 
         self.graph_stats.update_time(t.t());
 
-        self.writer
+        self.head
             .update_const_properties(edge_pos, src, dst, layer_id, c_props);
     }
 
@@ -153,7 +153,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     ) {
         if !exists
             && self
-                .writer
+                .head
                 .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
         {
             self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
@@ -161,7 +161,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
 
         self.graph_stats.update_time(t.t());
         if self
-            .writer
+            .head
             .delete_edge_internal(t, edge_pos, src, dst, layer_id)
             && !self.segment.immut_has_edge(edge_pos, layer_id)
         {
@@ -174,7 +174,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     }
 
     pub fn max_page_len(&self) -> u32 {
-        self.writer.max_page_len()
+        self.head.max_page_len()
     }
 
     #[inline]
@@ -183,8 +183,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     }
 
     pub fn get_edge(&self, layer_id: LayerId, edge_pos: LocalPOS) -> Option<(VID, VID)> {
-        self.segment
-            .get_edge(edge_pos, layer_id, self.writer.deref())
+        self.segment.get_edge(edge_pos, layer_id, self.head.deref())
     }
 
     pub fn check_metadata<P: AsPropEntry>(
@@ -195,7 +194,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     ) -> Result<(), StorageError> {
         for entry in props {
             let (prop_id, prop) = entry.as_prop_entry();
-            self.writer
+            self.head
                 .check_metadata(edge_pos, layer_id, prop_id, prop.clone())?;
             self.segment
                 .check_metadata_immut(edge_pos, layer_id, prop_id, prop)?;
@@ -211,24 +210,22 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
-        let existing_edge = self
-            .segment
-            .has_edge(edge_pos, layer_id, self.writer.deref());
+        let existing_edge = self.segment.has_edge(edge_pos, layer_id, self.head.deref());
 
         if !existing_edge {
             self.increment_layer_num_edges(layer_id);
         }
-        self.writer
+        self.head
             .update_const_properties(edge_pos, src, dst, layer_id, props);
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
-        self.writer.set_lsn(lsn);
+        self.head.set_lsn(lsn);
     }
 
     #[inline(always)]
     pub fn resolve_pos(&self, edge_id: EID) -> Option<LocalPOS> {
-        let (page, pos) = resolve_pos(edge_id, self.writer.max_page_len());
+        let (page, pos) = resolve_pos(edge_id, self.head.max_page_len());
 
         if page == self.segment.segment_id() {
             Some(pos)
@@ -242,9 +239,9 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> Drop
     for EdgeWriter<'a, MP, ES>
 {
     fn drop(&mut self) {
-        let delta = self.writer.est_size() - self.initial_est_size;
-        self.writer.increment_global_memory_tracker(delta);
-        let head_mut = self.writer.deref_mut();
+        let delta = self.head.est_size() - self.initial_est_size;
+        self.head.increment_global_memory_tracker(delta);
+        let head_mut = self.head.deref_mut();
 
         if let Err(err) = self.segment.notify_write(head_mut) {
             drop_error!(
