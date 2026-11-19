@@ -36,7 +36,9 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
 
     fn new(_path: Option<&Path>, ext: Self::Extension) -> Result<Self, StorageError> {
         Ok(Self {
-            head: Arc::new(RwLock::new(MemNodeTypeIndex::new())),
+            head: Arc::new(RwLock::new(MemNodeTypeIndex::new(
+                ext.memory_tracker().clone(),
+            ))),
             est_size_cached: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
             _persistence: ext,
