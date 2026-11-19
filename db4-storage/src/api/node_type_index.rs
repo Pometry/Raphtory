@@ -29,7 +29,7 @@ where
     /// Returns `true` if the index has no `(type_id, VID)` entries.
     fn is_empty(&self) -> bool;
 
-    fn est_size(&self) -> usize;
+    fn est_size_cached(&self) -> usize;
 
     fn is_dirty(&self) -> bool;
 

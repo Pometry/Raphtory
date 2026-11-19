@@ -17,11 +17,15 @@ use std::{
 };
 
 pub use index::{FrozenNodeTypeEntry, MemNodeTypeEntry, MemNodeTypeIndex};
+
 /// Fully in-memory node type index.
 #[derive(Debug)]
 pub struct NodeTypeIndexView<P: PersistenceStrategy> {
     head: Arc<RwLock<MemNodeTypeIndex>>,
-    est_size: AtomicUsize,
+
+    /// Caches `head.est_size`.
+    /// Used to get memory usage without acquiring the `head` lock.
+    est_size_cached: AtomicUsize,
     is_dirty: AtomicBool,
     _persistence: P,
 }
@@ -33,7 +37,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     fn new(_path: Option<&Path>, ext: Self::Extension) -> Result<Self, StorageError> {
         Ok(Self {
             head: Arc::new(RwLock::new(MemNodeTypeIndex::new())),
-            est_size: AtomicUsize::new(0),
+            est_size_cached: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
             _persistence: ext,
         })
@@ -65,8 +69,9 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head_shared_arc().is_empty()
     }
 
-    fn est_size(&self) -> usize {
-        self.est_size.load(Ordering::Relaxed)
+    /// The cached memory size of `head` in bytes.
+    fn est_size_cached(&self) -> usize {
+        self.est_size_cached.load(Ordering::Relaxed)
     }
 
     fn is_dirty(&self) -> bool {
@@ -83,7 +88,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
             None => self.head_shared_arc().est_size(),
         };
 
-        self.est_size.store(est_size, Ordering::Relaxed);
+        self.est_size_cached.store(est_size, Ordering::Relaxed);
     }
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
