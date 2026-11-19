@@ -297,7 +297,9 @@ where
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
         self.resize_segments_to_vid(src_id); // Create enough segments.
         self.resize_segments_to_vid(dst_id);
+
         let dst_segment = (dst_segment_id != src_segment_id).then_some(dst_segment_id);
+        let elid = eid.with_layer_deletion(layer_id);
 
         for segment_id in iter::once(src_segment_id).chain(dst_segment) {
             let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
@@ -337,11 +339,11 @@ where
 
                 // Add the edge to the layer if it doesn't already exist.
                 if is_new_edge_in_layer {
-                    writer.add_outbound_edge(Some(t), src_pos, dst_id, eid.with_layer(layer_id));
+                    writer.add_outbound_edge(Some(t), src_pos, dst_id, elid);
                 }
 
                 // Always record the deletion time.
-                writer.update_deletion_time(t, src_pos, eid.with_layer(layer_id));
+                writer.update_deletion_time(t, src_pos, elid);
             }
 
             if segment_id == dst_segment_id {
@@ -366,11 +368,11 @@ where
 
                 // Add the edge to the layer if it doesn't already exist.
                 if is_new_edge_in_layer {
-                    writer.add_inbound_edge(Some(t), dst_pos, src_id, eid.with_layer(layer_id));
+                    writer.add_inbound_edge(Some(t), dst_pos, src_id, elid);
                 }
 
                 // Always record the deletion time.
-                writer.update_deletion_time(t, dst_pos, eid.with_layer(layer_id));
+                writer.update_deletion_time(t, dst_pos, elid);
             }
 
             writer.set_lsn(lsn);
