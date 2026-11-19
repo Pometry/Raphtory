@@ -83,7 +83,6 @@ use raphtory_storage::{
         nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
     },
 };
-use rayon::prelude::*;
 use roaring::RoaringBitmap;
 use std::{
     fmt::{Debug, Formatter},
@@ -91,7 +90,7 @@ use std::{
     ops::Range,
     sync::{Arc, OnceLock},
 };
-use storage::api::time_index::SegmentBitmaps;
+use storage::{api::time_index::SegmentBitmaps, utils::map_on_threads};
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Clone)]
@@ -993,16 +992,15 @@ fn verified(
     let segments = sure.segments.len().max(maybe.segments.len());
     sure.segments.resize(segments, RoaringBitmap::new());
     maybe.segments.resize(segments, RoaringBitmap::new());
-    sure.segments
-        .par_iter_mut()
-        .zip(maybe.segments.par_iter())
-        .enumerate()
-        .for_each(|(segment, (sure, maybe))| {
-            sure.extend(
-                maybe
-                    .iter()
-                    .filter(|pos| check(segment * stride + *pos as usize)),
-            );
-        });
+    let unsure = sure.segments.iter_mut().zip(&maybe.segments).enumerate();
+    let unsure = unsure.filter(|(_, (_, maybe))| !maybe.is_empty()).collect();
+    // the caller holds the view's masks, which other rayon jobs wait on
+    map_on_threads(unsure, |(segment, (sure, maybe))| {
+        sure.extend(
+            maybe
+                .iter()
+                .filter(|pos| check(segment * stride + *pos as usize)),
+        );
+    });
     sure
 }
