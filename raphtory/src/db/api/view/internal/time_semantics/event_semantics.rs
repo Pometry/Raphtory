@@ -23,7 +23,7 @@ use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 use storage::{api::edges::EdgeRefOps, EdgeEntryRef};
 
 #[derive(Debug, Copy, Clone)]

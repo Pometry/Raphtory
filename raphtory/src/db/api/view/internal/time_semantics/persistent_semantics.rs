@@ -1,17 +1,14 @@
 use crate::{
-    db::{
-        api::view::internal::{
-            filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
-            filtered_node::NodeEdgeHistory,
-            time_semantics::{
-                event_semantics::EventSemantics,
-                filtered_edge::FilteredEdgeStorageOps,
-                filtered_node::FilteredNodeStorageOps,
-                time_semantics_ops::{NodeTimeSemanticsOps, NodeTimeSemanticsWindowOps},
-            },
-            EdgeTimeSemanticsOps, EdgeTimeSemanticsWindowOps, FilterOps, GraphView, InnerFilterOps,
+    db::api::view::internal::{
+        filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
+        filtered_node::NodeEdgeHistory,
+        time_semantics::{
+            event_semantics::EventSemantics,
+            filtered_edge::FilteredEdgeStorageOps,
+            filtered_node::FilteredNodeStorageOps,
+            time_semantics_ops::{NodeTimeSemanticsOps, NodeTimeSemanticsWindowOps},
         },
-        graph::views::layer_graph::LayeredGraph,
+        EdgeTimeSemanticsOps, EdgeTimeSemanticsWindowOps, FilterOps, GraphView, InnerFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -20,17 +17,16 @@ use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
+        properties::{prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
 };
 use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
-    layer_ids_with_static,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{iter, ops::Range, sync::Arc};
+use std::{iter, ops::Range};
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 fn alive_before<

@@ -21,12 +21,9 @@ use raphtory_api::core::{
     },
     storage::timeindex::EventTime,
 };
-use raphtory_storage::{
-    graph::{
-        edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
-    layer_ops::InternalLayerOps,
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 

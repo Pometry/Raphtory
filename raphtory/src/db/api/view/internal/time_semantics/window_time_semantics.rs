@@ -10,7 +10,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 use storage::EdgeEntryRef;
 
 #[derive(Clone, Debug)]

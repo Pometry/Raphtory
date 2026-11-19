@@ -1,11 +1,10 @@
-use std::{ops::Range, sync::Arc};
-
 use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerId, LayerIds, VID},
     Direction,
 };
 use raphtory_core::storage::timeindex::EventTime;
+use std::ops::Range;
 use storage::{
     api::nodes::NodeEntryOps, generic_time_ops::LayerIter,
     pages::node_store::SegmentLockedNodeEntry, Extension, NodeEntry, NodeEntryRef, NS,

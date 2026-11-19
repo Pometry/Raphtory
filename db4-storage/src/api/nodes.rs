@@ -4,7 +4,7 @@ use crate::{
     generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
     segments::node::segment::MemNodeSegment,
-    utils::{Iter2, Iter3, Iter4},
+    utils::{Iter3, Iter4},
     wal::LSN,
 };
 use itertools::Itertools;

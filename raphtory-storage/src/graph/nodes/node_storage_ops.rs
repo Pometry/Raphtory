@@ -13,7 +13,7 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
-use std::{borrow::Cow, iter, ops::Range, sync::Arc};
+use std::{borrow::Cow, iter, ops::Range};
 use storage::{api::nodes::NodeRefOps, generic_time_ops::LayerIter, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {

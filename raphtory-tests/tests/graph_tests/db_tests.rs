@@ -38,12 +38,12 @@ use raphtory_api::core::{
         time::{ParseTimeError, TryIntoTime, TryIntoTimeNeedsEventId},
     },
 };
-use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
+use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use raphtory_tests::{
     test_storage,
     utils::{
-        build_graph, build_graph_strat, EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture,
-        PropUpdatesFixture,
+        build_graph, build_graph_strat, prop, prop_type, EdgeFixture, EdgeUpdatesFixture,
+        GraphFixture, NodeFixture, PropUpdatesFixture,
     },
 };
 use rayon::{join, prelude::*};
@@ -1928,11 +1928,6 @@ fn check_node_edge_history_count() {
     assert_eq!(node.after(1).edge_history_count(), 1);
     assert_eq!(node.after(3).edge_history_count(), 0);
 }
-
-use raphtory_storage::{
-    graph::nodes::node_storage_ops::NodeStorageOps, mutation::addition_ops::GraphMutationOps,
-};
-use raphtory_tests::utils::{prop, prop_type};
 
 #[test]
 fn check_edge_history_on_multiple_shards() {
