@@ -1,6 +1,5 @@
 use super::{exported_columns_idx, select_columns, ChunkCollector, ExportTable};
 use crate::{
-    core::entities::edges::edge_ref::EdgeRef,
     db::{
         api::view::internal::GraphView,
         graph::{
@@ -48,15 +47,18 @@ where
         .collect();
     let columns = exported_columns_idx(&encoded, num_fixed, &EDGE_INTERNAL_COLS, &visible);
 
-    // the collection can only be iterated, so its edges are listed to split them into chunks
-    let edge_list = edges.iter().map(|edge| edge.edge).collect_vec();
     let collector = ChunkCollector::default();
-    encode_edge_rows(
-        graph,
-        edge_chunks(graph, &edge_list),
-        latest_only,
-        |_, chunk, _| Ok(collector.sink(chunk)),
-    )?;
+    {
+        // the collection can only be iterated, so its edges are collected and split into chunks;
+        // the list is only needed while encoding
+        let edge_list = edges.iter().collect_vec();
+        encode_edge_rows(
+            graph,
+            edge_chunks(&edge_list),
+            latest_only,
+            |_, chunk, _| Ok(collector.sink(chunk)),
+        )?;
+    }
     select_columns(
         &encoded,
         collector.into_batches(),
@@ -65,22 +67,14 @@ where
     )
 }
 
-/// Splits the edges of a collection on `graph` into chunks for parallel encoding.
+/// Splits the edges of a collection into chunks for parallel encoding.
 /// Chunks are numbered in the order of the collection, so rows come out in that order.
 fn edge_chunks<'a, G: GraphView>(
-    graph: &'a G,
-    edges: &'a [EdgeRef],
+    edges: &'a [EdgeView<&'a G>],
 ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = EdgeView<&'a G>> + Send + 'a)> + 'a {
     let chunk_size = (edges.len() / rayon::current_num_threads().max(1)).max(1);
     edges
         .par_chunks(chunk_size)
         .enumerate()
-        .map(move |(chunk, edges)| {
-            (
-                chunk,
-                edges
-                    .iter()
-                    .map(move |edge| EdgeView::new_filtered(graph, *edge)),
-            )
-        })
+        .map(|(chunk, edges)| (chunk, edges.iter().copied()))
 }
