@@ -149,16 +149,15 @@ impl NodeTimeSemanticsOps for MultiWindowTimeSemantics {
         })
     }
 
-    fn node_updates<'graph, G: GraphView + 'graph>(
+    fn node_updates<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         let semantics = self.semantics;
-        self.ranges().flat_map(move |w| {
-            semantics.node_updates_window(node, view.clone(), w, prop_ids.clone())
-        })
+        self.ranges()
+            .flat_map(move |w| semantics.node_updates_window(node, w, layer_ids, prop_ids))
     }
 
     fn node_valid<'graph, G: GraphView + 'graph>(

@@ -85,13 +85,13 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         for_all_iter!(self, semantics => semantics.node_history_rev(node, view, layer_ids))
     }
 
-    fn node_updates<'graph, G: GraphView + 'graph>(
+    fn node_updates<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates(node, view, prop_ids))
+        for_all_iter!(self, semantics => semantics.node_updates(node, layer_ids, prop_ids))
     }
 
     fn node_valid<'graph, G: GraphView + 'graph>(

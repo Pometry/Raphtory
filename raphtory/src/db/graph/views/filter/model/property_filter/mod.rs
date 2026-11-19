@@ -21,9 +21,12 @@ use raphtory_api::core::{
     },
     storage::timeindex::EventTime,
 };
-use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+use raphtory_storage::{
+    graph::{
+        edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
+    layer_ops::InternalLayerOps,
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
@@ -289,10 +292,10 @@ impl<M> PropertyFilter<M> {
                 {
                     let semantics = graph.node_time_semantics();
                     let core_node = graph.core_node(node_view.node);
-                    let prop_ids: Arc<[usize]> = graph.node_visible_temporal_prop_ids().collect();
+                    let prop_ids: Box<[usize]> = graph.node_visible_temporal_prop_ids().collect();
 
                     let node_update_count = semantics
-                        .node_updates(core_node.as_ref(), graph, prop_ids)
+                        .node_updates(core_node.as_ref(), graph.layer_ids(), &prop_ids)
                         .count();
                     let prop_time_count = seq.len();
 

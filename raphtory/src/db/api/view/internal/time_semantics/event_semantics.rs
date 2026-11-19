@@ -137,14 +137,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.edge_history(view, layer_ids).history_rev()
     }
 
-    fn node_updates<'graph, G: GraphView + 'graph>(
+    fn node_updates<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        _view: G,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows(prop_ids)
-            .map(|(t, l, row)| (t, LayerId(l), row))
+        node.layer_ids_iter(layer_ids).flat_map(move |layer_id| {
+            node.temp_prop_rows(prop_ids, layer_id)
+                .map(move |(t, row)| (t, layer_id, row))
+        })
     }
 
     #[inline]
@@ -291,15 +293,17 @@ impl NodeTimeSemanticsWindowOps for EventSemantics {
         node.edge_history(view, layer_ids).range(w).history_rev()
     }
 
-    fn node_updates_window<'graph, G: GraphView + 'graph>(
+    fn node_updates_window<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        _view: G,
         w: Range<EventTime>,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_range(Some(w), prop_ids)
-            .map(|(t, l, row)| (t, LayerId(l), row))
+        node.layer_ids_iter(layer_ids).flat_map(move |layer_id| {
+            node.temp_prop_rows_range(Some(w.clone()), prop_ids, layer_id)
+                .map(move |(t, row)| (t, layer_id, row))
+        })
     }
 
     fn node_valid_window<'graph, G: GraphView + 'graph>(

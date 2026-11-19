@@ -93,9 +93,10 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        self.as_ref().temp_prop_rows_range(w, prop_ids)
+        prop_ids: &'a [usize],
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + 'a {
+        self.as_ref().temp_prop_rows_range(w, prop_ids, layer_id)
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {

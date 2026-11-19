@@ -1235,13 +1235,11 @@ fn temporal_node_rows_nodes() {
             .unwrap()
             .node,
     ];
-    let prop_ids: Arc<[usize]> = graph.node_meta().temporal_prop_mapper().ids().collect();
     for (id, n) in nodes.into_iter().enumerate() {
-        let actual = graph
-            .core_graph()
-            .nodes()
+        let actual = (&graph)
             .node(n)
-            .temp_prop_rows(prop_ids.clone())
+            .unwrap()
+            .rows()
             .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
@@ -1266,32 +1264,28 @@ fn temporal_node_rows_window() {
         .add_node(2, 1, [("cool".to_string(), Prop::U64(3))], None, None)
         .unwrap();
 
-    test_storage!(&graph, |graph| {
-        let prop_ids: Arc<[usize]> = graph.node_meta().temporal_prop_mapper().ids().collect();
-        let get_rows = |vid: VID, range: Range<EventTime>| {
-            graph
-                .core_graph()
-                .nodes()
-                .node(vid)
-                .temp_prop_rows_range(Some(range), prop_ids.clone())
-                .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
-                .collect::<Vec<_>>()
-        };
-        let actual = get_rows(VID(0), EventTime::new(2, 0)..EventTime::new(3, 0));
+    let get_rows = |vid: VID, range: Range<EventTime>| {
+        let view = graph.window(range.start, range.end);
+        view.node(vid)
+            .unwrap()
+            .rows()
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
+    };
+    let actual = get_rows(VID(0), EventTime::new(2, 0)..EventTime::new(3, 0));
 
-        let expected = vec![(EventTime::new(2, 2), vec![Prop::U64(3)])];
+    let expected = vec![(EventTime::new(2, 2), vec![Prop::U64(3)])];
 
-        assert_eq!(actual, expected);
+    assert_eq!(actual, expected);
 
-        let actual = get_rows(VID(0), EventTime::new(0, 0)..EventTime::new(3, 0));
-        let expected = vec![
-            (EventTime::new(0, 0), vec![Prop::U64(1)]),
-            (EventTime::new(1, 1), vec![Prop::U64(2)]),
-            (EventTime::new(2, 2), vec![Prop::U64(3)]),
-        ];
+    let actual = get_rows(VID(0), EventTime::new(0, 0)..EventTime::new(3, 0));
+    let expected = vec![
+        (EventTime::new(0, 0), vec![Prop::U64(1)]),
+        (EventTime::new(1, 1), vec![Prop::U64(2)]),
+        (EventTime::new(2, 2), vec![Prop::U64(3)]),
+    ];
 
-        assert_eq!(actual, expected);
-    });
+    assert_eq!(actual, expected);
 }
 
 #[test]

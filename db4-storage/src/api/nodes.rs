@@ -462,60 +462,9 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     fn temp_prop_rows(
         self,
         w: Option<Range<EventTime>>,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> + 'a {
-        (0..self.internal_num_layers()).flat_map(move |layer_id| {
-            let w = w.clone();
-            let prop_ids = Arc::clone(&prop_ids);
-            let additions = self.node_additions(layer_id);
-            let additions = w
-                .clone()
-                .map(|w| Iter2::I1(additions.range(w).iter()))
-                .unwrap_or_else(|| Iter2::I2(additions.iter()));
-
-            let mut time_ordered_iter = prop_ids
-                .iter()
-                .copied()
-                .map(move |prop_id| {
-                    self.temporal_prop_layer(LayerId(layer_id), prop_id)
-                        .iter_inner(w.clone())
-                        .map(move |(t, prop)| (t, (prop_id, prop)))
-                })
-                .kmerge_by(|(t1, (p_id1, _)), (t2, (p_id2, _))| (t1, p_id1) < (t2, p_id2))
-                .merge_join_by(additions, |(t1, _), t2| t1 <= t2)
-                .map(move |result| match result {
-                    either::Either::Left((l, (prop_id, prop))) => (l, Some((prop_id, prop))),
-                    either::Either::Right(r) => (r, None),
-                });
-
-            let mut done = false;
-            if let Some((mut current_time, maybe_prop)) = time_ordered_iter.next() {
-                let mut current_row = Vec::from_iter(maybe_prop);
-                Iter2::I2(std::iter::from_fn(move || {
-                    if done {
-                        return None;
-                    }
-                    for (t, maybe_prop) in time_ordered_iter.by_ref() {
-                        if t == current_time {
-                            current_row.extend(maybe_prop);
-                        } else {
-                            let mut row = std::mem::take(&mut current_row);
-                            row.sort_unstable_by_key(|(a, _)| *a);
-                            let out = Some((current_time, layer_id, row));
-                            current_row.extend(maybe_prop);
-                            current_time = t;
-                            return out;
-                        }
-                    }
-                    done = true;
-                    let row = std::mem::take(&mut current_row);
-                    Some((current_time, layer_id, row))
-                }))
-            } else {
-                Iter2::I1(std::iter::empty())
-            }
-        })
-    }
+        prop_ids: &'a [usize],
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + 'a;
 
     fn out_nbrs(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
@@ -582,4 +531,14 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     fn internal_num_layers(&self) -> usize;
 
     fn has_layer_inner(self, layer_id: LayerId) -> bool;
+
+    fn layer_ids_iter<L: Into<LayerIter<'a>>>(
+        self,
+        layer_ids: L,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        layer_ids
+            .into()
+            .into_iter_with_static(self.internal_num_layers())
+            .filter(move |layer| self.has_layer_inner(*layer))
+    }
 }

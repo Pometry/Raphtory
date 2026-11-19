@@ -106,14 +106,14 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn node_updates<'graph, G: GraphView + 'graph>(
+    fn node_updates<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         self.semantics
-            .node_updates_window(node, view, self.window.clone(), prop_ids)
+            .node_updates_window(node, self.window.clone(), layer_ids, prop_ids)
     }
 
     #[inline]
