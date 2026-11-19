@@ -21,6 +21,7 @@ impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
     }
 
     pub fn notify_write(&mut self) {
+        self.index.set_est_size_cached(self.head.est_size());
         self.index.notify_write(Some(self.head.deref_mut()))
     }
 

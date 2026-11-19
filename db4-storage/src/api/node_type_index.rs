@@ -29,7 +29,11 @@ where
     /// Returns `true` if the index has no `(type_id, VID)` entries.
     fn is_empty(&self) -> bool;
 
+    /// The size of `head` in bytes, cached so it can be read without locking.
     fn est_size_cached(&self) -> usize;
+
+    /// Cache the size of `head` to `size` in bytes.
+    fn set_est_size_cached(&self, size: usize);
 
     fn is_dirty(&self) -> bool;
 

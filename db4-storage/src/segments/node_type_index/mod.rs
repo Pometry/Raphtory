@@ -71,9 +71,12 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head_shared_arc().is_empty()
     }
 
-    /// The cached memory size of `head` in bytes.
     fn est_size_cached(&self) -> usize {
         self.est_size_cached.load(Ordering::Relaxed)
+    }
+
+    fn set_est_size_cached(&self, size: usize) {
+        self.est_size_cached.store(size, Ordering::Relaxed);
     }
 
     fn is_dirty(&self) -> bool {
@@ -84,14 +87,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.is_dirty.store(dirty, Ordering::Release);
     }
 
-    fn notify_write(&self, head: Option<impl DerefMut<Target = MemNodeTypeIndex>>) {
-        let est_size = match &head {
-            Some(head) => head.est_size(),
-            None => self.head_shared_arc().est_size(),
-        };
-
-        self.est_size_cached.store(est_size, Ordering::Relaxed);
-    }
+    fn notify_write(&self, _head: Option<impl DerefMut<Target = MemNodeTypeIndex>>) {}
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
         let head = self.head_exclusive_arc();

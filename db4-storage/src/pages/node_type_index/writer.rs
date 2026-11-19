@@ -33,6 +33,7 @@ impl<'a, NTI: NodeTypeIndexOps> Drop for NodeTypeIndexWriter<'a, NTI> {
     fn drop(&mut self) {
         let delta = self.head.est_size() - self.initial_est_size;
         self.head.increment_global_memory_tracker(delta);
+        self.index.set_est_size_cached(self.head.est_size());
 
         self.index.set_dirty(true);
         self.index
