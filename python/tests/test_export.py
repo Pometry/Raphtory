@@ -1050,56 +1050,6 @@ def test_networkx_no_history():
     compare_list_of_dicts(edgeList, resultList)
 
 
-def save_df_to_json(df, filename):
-    df.to_json(filename)
-    # Below is if you want to pretty print the json
-    # json_str = df.to_json()
-    # parsed = json.loads(json_str)
-    # with open(filename, "w") as f:
-    #    json.dump(parsed, f, indent=4)
-
-
-# DO NOT RUN UNLESS RECREATING THE OUTPUT
-def build_to_df():
-    g = build_graph()
-
-    edge_df = g.edges.to_df()
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_all.json")
-    edge_df = g.edges.to_df(include_property_history=False)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_props.json")
-    edge_df = g.edges.to_df(explode=False)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_explode.json")
-    edge_df = g.edges.to_df(convert_datetime=False)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_datetime.json")
-
-    edge_df = g.edges.to_df(explode=True)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode.json")
-    edge_df = g.edges.to_df(explode=True, convert_datetime=True)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode_datetime.json")
-    edge_df = g.edges.to_df(explode=True, include_property_history=True)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode_no_hist.json")
-
-
-def jsonify_df(df):
-    """
-    normalises data frame using json with sorted keys to enable order-invariant comparison of rows between data frames
-    """
-    lines = []
-    for _, row in df.iterrows():
-        values = sorted(zip(df.columns, (normalise_dict(v) for v in row)))
-        lines.append(values)
-    lines.sort()
-    return lines
-
-
-def compare_df(df1, df2):
-    # Have to do this way due to the number of maps inside the dataframes
-    # Comparison is invariant to the order of rows and columns
-    s1 = jsonify_df(df1)
-    s2 = jsonify_df(df2)
-    assert s1 == s2
-
-
 def normalise_dict(d):
     s = json.dumps(
         d,
@@ -1113,52 +1063,6 @@ def normalise_dict(d):
 def compare_list_of_dicts(list1, list2):
     assert sorted(normalise_dict(v) for v in list1) == sorted(
         normalise_dict(v) for v in list2
-    )
-
-
-def test_to_df():
-    g = build_graph()
-
-    compare_df(
-        g.edges.to_df(),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_all.json"),
-    )
-
-    compare_df(
-        g.edges.to_df(include_property_history=False),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_props.json"),
-    )
-
-    compare_df(
-        g.edges.to_df(explode=False),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_explode.json"),
-    )
-
-    compare_df(
-        g.edges.to_df(convert_datetime=False),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_datetime.json"),
-    )
-
-    compare_df(
-        g.edges.to_df(explode=True),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode.json"),
-    )
-
-    compare_df(
-        g.edges.explode().to_df(),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode.json"),
-    )
-
-    # compare_df(
-    #     g.edges.to_df(explode=True, convert_datetime=True),
-    #     pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode_datetime.json")
-    # )
-
-    compare_df(
-        g.edges.to_df(explode=True, include_property_history=True),
-        pd.read_json(
-            base_dir / "expected/dataframe_output/edge_df_explode_no_hist.json"
-        ),
     )
 
 
@@ -1254,7 +1158,9 @@ def test_nodes_to_df_latest_follows_the_layers():
         for node, value in zip(df["rap_node_gid"], df["x"])
         if not pd.isna(value)
     }
-    assert values == dict(zip(view.nodes.id, view.nodes.properties.temporal.get("x").value()))
+    assert values == dict(
+        zip(view.nodes.id, view.nodes.properties.temporal.get("x").value())
+    )
 
 
 def test_nodes_to_df_latest_persistent_window():
@@ -1432,4 +1338,243 @@ def test_nodes_text_columns_are_strings():
     updates, metadata = g.nodes.to_df()
     str(updates), str(metadata)
     assert list(updates[updates["s"] == "up"]["rap_node_gid"]) == ["a"]
+    assert list(updates.sort_values("s")["s"]) == ["down", "up"]
+
+
+def build_edge_update_graph():
+    g = Graph()
+    g.add_edge(1, "a", "b", properties={"w": 1})
+    g.add_edge(2, "a", "b", properties={"label": "up"})
+    g.add_edge(3, "b", "c")
+    g.add_edge(4, "b", "c", properties={"w": 7}, layer="maintenance")
+    return g
+
+
+def edge_rows(df):
+    """The rows of an edge update DataFrame without event ids, sorted by edge and time."""
+    return sorted(
+        cells(df.drop(columns="rap_secondary_index")),
+        key=lambda row: (row[1], row[2], row[0]),
+    )
+
+
+EDGE_UPDATE = [
+    "rap_time",
+    "rap_secondary_index",
+    "rap_src_gid",
+    "rap_dst_gid",
+    "rap_layer",
+]
+
+
+def test_edges_to_df():
+    g = build_edge_update_graph()
+    g.add_edge(5, "a", "b", properties={"w": 2})  # replaces a->b's w from time 1
+    df = g.edges.to_df()
+    history = g.edges.to_df(include_property_history=True)
+
+    assert list(df.columns) == list(history.columns)
+    # only the updates that hold a property's latest value, each with just those properties
+    assert edge_rows(df) == [
+        (2, "a", "b", "_default", None, "up"),
+        (5, "a", "b", "_default", 2, None),
+        (4, "b", "c", "maintenance", 7, None),
+    ]
+    # each row is an update from the history, with the same time, event id and layer
+    assert set(cells(df[EDGE_UPDATE])) <= set(cells(history[EDGE_UPDATE]))
+    # rows are grouped by edge, in edge order
+    edges = list(zip(df["rap_src_gid"], df["rap_dst_gid"]))
+    assert list(dict.fromkeys(edges)) == [edge for edge in g.edges.id if edge in edges]
+    # the values are the latest values the properties API reports
+    for name in ["w", "label"]:
+        values = {
+            edge: value for edge, value in zip(edges, df[name]) if not pd.isna(value)
+        }
+        latest = g.edges.properties.temporal.get(name).value()
+        assert values == {
+            edge: value for edge, value in zip(g.edges.id, latest) if value is not None
+        }
+    # an integer property keeps its type even though some rows leave it empty
+    assert str(df["w"].dtype) == "int64[pyarrow]"
+    df = g.edges.to_df(convert_datetime=True)
+    assert str(df["rap_time"].dtype) == "timestamp[ms, tz=UTC][pyarrow]"
+
+
+def test_edges_to_df_latest_follows_the_view():
+    df = build_edge_update_graph().window(0, 4).edges.to_df()
+
+    # b->c's update at time 4 is outside the window, and its update at time 3 sets no property
+    assert edge_rows(df) == [
+        (1, "a", "b", "_default", 1, None),
+        (2, "a", "b", "_default", None, "up"),
+    ]
+
+
+def test_edges_to_df_latest_follows_the_layers():
+    g = build_edge_update_graph()
+    g.add_edge(5, "b", "c", properties={"w": 9}, layer="other")
+    view = g.layers(["_default", "maintenance"])
+    df = view.edges.to_df()
+
+    # b->c's update on the "other" layer is outside the view
+    assert edge_rows(df) == [
+        (1, "a", "b", "_default", 1, None),
+        (2, "a", "b", "_default", None, "up"),
+        (4, "b", "c", "maintenance", 7, None),
+    ]
+    edges = zip(df["rap_src_gid"], df["rap_dst_gid"])
+    values = {edge: value for edge, value in zip(edges, df["w"]) if not pd.isna(value)}
+    assert values == dict(
+        zip(view.edges.id, view.edges.properties.temporal.get("w").value())
+    )
+
+    # with the layers exploded, each layer of an edge has its own latest values
+    df = g.edges.explode_layers().to_df()
+    assert edge_rows(df) == [
+        (1, "a", "b", "_default", 1, None),
+        (2, "a", "b", "_default", None, "up"),
+        (4, "b", "c", "maintenance", 7, None),
+        (5, "b", "c", "other", 9, None),
+    ]
+
+
+def test_edges_to_df_latest_persistent_window():
+    g = PersistentGraph()
+    g.add_edge(1, "a", "b", properties={"w": 1}, layer="x")
+    g.add_edge(2, "a", "b", properties={"w": 2}, layer="y")
+    g.add_edge(3, "a", "b", properties={"label": "up"})
+    g.add_edge(6, "a", "b", properties={"label": "down"})
+    view = g.window(4, 10)
+    df = view.edges.to_df()
+
+    # w was last set on layer "y" before the window, so it is seen at the start of the window
+    assert edge_rows(df) == [
+        (4, "a", "b", "y", 2, None),
+        (6, "a", "b", "_default", None, "down"),
+    ]
+    assert view.edges.properties.temporal.get("w").value() == [2]
+    history = view.edges.to_df(include_property_history=True)
+    assert set(cells(df[EDGE_UPDATE])) <= set(cells(history[EDGE_UPDATE]))
+
+
+def test_edges_to_df_history():
+    df = build_edge_update_graph().edges.to_df(include_property_history=True)
+
+    assert list(df.columns) == [
+        "rap_time",
+        "rap_secondary_index",
+        "rap_src_gid",
+        "rap_dst_gid",
+        "rap_layer",
+        "w",
+        "label",
+    ]
+    assert edge_rows(df) == [
+        (1, "a", "b", "_default", 1, None),
+        (2, "a", "b", "_default", None, "up"),
+        (3, "b", "c", "_default", None, None),
+        (4, "b", "c", "maintenance", 7, None),
+    ]
+    event_ids = df["rap_secondary_index"]
+    assert event_ids.notna().all() and event_ids.is_unique
+    # an integer property keeps its type even though some updates leave it empty
+    assert str(df["w"].dtype) == "int64[pyarrow]"
+
+
+def test_edges_to_df_history_convert_datetime():
+    df = build_edge_update_graph().edges.to_df(
+        include_property_history=True, convert_datetime=True
+    )
+
+    assert str(df["rap_time"].dtype) == "timestamp[ms, tz=UTC][pyarrow]"
+    assert sorted(df["rap_time"]) == [
+        datetime(1970, 1, 1, microsecond=t * 1000, tzinfo=utc) for t in [1, 2, 3, 4]
+    ]
+
+
+def test_edges_to_df_history_follows_the_view():
+    g = build_edge_update_graph()
+
+    df = g.window(2, 4).edges.to_df(include_property_history=True)
+    assert sorted(zip(df["rap_src_gid"], df["rap_dst_gid"], df["rap_time"])) == [
+        ("a", "b", 2),
+        ("b", "c", 3),
+    ]
+
+    df = g.node("a").out_edges.to_df(include_property_history=True)
+    assert set(zip(df["rap_src_gid"], df["rap_dst_gid"])) == {("a", "b")}
+
+
+def test_edges_to_df_exploded_edges():
+    edges = build_edge_update_graph().edges
+
+    # an exploded edge is a single update, so it has the same rows as the edges it came from
+    history = edges.to_df(include_property_history=True)
+    assert edge_rows(edges.explode().to_df(include_property_history=True)) == edge_rows(
+        history
+    )
+    assert edge_rows(edges.explode_layers().to_df(include_property_history=True)) == (
+        edge_rows(history)
+    )
+
+
+def load_edge_table(updates):
+    """A graph built from the edge table returned by `to_df` or `to_arrow`."""
+    g = Graph()
+    g.load_edges(
+        updates,
+        time="rap_time",
+        src="rap_src_gid",
+        dst="rap_dst_gid",
+        event_id="rap_secondary_index",
+        layer_col="rap_layer",
+        properties=["w", "label"],
+    )
+    return g
+
+
+def test_edges_to_df_round_trip():
+    updates = build_edge_update_graph().edges.to_df(include_property_history=True)
+
+    loaded = load_edge_table(updates).edges
+    assert edge_rows(loaded.to_df(include_property_history=True)) == edge_rows(updates)
+
+
+def test_edges_to_arrow():
+    edges = build_edge_update_graph().edges
+
+    for include_property_history in [False, True]:
+        table = edges.to_arrow(include_property_history=include_property_history)
+        df = edges.to_df(include_property_history=include_property_history)
+        assert isinstance(table, pa.Table)
+        assert table.to_pandas(types_mapper=pd.ArrowDtype).equals(df)
+
+    updates = edges.to_arrow(include_property_history=True)
+    assert updates.schema.field("rap_time").type == pa.int64()
+    assert updates.schema.field("w").type == pa.int64()
+    table = edges.to_arrow(include_property_history=True, convert_datetime=True)
+    assert table.schema.field("rap_time").type == pa.timestamp("ms", tz="UTC")
+    # the table loads back into a graph without going through pandas
+    loaded = load_edge_table(updates).edges
+    assert edge_rows(loaded.to_df(include_property_history=True)) == edge_rows(
+        edges.to_df(include_property_history=True)
+    )
+
+
+def test_edges_text_columns_are_strings():
+    g = Graph()
+    g.add_edge(1, "a", "b", properties={"s": "up", "ls": ["x", "y"], "m": {"k": "v"}})
+    g.add_edge(2, "b", "c", properties={"s": "down"})
+    updates = g.edges.to_arrow()
+
+    # string views are converted, nested ones included, since pandas and pyarrow can't
+    # filter, sort or print them right now
+    assert updates.schema.field("s").type == pa.string()
+    assert updates.schema.field("ls").type == pa.large_list(pa.string())
+    assert updates.schema.field("m").type == pa.struct([("k", pa.string())])
+    assert updates.filter(pa.compute.equal(updates["s"], "up")).num_rows == 1
+
+    updates = g.edges.to_df()
+    str(updates)
+    assert list(updates[updates["s"] == "up"]["rap_src_gid"]) == ["a"]
     assert list(updates.sort_values("s")["s"]) == ["down", "up"]

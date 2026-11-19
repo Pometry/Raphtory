@@ -542,13 +542,13 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
     }
 
     #[inline]
-    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+    fn temporal_edge_prop_last_with_layer<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<Prop> {
-        for_all!(self, semantics => semantics.temporal_edge_prop_last(e, view, prop_id))
+    ) -> Option<(EventTime, LayerId, Prop)> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_last_with_layer(e, view, prop_id))
     }
 
     #[inline]
@@ -832,14 +832,14 @@ impl EdgeTimeSemanticsWindowOps for BaseTimeSemantics {
     }
 
     #[inline]
-    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+    fn temporal_edge_prop_last_with_layer_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<EventTime>,
-    ) -> Option<Prop> {
-        for_all!(self, semantics => semantics.temporal_edge_prop_last_window(e, view, prop_id, w))
+    ) -> Option<(EventTime, LayerId, Prop)> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_last_with_layer_window(e, view, prop_id, w))
     }
 
     #[inline]

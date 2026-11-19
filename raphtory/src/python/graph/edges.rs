@@ -1,5 +1,4 @@
 use crate::{
-    api::core::storage::timeindex::AsTime,
     db::{
         api::view::{
             DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
@@ -10,6 +9,7 @@ use crate::{
         },
     },
     errors::GraphError,
+    export::edge_updates,
     prelude::*,
     python::{
         filter::filter_expr::PyFilterExpr,
@@ -27,14 +27,10 @@ use crate::{
                 NestedOptionEventTimeIterable, OptionEventTimeIterable,
             },
         },
-        utils::export::{create_row, extract_properties, get_column_names_from_props},
     },
 };
-use pyo3::{prelude::*, types::PyDict, Py, PyAny};
-use raphtory_api::core::storage::arc_str::ArcStr;
-use raphtory_storage::core_ops::CoreGraphOps;
-use rayon::{iter::IntoParallelIterator, prelude::*};
-use std::collections::HashMap;
+use pyo3::{prelude::*, types::PyDict, PyAny};
+use pyo3_arrow::PyTable;
 
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges", module = "raphtory", frozen)]
@@ -86,6 +82,20 @@ where
         Self {
             edges: value.into_dyn().into(),
         }
+    }
+}
+
+impl PyEdges {
+    /// The edge update table of these edges as a pyarrow Table.
+    fn update_table<'py>(
+        &self,
+        py: Python<'py>,
+        include_property_history: bool,
+        convert_datetime: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let updates =
+            py.detach(|| edge_updates(&self.edges, !include_property_history, convert_datetime))?;
+        PyTable::try_new(updates.batches, updates.schema)?.into_pyarrow(py)
     }
 }
 
@@ -255,99 +265,65 @@ impl PyEdges {
         (move || edges.layer_names()).into()
     }
 
-    /// Converts the graph's edges into a Pandas DataFrame.
+    /// Converts the edges into a pandas DataFrame of their updates, with one row per update.
     ///
-    /// This method will create a DataFrame with the following columns:
-    /// - "src": The source node of the edge.
-    /// - "dst": The destination node of the edge.
-    /// - "layer": The layer of the edge.
-    /// - "properties": The properties of the edge.
-    /// - "update_history": The update history of the edge. This column will be included if `include_update_history` is set to `true`.
+    /// The DataFrame has the following columns:
+    /// - "rap_time": the time of the update, in milliseconds since the epoch.
+    /// - "rap_secondary_index": the event id of the update, which orders updates made at the same timestamp.
+    /// - "rap_src_gid": the id of the source node, an integer or a string depending on the graph.
+    /// - "rap_dst_gid": the id of the destination node, an integer or a string depending on the graph.
+    /// - "rap_layer": the layer of the update.
+    ///
+    /// These are followed by one column per temporal property. A cell is empty when the update did
+    /// not set that property. By default, only the updates that hold the latest value of a property are included.
+    ///
+    /// Columns use pyarrow-backed dtypes, so integer columns with empty cells keep their type.
     ///
     /// Args:
-    ///     include_property_history (bool): A boolean, if set to `True`, the history of each property is included, if `False`, only the latest value is shown. Ignored if exploded. Defaults to True.
-    ///     convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
-    ///     explode (bool): A boolean, if set to `True`, will explode each edge update into its own row. Defaults to False.
+    ///     include_property_history (bool): If True, include every update instead of only the updates that hold a property's latest value. Defaults to False.
+    ///     convert_datetime (bool): If True, the "rap_time" column holds UTC datetimes instead of milliseconds. Defaults to False.
     ///
     /// Returns:
-    ///     DataFrame: If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (include_property_history = true, convert_datetime = false, explode = false))]
-    pub fn to_df(
+    ///     DataFrame: the edge updates as a pandas DataFrame.
+    #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
+    pub fn to_df<'py>(
         &self,
+        py: Python<'py>,
         include_property_history: bool,
         convert_datetime: bool,
-        mut explode: bool,
-    ) -> PyResult<Py<PyAny>> {
-        let mut column_names = vec![
-            String::from("src"),
-            String::from("dst"),
-            String::from("layer"),
-        ];
-        let edge_meta = self.edges.base_graph.edge_meta();
-        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let updates = self.update_table(py, include_property_history, convert_datetime)?;
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("types_mapper", py.import("pandas")?.getattr("ArrowDtype")?)?;
+        updates.call_method("to_pandas", (), Some(&kwargs))
+    }
 
-        let mut edges = self.edges.explode_layers();
-        if explode {
-            edges = self.edges.explode_layers().explode();
-        }
-
-        explode = explode
-            || edges
-                .iter()
-                .next()
-                .filter(|e| e.edge.time().is_some())
-                .is_some();
-
-        let edge_tuples: Vec<_> = edges
-            .collect()
-            .into_par_iter()
-            .flat_map(|item| {
-                let mut properties_map: HashMap<String, Prop> = HashMap::new();
-                let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
-
-                extract_properties(
-                    include_property_history,
-                    convert_datetime,
-                    explode,
-                    &column_names,
-                    &is_prop_both_temp_and_const,
-                    &item.properties(),
-                    &item.metadata(),
-                    &mut properties_map,
-                    &mut prop_time_dict,
-                    item.start().map(|t| t.t()).unwrap_or(0),
-                );
-
-                let row_header: Vec<Prop> = vec![
-                    Prop::Str(item.src().name().into()),
-                    Prop::Str(item.dst().name().into()),
-                    Prop::from(item.layer_name().unwrap_or(ArcStr::from(""))),
-                ];
-
-                let start_point = 3;
-                let history = item.history().t().collect();
-
-                create_row(
-                    convert_datetime,
-                    explode,
-                    &column_names,
-                    properties_map,
-                    prop_time_dict,
-                    row_header,
-                    start_point,
-                    history,
-                )
-            })
-            .collect();
-
-        Python::attach(|py| {
-            let pandas = PyModule::import(py, "pandas")?;
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("columns", column_names)?;
-            Ok(pandas
-                .call_method("DataFrame", (edge_tuples,), Some(&kwargs))?
-                .unbind())
-        })
+    /// Converts the edges into a pyarrow Table of their updates, with one row per update.
+    ///
+    /// The Table has the following columns:
+    /// - "rap_time": the time of the update, in milliseconds since the epoch.
+    /// - "rap_secondary_index": the event id of the update, which orders updates made at the same time.
+    /// - "rap_src_gid": the id of the source node, an integer or a string depending on the graph.
+    /// - "rap_dst_gid": the id of the destination node, an integer or a string depending on the graph.
+    /// - "rap_layer": the layer of the update.
+    ///
+    /// These are followed by one column per temporal property. A cell is empty when the update did
+    /// not set that property. By default, only the updates that hold the latest value of a property are included.
+    ///
+    /// Args:
+    ///     include_property_history (bool): If True, include every update instead of only the updates that hold a property's latest value. Defaults to False.
+    ///     convert_datetime (bool): If True, the "rap_time" column holds UTC datetimes instead of milliseconds. Defaults to False.
+    ///
+    /// Returns:
+    ///     pyarrow.Table: the edge updates as a pyarrow Table.
+    #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
+    pub fn to_arrow<'py>(
+        &self,
+        py: Python<'py>,
+        include_property_history: bool,
+        convert_datetime: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.update_table(py, include_property_history, convert_datetime)
     }
 }
 

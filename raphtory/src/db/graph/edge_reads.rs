@@ -74,20 +74,30 @@ pub(crate) fn temporal_value<G: GraphView>(
     at: EdgeAt,
     id: usize,
 ) -> Option<Prop> {
+    temporal_last(graph, edge, at, id).map(|(_, _, value)| value)
+}
+
+/// The latest value of temporal property `id`, with the time and the layer of the update that set it.
+pub(crate) fn temporal_last<G: GraphView>(
+    graph: &G,
+    edge: EdgeEntryRef,
+    at: EdgeAt,
+    id: usize,
+) -> Option<(EventTime, LayerId, Prop)> {
     if !at.visible(graph) {
         return None;
     }
     let time_semantics = graph.edge_time_semantics();
     match at {
-        EdgeAt::Whole => time_semantics.temporal_edge_prop_last(edge, graph, id),
-        EdgeAt::Layer(layer) => time_semantics.temporal_edge_prop_last(
+        EdgeAt::Whole => time_semantics.temporal_edge_prop_last_with_layer(edge, graph, id),
+        EdgeAt::Layer(layer) => time_semantics.temporal_edge_prop_last_with_layer(
             edge,
             LayeredGraph::new(graph, LayerIds::One(layer)),
             id,
         ),
-        EdgeAt::Exploded(layer, t) => {
-            time_semantics.temporal_edge_prop_exploded(edge, graph, id, t, layer)
-        }
+        EdgeAt::Exploded(layer, t) => time_semantics
+            .temporal_edge_prop_exploded(edge, graph, id, t, layer)
+            .map(|value| (t, layer, value)),
     }
 }
 

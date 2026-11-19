@@ -430,14 +430,18 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+    fn temporal_edge_prop_last_with_layer<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<Prop> {
-        self.semantics
-            .temporal_edge_prop_last_window(e, view, prop_id, self.window.clone())
+    ) -> Option<(EventTime, LayerId, Prop)> {
+        self.semantics.temporal_edge_prop_last_with_layer_window(
+            e,
+            view,
+            prop_id,
+            self.window.clone(),
+        )
     }
 
     #[inline]

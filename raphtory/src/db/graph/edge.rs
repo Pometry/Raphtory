@@ -28,6 +28,7 @@ use crate::{
         graph::{
             edge_reads::{self, EdgeAt},
             edges::{Edges, ExplodedEdges},
+            merge_latest_prop_rows,
             node::NodeView,
             views::layer_graph::LayeredGraph,
         },
@@ -111,9 +112,29 @@ impl<G: IntoDynamic> EdgeView<G> {
     }
 }
 
+/// A single edge update: its time, layer and the `(prop id, value)` pairs of the update.
+pub type EdgeUpdateRow = (EventTime, LayerId, Vec<(usize, Prop)>);
+
 impl<G: GraphView> EdgeView<G> {
     pub(crate) fn new_filtered(graph: G, edge: EdgeRef) -> Self {
         Self { graph, edge }
+    }
+
+    /// The updates that set the latest value of a temporal property, each with just the properties
+    /// whose latest value it set, in time order. Each is an update of [`explode`](EdgeViewOps::explode).
+    pub fn latest_rows(&self) -> impl Iterator<Item = EdgeUpdateRow> + Send + Sync {
+        let edge = self.graph.core_edge(Either::Right(self.edge));
+        let at = EdgeAt::of(self.edge);
+        let latest = self
+            .graph
+            .edge_visible_temporal_prop_ids()
+            .filter_map(|prop_id| {
+                let (t, layer_id, prop) =
+                    edge_reads::temporal_last(&self.graph, edge.as_ref(), at, prop_id)?;
+                Some(((t, layer_id), (prop_id, prop)))
+            })
+            .collect_vec();
+        merge_latest_prop_rows(latest)
     }
 
     pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, LayerId)> {

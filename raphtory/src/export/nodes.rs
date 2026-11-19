@@ -1,4 +1,4 @@
-use super::{select_columns, ChunkCollector, ExportTable};
+use super::{exported_columns_idx, select_columns, ChunkCollector, ExportTable};
 use crate::{
     core::entities::VID,
     db::{
@@ -15,11 +15,11 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use arrow::datatypes::Schema;
-use raphtory_api::core::storage::arc_str::ArcStr;
 use raphtory_storage::graph::graph::GraphStorage;
 use rayon::prelude::*;
-use std::collections::HashSet;
+
+/// The internal ids among the node encoders' fixed columns, which the exported tables leave out.
+const NODE_INTERNAL_COLS: [&str; 3] = [NODE_VID_COL, LAYER_ID_COL, TYPE_ID_COL];
 
 /// Builds the node update table of `nodes`: one row per update of each node, on its node layer.
 /// With `latest_only`, only the updates that hold the latest value of a property are kept, each with
@@ -47,7 +47,7 @@ where
         .node_visible_temporal_prop_ids()
         .filter_map(|id| graph.node_visible_temporal_prop_name(id))
         .collect();
-    let columns = exported_columns(&encoded, num_fixed, &visible);
+    let columns = exported_columns_idx(&encoded, num_fixed, &NODE_INTERNAL_COLS, &visible);
 
     let storage = nodes.base_graph.core_graph().lock();
     let index = nodes.node_list().into_index(&storage);
@@ -86,7 +86,7 @@ where
         .node_visible_metadata_ids()
         .filter_map(|id| graph.node_visible_metadata_name(id))
         .collect();
-    let columns = exported_columns(&encoded, num_fixed, &visible);
+    let columns = exported_columns_idx(&encoded, num_fixed, &NODE_INTERNAL_COLS, &visible);
 
     let storage = nodes.base_graph.core_graph().lock();
     let index = nodes.node_list().into_index(&storage);
@@ -97,21 +97,6 @@ where
         |_, chunk, _| Ok(collector.sink(chunk)),
     )?;
     select_columns(&encoded, collector.into_batches(), &columns, false)
-}
-
-/// The columns of the encoder schema `encoded` to export: its first `num_fixed` columns without
-/// the internal ids, followed by the properties named in `visible`.
-fn exported_columns(encoded: &Schema, num_fixed: usize, visible: &HashSet<ArcStr>) -> Vec<usize> {
-    (0..encoded.fields().len())
-        .filter(|&i| {
-            let name = encoded.field(i).name().as_str();
-            if i < num_fixed {
-                ![NODE_VID_COL, LAYER_ID_COL, TYPE_ID_COL].contains(&name)
-            } else {
-                visible.contains(name)
-            }
-        })
-        .collect()
 }
 
 /// Splits `nodes`, whose positions are given by `index`, into chunks for parallel encoding.

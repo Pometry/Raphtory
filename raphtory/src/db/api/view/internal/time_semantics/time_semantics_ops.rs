@@ -416,7 +416,19 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<Prop>;
+    ) -> Option<Prop> {
+        self.temporal_edge_prop_last_with_layer(e, view, prop_id)
+            .map(|(_, _, prop)| prop)
+    }
+
+    /// [`temporal_edge_prop_last`](Self::temporal_edge_prop_last), with the time and the layer of
+    /// the update that set the value.
+    fn temporal_edge_prop_last_with_layer<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, LayerId, Prop)>;
 
     /// Return property history of an edge in temporal order
     ///
@@ -679,13 +691,13 @@ pub trait EdgeTimeSemanticsWindowOps {
         w: Range<EventTime>,
     ) -> Option<Prop>;
 
-    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+    fn temporal_edge_prop_last_with_layer_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<EventTime>,
-    ) -> Option<Prop>;
+    ) -> Option<(EventTime, LayerId, Prop)>;
 
     /// Returns an Iterator of tuples containing the values of the temporal property with the given name
     /// for the given edge reference within the specified time window.

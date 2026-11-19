@@ -54,6 +54,9 @@ pub(crate) struct ParquetTEdge<'a, G: GraphView> {
     pub(crate) export_dst_id: GID,
     pub(crate) export_eid: EID,
     pub(crate) export_layer_id: Option<usize>,
+    /// The `(prop id, value)` pairs to write, if they have already been retrieved.
+    /// `None` writes the properties in the exploded edge's update/row.
+    pub(crate) props: Option<Vec<(usize, Prop)>>,
 }
 
 impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
@@ -85,6 +88,15 @@ impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
         state.serialize_entry(LAYER_COL, &layer)?;
         state.serialize_entry(LAYER_ID_COL, &layer_id)?;
 
+        // only write provided props and return early
+        let mapper = edge.graph.edge_meta().temporal_prop_mapper();
+        if let Some(props) = &self.props {
+            for (prop_id, prop) in props {
+                state.serialize_entry(&mapper.get_name(*prop_id), &SerdeArrowProp(prop))?;
+            }
+            return state.end();
+        }
+
         // Emit temporal props for this exploded event. Two cases:
         //   * real addition at exactly `t` in storage — use `at(t)` so we only
         //     emit props actually set at that time (additions without new prop
@@ -99,7 +111,6 @@ impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
         let layer = LayerId(layer_id);
         let t_next = EventTime::start(t.0.saturating_add(1));
         let has_real_addition = core_ref.additions(layer).active(t..t_next);
-        let mapper = edge.graph.edge_meta().temporal_prop_mapper();
         let temporal = edge.properties().temporal();
         for (prop_id, prop) in temporal.iter_ids() {
             let prop = if has_real_addition {

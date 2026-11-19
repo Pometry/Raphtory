@@ -25,7 +25,7 @@ use crate::{
                 StaticGraphViewOps,
             },
         },
-        graph::{edges::Edges, path::PathFromNode},
+        graph::{edges::Edges, merge_latest_prop_rows, path::PathFromNode},
     },
     errors::{into_graph_err, GraphError},
     prelude::*,
@@ -313,7 +313,7 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
     pub fn latest_rows(&self) -> impl Iterator<Item = NodeUpdateRow> + Send + Sync {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
-        let mut latest = self
+        let latest = self
             .graph
             .node_visible_temporal_prop_ids()
             .filter_map(|prop_id| {
@@ -322,21 +322,7 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
                 Some(((t, layer_id), (prop_id, prop)))
             })
             .collect_vec();
-        // we need to sort because we're going by property, and each can have their latest update at any time
-        latest.sort_unstable_by_key(|((t, layer_id), (prop_id, _))| (*t, *layer_id, *prop_id));
-        let mut latest = latest.into_iter().peekable();
-        // if multiple properties' latest values are set in the same update, merge them together
-        std::iter::from_fn(move || {
-            let (row, first) = latest.next()?;
-            let props = std::iter::once(first)
-                .chain(
-                    latest
-                        .peeking_take_while(|(next, _)| *next == row)
-                        .map(|(_, prop)| prop),
-                )
-                .collect();
-            Some((row.0, row.1, props))
-        })
+        merge_latest_prop_rows(latest)
     }
 
     pub fn rows_gs<'a>(&'a self, gs: &'a GraphStorage) -> BoxedLIter<'a, NodeUpdateRow>

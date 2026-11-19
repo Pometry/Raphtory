@@ -24,7 +24,6 @@ use std::{future::Future, sync::OnceLock};
 use tokio::runtime::{Builder, Runtime};
 
 pub mod errors;
-pub(crate) mod export;
 mod module_helpers;
 
 #[derive(Debug, Eq, PartialEq, Hash)]

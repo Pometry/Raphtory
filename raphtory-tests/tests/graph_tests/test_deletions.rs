@@ -250,6 +250,35 @@ fn test_node_prop_persists_newest_value_across_layers() {
 }
 
 #[test]
+fn test_edge_latest_rows_persist_newest_value_across_layers() {
+    let g = PersistentGraph::new();
+    // the newer value is on the layer created first, which has the lower layer id
+    g.add_edge(2, 0, 1, [("x", "new")], Some("a")).unwrap();
+    g.add_edge(1, 0, 1, [("x", "old")], Some("b")).unwrap();
+
+    let edge = g.window(5, 10).edge(0, 1).unwrap();
+    let x = edge.properties().temporal().get("x").unwrap();
+    assert_eq!(x.latest(), Some(Prop::from("new")));
+
+    let rows = edge.latest_rows().collect_vec();
+    assert_eq!(rows.len(), 1);
+    let (t, layer, props) = &rows[0];
+    assert_eq!(
+        props.iter().map(|(_, v)| v).collect_vec(),
+        [&Prop::from("new")]
+    );
+    // the value is seen at the start of the window, on the exploded edge that carries the edge
+    // into the window on the layer that set it
+    assert_eq!(t.t(), 5);
+    let update = edge
+        .explode()
+        .into_iter()
+        .find(|e| e.edge.time() == Some(*t) && e.edge.layer() == Some(*layer))
+        .unwrap();
+    assert_eq!(update.layer_name().unwrap(), "a");
+}
+
+#[test]
 fn test_deletion_at_window_start() {
     let g = PersistentGraph::new();
     g.add_edge(2, 0, 1, NO_PROPS, None).unwrap();

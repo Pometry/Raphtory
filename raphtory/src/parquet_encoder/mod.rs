@@ -22,7 +22,10 @@ mod nodes;
 
 mod graph;
 
-pub(crate) use edges::{encode_edge_cprop, encode_edge_deletions, encode_edge_tprop};
+pub(crate) use edges::{
+    edge_tprop_fixed_fields, edge_tprop_schema, encode_edge_cprop, encode_edge_deletions,
+    encode_edge_rows, encode_edge_tprop,
+};
 pub(crate) use graph::{encode_graph_cprop, encode_graph_tprop};
 pub(crate) use nodes::{
     encode_node_metadata, encode_node_rows, encode_nodes_cprop, encode_nodes_tprop,

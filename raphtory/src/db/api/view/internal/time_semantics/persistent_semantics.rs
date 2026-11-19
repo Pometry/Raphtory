@@ -947,13 +947,13 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.temporal_edge_prop_last_at(e, view, prop_id, t) // TODO: double check this
     }
 
-    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+    fn temporal_edge_prop_last_with_layer<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> Option<Prop> {
-        EventSemantics.temporal_edge_prop_last(e, view, prop_id)
+    ) -> Option<(EventTime, LayerId, Prop)> {
+        EventSemantics.temporal_edge_prop_last_with_layer(e, view, prop_id)
     }
 
     fn temporal_edge_prop_hist<'graph, G: GraphViewOps<'graph>>(
@@ -1418,27 +1418,39 @@ impl EdgeTimeSemanticsWindowOps for PersistentSemantics {
         }
     }
 
-    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+    fn temporal_edge_prop_last_with_layer_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<EventTime>,
-    ) -> Option<Prop> {
+    ) -> Option<(EventTime, LayerId, Prop)> {
         e.filtered_updates_iter(&view, view.layer_ids())
             .filter_map(|(layer, additions, deletions)| {
                 let start = deletions
-                    .merge(additions.invert())
+                    .merge(additions.clone().invert())
                     .range(EventTime::MIN..w.end)
                     .last()
                     .map(|t| t.next())
                     .unwrap_or(EventTime::MIN);
-                e.filtered_temporal_prop_layer(layer, prop_id, &view)
+                let (t, v) = e
+                    .filtered_temporal_prop_layer(layer, prop_id, &view)
                     .iter_inner_rev(Some(start..w.end))
-                    .next()
+                    .next()?;
+                // a value set before the window is seen at the start of the window, on the event
+                // that carries the edge into it
+                let seen_at = if t < w.start {
+                    persisted_secondary_index(w.start, additions)
+                        .map_or(w.start, |index| w.start.set_event_id(index))
+                } else {
+                    t
+                };
+                Some((t, seen_at, layer, v))
             })
-            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
-            .map(|(_, v)| v)
+            // compare the times the values were set: values set before the window are all seen at
+            // its start, which would lose their order
+            .max_by(|(t1, _, _, _), (t2, _, _, _)| t1.cmp(t2))
+            .map(|(_, seen_at, layer, v)| (seen_at, layer, v))
     }
 
     fn temporal_edge_prop_last_at_window<'graph, G: GraphViewOps<'graph>>(

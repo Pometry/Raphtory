@@ -4,8 +4,10 @@
 //! Each table starts with a few fixed columns, followed by one column per property. A row leaves
 //! a property's cell empty when it has no value for that property.
 
+mod edges;
 mod nodes;
 
+pub use edges::edge_updates;
 pub use nodes::{node_metadata, node_updates};
 
 use crate::{
@@ -18,7 +20,8 @@ use arrow::{
     datatypes::{DataType, Schema, SchemaBuilder, SchemaRef, TimeUnit},
 };
 use parking_lot::Mutex;
-use std::sync::Arc;
+use raphtory_api::core::storage::arc_str::ArcStr;
+use std::{collections::HashSet, sync::Arc};
 
 /// An Arrow table: a schema and the record batches that follow it.
 #[derive(Debug, Clone)]
@@ -58,6 +61,26 @@ fn without_string_views(data_type: &DataType) -> DataType {
         ),
         data_type => data_type.clone(),
     }
+}
+
+/// The columns of the encoder schema `encoded` to export: its first `num_fixed` columns without
+/// the `internal` ones, followed by the properties named in `visible`.
+fn exported_columns_idx(
+    encoded: &Schema,
+    num_fixed: usize,
+    internal_excluded: &[&str],
+    visible_props: &HashSet<ArcStr>,
+) -> Vec<usize> {
+    (0..encoded.fields().len())
+        .filter(|&i| {
+            let name = encoded.field(i).name().as_str();
+            if i < num_fixed {
+                !internal_excluded.contains(&name)
+            } else {
+                visible_props.contains(name)
+            }
+        })
+        .collect()
 }
 
 /// Keeps the columns at `indices` of `batches`, which follow the encoder schema `encoded`, and
