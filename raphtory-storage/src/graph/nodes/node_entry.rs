@@ -1,11 +1,10 @@
-use std::{ops::Range, sync::Arc};
-
 use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerId, LayerIds, VID},
     Direction,
 };
 use raphtory_core::storage::timeindex::EventTime;
+use std::ops::Range;
 use storage::{
     api::nodes::NodeEntryOps, generic_time_ops::LayerIter,
     pages::node_store::SegmentLockedNodeEntry, Extension, NodeEntry, NodeEntryRef, NS,
@@ -82,6 +81,13 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
+    fn layer_ids_iter_with_static(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        self.as_ref().layer_ids_iter_with_static(layer_ids)
+    }
+
     fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a> {
         self.as_ref().temporal_prop_layer(layer_id, prop_id)
     }
@@ -93,9 +99,10 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        self.as_ref().temp_prop_rows_range(w, prop_ids)
+        prop_ids: &'a [usize],
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + 'a {
+        self.as_ref().temp_prop_rows_range(w, prop_ids, layer_id)
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {

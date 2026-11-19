@@ -297,13 +297,13 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
     where
         'graph: 'a,
     {
-        let prop_ids: Arc<[usize]> = self.graph.node_visible_temporal_prop_ids().collect();
+        let prop_ids: Box<[usize]> = self.graph.node_visible_temporal_prop_ids().collect();
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
-        let graph = &self.graph;
-        GenLockedIter::from(node, move |node| {
+        let layer_ids = self.graph.layer_ids();
+        GenLockedIter::from((node, prop_ids), move |(node, prop_ids)| {
             semantics
-                .node_updates(node.as_ref(), graph, prop_ids.clone())
+                .node_updates(node.as_ref(), layer_ids, prop_ids)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -313,13 +313,13 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
     where
         'graph: 'a,
     {
-        let prop_ids: Arc<[usize]> = self.graph.node_visible_temporal_prop_ids().collect();
+        let prop_ids: Box<[usize]> = self.graph.node_visible_temporal_prop_ids().collect();
         let semantics = self.graph.node_time_semantics();
         let node = gs.core_node(self.node);
-        let graph = &self.graph;
-        GenLockedIter::from(node, move |node| {
+        let layer_ids = self.graph.layer_ids();
+        GenLockedIter::from((node, prop_ids), move |(node, prop_ids)| {
             semantics
-                .node_updates(node.as_ref(), graph, prop_ids.clone())
+                .node_updates(node.as_ref(), layer_ids, prop_ids)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()

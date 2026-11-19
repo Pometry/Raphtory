@@ -1,7 +1,7 @@
 use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter3};
-use std::ops::Range;
+use std::{iter, ops::Range};
 
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
 use raphtory_core::{
     entities::{ELID, LayerIds, layers::Multiple},
     storage::timeindex::{EventTime, TimeIndexOps},
@@ -25,6 +25,27 @@ impl<'a> LayerIter<'a> {
             LayerIter::LayerRef(layers) => Iter3::J(layers.iter(num_layers)),
             LayerIter::Multiple(ids) => Iter3::K(ids.into_iter()),
         }
+    }
+
+    pub fn into_iter_with_static(
+        self,
+        num_layers: usize,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        let (iter, needs_static) = match self {
+            LayerIter::One(id) => (Iter3::I(iter::once(id)), id != STATIC_GRAPH_LAYER_ID),
+            LayerIter::LayerRef(layers) => (
+                Iter3::J(layers.iter(num_layers)),
+                !layers.contains(&STATIC_GRAPH_LAYER_ID),
+            ),
+            LayerIter::Multiple(ids) => {
+                let needs_static = !ids.contains(STATIC_GRAPH_LAYER_ID);
+                (Iter3::K(ids.into_iter()), needs_static)
+            }
+        };
+        needs_static
+            .then_some(STATIC_GRAPH_LAYER_ID)
+            .into_iter()
+            .chain(iter)
     }
 }
 

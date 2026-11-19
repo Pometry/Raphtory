@@ -8,8 +8,8 @@ use raphtory_api::core::{
     storage::timeindex::TimeIndexOps,
     Direction,
 };
-use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
-use std::{borrow::Cow, ops::Range, sync::Arc};
+use raphtory_core::storage::timeindex::EventTime;
+use std::{borrow::Cow, ops::Range};
 use storage::{api::nodes::NodeRefOps, generic_time_ops::LayerIter, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
@@ -87,15 +87,21 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)>;
+        prop_ids: &'a [usize],
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + 'a;
 
     fn temp_prop_rows(
         self,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        self.temp_prop_rows_range(None, prop_ids)
+        prop_ids: &'a [usize],
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + 'a {
+        self.temp_prop_rows_range(None, prop_ids, layer_id)
     }
+    fn layer_ids_iter_with_static(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a;
 }
 
 impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
@@ -131,20 +137,14 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
-        match layer_ids {
-            LayerIds::None => LayerVariants::None(std::iter::empty()),
-            LayerIds::All => LayerVariants::All(
-                (0..self.internal_num_layers())
-                    .map(LayerId)
-                    .filter(move |&l| self.has_layer_inner(l)),
-            ),
-            LayerIds::One(id) => {
-                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
-            }
-            LayerIds::Multiple(ids) => {
-                LayerVariants::Multiple(ids.iter().filter(move |&id| self.has_layer_inner(id)))
-            }
-        }
+        NodeRefOps::layer_ids_iter(self, layer_ids)
+    }
+
+    fn layer_ids_iter_with_static(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        NodeRefOps::layer_ids_iter_with_static(self, layer_ids)
     }
 
     fn node_prop_additions<L: Into<LayerIter<'a>>>(
@@ -180,8 +180,9 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        NodeRefOps::temp_prop_rows(self, w, prop_ids)
+        prop_ids: &'a [usize],
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> {
+        NodeRefOps::temp_prop_rows(self, w, prop_ids, layer_id)
     }
 }
