@@ -86,10 +86,11 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     /// Indicates whether the strategy persists to disk or not.
     fn disk_storage_enabled() -> bool;
 
-    /// Estimated global memory used
+    /// Counter for tracking the memory usage of the graph.
     fn memory_tracker(&self) -> &Arc<AtomicUsize>;
 
-    fn estimated_size(&self) -> usize {
+    /// The current memory usage of the graph in bytes.
+    fn memory_usage(&self) -> usize {
         self.memory_tracker().load(Ordering::Relaxed)
     }
 

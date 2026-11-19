@@ -793,11 +793,11 @@ mod test {
         drop(writer);
 
         // after drop the global estimated size should be the same as the last estimated size of the writer
-        assert_eq!(ext.estimated_size(), est_size8);
+        assert_eq!(ext.memory_usage(), est_size8);
 
         drop(segment);
 
         // after the segment is dropped, the global estimated size should be zero (no more usage)
-        assert_eq!(ext.estimated_size(), 0);
+        assert_eq!(ext.memory_usage(), 0);
     }
 }

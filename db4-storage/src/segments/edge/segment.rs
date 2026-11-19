@@ -832,9 +832,9 @@ mod test {
 
         drop(writer);
         // global size should be the last size of the writer after drop
-        assert_eq!(ext.estimated_size(), est_size5);
+        assert_eq!(ext.memory_usage(), est_size5);
         drop(segment);
         // global size should be 0 after the segment is dropped
-        assert_eq!(ext.estimated_size(), 0);
+        assert_eq!(ext.memory_usage(), 0);
     }
 }
