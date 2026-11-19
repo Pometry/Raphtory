@@ -18,10 +18,6 @@ use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::{ops::DerefMut, path::Path};
 
-/// Write guards on the node segments, each taken before its segment was published so
-/// no reader can see its uninitialised nodes.
-pub type MemNodeSegmentGuards = Vec<ArcRwLockWriteGuard<MemNodeSegment>>;
-
 #[derive(Debug)]
 pub struct WriteLockedNodeSegment<'a, NS> {
     id: usize,

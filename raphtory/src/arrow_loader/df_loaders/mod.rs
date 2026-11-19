@@ -13,9 +13,12 @@ use dashmap::SharedValue;
 use db4_graph::TemporalGraph;
 #[cfg(feature = "progress")]
 use kdam::{Bar, BarBuilder, BarExt};
-use raphtory_api::core::{
-    entities::properties::prop::PropType,
-    storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
+use raphtory_api::{
+    core::{
+        entities::properties::prop::PropType,
+        storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
+    },
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::{
@@ -31,8 +34,8 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 use storage::{
-    pages::{locked::nodes::MemNodeSegmentGuards, resolve_pos},
-    segments::graph_prop::segment::MemGraphPropSegment,
+    pages::resolve_pos,
+    segments::{graph_prop::segment::MemGraphPropSegment, node::segment::MemNodeSegment},
 };
 
 pub mod edge_props;
@@ -296,7 +299,13 @@ fn resolve_nodes_with_cache<'a>(
     graph: &TemporalGraph,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<(FxDashMap<GidRef<'a>, VID>, MemNodeSegmentGuards), GraphError> {
+) -> Result<
+    (
+        FxDashMap<GidRef<'a>, VID>,
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     let update_fn = |vid: &VID, idx, col_idx| {
         // these types are needed apparently
         let atomics: &&mut [AtomicUsize] = &resolved_cols[col_idx];

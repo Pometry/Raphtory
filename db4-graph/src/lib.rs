@@ -32,12 +32,12 @@ use storage::{
             edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
-            nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
+            nodes::{WriteLockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
-    segments::edge::segment::MemEdgeSegment,
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     transaction::TransactionManager,
     Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
@@ -496,7 +496,7 @@ where
         self.graph
     }
 
-    pub fn extend_nodes(&mut self, mut new_segments: MemNodeSegmentGuards) {
+    pub fn extend_nodes(&mut self, mut new_segments: Vec<ArcRwLockWriteGuard<MemNodeSegment>>) {
         let nodes = self.graph.storage.nodes();
 
         // segments are pushed concurrently from several threads, so the ids arrive in any order

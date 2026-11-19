@@ -9,7 +9,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
+        locked::nodes::{WriteLockedNodeSegment, WriteLockedNodeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -374,7 +374,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     /// Create segments until there are `new_len`, returning them locked.
-    pub fn grow_locked(&self, new_len: usize) -> MemNodeSegmentGuards {
+    pub fn grow_locked(&self, new_len: usize) -> Vec<ArcRwLockWriteGuard<MemNodeSegment>> {
         let mut new_segments = Vec::new();
 
         while self.segments.count() < new_len {
