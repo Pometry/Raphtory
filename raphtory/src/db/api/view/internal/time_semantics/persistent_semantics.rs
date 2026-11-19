@@ -1,17 +1,14 @@
 use crate::{
-    db::{
-        api::view::internal::{
-            filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
-            filtered_node::NodeEdgeHistory,
-            time_semantics::{
-                event_semantics::EventSemantics,
-                filtered_edge::FilteredEdgeStorageOps,
-                filtered_node::FilteredNodeStorageOps,
-                time_semantics_ops::{NodeTimeSemanticsOps, NodeTimeSemanticsWindowOps},
-            },
-            EdgeTimeSemanticsOps, EdgeTimeSemanticsWindowOps, FilterOps, GraphView, InnerFilterOps,
+    db::api::view::internal::{
+        filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
+        filtered_node::NodeEdgeHistory,
+        time_semantics::{
+            event_semantics::EventSemantics,
+            filtered_edge::FilteredEdgeStorageOps,
+            filtered_node::FilteredNodeStorageOps,
+            time_semantics_ops::{NodeTimeSemanticsOps, NodeTimeSemanticsWindowOps},
         },
-        graph::views::layer_graph::LayeredGraph,
+        EdgeTimeSemanticsOps, EdgeTimeSemanticsWindowOps, FilterOps, GraphView, InnerFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -20,7 +17,7 @@ use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
+        properties::{prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
@@ -29,7 +26,7 @@ use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{iter, ops::Range, sync::Arc};
+use std::{iter, ops::Range};
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 fn alive_before<
@@ -308,14 +305,17 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.node_edge_history_rev(node, view, layer_ids)
     }
 
-    fn node_updates<'graph, G: GraphViewOps<'graph>>(
+    fn node_updates<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        _view: G,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows(prop_ids)
-            .map(|(t, l, row)| (t, LayerId(l), row))
+        node.layer_ids_iter_with_static(layer_ids)
+            .flat_map(move |layer_id| {
+                node.temp_prop_rows(prop_ids, layer_id)
+                    .map(move |(t, row)| (t, layer_id, row))
+            })
     }
 
     fn node_valid<'graph, G: GraphViewOps<'graph>>(
@@ -467,58 +467,46 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
         EventSemantics.node_edge_history_rev_window(node, view, layer_ids, w)
     }
 
-    fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
+    fn node_updates_window<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
         w: Range<EventTime>,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        // make sure static graph layer is always visible, even if excluded from the view
-        let layers = view
-            .layer_ids()
-            .union(&LayerIds::One(STATIC_GRAPH_LAYER_ID));
-        let num_layers = node.num_layers();
-        let exact_layers = layers.into_iter(num_layers).filter(move |&layer_id| {
-            node.layer_ids_iter(&LayerIds::One(layer_id))
-                .next()
-                .is_some()
-        });
-
-        exact_layers.flat_map(move |layer_id| {
-            let mut rows = node
-                .temp_prop_rows_range(Some(w.clone()), prop_ids.clone())
-                .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
-                .collect_vec();
-
-            let has_prior_addition = node
+        let layers_iter = node.layer_ids_iter_with_static(layer_ids);
+        layers_iter.flat_map(move |layer_id| {
+            let rows_inside = node
+                .temp_prop_rows_range(Some(w.clone()), &prop_ids, layer_id)
+                .map(move |(t, row)| (t, layer_id, row));
+            let needs_first_row = node
                 .node_prop_additions(layer_id)
-                .range(EventTime::MIN..w.start)
-                .iter()
-                .next()
-                .is_some();
-            let start_t = w.start.t();
-            let next_t = EventTime::start(start_t.saturating_add(1));
-            let has_row_in_start_t = rows.iter().any(|(t, _, _)| t.t() == start_t);
+                .active(EventTime::MIN..w.start);
+            let first_row = if needs_first_row {
+                let mut first_row = Vec::new();
+                for prop_id in prop_ids.iter() {
+                    let prop = node.temporal_prop_layer(layer_id, *prop_id);
+                    if !prop.active(w.start..w.start.next_t()) {
+                        if let Some((_t, v)) = prop.last_before(w.start) {
+                            first_row.push((*prop_id, v));
+                        }
+                    }
+                }
+                if first_row.is_empty()
+                    && node
+                        .node_prop_additions(layer_id)
+                        .active(w.start..w.start.next_t())
+                {
+                    // No persisted property values and the node already has an update at start, do not duplicate
+                    None
+                } else {
+                    Some((w.start, layer_id, first_row))
+                }
+            } else {
+                None
+            };
 
-            if has_prior_addition && !has_row_in_start_t {
-                let layer_view = LayeredGraph::new(view.clone(), LayerIds::One(layer_id));
-                let row = prop_ids
-                    .iter()
-                    .copied()
-                    .filter_map(|prop_id| {
-                        self.node_tprop_iter_window(node, layer_view.clone(), prop_id, w.clone())
-                            .find(|(t, _)| *t >= w.start && *t < next_t)
-                            .map(|(_, prop)| (prop_id, prop))
-                    })
-                    .collect::<Vec<_>>();
-                rows.push((w.start, layer_id.0, row));
-            }
-
-            rows.sort_unstable_by_key(|(t, _, _)| *t);
-            rows.into_iter()
-                .map(|(t, _, row)| (t, layer_id, row))
-                .collect_vec()
+            first_row.into_iter().chain(rows_inside)
         })
     }
 

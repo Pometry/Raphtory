@@ -4,7 +4,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 use storage::EdgeEntryRef;
 
 pub trait NodeTimeSemanticsOps {
@@ -54,11 +54,11 @@ pub trait NodeTimeSemanticsOps {
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph;
 
-    fn node_updates<'graph, G: GraphView + 'graph>(
+    fn node_updates<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     /// Check if the node is part of the graph based on the history
@@ -161,12 +161,12 @@ pub trait NodeTimeSemanticsWindowOps {
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph;
 
-    fn node_updates_window<'graph, G: GraphView + 'graph>(
+    fn node_updates_window<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
         w: Range<EventTime>,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     fn node_valid_window<'graph, G: GraphView + 'graph>(

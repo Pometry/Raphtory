@@ -18,9 +18,11 @@ use raphtory_api::core::{
 use raphtory_storage::mutation::addition_ops::{GraphMutationOps, InternalAdditionOps};
 use raphtory_tests::{
     test_storage,
-    utils::{build_graph, build_graph_strat},
+    utils::{build_graph, build_graph_strat, GraphFixture},
 };
 use rayon::ThreadPoolBuilder;
+use serde::Deserialize;
+use serde_json::json;
 use std::ops::Range;
 
 #[test]
@@ -254,6 +256,24 @@ fn materialize_window_layers_proptest() {
             assert_persistent_materialize_graph_equal(&glw, &gmlw);
         })
 
+    })
+}
+
+#[test]
+fn materialize_window_failure_regression() {
+    let graph_f = GraphFixture::deserialize(json!({"nodes":{"9":{"props":{"t_props":[[0,[]]],"c_props":[]},"node_type":null,"node_layer":"b"}},"edges":[[[9,0,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]]})).unwrap();
+    let w = -1..1;
+    let l = ["a"];
+    let num_threads = 1;
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .unwrap();
+    pool.install(|| {
+        let g = PersistentGraph::from(build_graph(&graph_f));
+        let glw = g.valid_layers(l.clone()).window(w.start, w.end);
+        let gmlw = glw.materialize().unwrap();
+        assert_persistent_materialize_graph_equal(&glw, &gmlw);
     })
 }
 
