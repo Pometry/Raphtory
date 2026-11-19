@@ -23,33 +23,25 @@ pub struct MemNodeTypeIndex {
     /// Estimated memory size of the index in bytes.
     est_size: AtomicUsize,
 
-    global_mem_tracker: Arc<AtomicUsize>,
+    /// Counter that tracks the memory usage of the entire graph.
+    global_memory_tracker: Arc<AtomicUsize>,
 }
 
 impl Drop for MemNodeTypeIndex {
     fn drop(&mut self) {
-        self.global_mem_tracker
+        self.global_memory_tracker
             .fetch_sub(self.est_size.load(Ordering::Relaxed), Ordering::Relaxed);
     }
 }
 
 impl MemNodeTypeIndex {
-    pub fn new(global_mem_tracker: Arc<AtomicUsize>) -> Self {
+    pub fn new(global_memory_tracker: Arc<AtomicUsize>) -> Self {
         Self {
             map: FxDashMap::default(),
             entry_count: AtomicUsize::new(0),
             est_size: AtomicUsize::new(0),
-            global_mem_tracker,
+            global_memory_tracker,
         }
-    }
-
-    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
-        &self.global_mem_tracker
-    }
-
-    fn increment_global_est_size(&self, increment: usize) {
-        self.global_mem_tracker
-            .fetch_add(increment, Ordering::Relaxed);
     }
 
     /// Associates `vid` with `type_id`. Idempotent for duplicate pairs.
@@ -62,7 +54,6 @@ impl MemNodeTypeIndex {
             // TODO: Refine est_size calculation.
             let entry_size = std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
             self.est_size.fetch_add(entry_size, Ordering::Relaxed);
-            self.increment_global_est_size(entry_size);
         }
     }
 
@@ -84,7 +75,6 @@ impl MemNodeTypeIndex {
             let entry_size = std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
             let delta = added * entry_size;
             self.est_size.fetch_add(delta, Ordering::Relaxed);
-            self.increment_global_est_size(delta);
         }
     }
 
@@ -110,7 +100,7 @@ impl MemNodeTypeIndex {
             map: std::mem::take(&mut self.map),
             entry_count: AtomicUsize::new(self.entry_count.swap(0, Ordering::Relaxed)),
             est_size: AtomicUsize::new(self.est_size.swap(0, Ordering::Relaxed)),
-            global_mem_tracker: self.global_mem_tracker.clone(),
+            global_memory_tracker: self.global_memory_tracker.clone(),
         }
     }
 
@@ -121,6 +111,11 @@ impl MemNodeTypeIndex {
         entries.sort_unstable_by_key(|entry| *entry.key());
 
         entries
+    }
+
+    pub(crate) fn increment_global_memory_tracker(&self, increment: usize) {
+        self.global_memory_tracker
+            .fetch_add(increment, Ordering::Relaxed);
     }
 
     fn type_sets(&self, type_ids: &[usize]) -> Vec<Ref<'_, usize, BTreeSet<VID>>> {

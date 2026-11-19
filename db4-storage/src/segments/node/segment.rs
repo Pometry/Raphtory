@@ -44,14 +44,15 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
-    global_mem_tracker: Arc<AtomicUsize>,
+    /// Counter that tracks the memory usage of the entire graph.
+    global_memory_tracker: Arc<AtomicUsize>,
     est_size: usize,
     lsn: LSN,
 }
 
 impl Drop for MemNodeSegment {
     fn drop(&mut self) {
-        self.global_mem_tracker
+        self.global_memory_tracker
             .fetch_sub(self.est_size, Ordering::Relaxed);
     }
 }
@@ -107,12 +108,12 @@ impl MemNodeSegment {
         self.est_size
     }
 
-    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
-        &self.global_mem_tracker
+    pub fn global_memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.global_memory_tracker
     }
 
-    pub(crate) fn increment_global_est_size(&self, increment: usize) {
-        self.global_mem_tracker
+    pub(crate) fn increment_global_memory_tracker(&self, increment: usize) {
+        self.global_memory_tracker
             .fetch_add(increment, Ordering::Relaxed);
     }
 
@@ -168,7 +169,7 @@ impl MemNodeSegment {
         Self {
             segment_id: self.segment_id,
             max_page_len: self.max_page_len,
-            global_mem_tracker: self.global_mem_tracker.clone(),
+            global_memory_tracker: self.global_memory_tracker.clone(),
             layers,
             est_size,
             lsn: self.lsn,
@@ -229,13 +230,13 @@ impl MemNodeSegment {
         segment_id: usize,
         max_page_len: u32,
         meta: Arc<Meta>,
-        global_mem_tracker: Arc<AtomicUsize>,
+        global_memory_tracker: Arc<AtomicUsize>,
     ) -> Self {
         Self {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
-            global_mem_tracker,
+            global_memory_tracker,
             est_size: 0,
             lsn: 0,
         }

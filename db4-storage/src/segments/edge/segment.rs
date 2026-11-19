@@ -95,12 +95,12 @@ impl MemEdgeSegment {
         self.layers[0].segment_id()
     }
 
-    pub fn increment_global_memory(&self, increment: usize) {
+    pub(crate) fn increment_global_memory_tracker(&self, increment: usize) {
         self.global_memory_tracker
             .fetch_add(increment, Ordering::Relaxed);
     }
 
-    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+    pub fn global_memory_tracker(&self) -> &Arc<AtomicUsize> {
         &self.global_memory_tracker
     }
 

@@ -243,7 +243,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> Drop
 {
     fn drop(&mut self) {
         let delta = self.writer.est_size() - self.initial_est_size;
-        self.writer.increment_global_memory(delta);
+        self.writer.increment_global_memory_tracker(delta);
         let head_mut = self.writer.deref_mut();
 
         if let Err(err) = self.segment.notify_write(head_mut) {

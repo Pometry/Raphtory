@@ -31,10 +31,11 @@ impl<'a, NTI: NodeTypeIndexOps> NodeTypeIndexWriter<'a, NTI> {
 
 impl<'a, NTI: NodeTypeIndexOps> Drop for NodeTypeIndexWriter<'a, NTI> {
     fn drop(&mut self) {
-        if self.head.est_size() != self.initial_est_size {
-            self.index.set_dirty(true);
-            self.index
-                .notify_write(None::<RwLockWriteGuard<'_, MemNodeTypeIndex>>);
-        }
+        let delta = self.head.est_size() - self.initial_est_size;
+        self.head.increment_global_memory_tracker(delta);
+
+        self.index.set_dirty(true);
+        self.index
+            .notify_write(None::<RwLockWriteGuard<'_, MemNodeTypeIndex>>);
     }
 }
