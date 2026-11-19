@@ -36,9 +36,9 @@ where
         lsn: LSN,
         _transaction_id: TransactionID,
         t: EventTime,
-        src_name: Option<GID>,
+        mut src_name: Option<GID>,
         src_id: VID,
-        dst_name: Option<GID>,
+        mut dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
         props: Vec<(String, usize, Prop)>,
@@ -70,7 +70,7 @@ where
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
         self.resize_segments_to_vid(src_id); // Create enough segments.
         self.resize_segments_to_vid(dst_id);
-        let (mut src_name, mut dst_name) = (src_name, dst_name);
+
         let dst_segment = (dst_segment_id != src_segment_id).then_some(dst_segment_id);
 
         for segment_id in iter::once(src_segment_id).chain(dst_segment) {
@@ -264,9 +264,9 @@ where
         lsn: LSN,
         _transaction_id: TransactionID,
         t: EventTime,
-        src_name: Option<GID>,
+        mut src_name: Option<GID>,
         src_id: VID,
-        dst_name: Option<GID>,
+        mut dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
@@ -297,7 +297,6 @@ where
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
         self.resize_segments_to_vid(src_id); // Create enough segments.
         self.resize_segments_to_vid(dst_id);
-        let (mut src_name, mut dst_name) = (src_name, dst_name);
         let dst_segment = (dst_segment_id != src_segment_id).then_some(dst_segment_id);
 
         for segment_id in iter::once(src_segment_id).chain(dst_segment) {
