@@ -81,6 +81,13 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
+    fn layer_ids_iter_with_static(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        self.as_ref().layer_ids_iter_with_static(layer_ids)
+    }
+
     fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a> {
         self.as_ref().temporal_prop_layer(layer_id, prop_id)
     }

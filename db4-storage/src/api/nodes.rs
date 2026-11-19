@@ -538,6 +538,16 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
         layer_ids
             .into()
+            .into_iter(self.internal_num_layers())
+            .filter(move |layer| self.has_layer_inner(*layer))
+    }
+
+    fn layer_ids_iter_with_static<L: Into<LayerIter<'a>>>(
+        self,
+        layer_ids: L,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        layer_ids
+            .into()
             .into_iter_with_static(self.internal_num_layers())
             .filter(move |layer| self.has_layer_inner(*layer))
     }

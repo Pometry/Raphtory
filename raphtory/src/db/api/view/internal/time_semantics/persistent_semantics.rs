@@ -311,10 +311,11 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         layer_ids: &'graph LayerIds,
         prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.layer_ids_iter(layer_ids).flat_map(move |layer_id| {
-            node.temp_prop_rows(prop_ids, layer_id)
-                .map(move |(t, row)| (t, layer_id, row))
-        })
+        node.layer_ids_iter_with_static(layer_ids)
+            .flat_map(move |layer_id| {
+                node.temp_prop_rows(prop_ids, layer_id)
+                    .map(move |(t, row)| (t, layer_id, row))
+            })
     }
 
     fn node_valid<'graph, G: GraphViewOps<'graph>>(
@@ -473,7 +474,7 @@ impl NodeTimeSemanticsWindowOps for PersistentSemantics {
         layer_ids: &'graph LayerIds,
         prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        let layers_iter = node.layer_ids_iter(layer_ids);
+        let layers_iter = node.layer_ids_iter_with_static(layer_ids);
         layers_iter.flat_map(move |layer_id| {
             let rows_inside = node
                 .temp_prop_rows_range(Some(w.clone()), &prop_ids, layer_id)

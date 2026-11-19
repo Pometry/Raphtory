@@ -1,19 +1,15 @@
 use crate::graph::layer_ids_with_static;
-use either::Either;
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
-        properties::{
-            meta::{STATIC_GRAPH_LAYER, STATIC_GRAPH_LAYER_ID},
-            prop::Prop,
-        },
+        properties::{meta::STATIC_GRAPH_LAYER, prop::Prop},
         GidRef, LayerId, LayerIds, VID,
     },
     storage::timeindex::TimeIndexOps,
     Direction,
 };
-use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
-use std::{borrow::Cow, iter, ops::Range};
+use raphtory_core::storage::timeindex::EventTime;
+use std::{borrow::Cow, ops::Range};
 use storage::{api::nodes::NodeRefOps, generic_time_ops::LayerIter, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
@@ -102,6 +98,10 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + 'a {
         self.temp_prop_rows_range(None, prop_ids, layer_id)
     }
+    fn layer_ids_iter_with_static(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a;
 }
 
 impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
@@ -137,23 +137,14 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
-        let iter = match layer_ids {
-            LayerIds::None => LayerVariants::None(std::iter::once(STATIC_GRAPH_LAYER_ID)),
-            LayerIds::All => LayerVariants::All((0..self.internal_num_layers()).map(LayerId)),
-            LayerIds::One(id) => LayerVariants::One(if *id != STATIC_GRAPH_LAYER_ID {
-                Either::Left([STATIC_GRAPH_LAYER_ID, *id].into_iter())
-            } else {
-                Either::Right(iter::once(*id))
-            }),
-            LayerIds::Multiple(ids) => match ids.iter().next() {
-                Some(STATIC_GRAPH_LAYER_ID) => LayerVariants::Multiple(Either::Left(ids.iter())),
-                Some(_) => LayerVariants::Multiple(Either::Right(
-                    iter::once(STATIC_GRAPH_LAYER_ID).chain(ids.iter()),
-                )),
-                None => LayerVariants::None(iter::once(STATIC_GRAPH_LAYER_ID)),
-            },
-        };
-        iter.filter(move |&id| self.has_layer_inner(id))
+        NodeRefOps::layer_ids_iter(self, layer_ids)
+    }
+
+    fn layer_ids_iter_with_static(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        NodeRefOps::layer_ids_iter_with_static(self, layer_ids)
     }
 
     fn node_prop_additions<L: Into<LayerIter<'a>>>(

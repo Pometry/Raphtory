@@ -143,10 +143,11 @@ impl NodeTimeSemanticsOps for EventSemantics {
         layer_ids: &'graph LayerIds,
         prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.layer_ids_iter(layer_ids).flat_map(move |layer_id| {
-            node.temp_prop_rows(prop_ids, layer_id)
-                .map(move |(t, row)| (t, layer_id, row))
-        })
+        node.layer_ids_iter_with_static(layer_ids)
+            .flat_map(move |layer_id| {
+                node.temp_prop_rows(prop_ids, layer_id)
+                    .map(move |(t, row)| (t, layer_id, row))
+            })
     }
 
     #[inline]
@@ -300,10 +301,11 @@ impl NodeTimeSemanticsWindowOps for EventSemantics {
         layer_ids: &'graph LayerIds,
         prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.layer_ids_iter(layer_ids).flat_map(move |layer_id| {
-            node.temp_prop_rows_range(Some(w.clone()), prop_ids, layer_id)
-                .map(move |(t, row)| (t, layer_id, row))
-        })
+        node.layer_ids_iter_with_static(layer_ids)
+            .flat_map(move |layer_id| {
+                node.temp_prop_rows_range(Some(w.clone()), prop_ids, layer_id)
+                    .map(move |(t, row)| (t, layer_id, row))
+            })
     }
 
     fn node_valid_window<'graph, G: GraphView + 'graph>(
