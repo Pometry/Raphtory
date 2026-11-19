@@ -399,6 +399,22 @@ def test_max_recursive_depth():
         )
 
 
+def test_max_nesting_depth():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(
+        work_dir, config={"schema": {"max_nesting_depth": 3}}
+    ).start() as server:
+        client = server.get_client()
+        make_graph(client)
+
+        # three levels: the outer `{`, `graph {` and `nodes {`; `(...)` closes before
+        client.query('{ graph(path: "g") { nodes { count } } }')
+
+        with pytest.raises(Exception) as excinfo:
+            client.query('{ graph(path: "g") { nodes { list { name } } } }')
+        assert "the query is nested deeper than 3 levels" in str(excinfo.value)
+
+
 def test_max_directives_per_field():
     work_dir = tempfile.mkdtemp()
     with GraphServer(

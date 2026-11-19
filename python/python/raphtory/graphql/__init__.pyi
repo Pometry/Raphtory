@@ -119,6 +119,8 @@ class GraphServer(object):
                                    (int, based on the number of fields selected),
                                    `max_recursive_depth` (int, safety limit against stack
                                    overflows from pathologically structured queries),
+                                   `max_nesting_depth` (int, how deeply `{`, `[` and `(` may nest
+                                   anywhere in a query, argument values included; default 128),
                                    `max_directives_per_field` (int),
                                    `disable_introspection` (bool),
                                    `disable_rdf` (bool, leave `rdfGraph` out of the schema; also

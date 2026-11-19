@@ -20,7 +20,7 @@ use crate::{
             TracingLevel, TracingProtocol, DEFAULT_OTLP_TRACING_SERVICE_NAME,
             DEFAULT_OTLP_TRANSPORT_PROTOCOL, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
         },
-        schema_config::DEFAULT_DISABLE_INTROSPECTION,
+        schema_config::{DEFAULT_DISABLE_INTROSPECTION, DEFAULT_MAX_NESTING_DEPTH},
     },
     model::App,
     plugin::{schema::RegisterPlugin, server::extension::ArgExtensions},
@@ -247,6 +247,13 @@ pub struct ConfigArgs {
         help = "Internal safety limit to prevent stack overflows from pathologically structured queries. Falls back to the async-graphql default of 32 if unset."
     )]
     pub(crate) max_recursive_depth: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_NESTING_DEPTH",
+        help = help_with_default!("Limits how deeply `{`, `[` and `(` may nest anywhere in a query, argument values included. Checked before the query is parsed, to prevent stack overflows from deeply nested arguments.", DEFAULT_MAX_NESTING_DEPTH)
+    )]
+    pub(crate) max_nesting_depth: Option<usize>,
 
     #[arg(
         long,
