@@ -283,32 +283,24 @@ def test_filtering_valid():
     assert list(e.properties.temporal.get("weight").values()) == []
 
 
-# TODO this will not pass until we fix hanging edges
-# def test_window_boundaries_same_time_op():
-#     G = PersistentGraph()
-#     G.add_edge(2, "Alice", "Bob")
-#     G.delete_edge(2, "Alice", "Bob")
-#
-#     assert G.window(0, 2).count_nodes() == 0
-#     assert G.window(0, 2).count_edges() == 0
-#
-#     assert G.window(2, 3).count_nodes() == 2
-#     assert G.window(2, 3).count_edges() == 1
-#
-#     assert G.window(3, 10).count_nodes() == 2
-#     assert G.window(3, 10).count_edges() == 0
-#
-#
-#     G = PersistentGraph()
-#     G.delete_edge(2, "Alice", "Bob")
-#     G.add_edge(2, "Alice", "Bob")
-#     print(G.window(0, 2).count_nodes(),G.window(0, 2).count_edges())
-#
-#     assert G.window(0, 2).count_nodes() == 0
-#     assert G.window(0, 2).count_edges() == 0
-#
-#     assert G.window(2, 3).count_nodes() == 2
-#     assert G.window(2, 3).count_edges() == 1
-#
-#     assert G.window(3, 10).count_nodes() == 2
-#     assert G.window(3, 10).count_edges() == 0
+def test_window_boundaries_same_time_op():
+    # added then deleted at the same time: the edge never exists
+    G = PersistentGraph()
+    G.add_edge(2, "Alice", "Bob")
+    G.delete_edge(2, "Alice", "Bob")
+
+    for start, end in [(0, 2), (2, 3), (3, 10)]:
+        assert G.window(start, end).count_nodes() == 0
+        assert G.window(start, end).count_edges() == 0
+
+    # deleted then added at the same time: the edge exists from then on
+    G = PersistentGraph()
+    G.delete_edge(2, "Alice", "Bob")
+    G.add_edge(2, "Alice", "Bob")
+
+    assert G.window(0, 2).count_nodes() == 0
+    assert G.window(0, 2).count_edges() == 0
+
+    for start, end in [(2, 3), (3, 10)]:
+        assert G.window(start, end).count_nodes() == 2
+        assert G.window(start, end).count_edges() == 1

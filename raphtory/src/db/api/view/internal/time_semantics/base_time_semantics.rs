@@ -12,7 +12,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 use storage::EdgeEntryRef;
 
 #[derive(Copy, Clone, Debug)]
@@ -116,13 +116,13 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
     }
 
     #[inline]
-    fn node_updates<'graph, G: GraphView + 'graph>(
+    fn node_updates<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates(node, view, prop_ids))
+        for_all_iter!(self, semantics => semantics.node_updates(node, layer_ids, prop_ids))
     }
 
     #[inline]
@@ -252,14 +252,14 @@ impl NodeTimeSemanticsWindowOps for BaseTimeSemantics {
     }
 
     #[inline]
-    fn node_updates_window<'graph, G: GraphView + 'graph>(
+    fn node_updates_window<'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
         w: Range<EventTime>,
-        prop_ids: Arc<[usize]>,
+        layer_ids: &'graph LayerIds,
+        prop_ids: &'graph [usize],
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, w, prop_ids))
+        for_all_iter!(self, semantics => semantics.node_updates_window(node, w, layer_ids, prop_ids))
     }
 
     #[inline]

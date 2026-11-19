@@ -29,7 +29,7 @@ LANGUAGES = OrderedDict(
 
 # Load all links to reference docs
 with open("API_REFERENCE_LINKS.yaml", "r") as f:
-    API_REFERENCE_LINKS = yaml.load(f, Loader=yaml.CLoader)
+    API_REFERENCE_LINKS = yaml.load(f, Loader=yaml.CSafeLoader)
 
 
 def create_feature_flag_links(language: str, api_functions: List[str]) -> List[str]:
