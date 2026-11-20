@@ -4,9 +4,6 @@ Each module here starts its own mock embedding server on its own port, so the fi
 read — and run — independently.
 """
 
-import threading
-import time
-
 from raphtory.vectors import embedding_server
 
 

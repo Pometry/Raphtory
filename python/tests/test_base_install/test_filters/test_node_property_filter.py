@@ -1,5 +1,5 @@
 from raphtory import filter, Prop
-from filters_setup import init_graph, init_graph2, create_test_graph, create_test_graph2
+from filters_setup import init_graph, init_graph2, create_test_graph
 from utils import with_variants
 import pytest
 import re

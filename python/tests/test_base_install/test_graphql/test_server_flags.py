@@ -5,7 +5,7 @@ import urllib.request
 
 import pytest
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 SERVER_URL = "http://localhost:1736"
 

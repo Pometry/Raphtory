@@ -59,6 +59,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         &self.storage
     }
 
+    #[inline(always)]
+    pub fn segments(&self) -> &[ES::ArcLockedSegment] {
+        &self.segments
+    }
+
     pub fn edge_ref(
         &self,
         e_id_ref: Either<EID, EdgeRef>,

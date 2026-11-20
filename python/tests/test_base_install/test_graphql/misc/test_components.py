@@ -1,4 +1,3 @@
-from raphtory.graphql import RaphtoryClient
 from raphtory.graphql import GraphServer
 from raphtory import Graph
 import tempfile

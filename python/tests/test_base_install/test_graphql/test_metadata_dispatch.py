@@ -16,14 +16,13 @@ disk-backed graph and a parquet-backed graph, then queries
 `MetaGraph.metadata` to prove all three paths work.
 """
 
-import gc
 import json
 import os
 import tempfile
 
 import pytest
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 # The disk-backed half of this test requires the storage feature, which
 # is not compiled into the base test wheel. Same gate as test_disk_graph.py

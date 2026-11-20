@@ -1,5 +1,5 @@
 from raphtory import Graph
-from utils import run_graphql_test, run_graphql_error_test, run_group_graphql_error_test
+from utils import run_graphql_test, run_group_graphql_error_test
 from datetime import datetime
 from raphtory import PersistentGraph
 

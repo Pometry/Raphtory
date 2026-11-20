@@ -3,7 +3,7 @@ import tempfile
 
 import pytest
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 
 def test_new_graph_succeeds():

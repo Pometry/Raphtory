@@ -1,5 +1,4 @@
 from utils import sort_by_gql_name_or_id
-from raphtory.graphql import RaphtoryClient
 
 
 def test_latest_and_active():

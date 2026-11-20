@@ -1,8 +1,4 @@
 from raphtory import Graph, PersistentGraph, Prop
-import tempfile
-import pytest
-import shutil
-import atexit
 import numpy as np
 import pandas as pd
 
@@ -544,11 +540,6 @@ def init_edges_graph2(graph):
 
     return graph
 
-
-import tempfile
-from raphtory.graphql import GraphServer
-import json
-import re
 
 PORT = 1737
 

@@ -1,5 +1,5 @@
 import tempfile
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 
 def test_snapshot():

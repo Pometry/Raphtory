@@ -61,7 +61,7 @@ pub(crate) async fn run_limited<T: Send + 'static>(
         let _permit = permit;
         f(&config)
     })
-    .await
+    .await?
     {
         Ok(value) => Ok(Some(value)),
         // logged, not returned: the message can name data the caller may not read

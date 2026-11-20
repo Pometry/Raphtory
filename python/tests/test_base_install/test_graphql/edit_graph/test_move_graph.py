@@ -4,7 +4,7 @@ import tempfile
 import pytest
 
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 
 def test_move_graph_fails_if_graph_not_found():

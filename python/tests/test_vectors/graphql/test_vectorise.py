@@ -6,13 +6,7 @@ from raphtory import Graph
 from raphtory.graphql import GraphServer
 from raphtory.vectors import OpenAIEmbeddings
 
-from helpers import (
-    EMBEDDING_PORT,
-    assert_correct_documents,
-    embeddings,
-    setup_graph,
-    vectorise_query,
-)
+from helpers import assert_correct_documents, embeddings, setup_graph
 
 
 def test_new_graph():

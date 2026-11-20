@@ -1,8 +1,7 @@
 import os
 import tempfile
-import json
 from raphtory import Graph
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer
 
 
 def sort_lists_in_structure(key_main, obj):
