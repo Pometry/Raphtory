@@ -1,9 +1,9 @@
 use crate::{
     api::node_type_index::NodeTypeIndexOps, error::StorageError,
+    pages::node_type_index::writer::NodeTypeIndexWriter,
     segments::node_type_index::MemNodeTypeIndex,
 };
 use raphtory_api::ArcRwLockWriteGuard;
-use raphtory_core::entities::VID;
 use std::{ops::DerefMut, sync::Arc};
 
 pub struct WriteLockedNodeTypeIndex<NTI> {
@@ -16,13 +16,8 @@ impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
         Self { head, index }
     }
 
-    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
-        self.head.insert_batch(type_id, vids);
-    }
-
-    pub fn notify_write(&mut self) {
-        self.index.set_est_size_cached(self.head.est_size());
-        self.index.notify_write(Some(self.head.deref_mut()))
+    pub fn writer(&mut self) -> NodeTypeIndexWriter<'_, &mut MemNodeTypeIndex, NTI> {
+        NodeTypeIndexWriter::new_exclusive(self.head.deref_mut(), self.index.as_ref())
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {

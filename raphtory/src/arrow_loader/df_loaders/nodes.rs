@@ -33,11 +33,11 @@ use std::{
 };
 use storage::{
     api::nodes::NodeSegmentOps,
-    pages::locked::{
-        node_type_index::WriteLockedNodeTypeIndex,
-        nodes::{WriteLockedNodeSegment, WriteLockedNodeSegments},
+    pages::{
+        locked::nodes::{WriteLockedNodeSegment, WriteLockedNodeSegments},
+        node_type_index::writer::NodeTypeIndexWriter,
     },
-    segments::node::segment::MemNodeSegment,
+    segments::{node::segment::MemNodeSegment, node_type_index::MemNodeTypeIndex},
     Extension, NS, NTI,
 };
 
@@ -288,13 +288,14 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             if resolve_nodes && !gid_str_cache.is_empty() {
                 let index = &mut write_locked_graph.node_type_index;
+                let writer = index.writer();
+
                 populate_node_type_index(
                     gid_str_cache
                         .iter()
                         .map(|(_, (vid, node_type))| (*vid, *node_type)),
-                    index,
+                    writer,
                 );
-                index.notify_write();
             }
 
             // node resolution may have created new node segments
@@ -488,14 +489,15 @@ pub fn load_node_props_from_df<
 
         if pre_resolved && !node_col_resolved.is_empty() {
             let index = &mut write_locked_graph.node_type_index;
+            let writer = index.writer();
+
             populate_node_type_index(
                 node_col_resolved
                     .iter()
                     .zip(node_type_col_resolved)
                     .map(|(vid, node_type)| (*vid, *node_type)),
-                index,
+                writer,
             );
-            index.notify_write();
         }
 
         // node resolution may have created new node segments
@@ -926,7 +928,7 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
 
 fn populate_node_type_index(
     gid_str_cache: impl IntoIterator<Item = (VID, usize)>,
-    index: &WriteLockedNodeTypeIndex<NTI>,
+    writer: NodeTypeIndexWriter<'_, &mut MemNodeTypeIndex, NTI>,
 ) {
     let mut by_type: HashMap<usize, Vec<VID>> = HashMap::new();
 
@@ -940,6 +942,6 @@ fn populate_node_type_index(
     }
 
     by_type.par_iter().for_each(|(node_type, vids)| {
-        index.insert_batch(*node_type, vids.iter().copied());
+        writer.insert_batch(*node_type, vids.iter().copied());
     });
 }

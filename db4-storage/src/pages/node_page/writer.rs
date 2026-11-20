@@ -336,6 +336,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
         }
     }
 }
+
 /// Holds writers for src and dst node segments when adding an edge.
 /// If both nodes are in the same segment, `dst` is `None` and `src` is used for both.
 pub struct NodeWriters<'a, MP: DerefMut<Target = MemNodeSegment>, NS: NodeSegmentOps> {

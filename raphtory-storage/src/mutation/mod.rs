@@ -4,7 +4,7 @@ use crate::{
 use raphtory_api::{
     core::entities::properties::prop::{InvalidBigDecimal, PropError},
     inherit::Base,
-    ArcRwLockWriteGuard,
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
 };
 use raphtory_core::entities::properties::props::{MetadataError, TPropError};
 use std::sync::Arc;
@@ -17,7 +17,10 @@ use storage::{
         node_type_index::writer::NodeTypeIndexWriter,
     },
     resolver::mapping_resolver::InvalidNodeId,
-    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    segments::{
+        edge::segment::MemEdgeSegment, node::segment::MemNodeSegment,
+        node_type_index::MemNodeTypeIndex,
+    },
     Extension, ES, GS, NS, NTI,
 };
 use thiserror::Error;
@@ -29,7 +32,8 @@ pub type NodeWriterT<'a> = NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, N
 pub type NodeWritersT<'a> = NodeWriters<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, ArcRwLockWriteGuard<MemEdgeSegment>, ES<Extension>>;
 pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
-pub type NodeTypeIndexWriterT<'a> = NodeTypeIndexWriter<'a, NTI>;
+pub type NodeTypeIndexWriterT<'a> =
+    NodeTypeIndexWriter<'a, ArcRwLockReadGuard<MemNodeTypeIndex>, NTI>;
 
 #[derive(Error, Debug)]
 pub enum MutationError {

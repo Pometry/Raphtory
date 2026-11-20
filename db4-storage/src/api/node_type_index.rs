@@ -32,13 +32,15 @@ where
     /// The size of `head` in bytes, cached so it can be read without locking.
     fn est_size_cached(&self) -> usize;
 
-    /// Cache the size of `head` to `size` in bytes.
+    /// Cache the size of `head` so it can be read without locking.
     fn set_est_size_cached(&self, size: usize);
 
     fn is_dirty(&self) -> bool;
 
     fn set_dirty(&self, dirty: bool);
 
+    /// Called to decide if the index should be flushed to disk.
+    /// If `head` is None, may try to acquire an exclusive lock on `head` to flush.
     fn notify_write(&self, head: Option<impl DerefMut<Target = MemNodeTypeIndex>>);
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self>;

@@ -33,7 +33,7 @@ use raphtory_core::{
     storage::timeindex::{AsTime, EventTime},
 };
 use storage::{
-    api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
+    api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::resolve_pos,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -698,6 +698,10 @@ impl GraphMutationOps for TemporalGraph {
         node: NodeRef,
         node_type: Option<&str>,
     ) -> Result<AtomicAddNode<'_>, MutationError> {
+        let type_index = self.storage().node_type_index();
+        // This may flush the index which waits for the head exclusive lock.
+        let type_index_writer = NodeTypeIndexWriterT::new_shared(type_index.as_ref());
+
         let node_vid = match node {
             NodeRef::Internal(vid) => vid,
             NodeRef::External(gid) => match self.gid_resolver.get_or_init(gid)? {
@@ -709,12 +713,6 @@ impl GraphMutationOps for TemporalGraph {
                     let vid = pos.as_vid(
                         node_writer.segment.segment_id(),
                         node_writer.head.max_page_len(),
-                    );
-
-                    let node_type_index = self.storage().node_type_index();
-                    let type_index_writer = NodeTypeIndexWriterT::new(
-                        node_type_index.head_shared_arc(),
-                        node_type_index.as_ref(),
                     );
 
                     init.init(vid)?;
@@ -743,9 +741,6 @@ impl GraphMutationOps for TemporalGraph {
 
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
         let node_writer = self.storage().node_writer(segment_id);
-        let node_type_index = self.storage().node_type_index();
-        let type_index_writer =
-            NodeTypeIndexWriterT::new(node_type_index.head_shared_arc(), node_type_index.as_ref());
 
         let mut atomic = AtomicAddNode {
             vid: MaybeNew::Existing(node_vid),
