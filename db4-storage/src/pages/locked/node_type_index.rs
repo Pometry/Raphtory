@@ -4,7 +4,7 @@ use crate::{
 };
 use raphtory_api::ArcRwLockWriteGuard;
 use raphtory_core::entities::VID;
-use std::{ops::DerefMut, path::Path, sync::Arc};
+use std::{ops::DerefMut, sync::Arc};
 
 pub struct WriteLockedNodeTypeIndex<NTI> {
     head: ArcRwLockWriteGuard<MemNodeTypeIndex>,
@@ -28,10 +28,5 @@ impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
     pub fn flush(&mut self) -> Result<(), StorageError> {
         let head = self.head.deref_mut();
         self.index.flush(head)
-    }
-
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-        self.index.copy_to(dst)
     }
 }
