@@ -28,12 +28,11 @@ use raphtory_storage::{
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    future::poll_fn,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-    task::Poll,
+    time::Duration,
 };
 use tracing::debug;
 
@@ -106,26 +105,20 @@ impl GraphWithVectors {
         &self.inner.plugin_data
     }
 
-    /// Calls `Arc::into_inner` on the underlying Arc until we hold the only reference and returns it
+    /// Calls `Arc::try_unwrap` on the underlying Arc until we hold the only reference and returns it
     pub async fn into_inner(self) -> GraphWithVectorsInner {
-        let mut inner = Some(self.inner);
-        let future = poll_fn(move |_ctx| {
-            match inner.take() {
-                None => {
-                    unreachable!("poll called after ready returned")
-                }
-                Some(inner_arc) => {
-                    match Arc::try_unwrap(inner_arc) {
-                        Ok(inner) => Poll::Ready(inner),
-                        Err(inner_arc) => {
-                            inner = Some(inner_arc); // put back
-                            Poll::Pending
-                        }
-                    }
+        let mut inner = self.inner;
+        loop {
+            match Arc::try_unwrap(inner) {
+                Ok(inner) => return inner,
+                Err(shared) => {
+                    inner = shared;
+                    // shortcut: polls, as nothing signals the last other handle's drop; a
+                    // `Pending` with no waker registered was never polled again.
+                    tokio::time::sleep(Duration::from_millis(10)).await;
                 }
             }
-        });
-        future.await
+        }
     }
 
     /// Swap in a read-only handle for the graph. No-op with a warning if the inner

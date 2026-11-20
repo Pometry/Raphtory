@@ -1268,6 +1268,39 @@ pub(crate) mod data_tests {
             .unwrap();
     }
 
+    /// Deleting a graph waits for its last other handle, and finishes once that is dropped.
+    #[tokio::test]
+    async fn a_delete_finishes_once_the_last_other_handle_drops() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
+        let folder = data
+            .work_dir()
+            .write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+        let held = data.get_graph_for_test("g").await.unwrap();
+
+        let deleting = tokio::spawn({
+            let data = data.clone();
+            async move { data.delete_graph("g").await }
+        });
+        sleep(Duration::from_millis(200)).await;
+        assert!(
+            !deleting.is_finished(),
+            "the delete did not wait for the handle"
+        );
+        drop(held);
+        tokio::time::timeout(Duration::from_secs(10), deleting)
+            .await
+            .expect("the delete never resumed after the handle dropped")
+            .unwrap()
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn test_persist_refreshes_metadata_sidecar_counts() {
         let tmp_work_dir = tempfile::tempdir().unwrap();
