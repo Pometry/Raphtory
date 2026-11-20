@@ -24,7 +24,7 @@ use crate::{
         InternalPathValidationError, PathValidationError, UnlockedGraphFolder, ValidGraphPaths,
         ValidWriteableGraphFolder,
     },
-    rayon::{blocking_compute, blocking_io},
+    rayon::{blocking_compute, blocking_io, blocking_write, panic_message},
     GQLError,
 };
 use async_graphql::Context;
@@ -45,6 +45,7 @@ use std::{
     collections::HashSet,
     fs, io,
     io::{Read, Seek},
+    panic::{self, AssertUnwindSafe},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -998,17 +999,22 @@ impl Data {
 async fn flush_graph(graph: Option<GraphWithVectors>) {
     if let Some(old_graph) = graph {
         let inner = old_graph.into_inner().await;
-        if let Err(panic) = blocking_compute(move || {
-            if let Err(e) = inner.graph.flush() {
-                error!(
-                    "Failed to flush old graph {} before replacing: {e}",
-                    inner.folder.local_path()
-                )
-            }
+        // A write: it waits for every reader of the graph, so on the compute pool it would hold
+        // the threads reads of other graphs need until a long query on this one ends.
+        if let Err(panic) = blocking_write(move || {
+            // a panic in a rayon job aborts the process
+            panic::catch_unwind(AssertUnwindSafe(|| {
+                if let Err(e) = inner.graph.flush() {
+                    error!(
+                        "Failed to flush old graph {} before replacing: {e}",
+                        inner.folder.local_path()
+                    )
+                }
+            }))
         })
         .await
         {
-            error!("Flush panic: {panic}")
+            error!("Flush panic: {}", panic_message(panic.as_ref()))
         };
     }
 }
@@ -1082,10 +1088,19 @@ pub(crate) async fn apply_access_filter(
 #[cfg(test)]
 pub(crate) mod data_tests {
     use super::InsertionError;
-    use crate::{config::app_config::AppConfigBuilder, data::Data, paths::ExistingGraphFolder};
+    use crate::{
+        config::app_config::AppConfigBuilder, data::Data, paths::ExistingGraphFolder,
+        rayon::blocking_compute,
+    };
     use itertools::Itertools;
     use raphtory::{
-        db::api::view::{internal::InternalStorageOps, MaterializedGraph},
+        db::api::{
+            storage::storage::Args,
+            view::{
+                internal::{CoreGraphOps, InternalStorageOps},
+                MaterializedGraph,
+            },
+        },
         prelude::*,
     };
     use raphtory_api::core::storage::graph_folder::GraphPaths;
@@ -1198,6 +1213,94 @@ pub(crate) mod data_tests {
 
     /// After remote-style mutations, an explicit persist must rewrite the
     /// metadata sidecar so cache-miss namespace listings report true counts.
+    /// Deleting a graph flushes it, which waits for every reader of it; reads of other graphs
+    /// still find the compute pool free meanwhile.
+    // Holding TEST_SERIAL across awaits serialises tests that block the process-global pools.
+    #[allow(clippy::await_holding_lock)]
+    #[tokio::test]
+    async fn a_flush_waiting_for_readers_leaves_the_compute_pool_free() {
+        let _serial = crate::rayon::TEST_SERIAL.lock();
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        // Two nodes a segment: more segments than compute threads, a flush job for each.
+        let args = Args::default().with_max_node_page_len(2);
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), args);
+        let graph = Graph::new();
+        let threads = std::thread::available_parallelism().map_or(8, |n| n.get());
+        for node in 0..4 * threads as u64 {
+            graph.add_node(0, node, NO_PROPS, None, None).unwrap();
+        }
+        let folder = data
+            .work_dir()
+            .write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, graph.into()).await.unwrap();
+        // Every segment read-locked, as a long query holds them.
+        let locked = data
+            .get_graph_for_test("g")
+            .await
+            .unwrap()
+            .graph()
+            .core_graph()
+            .lock();
+
+        let deleting = tokio::spawn({
+            let data = data.clone();
+            async move { data.delete_graph("g").await }
+        });
+        sleep(Duration::from_millis(500)).await;
+        let probe = tokio::time::timeout(Duration::from_secs(10), blocking_compute(|| ())).await;
+        assert!(
+            matches!(probe, Ok(Ok(()))),
+            "the compute pool waits on the flush"
+        );
+        assert!(
+            !deleting.is_finished(),
+            "the flush did not wait for the reader"
+        );
+
+        drop(locked);
+        tokio::time::timeout(Duration::from_secs(30), deleting)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+    }
+
+    /// Deleting a graph waits for its last other handle, and finishes once that is dropped.
+    #[tokio::test]
+    async fn a_delete_finishes_once_the_last_other_handle_drops() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
+        let folder = data
+            .work_dir()
+            .write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+        let held = data.get_graph_for_test("g").await.unwrap();
+
+        let deleting = tokio::spawn({
+            let data = data.clone();
+            async move { data.delete_graph("g").await }
+        });
+        sleep(Duration::from_millis(200)).await;
+        assert!(
+            !deleting.is_finished(),
+            "the delete did not wait for the handle"
+        );
+        drop(held);
+        tokio::time::timeout(Duration::from_secs(10), deleting)
+            .await
+            .expect("the delete never resumed after the handle dropped")
+            .unwrap()
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn test_persist_refreshes_metadata_sidecar_counts() {
         let tmp_work_dir = tempfile::tempdir().unwrap();

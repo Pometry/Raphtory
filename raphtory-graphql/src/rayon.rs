@@ -241,7 +241,7 @@ pub async fn blocking_cache<R: Send + 'static, F: FnOnce() -> R + Send + 'static
         .map_err(|panic| CachingError::Panicked(panic_message(panic.as_ref())))
 }
 
-fn panic_message(payload: &(dyn Any + Send)) -> String {
+pub(crate) fn panic_message(payload: &(dyn Any + Send)) -> String {
     if let Some(message) = payload.downcast_ref::<&str>() {
         message.to_string()
     } else if let Some(message) = payload.downcast_ref::<String>() {
@@ -262,7 +262,7 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 /// The pools are process-global, so tests that jam or saturate them must not overlap.
 #[cfg(test)]
-static TEST_SERIAL: Mutex<()> = Mutex::new(());
+pub(crate) static TEST_SERIAL: Mutex<()> = Mutex::new(());
 
 #[cfg(test)]
 mod deadlock_tests {
