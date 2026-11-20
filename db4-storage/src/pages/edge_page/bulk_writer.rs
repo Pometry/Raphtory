@@ -14,7 +14,7 @@ pub struct BulkEdgeWriter<
     MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug,
     ES: EdgeSegmentOps,
 > {
-    ew: EdgeWriter<'a, MP, ES>,
+    edge_writer: EdgeWriter<'a, MP, ES>,
     layers: Vec<usize>,
     earliest: EventTime,
     latest: EventTime,
@@ -25,7 +25,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 {
     fn from(value: EdgeWriter<'a, MP, ES>) -> Self {
         Self {
-            ew: value,
+            edge_writer: value,
             layers: vec![0],
             earliest: EventTime::MAX,
             latest: EventTime::MIN,
@@ -50,7 +50,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
     ) {
         if !edge_exists
             && self
-                .ew
+                .edge_writer
                 .head
                 .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
         {
@@ -58,17 +58,17 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         }
 
         if self
-            .ew
+            .edge_writer
             .head
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props)
-            && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
+            && !self.edge_writer.segment.immut_has_edge(edge_pos, layer_id)
         {
             self.increment_layer_num_edges(layer_id);
         }
 
         self.update_time(t);
 
-        self.ew
+        self.edge_writer
             .head
             .update_const_properties(edge_pos, src, dst, layer_id, c_props);
     }
@@ -84,7 +84,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
     ) {
         if !exists
             && self
-                .ew
+                .edge_writer
                 .head
                 .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
         {
@@ -93,10 +93,10 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 
         self.update_time(t);
         if self
-            .ew
+            .edge_writer
             .head
             .delete_edge_internal(t, edge_pos, src, dst, layer_id)
-            && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
+            && !self.edge_writer.segment.immut_has_edge(edge_pos, layer_id)
         {
             self.increment_layer_num_edges(layer_id);
         }
@@ -118,7 +118,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 
     #[inline(always)]
     pub fn resolve_pos(&self, edge_id: EID) -> Option<LocalPOS> {
-        self.ew.resolve_pos(edge_id)
+        self.edge_writer.resolve_pos(edge_id)
     }
 }
 
@@ -127,9 +127,9 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 {
     fn drop(&mut self) {
         for (layer_id, count) in self.layers.iter().enumerate() {
-            self.ew.graph_stats.increment_by(LayerId(layer_id), *count);
+            self.edge_writer.graph_stats.increment_by(LayerId(layer_id), *count);
         }
-        self.ew.graph_stats.update_time(self.earliest.t());
-        self.ew.graph_stats.update_time(self.latest.t());
+        self.edge_writer.graph_stats.update_time(self.earliest.t());
+        self.edge_writer.graph_stats.update_time(self.latest.t());
     }
 }

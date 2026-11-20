@@ -16,7 +16,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct BulkNodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> {
-    nw: NodeWriter<'a, MP, NS>,
+    node_writer: NodeWriter<'a, MP, NS>,
     layers: Vec<usize>,
 }
 
@@ -25,7 +25,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
 {
     fn from(value: NodeWriter<'a, MP, NS>) -> Self {
         Self {
-            nw: value,
+            node_writer: value,
             layers: Vec::new(),
         }
     }
@@ -36,12 +36,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
 {
     #[inline]
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: LayerId) -> Option<EID> {
-        self.nw.get_out_edge(pos, dst, layer_id)
+        self.node_writer.get_out_edge(pos, dst, layer_id)
     }
 
     #[inline(always)]
     pub fn resolve_pos(&self, node_id: VID) -> Option<LocalPOS> {
-        self.nw.resolve_pos(node_id)
+        self.node_writer.resolve_pos(node_id)
     }
 
     #[inline(always)]
@@ -52,7 +52,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
         e_id: impl Into<EID>,
     ) {
         let e_id = e_id.into();
-        self.nw.add_outbound_edge_inner::<i64>(
+        self.node_writer.add_outbound_edge_inner::<i64>(
             None,
             src_pos,
             dst,
@@ -70,7 +70,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
         e_id: impl Into<EID>,
     ) {
         let e_id = e_id.into();
-        self.nw.add_inbound_edge_inner::<i64>(
+        self.node_writer.add_inbound_edge_inner::<i64>(
             None,
             dst_pos,
             src,
@@ -89,7 +89,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
     ) {
-        self.nw
+        self.node_writer
             .add_outbound_edge_inner(t, src_pos, dst, e_id, |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             });
@@ -102,7 +102,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
     ) {
-        self.nw
+        self.node_writer
             .add_inbound_edge_inner(t, dst_pos, src, e_id, |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             });
@@ -117,7 +117,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
 
     #[inline(always)]
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID) {
-        self.nw.update_timestamp(t, pos, e_id);
+        self.node_writer.update_timestamp(t, pos, e_id);
     }
 
     #[inline(always)]
@@ -127,7 +127,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
             GID::Str(s) => Prop::str(s),
         };
         let props = [(NODE_ID_PROP_ID, gid)];
-        self.nw
+        self.node_writer
             .update_c_props_inner(pos, STATIC_GRAPH_LAYER_ID, props, |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             });
@@ -139,7 +139,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment>, ES: NodeSegmentOps> Drop
 {
     fn drop(&mut self) {
         for (layer_id, count) in self.layers.iter().enumerate() {
-            self.nw.graph_stats.increment_by(LayerId(layer_id), *count);
+            self.node_writer.graph_stats.increment_by(LayerId(layer_id), *count);
         }
     }
 }
