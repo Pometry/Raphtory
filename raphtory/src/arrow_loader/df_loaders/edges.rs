@@ -144,10 +144,15 @@ pub fn load_edges_from_df_prefetch<
         });
 
         for chunk in chunks {
+            let is_err = chunk.is_err();
             if let Err(e) = sender.send(chunk) {
                 error!("Error sending chunk to loader: {}", e);
                 break;
             }
+            if is_err {
+                break;
+            }
+
         }
     });
     result
