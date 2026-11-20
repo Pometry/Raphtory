@@ -450,11 +450,6 @@ where
     }
 }
 
-/// How long a bulk load waits to lock a segment created during the load. Nothing should hold
-/// such a segment while the bulk load lock is held exclusively, so timing out means a reader
-/// or an unguarded writer has it.
-pub const NEW_SEGMENT_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
-
 /// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
 where
