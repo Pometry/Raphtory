@@ -32,6 +32,9 @@ where
     /// Returns `true` if the index has no `(type_id, VID)` entries.
     fn is_empty(&self) -> bool;
 
+    /// Returns `true` if queries can be served from the index.
+    fn is_queryable(&self) -> bool;
+
     /// The size of `head` in bytes, cached so it can be read without locking.
     fn est_size_cached(&self) -> usize;
 

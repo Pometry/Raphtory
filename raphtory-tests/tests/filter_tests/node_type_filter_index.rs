@@ -15,7 +15,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use storage::api::node_type_index::NodeTypeIndexOps;
+use storage::{api::node_type_index::NodeTypeIndexOps, Args};
 
 #[test]
 fn type_filter_domain_uses_index() {
@@ -24,36 +24,11 @@ fn type_filter_domain_uses_index() {
     g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
     g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
 
-    let person_id = g.node_meta().get_node_type_id("Person").unwrap();
-    let company_id = g.node_meta().get_node_type_id("Company").unwrap();
-
-    let storage = g.core_graph();
-    let empty_op = NodeTypeFilterOp::from_values(["Person"], &g);
-
-    assert!(
-        matches!(empty_op.domain(storage), NodeList::All),
-        "empty index should fall back to a full scan"
-    );
-
     let a = g.node("a").unwrap().node;
     let b = g.node("b").unwrap().node;
     let c = g.node("c").unwrap().node;
-
-    // TODO: Remove manually updating the index here once it's wired up to add_node.
-    storage
-        .node_type_index()
-        .head_shared_arc()
-        .insert(person_id, a);
-    storage
-        .node_type_index()
-        .head_shared_arc()
-        .insert(person_id, b);
-    storage
-        .node_type_index()
-        .head_shared_arc()
-        .insert(company_id, c);
-
     let op = NodeTypeFilterOp::from_values(["Person"], &g);
+    let storage = g.core_graph();
 
     match op.domain(storage) {
         list @ NodeList::NodeTypeIdx { .. } => {
@@ -80,12 +55,12 @@ fn type_filter_domain_uses_index() {
     }
 }
 
-/// Builds the same small typed graph twice: once with the node type index
-/// populated (so type filters take the `NodeList::NodeTypeIdx` path) and once
-/// without (full-scan fallback), so every query can be checked against both.
-fn typed_graphs() -> (Graph, Graph) {
-    let build = |index: bool| {
-        let g = Graph::new();
+/// Builds the same graph twice, with and without the node type index enabled.
+fn build_graphs() -> (Graph, Graph) {
+    let build = |index_enabled: bool| {
+        let args = Args::default().with_node_type_index_enabled(index_enabled);
+        let g = Graph::new_with_config(args).unwrap();
+
         let nodes = [
             ("a", "Person", 1i64),
             ("b", "Person", 2),
@@ -113,20 +88,6 @@ fn typed_graphs() -> (Graph, Graph) {
             g.add_edge(2, src, dst, NO_PROPS, None).unwrap();
         }
 
-        if index {
-            // TODO: Remove manually updating the index here once it's wired up to add_node.
-            let storage = g.core_graph();
-            for node in g.nodes() {
-                let type_id = storage.node_type_id(node.node);
-                if type_id != 0 {
-                    storage
-                        .node_type_index()
-                        .head_shared_arc()
-                        .insert(type_id, node.node);
-                }
-            }
-        }
-
         g
     };
 
@@ -151,7 +112,7 @@ fn sorted_edges<'graph, G: GraphViewOps<'graph>>(g: &G) -> Vec<(String, String)>
 
 #[test]
 fn type_index_subgraph_matches_scan() {
-    let (indexed, scanned) = typed_graphs();
+    let (indexed, scanned) = build_graphs();
 
     for types in [
         vec!["Person"],
@@ -208,7 +169,7 @@ fn check_filter_matches_scan<F: CreateFilter + Clone>(
 
 #[test]
 fn type_index_nodes_type_filter_matches_scan() {
-    let (indexed, scanned) = typed_graphs();
+    let (indexed, scanned) = build_graphs();
 
     for types in [vec!["Person"], vec!["Company", "City"], vec![]] {
         let i = indexed.nodes().type_filter(types.clone());
@@ -241,7 +202,7 @@ fn type_index_nodes_type_filter_matches_scan() {
 
 #[test]
 fn type_index_combined_filters_match_scan() {
-    let (indexed, scanned) = typed_graphs();
+    let (indexed, scanned) = build_graphs();
 
     check_filter_matches_scan(
         &indexed,
@@ -320,10 +281,34 @@ fn type_index_combined_filters_match_scan() {
 #[test]
 #[ignore = "Nodes::len trusts a type list that was not intersected with the base view's nodes"]
 fn type_index_nodes_len_on_filtered_base() {
-    let (indexed, scanned) = typed_graphs();
+    let (indexed, scanned) = build_graphs();
     for g in [&indexed, &scanned] {
         let persons = g.subgraph(["a", "c", "e"]).nodes().type_filter(["Person"]);
         assert_eq!(persons.iter().count(), 1);
         assert_eq!(persons.len(), 1);
     }
+}
+
+#[test]
+fn node_type_index_disabled_falls_back_to_scan() {
+    let args = Args::default().with_node_type_index_enabled(false);
+    let g = Graph::new_with_config(args).unwrap();
+    g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
+    g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
+    g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
+
+    let storage = g.core_graph();
+    assert!(!storage.node_type_index().is_empty());
+
+    let op = NodeTypeFilterOp::from_values(["Person"], &g);
+    assert!(
+        matches!(op.domain(storage), NodeList::All),
+        "disabled index should fall back to a full scan"
+    );
+
+    let persons = g.subgraph_node_types(["Person"]);
+    assert!(matches!(persons.node_list(), NodeList::All));
+    assert_eq!(sorted_names(&persons), ["a", "b"]);
+    assert_eq!(persons.count_nodes(), 2);
+    assert_eq!(g.nodes().type_filter(["Person"]).len(), 2);
 }

@@ -1,5 +1,6 @@
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 600_000; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
+pub const DEFAULT_NODE_TYPE_INDEX_ENABLED: bool = true;
 const CONFIG_FILE_NAME: &str = "config.json";
 
 use crate::{
@@ -47,6 +48,8 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Sized + Clone {
 
     fn max_edge_page_len(&self) -> u32;
 
+    fn node_type_index_enabled(&self) -> bool;
+
     fn node_types(&self) -> &[String];
 
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
@@ -57,22 +60,25 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Sized + Clone {
 pub struct BaseConfig {
     max_node_page_len: u32,
     max_edge_page_len: u32,
+
+    /// Use the node type index for queries.
+    ///
+    /// Set to `false` to fall back to a full scan. The index is still maintained.
+    /// Default: `true`.
+    node_type_index_enabled: bool,
 }
 
 impl Default for BaseConfig {
     fn default() -> Self {
-        Self::new(DEFAULT_MAX_PAGE_LEN_NODES, DEFAULT_MAX_PAGE_LEN_EDGES)
+        Self {
+            max_node_page_len: DEFAULT_MAX_PAGE_LEN_NODES,
+            max_edge_page_len: DEFAULT_MAX_PAGE_LEN_EDGES,
+            node_type_index_enabled: DEFAULT_NODE_TYPE_INDEX_ENABLED,
+        }
     }
 }
 
 impl BaseConfig {
-    pub fn new(max_node_page_len: u32, max_edge_page_len: u32) -> Self {
-        Self {
-            max_node_page_len,
-            max_edge_page_len,
-        }
-    }
-
     pub fn with_max_node_page_len(mut self, page_len: u32) -> Self {
         self.max_node_page_len = page_len;
         self
@@ -80,6 +86,11 @@ impl BaseConfig {
 
     pub fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
         self.max_edge_page_len = page_len;
+        self
+    }
+
+    pub fn with_node_type_index_enabled(mut self, enabled: bool) -> Self {
+        self.node_type_index_enabled = enabled;
         self
     }
 }
@@ -93,6 +104,10 @@ impl ConfigOps for BaseConfig {
 
     fn max_edge_page_len(&self) -> u32 {
         self.max_edge_page_len
+    }
+
+    fn node_type_index_enabled(&self) -> bool {
+        self.node_type_index_enabled
     }
 
     fn node_types(&self) -> &[String] {
@@ -112,6 +127,7 @@ impl ConfigOps for BaseConfig {
 mod tests {
     use crate::persist::config::{
         BaseConfig, DEFAULT_MAX_PAGE_LEN_EDGES, DEFAULT_MAX_PAGE_LEN_NODES,
+        DEFAULT_NODE_TYPE_INDEX_ENABLED,
     };
 
     #[test_log::test]
@@ -119,6 +135,10 @@ mod tests {
         let default = BaseConfig::default();
         assert_eq!(default.max_edge_page_len, DEFAULT_MAX_PAGE_LEN_EDGES);
         assert_eq!(default.max_node_page_len, DEFAULT_MAX_PAGE_LEN_NODES);
+        assert_eq!(
+            default.node_type_index_enabled,
+            DEFAULT_NODE_TYPE_INDEX_ENABLED
+        );
     }
 
     #[test]
@@ -126,5 +146,9 @@ mod tests {
         let default: BaseConfig = serde_json::from_str("{}").unwrap();
         assert_eq!(default.max_edge_page_len, DEFAULT_MAX_PAGE_LEN_EDGES);
         assert_eq!(default.max_node_page_len, DEFAULT_MAX_PAGE_LEN_NODES);
+        assert_eq!(
+            default.node_type_index_enabled,
+            DEFAULT_NODE_TYPE_INDEX_ENABLED
+        );
     }
 }
