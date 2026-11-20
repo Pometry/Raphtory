@@ -1126,6 +1126,14 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def index_serves(self) -> bool:
+        """
+        Whether the index is built and up-to-date
+
+        Returns:
+            bool: True when the index is up-to-date
+        """
+
     def indexed_gid(self) -> bool:
         """
         Whether index builds cover each node's id.
@@ -1876,6 +1884,14 @@ class PersistentGraph(GraphView):
 
         Raises:
             GraphError: If the operation fails.
+        """
+
+    def index_serves(self) -> bool:
+        """
+        Whether the index is built and up-to-date
+
+        Returns:
+            bool: True when the index is up-to-date
         """
 
     def indexed_gid(self) -> bool:
