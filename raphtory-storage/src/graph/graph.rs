@@ -22,7 +22,10 @@ use raphtory_api::core::{
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
 use storage::{
-    api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
+    api::{
+        nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
+        time_index::WindowCandidates,
+    },
     error::StorageError,
     pages::SegmentCounts,
     persist::strategy::PersistenceStrategy,
@@ -181,6 +184,40 @@ impl GraphStorage {
             metadata,
             predicate,
             semantics,
+        )
+    }
+
+    /// Time-index candidates for `[start, end)` over `layers`; `None` means scan.
+    pub fn window_candidates(
+        &self,
+        persistent: bool,
+        start: i64,
+        end: i64,
+        layers: &LayerIds,
+    ) -> Option<WindowCandidates> {
+        let storage = self.temporal_graph().storage();
+        let (nodes, edges) = (storage.nodes(), storage.edges());
+        storage.extension().window_candidates(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            edges.segments().iter().map(|(_, segment)| segment.as_ref()),
+            edges.max_page_len(),
+            persistent,
+            start,
+            end,
+            layers,
+        )
+    }
+
+    /// No-op for backends without a time index.
+    pub fn build_time_index(&self) -> Result<(), StorageError> {
+        let storage = self.temporal_graph().storage();
+        let (nodes, edges) = (storage.nodes(), storage.edges());
+        storage.extension().build_time_index(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            edges.segments().iter().map(|(_, segment)| segment.as_ref()),
+            edges.max_page_len(),
         )
     }
 

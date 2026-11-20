@@ -1,4 +1,4 @@
-use crate::core::entities::LayerIds;
+use crate::core::entities::{LayerIds, EID};
 use raphtory_api::{
     core::{
         entities::{LayerId, ELID},
@@ -79,6 +79,11 @@ pub trait InternalEdgeFilterOps {
     fn edge_filter_includes_window_filter(&self) -> bool {
         false
     }
+
+    /// Membership by id alone; `None` means use `internal_filter_edge`.
+    fn internal_filter_edge_id(&self, _eid: EID, _layer_ids: &LayerIds) -> Option<bool> {
+        None
+    }
 }
 
 pub trait InheritAllEdgeFilterOps: Base {}
@@ -115,6 +120,11 @@ impl<G: InheritEdgeFilterOps<Base: InternalEdgeFilterOps>> InternalEdgeFilterOps
 
     fn edge_filter_includes_window_filter(&self) -> bool {
         self.base().edge_filter_includes_window_filter()
+    }
+
+    #[inline]
+    fn internal_filter_edge_id(&self, eid: EID, layer_ids: &LayerIds) -> Option<bool> {
+        self.base().internal_filter_edge_id(eid, layer_ids)
     }
 }
 

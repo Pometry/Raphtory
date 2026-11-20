@@ -212,6 +212,15 @@ impl PyPersistentGraph {
         Ok(())
     }
 
+    /// Add the time index for windowed views to stored data of a disk graph that has none.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    pub fn build_time_index(&self) -> Result<(), GraphError> {
+        self.graph.core_graph().build_time_index()?;
+        Ok(())
+    }
+
     /// Choose which node properties later index builds consider, without
     /// building now.
     ///

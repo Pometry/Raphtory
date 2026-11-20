@@ -792,6 +792,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     #[inline]
     fn count_nodes(&self) -> usize {
+        if !self.filtered_inner() {
+            if let Some(count) = self.node_count() {
+                return count;
+            }
+        }
         let (node_list, trusted) = self.trusted_node_list();
         if trusted {
             match node_list {
@@ -829,6 +834,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     #[inline]
     fn count_edges(&self) -> usize {
+        if !self.filtered_inner() {
+            if let Some(count) = self.edge_count() {
+                return count;
+            }
+        }
         if self.filtered() {
             let edges = self.core_edges();
             edges

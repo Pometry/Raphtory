@@ -18,6 +18,7 @@ use rayon::prelude::*;
 use std::{
     fmt::{Debug, Formatter},
     iter,
+    ops::RangeInclusive,
     sync::Arc,
 };
 
@@ -219,6 +220,7 @@ impl<T: HasRow> SegmentContainer<T> {
             (self.data.num_filled() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
         let timestamp_size = std::mem::size_of::<EventTime>();
         (self.properties.additions_count * timestamp_size)
+            + self.properties.time_rows_len() * std::mem::size_of::<(EventTime, u32)>()
             + data_size
             + self.t_prop_est_size()
             + self.c_prop_est_size()
@@ -330,6 +332,29 @@ impl<T: HasRow> SegmentContainer<T> {
         self.data
             .iter_filled()
             .map(|(l_pos, entry)| (l_pos, entry, self.properties().get_entry(entry.row())))
+    }
+
+    /// `(position, time)` of property updates and edge events at a time in `window`.
+    pub fn updated_in(
+        &self,
+        props: bool,
+        events: bool,
+        window: RangeInclusive<i64>,
+    ) -> impl Iterator<Item = (LocalPOS, i64)> + '_ {
+        let mut updated = self
+            .properties
+            .rows_updated_in(props, events, window)
+            .peekable();
+        let mut positions = Vec::new();
+        if updated.peek().is_some() {
+            for (pos, entry) in self.data.iter_filled() {
+                if positions.len() <= entry.row() {
+                    positions.resize(entry.row() + 1, pos);
+                }
+                positions[entry.row()] = pos;
+            }
+        }
+        updated.map(move |(row, t)| (positions[row], t))
     }
 
     /// return filled entries ordered by index

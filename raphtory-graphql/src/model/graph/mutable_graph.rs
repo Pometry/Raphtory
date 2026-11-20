@@ -586,6 +586,16 @@ impl GqlMutableGraph {
         .await
     }
 
+    /// Add the time index that serves windowed views to stored data that has none.
+    pub async fn build_time_index(&self) -> Result<bool, GQLError> {
+        let graph = self.graph.graph().clone();
+        blocking_write(move || {
+            graph.core_graph().build_time_index()?;
+            Ok(true)
+        })
+        .await
+    }
+
     /// The node property names that index builds consider, or null when every
     /// supported property is indexed.
     pub async fn indexed_properties(&self) -> Option<Vec<String>> {

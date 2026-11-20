@@ -49,38 +49,48 @@ use crate::{
             state::Index,
             view::{
                 internal::{
-                    EdgeList, GraphTimeSemanticsOps, GraphView, Immutable, InheritLayerOps,
-                    InheritMaterialize, InheritStorageOps, InternalEdgeFilterOps,
-                    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+                    EdgeList, FilterOps, GraphTimeSemanticsOps, GraphView, Immutable,
+                    InheritLayerOps, InheritMaterialize, InheritStorageOps, InternalEdgeFilterOps,
+                    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalLayerOps,
                     InternalNodeFilterOps, ListOps, NodeList, Static, TimeRanges, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
         },
-        graph::graph::graph_equal,
+        graph::{graph::graph_equal, views::layer_graph::LayeredGraph},
     },
     prelude::GraphViewOps,
 };
+use either::Either;
 use raphtory_api::{
     core::{
         entities::{
             properties::prop::{Prop, PropType},
-            LayerId, ELID,
+            LayerId, EID, ELID, VID,
         },
-        storage::{arc_str::ArcStr, timeindex::EventTime},
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{AsTime, EventTime},
+        },
     },
     inherit::Base,
     iter::IntoDynDBoxed,
 };
 use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
+    graph::{
+        edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
 };
+use roaring::RoaringBitmap;
 use std::{
     fmt::{Debug, Formatter},
     iter,
     ops::Range,
+    sync::{Arc, OnceLock},
 };
+use storage::{api::time_index::SegmentBitmaps, utils::map_on_threads};
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Clone)]
@@ -90,6 +100,69 @@ pub struct WindowedGraph<G> {
     /// The time the view keeps: one window, or ranges already resolved against
     /// `graph` when the view was built, so no call resolves them again.
     bounds: WindowBounds,
+    /// Time-index masks, filled by the first listing or count; shared by clones.
+    masks: ViewMasks,
+}
+
+/// Exact nodes and edges of a window over some layers of an otherwise unfiltered graph.
+#[derive(Debug)]
+pub struct WindowMasks {
+    nodes: SegmentBitmaps,
+    edges: SegmentBitmaps,
+    // shortcut: 8 bytes per listed node, give `Index` a bitmap variant for billions of nodes
+    node_list: OnceLock<Index<VID>>,
+}
+
+impl WindowMasks {
+    pub(crate) fn node_list(&self) -> NodeList {
+        let elems = self
+            .node_list
+            .get_or_init(|| Index::from_sorted(self.nodes.iter().map(VID).collect(), true));
+        NodeList::List {
+            elems: elems.clone(),
+        }
+    }
+
+    pub(crate) fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub(crate) fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+
+    #[inline]
+    pub(crate) fn has_node(&self, vid: VID) -> bool {
+        self.nodes.contains(vid.index())
+    }
+
+    #[inline]
+    pub(crate) fn has_edge(&self, eid: EID) -> bool {
+        self.edges.contains(eid.0)
+    }
+}
+
+/// Filled by the first listing or count, shared by clones; per-entity checks only read.
+#[derive(Clone, Default)]
+pub(crate) struct ViewMasks(Arc<OnceLock<Option<WindowMasks>>>);
+
+impl ViewMasks {
+    /// Never resolves.
+    pub(crate) fn none() -> Self {
+        Self(Arc::new(OnceLock::from(None)))
+    }
+
+    pub(crate) fn get_or_resolve(
+        &self,
+        resolve: impl FnOnce() -> Option<WindowMasks>,
+    ) -> Option<&WindowMasks> {
+        self.0.get_or_init(resolve).as_ref()
+    }
+
+    #[inline]
+    pub(crate) fn resolved(&self) -> Option<&WindowMasks> {
+        self.0.get().and_then(|masks| masks.as_ref())
+    }
 }
 
 /// The time a view is bounded to: one window, or a set of disjoint ranges. The
@@ -519,9 +592,58 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
             NodeList::List {
                 elems: Index::default(),
             }
+        } else if let Some(masks) = self.masks() {
+            masks.node_list()
         } else {
             self.graph.node_list()
         }
+    }
+
+    fn node_count(&self) -> Option<usize> {
+        self.masks().map(WindowMasks::node_count)
+    }
+
+    fn edge_count(&self) -> Option<usize> {
+        self.masks().map(WindowMasks::edge_count)
+    }
+
+    fn window_masks(&self, layer_ids: &LayerIds) -> Option<WindowMasks> {
+        let WindowBounds::Window { start, end } = &self.bounds else {
+            return None;
+        };
+        if self.bounds.window_is_empty()
+            || !self.bounds.window_is_bounding(&self.graph)
+            || self.graph.filtered_excluding_layers()
+        {
+            return None;
+        }
+        let persistent = self.graph.edge_time_semantics().is_persistent();
+        let candidates = self.graph.core_graph().window_candidates(
+            persistent,
+            start.map_or(i64::MIN, |start| start.t()),
+            end.map_or(i64::MAX, |end| end.t()),
+            layer_ids,
+        )?;
+        // an unmasked copy of this view checks `maybe_*`
+        let scan = LayeredGraph::unmasked(
+            WindowedGraph {
+                graph: &self.graph,
+                bounds: self.bounds.clone(),
+                masks: ViewMasks::none(),
+            },
+            layer_ids.clone(),
+        );
+        let nodes = verified(candidates.sure_nodes, candidates.maybe_nodes, |vid| {
+            scan.filter_node(scan.core_node(VID(vid)).as_ref())
+        });
+        let edges = verified(candidates.sure_edges, candidates.maybe_edges, |eid| {
+            scan.filter_edge(scan.core_edge(Either::Left(EID(eid))).as_ref())
+        });
+        Some(WindowMasks {
+            nodes,
+            edges,
+            node_list: OnceLock::new(),
+        })
     }
 
     fn edge_list(&self) -> EdgeList {
@@ -544,8 +666,14 @@ impl<G: GraphView> InternalNodeFilterOps for WindowedGraph<G> {
     #[inline]
     fn internal_node_list_trusted(&self) -> bool {
         self.bounds.window_is_empty()
+            || self.masks.resolved().is_some()
             || (self.graph.internal_node_list_trusted()
                 && !self.bounds.window_is_bounding(&self.graph))
+    }
+
+    #[inline]
+    fn node_filter_includes_window_filter(&self) -> bool {
+        self.masks.resolved().is_some()
     }
 
     #[inline]
@@ -565,7 +693,12 @@ impl<G: GraphView> InternalNodeFilterOps for WindowedGraph<G> {
 
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        !self.bounds.window_is_empty() && self.graph.internal_filter_node(node, layer_ids)
+        !self.bounds.window_is_empty()
+            && self
+                .masks
+                .resolved()
+                .is_none_or(|masks| masks.has_node(node.vid()))
+            && self.graph.internal_filter_node(node, layer_ids)
     }
 }
 
@@ -720,7 +853,27 @@ impl<G: GraphView> InternalEdgeFilterOps for WindowedGraph<G> {
 
     #[inline]
     fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
-        !self.bounds.window_is_empty() && self.graph.internal_filter_edge(edge, layer_ids)
+        !self.bounds.window_is_empty()
+            && self
+                .masks
+                .resolved()
+                .is_none_or(|masks| masks.has_edge(edge.eid()))
+            && self.graph.internal_filter_edge(edge, layer_ids)
+    }
+
+    #[inline]
+    fn edge_filter_includes_window_filter(&self) -> bool {
+        self.masks.resolved().is_some()
+    }
+
+    #[inline]
+    fn internal_filter_edge_id(&self, eid: EID, layer_ids: &LayerIds) -> Option<bool> {
+        // masks cover this view's layers only
+        let masks = self
+            .masks
+            .resolved()
+            .filter(|_| layer_ids == self.layer_ids())?;
+        Some(masks.has_edge(eid))
     }
 
     #[inline]
@@ -808,6 +961,7 @@ impl<G: GraphView> WindowedGraph<G> {
         WindowedGraph {
             graph,
             bounds: WindowBounds::new(start, end),
+            masks: Default::default(),
         }
     }
 
@@ -818,6 +972,35 @@ impl<G: GraphView> WindowedGraph<G> {
         WindowedGraph {
             graph,
             bounds: WindowBounds::from_ranges(ranges),
+            masks: Default::default(),
         }
     }
+
+    fn masks(&self) -> Option<&WindowMasks> {
+        self.masks
+            .get_or_resolve(|| self.window_masks(self.layer_ids()))
+    }
+}
+
+/// `sure` plus the ids of `maybe` that pass `check`.
+fn verified(
+    mut sure: SegmentBitmaps,
+    mut maybe: SegmentBitmaps,
+    check: impl Fn(usize) -> bool + Sync,
+) -> SegmentBitmaps {
+    let stride = sure.stride;
+    let segments = sure.segments.len().max(maybe.segments.len());
+    sure.segments.resize(segments, RoaringBitmap::new());
+    maybe.segments.resize(segments, RoaringBitmap::new());
+    let unsure = sure.segments.iter_mut().zip(&maybe.segments).enumerate();
+    let unsure = unsure.filter(|(_, (_, maybe))| !maybe.is_empty()).collect();
+    // the caller holds the view's masks, which other rayon jobs wait on
+    map_on_threads(unsure, |(segment, (sure, maybe))| {
+        sure.extend(
+            maybe
+                .iter()
+                .filter(|pos| check(segment * stride + *pos as usize)),
+        );
+    });
+    sure
 }

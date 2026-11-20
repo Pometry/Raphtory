@@ -6,6 +6,7 @@ use crate::{
         nodes::{
             GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
         },
+        time_index::WindowCandidates,
     },
     error::StorageError,
     persist::{
@@ -20,6 +21,7 @@ use crate::{
     },
     wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
+use raphtory_api::core::entities::LayerIds;
 use std::{
     fmt::Debug,
     ops::DerefMut,
@@ -117,6 +119,42 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         _semantics: PropSemantics,
     ) -> Option<GlobalPropCandidates> {
         None
+    }
+
+    /// Time-index candidates for `[start, end)` over `layers`; `None` means scan.
+    fn window_candidates<'a>(
+        &self,
+        _nodes: impl Iterator<Item = &'a Self::NS> + Send,
+        _node_stride: u32,
+        _edges: impl Iterator<Item = &'a Self::ES> + Send,
+        _edge_stride: u32,
+        _persistent: bool,
+        _start: i64,
+        _end: i64,
+        _layers: &LayerIds,
+    ) -> Option<WindowCandidates>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+        Self::ES: 'a,
+    {
+        None
+    }
+
+    /// No-op without a time index.
+    fn build_time_index<'a>(
+        &self,
+        _nodes: impl Iterator<Item = &'a Self::NS> + Send,
+        _node_stride: u32,
+        _edges: impl Iterator<Item = &'a Self::ES> + Send,
+        _edge_stride: u32,
+    ) -> Result<(), StorageError>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+        Self::ES: 'a,
+    {
+        Ok(())
     }
 
     /// Rebuild the property indexes over `selected`. A no-op for
