@@ -153,6 +153,11 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     fn indexed_gid(&self) -> bool {
         false
     }
+
+    /// Whether the index is built and not stale
+    fn index_serves(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone)]

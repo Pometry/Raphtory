@@ -253,6 +253,14 @@ impl PyPersistentGraph {
         self.graph.core_graph().indexed_gid()
     }
 
+    /// Whether the index is built and up-to-date
+    ///
+    /// Returns:
+    ///     bool: True when the index is up-to-date
+    pub fn index_serves(&self) -> bool {
+        self.graph.core_graph().index_serves()
+    }
+
     /// Return a read-only handle to this graph.
     ///
     /// Mutations on the returned graph (``add_node``, ``add_edge``,
