@@ -87,10 +87,6 @@ impl TColumns {
         self.t_props_log.get_mut(prop_id)
     }
 
-    pub fn getx(&self, prop_id: usize) -> Option<&PropColumn> {
-        self.t_props_log.get(prop_id)
-    }
-
     pub fn len(&self) -> usize {
         self.num_rows
     }

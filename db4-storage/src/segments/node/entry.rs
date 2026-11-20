@@ -5,6 +5,7 @@ use crate::{
     generic_time_ops::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
     segments::{additions::MemAdditions, node::segment::MemNodeSegment},
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     Direction,
@@ -20,7 +21,10 @@ use raphtory_core::{
     entities::{LayerIds, edges::edge_ref::EdgeRef, properties::tprop::TPropCell},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
 pub struct MemNodeEntry<'a, MNS> {
     pos: LocalPOS,
@@ -260,5 +264,38 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
             .as_ref()
             .get(layer_id.0)
             .is_some_and(|layer| layer.has_item(self.pos))
+    }
+
+    fn temp_prop_rows(
+        self,
+        w: Option<Range<EventTime>>,
+        prop_ids: &'a [usize],
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + 'a {
+        let t_prop_log = self
+            .ns
+            .get_layer(layer_id)
+            .map(|layer| (layer.t_prop_rows(self.pos), layer.properties()));
+        t_prop_log
+            .into_iter()
+            .flat_map(move |(t_cell, properties)| {
+                let t_iter = match w.clone() {
+                    Some(w) => Either::Left(t_cell.iter_window(w)),
+                    None => Either::Right(t_cell.iter()),
+                };
+                t_iter.map(move |(t, row)| {
+                    let props: Vec<_> = (*row)
+                        .into_iter()
+                        .flat_map(|row| {
+                            prop_ids.iter().filter_map(move |id| {
+                                properties
+                                    .t_column(*id)
+                                    .and_then(|col| col.get(row).map(|v| (*id, v)))
+                            })
+                        })
+                        .collect();
+                    (*t, props)
+                })
+            })
     }
 }

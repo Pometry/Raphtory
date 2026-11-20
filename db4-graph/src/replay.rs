@@ -13,6 +13,7 @@ use raphtory_api::core::{
     },
     storage::timeindex::EventTime,
 };
+use std::iter;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
@@ -35,9 +36,9 @@ where
         lsn: LSN,
         _transaction_id: TransactionID,
         t: EventTime,
-        src_name: Option<GID>,
+        mut src_name: Option<GID>,
         src_id: VID,
-        dst_name: Option<GID>,
+        mut dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
         props: Vec<(String, usize, Prop)>,
@@ -63,106 +64,88 @@ where
             .layer_meta()
             .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
 
-        // Grab src writer and add edge data.
+        // One writer per node segment: a flush between the endpoint writes would mark the
+        // segment as holding this entry and skip the second write.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
-        self.resize_segments_to_vid(src_id); // Create enough segments.
-
-        let segment = self
-            .graph()
-            .storage()
-            .nodes()
-            .wait_for_segment(src_segment_id);
-
-        let immut_lsn = segment.immut_lsn();
-
-        // Replay this entry only if it doesn't exist in immut.
-        if immut_lsn < lsn {
-            let src_writer = self.nodes.get_mut(src_segment_id).ok_or_else(|| {
-                StorageError::GenericFailure(format!(
-                    "Node segment {src_segment_id} not found during replay_add_edge"
-                ))
-            })?;
-
-            let mut src_writer = src_writer.writer();
-
-            // Increment the node counter for this segment if this is a new node.
-            if !src_writer.has_node(src_pos, STATIC_GRAPH_LAYER_ID) {
-                src_writer.increment_seg_num_nodes();
-            }
-
-            if let Some(src_name) = src_name {
-                src_writer.store_node_id(src_pos, src_name);
-            }
-
-            let is_new_edge_in_static = src_writer
-                .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
-                .is_none();
-
-            let is_new_edge_in_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
-
-            // Add the edge to the static graph if it doesn't already exist.
-            if is_new_edge_in_static {
-                src_writer.add_static_outbound_edge(src_pos, dst_id, eid);
-            }
-
-            // Add the edge to the layer if it doesn't already exist, else just record the timestamp.
-            if is_new_edge_in_layer {
-                src_writer.add_outbound_edge(Some(t), src_pos, dst_id, eid.with_layer(layer_id));
-            } else {
-                src_writer.update_timestamp(t, src_pos, eid.with_layer(layer_id));
-            }
-
-            src_writer.set_lsn(lsn);
-        }
-
-        // Grab dst writer and add edge data.
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
+        self.resize_segments_to_vid(src_id); // Create enough segments.
         self.resize_segments_to_vid(dst_id);
 
-        let segment = self
-            .graph()
-            .storage()
-            .nodes()
-            .wait_for_segment(dst_segment_id);
+        let dst_segment = (dst_segment_id != src_segment_id).then_some(dst_segment_id);
 
-        let immut_lsn = segment.immut_lsn();
+        for segment_id in iter::once(src_segment_id).chain(dst_segment) {
+            let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
 
-        // Replay this entry only if it doesn't exist in immut.
-        if immut_lsn < lsn {
-            let dst_writer = self.nodes.get_mut(dst_segment_id).ok_or_else(|| {
+            // Replay this entry only if it doesn't exist in immut.
+            if segment.immut_lsn() >= lsn {
+                continue;
+            }
+
+            let writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
-                    "Node segment {dst_segment_id} not found during replay_add_edge"
+                    "Node segment {segment_id} not found during replay_add_edge"
                 ))
             })?;
 
-            let mut dst_writer = dst_writer.writer();
+            let mut writer = writer.writer();
 
-            // Increment the node counter for this segment if this is a new node.
-            if !dst_writer.has_node(dst_pos, STATIC_GRAPH_LAYER_ID) {
-                dst_writer.increment_seg_num_nodes();
+            if segment_id == src_segment_id {
+                // Increment the node counter for this segment if this is a new node.
+                if !writer.has_node(src_pos, STATIC_GRAPH_LAYER_ID) {
+                    writer.increment_seg_num_nodes();
+                }
+
+                if let Some(name) = src_name.take() {
+                    writer.store_node_id(src_pos, name);
+                }
+
+                let is_new_edge_in_static = writer
+                    .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
+                    .is_none();
+                let is_new_edge_in_layer = writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
+
+                // Add the edge to the static graph if it doesn't already exist.
+                if is_new_edge_in_static {
+                    writer.add_static_outbound_edge(src_pos, dst_id, eid);
+                }
+
+                // Add the edge to the layer if it doesn't already exist, else just record the timestamp.
+                if is_new_edge_in_layer {
+                    writer.add_outbound_edge(Some(t), src_pos, dst_id, eid.with_layer(layer_id));
+                } else {
+                    writer.update_timestamp(t, src_pos, eid.with_layer(layer_id));
+                }
             }
 
-            if let Some(dst_name) = dst_name {
-                dst_writer.store_node_id(dst_pos, dst_name);
+            if segment_id == dst_segment_id {
+                // Increment the node counter for this segment if this is a new node.
+                if !writer.has_node(dst_pos, STATIC_GRAPH_LAYER_ID) {
+                    writer.increment_seg_num_nodes();
+                }
+
+                if let Some(name) = dst_name.take() {
+                    writer.store_node_id(dst_pos, name);
+                }
+
+                let is_new_edge_in_static = writer
+                    .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
+                    .is_none();
+                let is_new_edge_in_layer = writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
+
+                // Add the edge to the static graph if it doesn't already exist.
+                if is_new_edge_in_static {
+                    writer.add_static_inbound_edge(dst_pos, src_id, eid);
+                }
+
+                // Add the edge to the layer if it doesn't already exist, else just record the timestamp.
+                if is_new_edge_in_layer {
+                    writer.add_inbound_edge(Some(t), dst_pos, src_id, eid.with_layer(layer_id));
+                } else {
+                    writer.update_timestamp(t, dst_pos, eid.with_layer(layer_id));
+                }
             }
 
-            let is_new_edge_in_static = dst_writer
-                .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
-                .is_none();
-
-            let is_new_edge_in_layer = dst_writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
-
-            if is_new_edge_in_static {
-                dst_writer.add_static_inbound_edge(dst_pos, src_id, eid);
-            }
-
-            if is_new_edge_in_layer {
-                dst_writer.add_inbound_edge(Some(t), dst_pos, src_id, eid.with_layer(layer_id));
-            } else {
-                dst_writer.update_timestamp(t, dst_pos, eid.with_layer(layer_id));
-            }
-
-            dst_writer.set_lsn(lsn);
+            writer.set_lsn(lsn);
         }
 
         // Grab edge writer and add temporal props.
@@ -281,9 +264,9 @@ where
         lsn: LSN,
         _transaction_id: TransactionID,
         t: EventTime,
-        src_name: Option<GID>,
+        mut src_name: Option<GID>,
         src_id: VID,
-        dst_name: Option<GID>,
+        mut dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
@@ -308,105 +291,91 @@ where
             .layer_meta()
             .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
 
-        // Grab src writer and record deletion time.
+        // One writer per node segment: a flush between the endpoint writes would mark the
+        // segment as holding this entry and skip the second write.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
-        self.resize_segments_to_vid(src_id);
-
-        let segment = self
-            .graph()
-            .storage()
-            .nodes()
-            .wait_for_segment(src_segment_id);
-
-        let immut_lsn = segment.immut_lsn();
-
-        if immut_lsn < lsn {
-            let src_writer = self.nodes.get_mut(src_segment_id).ok_or_else(|| {
-                StorageError::GenericFailure(format!(
-                    "Node segment {src_segment_id} not found during replay_delete_edge"
-                ))
-            })?;
-
-            let mut src_writer = src_writer.writer();
-
-            // Increment the node counter for this segment if this is a new node.
-            if !src_writer.has_node(src_pos, STATIC_GRAPH_LAYER_ID) {
-                src_writer.increment_seg_num_nodes();
-            }
-
-            if let Some(src_name) = src_name {
-                src_writer.store_node_id(src_pos, src_name);
-            }
-
-            let is_new_edge_in_static = src_writer
-                .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
-                .is_none();
-            let is_new_edge_in_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
-
-            // Add the edge to the static graph if it doesn't already exist.
-            if is_new_edge_in_static {
-                src_writer.add_static_outbound_edge(src_pos, dst_id, eid);
-            }
-
-            // Add the edge to the layer if it doesn't already exist.
-            if is_new_edge_in_layer {
-                src_writer.add_outbound_edge(Some(t), src_pos, dst_id, eid.with_layer(layer_id));
-            }
-
-            src_writer.update_deletion_time(t, src_pos, eid.with_layer(layer_id));
-            src_writer.set_lsn(lsn);
-        }
-
-        // Grab dst writer and record deletion time.
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
+        self.resize_segments_to_vid(src_id); // Create enough segments.
         self.resize_segments_to_vid(dst_id);
 
-        let segment = self
-            .graph()
-            .storage()
-            .nodes()
-            .wait_for_segment(dst_segment_id);
+        let dst_segment = (dst_segment_id != src_segment_id).then_some(dst_segment_id);
+        let elid = eid.with_layer_deletion(layer_id);
 
-        let immut_lsn = segment.immut_lsn();
+        for segment_id in iter::once(src_segment_id).chain(dst_segment) {
+            let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
 
-        if immut_lsn < lsn {
-            let dst_writer = self.nodes.get_mut(dst_segment_id).ok_or_else(|| {
+            // Replay this entry only if it doesn't exist in immut.
+            if segment.immut_lsn() >= lsn {
+                continue;
+            }
+
+            let writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
-                    "Node segment {dst_segment_id} not found during replay_delete_edge"
+                    "Node segment {segment_id} not found during replay_delete_edge"
                 ))
             })?;
 
-            let mut dst_writer = dst_writer.writer();
+            let mut writer = writer.writer();
 
-            // Increment the node counter for this segment if this is a new node.
-            if !dst_writer.has_node(dst_pos, STATIC_GRAPH_LAYER_ID) {
-                dst_writer.increment_seg_num_nodes();
+            if segment_id == src_segment_id {
+                // Increment the node counter for this segment if this is a new node.
+                if !writer.has_node(src_pos, STATIC_GRAPH_LAYER_ID) {
+                    writer.increment_seg_num_nodes();
+                }
+
+                if let Some(name) = src_name.take() {
+                    writer.store_node_id(src_pos, name);
+                }
+
+                let is_new_edge_in_static = writer
+                    .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
+                    .is_none();
+                let is_new_edge_in_layer = writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
+
+                // Add the edge to the static graph if it doesn't already exist.
+                if is_new_edge_in_static {
+                    writer.add_static_outbound_edge(src_pos, dst_id, eid);
+                }
+
+                // Add the edge to the layer if it doesn't already exist.
+                if is_new_edge_in_layer {
+                    writer.add_outbound_edge(Some(t), src_pos, dst_id, elid);
+                }
+
+                // Always record the deletion time.
+                writer.update_deletion_time(t, src_pos, elid);
             }
 
-            if let Some(dst_name) = dst_name {
-                dst_writer.store_node_id(dst_pos, dst_name);
+            if segment_id == dst_segment_id {
+                // Increment the node counter for this segment if this is a new node.
+                if !writer.has_node(dst_pos, STATIC_GRAPH_LAYER_ID) {
+                    writer.increment_seg_num_nodes();
+                }
+
+                if let Some(name) = dst_name.take() {
+                    writer.store_node_id(dst_pos, name);
+                }
+
+                let is_new_edge_in_static = writer
+                    .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
+                    .is_none();
+                let is_new_edge_in_layer = writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
+
+                // Add the edge to the static graph if it doesn't already exist.
+                if is_new_edge_in_static {
+                    writer.add_static_inbound_edge(dst_pos, src_id, eid);
+                }
+
+                // Add the edge to the layer if it doesn't already exist.
+                if is_new_edge_in_layer {
+                    writer.add_inbound_edge(Some(t), dst_pos, src_id, elid);
+                }
+
+                // Always record the deletion time.
+                writer.update_deletion_time(t, dst_pos, elid);
             }
 
-            let is_new_edge_in_static = dst_writer
-                .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
-                .is_none();
-
-            let is_new_edge_in_layer = dst_writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
-
-            // Add the edge to the static graph if it doesn't already exist.
-            if is_new_edge_in_static {
-                dst_writer.add_static_inbound_edge(dst_pos, src_id, eid);
-            }
-
-            // Add the edge to the layer if it doesn't already exist.
-            if is_new_edge_in_layer {
-                dst_writer.add_inbound_edge(Some(t), dst_pos, src_id, eid.with_layer(layer_id));
-            }
-
-            // Always update the deletion time on the edge.
-            dst_writer.update_deletion_time(t, dst_pos, eid.with_layer(layer_id));
-
-            dst_writer.set_lsn(lsn);
+            writer.set_lsn(lsn);
         }
 
         // Grab edge writer and delete the edge at (t, layer_id).
