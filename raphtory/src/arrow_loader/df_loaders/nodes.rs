@@ -116,8 +116,13 @@ pub fn load_nodes_from_df_prefetch<
         });
 
         for chunk in chunks {
+            let is_err = chunk.is_err();
             if let Err(e) = sender.send(chunk) {
                 eprintln!("Error sending chunk to loader: {}", e);
+                break;
+            }
+            // do not call next again on failure
+            if is_err {
                 break;
             }
         }
