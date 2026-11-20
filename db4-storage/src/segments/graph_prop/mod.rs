@@ -101,12 +101,7 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
         0
     }
 
-    fn notify_write(
-        &self,
-        _head: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
+    fn notify_write(&self, _head: &mut RwLockWriteGuard<'_, MemGraphPropSegment>) {}
 
     fn flush_with_head(
         &self,

@@ -552,12 +552,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         true
     }
 
-    fn notify_write(
-        &self,
-        _head: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
+    fn notify_write(&self, _head: impl DerefMut<Target = MemEdgeSegment>) {}
 
     fn increment_num_edges(&self) -> u32 {
         self.num_edges.fetch_add(1, Ordering::Relaxed)

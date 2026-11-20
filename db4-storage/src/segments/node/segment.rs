@@ -553,12 +553,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         self.inner.try_write_for(timeout)
     }
 
-    fn notify_write(
-        &self,
-        _head: impl DerefMut<Target = MemNodeSegment>,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
+    fn notify_write(&self, _head: impl DerefMut<Target = MemNodeSegment>) {}
 
     fn set_dirty(&self, _dirty: bool) {}
 

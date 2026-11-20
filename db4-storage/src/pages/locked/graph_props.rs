@@ -58,8 +58,6 @@ impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropSegment<'a, GS> {
 
 impl<GS: GraphPropSegmentOps> Drop for WriteLockedGraphPropSegment<'_, GS> {
     fn drop(&mut self) {
-        self.page
-            .notify_write(&mut self.lock)
-            .expect("Failed to persist graph props page");
+        self.page.notify_write(&mut self.lock);
     }
 }
