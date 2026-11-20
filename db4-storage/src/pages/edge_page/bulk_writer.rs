@@ -49,10 +49,12 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         t_props: impl IntoIterator<Item = (usize, P)>,
     ) {
         if !edge_exists
-            && self
-                .edge_writer
-                .head
-                .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
+            && self.edge_writer.head.insert_static_edge_internal(
+                edge_pos,
+                src,
+                dst,
+                STATIC_GRAPH_LAYER_ID,
+            )
         {
             self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
         }
@@ -83,10 +85,12 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         layer_id: LayerId,
     ) {
         if !exists
-            && self
-                .edge_writer
-                .head
-                .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
+            && self.edge_writer.head.insert_static_edge_internal(
+                edge_pos,
+                src,
+                dst,
+                STATIC_GRAPH_LAYER_ID,
+            )
         {
             self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
         }
@@ -127,7 +131,9 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 {
     fn drop(&mut self) {
         for (layer_id, count) in self.layers.iter().enumerate() {
-            self.edge_writer.graph_stats.increment_by(LayerId(layer_id), *count);
+            self.edge_writer
+                .graph_stats
+                .increment_by(LayerId(layer_id), *count);
         }
         self.edge_writer.graph_stats.update_time(self.earliest.t());
         self.edge_writer.graph_stats.update_time(self.latest.t());

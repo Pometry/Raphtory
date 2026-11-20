@@ -1,14 +1,19 @@
 use db4_graph::TemporalGraph;
-use raphtory_api::core::entities::properties::meta::ReadLockedMetaPresence;
+use raphtory_api::{core::entities::properties::meta::ReadLockedMetaPresence, ArcRwLockReadGuard};
 use std::sync::{Arc, OnceLock};
-use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
+use storage::{
+    api::node_type_index::NodeTypeIndexOps, segments::node_type_index::MemNodeTypeIndex, Extension,
+    ReadLockedEdges, ReadLockedNodes,
+};
 
 /// A fully locked, read-only graph.
 #[derive(Debug)]
 pub struct ReadLockedGraph {
+    // Must be locked before nodes.
+    _node_type_index: Arc<ArcRwLockReadGuard<MemNodeTypeIndex>>,
     pub(crate) nodes: Arc<ReadLockedNodes<Extension>>,
     pub(crate) edges: Arc<ReadLockedEdges<Extension>>,
-    /// Presence bitsets, read-locked on first use and held until the last clone is dropped.
+    /// Presence bitsets, read-locked only on first use.
     node_presence: Arc<OnceLock<ReadLockedMetaPresence>>,
     edge_presence: Arc<OnceLock<ReadLockedMetaPresence>>,
     pub graph: Arc<TemporalGraph>,
@@ -16,9 +21,13 @@ pub struct ReadLockedGraph {
 
 impl ReadLockedGraph {
     pub fn new(graph: Arc<TemporalGraph>) -> Self {
-        let nodes = Arc::new(graph.storage().nodes().locked());
-        let edges = Arc::new(graph.storage().edges().locked());
+        let storage = graph.storage();
+        let node_type_index = Arc::new(storage.node_type_index().head_shared_arc());
+        let nodes = Arc::new(storage.nodes().locked());
+        let edges = Arc::new(storage.edges().locked());
+
         Self {
+            _node_type_index: node_type_index,
             nodes,
             edges,
             node_presence: Default::default(),
@@ -41,6 +50,7 @@ impl ReadLockedGraph {
 impl Clone for ReadLockedGraph {
     fn clone(&self) -> Self {
         ReadLockedGraph {
+            _node_type_index: self._node_type_index.clone(),
             nodes: self.nodes.clone(),
             edges: self.edges.clone(),
             node_presence: self.node_presence.clone(),
