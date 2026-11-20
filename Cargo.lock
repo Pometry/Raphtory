@@ -7007,6 +7007,7 @@ dependencies = [
  "raphtory-vectors",
  "rayon",
  "serde",
+ "serde_json",
  "tempfile",
  "tokio",
  "tracing",
