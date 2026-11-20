@@ -220,8 +220,12 @@ pub fn load_edges_metadata_from_df_prefetch<
         });
 
         for chunk in chunks {
+            let is_err = chunk.is_err();
             if let Err(e) = sender.send(chunk) {
                 error!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
+                break;
+            }
+            if is_err {
                 break;
             }
         }
