@@ -432,7 +432,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
     ///
-    /// # Deadlock Safety: do not hold any node segment locks when calling this function other
+    /// **Deadlock safety:** do not hold any node segment locks when calling this function other
     /// than the `existing_full_segment` guard passed in!
     pub fn reserve_and_lock_segment(
         &self,

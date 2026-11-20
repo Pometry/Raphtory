@@ -698,8 +698,8 @@ impl GraphMutationOps for TemporalGraph {
         node: NodeRef,
         node_type: Option<&str>,
     ) -> Result<AtomicAddNode<'_>, MutationError> {
+        // Deadlock safety: node type index must always be locked before node segments.
         let type_index = self.storage().node_type_index();
-        // This may flush the index which waits for the head exclusive lock.
         let type_index_writer = NodeTypeIndexWriterT::new_shared(type_index.as_ref());
 
         let node_vid = match node {

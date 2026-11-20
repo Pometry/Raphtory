@@ -18,10 +18,13 @@ where
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
+    /// **Deadlock safety:** node type index must always be locked before node segments.
     fn head_shared_arc(&self) -> ArcRwLockReadGuard<MemNodeTypeIndex>;
 
+    /// **Deadlock safety:** node type index must always be locked before node segments.
     fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 
+    /// **Deadlock safety:** node type index must always be locked before node segments.
     fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<MemNodeTypeIndex>;
 
     fn entry(&self, type_ids: &[usize]) -> Self::Entry;

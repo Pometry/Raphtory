@@ -458,8 +458,9 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
+    // Deadlock safety: node_type_index must always be locked before node segments.
     pub node_type_index: WriteLockedNodeTypeIndex<EXT::NTI>,
+    pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
     pub edges: WriteLockedEdgeSegments<'a, ES<EXT>>,
     pub graph_props: WriteLockedGraphPropSegment<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
@@ -477,9 +478,10 @@ where
     /// Takes the bulk load write guard first, waiting for regular updates in flight to finish.
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
         let bulk_load = graph.storage.bulk_load_exclusive();
+
         WriteLockedGraph {
-            nodes: graph.storage.nodes().write_locked(),
             node_type_index: graph.storage.node_type_index().write_locked(),
+            nodes: graph.storage.nodes().write_locked(),
             edges: graph.storage.edges().write_locked(),
             graph_props: graph.storage.graph_props().write_locked(),
             graph,
