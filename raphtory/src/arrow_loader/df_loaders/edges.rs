@@ -152,7 +152,6 @@ pub fn load_edges_from_df_prefetch<
             if is_err {
                 break;
             }
-
         }
     });
     result
