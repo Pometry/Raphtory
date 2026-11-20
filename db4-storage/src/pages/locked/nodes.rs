@@ -16,7 +16,7 @@ use raphtory_api::{
 };
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
-use std::{ops::DerefMut, path::Path};
+use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct WriteLockedNodeSegment<'a, NS> {
@@ -187,15 +187,5 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.segments
             .par_iter_mut()
             .try_for_each(|locked_segment| locked_segment.flush())
-    }
-
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-
-        self.segments.par_iter().try_for_each(|locked_segment| {
-            let segment_dst = dst.join(locked_segment.segment_id().to_string());
-
-            locked_segment.segment().copy_to(&segment_dst)
-        })
     }
 }

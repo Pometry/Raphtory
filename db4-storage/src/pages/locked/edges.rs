@@ -13,10 +13,7 @@ use crate::{
 use raphtory_api::{ArcRwLockWriteGuard, core::entities::LayerId};
 use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
-use std::{
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
 pub struct LockedEdgeSegment<'a, ES> {
@@ -181,17 +178,5 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
 
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty()
-    }
-
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-
-        self.segments.par_iter().try_for_each(|locked_segment| {
-            let segment_dst = dst.join(locked_segment.id().to_string());
-
-            locked_segment.segment().copy_to(&segment_dst)
-        })?;
-
-        Ok(())
     }
 }
