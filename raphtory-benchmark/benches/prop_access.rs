@@ -265,7 +265,10 @@ fn check(graph: &Graph) {
                 .map(|p| p.iter().count()),
             history
         );
-        assert_eq!(graph.metadata().get(kind.metadata_key), Some((kind.prop_value)(0)));
+        assert_eq!(
+            graph.metadata().get(kind.metadata_key),
+            Some((kind.prop_value)(0))
+        );
     }
 }
 
