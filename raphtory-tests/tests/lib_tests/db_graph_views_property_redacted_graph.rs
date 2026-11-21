@@ -1,9 +1,20 @@
 #[cfg(test)]
 mod tests {
     use raphtory::{
-        db::graph::{graph::Graph, views::property_redacted_graph::*},
+        algorithms::{
+            metrics::balance::balance, pathing::dijkstra::dijkstra_single_source_shortest_paths,
+        },
+        db::{
+            api::view::Filter,
+            graph::{
+                graph::Graph,
+                views::{filter::model::PropertyExprFactory, property_redacted_graph::*},
+            },
+        },
+        errors::GraphError,
         prelude::*,
     };
+    use raphtory_api::core::Direction;
 
     fn make_graph() -> Graph {
         let g = Graph::new();
@@ -280,5 +291,56 @@ mod tests {
             alice.properties().get("region").is_some(),
             "region should still be visible"
         );
+    }
+
+    /// A hidden key answers as a key the graph never had, so a filter cannot test its values.
+    #[test]
+    fn test_filter_reads_a_hidden_key_as_missing() {
+        let g = make_graph();
+        let view = g.exclude_properties(
+            &PropertyRedaction::default()
+                .with_node_props(["salary"])
+                .with_node_meta(["ssn"])
+                .with_edge_props(["amount"])
+                .with_edge_meta(["ref"]),
+        );
+        assert!(matches!(
+            view.filter(NodeFilter.property("salary").gt(0i64)),
+            Err(GraphError::PropertyMissingError(_))
+        ));
+        assert!(matches!(
+            view.filter(NodeFilter.metadata("ssn").eq("123-45-6789")),
+            Err(GraphError::MetadataMissingError(_))
+        ));
+        assert!(matches!(
+            view.filter(EdgeFilter.property("amount").gt(0i64)),
+            Err(GraphError::PropertyMissingError(_))
+        ));
+        assert!(matches!(
+            view.filter(EdgeFilter.metadata("ref").eq("REF001")),
+            Err(GraphError::MetadataMissingError(_))
+        ));
+        let visible = view
+            .filter(NodeFilter.property("region").eq("us-west"))
+            .unwrap();
+        assert_eq!(visible.count_nodes(), 1);
+    }
+
+    #[test]
+    fn test_algorithms_read_a_hidden_edge_property_as_missing() {
+        let g = make_graph();
+        let view = g.exclude_properties(&PropertyRedaction::default().with_edge_props(["amount"]));
+        assert!(balance(&view, "amount".to_string(), Direction::BOTH).is_err());
+        assert!(matches!(
+            dijkstra_single_source_shortest_paths(
+                &view,
+                "alice",
+                vec!["bob"],
+                Some("amount"),
+                Direction::OUT,
+                None,
+            ),
+            Err(GraphError::PropertyMissingError(_))
+        ));
     }
 }

@@ -96,10 +96,14 @@ pub fn balance<G: StaticGraphViewOps>(
     name: String,
     direction: Direction,
 ) -> Result<TypedNodeState<'static, BalanceState, G>, GraphError> {
-    if let Some((weight_id, weight_type)) = graph.edge_meta().get_prop_id_and_type(&name, false) {
+    // Resolved through the view so a property the view hides reads as missing.
+    let weight = graph
+        .edge_visible_temporal_prop_id(&name)
+        .and_then(|_| graph.edge_meta().get_prop_id_and_type(&name, false));
+    if let Some((weight_id, weight_type)) = weight {
         if !weight_type.is_numeric() {
             return Err(GraphError::InvalidProperty {
-                reason: "Edge property {name} is not numeric".to_string(),
+                reason: format!("Edge property {name} is not numeric"),
             });
         }
         let values: Vec<_> = graph
@@ -117,7 +121,7 @@ pub fn balance<G: StaticGraphViewOps>(
         )))
     } else {
         Err(GraphError::InvalidProperty {
-            reason: "Edge property {name} does not exist".to_string(),
+            reason: format!("Edge property {name} does not exist"),
         })
     }
 }
