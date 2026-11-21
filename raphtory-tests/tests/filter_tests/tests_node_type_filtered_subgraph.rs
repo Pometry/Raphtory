@@ -106,7 +106,7 @@ fn materialize_window_type_proptest() {
 }
 
 #[test]
-#[ignore="TODO: Need to figure out why this test is failing"]
+#[ignore = "TODO: Need to figure out why this test is failing"]
 fn node_removed_via_edge_removal() {
     let g = Graph::new();
     g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
