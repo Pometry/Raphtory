@@ -44,14 +44,15 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
-    global_mem_tracker: Arc<AtomicUsize>,
+    /// Counter that tracks the memory usage of the entire graph.
+    global_memory_tracker: Arc<AtomicUsize>,
     est_size: usize,
     lsn: LSN,
 }
 
 impl Drop for MemNodeSegment {
     fn drop(&mut self) {
-        self.global_mem_tracker
+        self.global_memory_tracker
             .fetch_sub(self.est_size, Ordering::Relaxed);
     }
 }
@@ -107,12 +108,12 @@ impl MemNodeSegment {
         self.est_size
     }
 
-    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
-        &self.global_mem_tracker
+    pub fn global_memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.global_memory_tracker
     }
 
-    pub(crate) fn increment_global_est_size(&self, increment: usize) {
-        self.global_mem_tracker
+    pub(crate) fn increment_global_memory_tracker(&self, increment: usize) {
+        self.global_memory_tracker
             .fetch_add(increment, Ordering::Relaxed);
     }
 
@@ -168,7 +169,7 @@ impl MemNodeSegment {
         Self {
             segment_id: self.segment_id,
             max_page_len: self.max_page_len,
-            global_mem_tracker: self.global_mem_tracker.clone(),
+            global_memory_tracker: self.global_memory_tracker.clone(),
             layers,
             est_size,
             lsn: self.lsn,
@@ -229,13 +230,13 @@ impl MemNodeSegment {
         segment_id: usize,
         max_page_len: u32,
         meta: Arc<Meta>,
-        global_mem_tracker: Arc<AtomicUsize>,
+        global_memory_tracker: Arc<AtomicUsize>,
     ) -> Self {
         Self {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
-            global_mem_tracker,
+            global_memory_tracker,
             est_size: 0,
             lsn: 0,
         }
@@ -552,12 +553,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         self.inner.try_write_for(timeout)
     }
 
-    fn notify_write(
-        &self,
-        _head: impl DerefMut<Target = MemNodeSegment>,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
+    fn notify_write(&self, _head: impl DerefMut<Target = MemNodeSegment>) {}
 
     fn set_dirty(&self, _dirty: bool) {}
 
@@ -671,7 +667,9 @@ mod test {
         let node_meta = Arc::new(Meta::default());
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
-        let config = BaseConfig::new(10, 10);
+        let config = BaseConfig::default()
+            .with_max_node_page_len(10)
+            .with_max_edge_page_len(10);
         let ext = NoOpStrategy::new(None, config).unwrap();
         let segment_id = 0;
         let segment = NodeSegmentView::new(
@@ -683,9 +681,9 @@ mod test {
         );
 
         let stats = GraphStats::default();
-        let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());
+        let mut writer = NodeWriter::new(segment.head_mut(), &segment, &stats);
 
-        let est_size1 = writer.writer.est_size();
+        let est_size1 = writer.head.est_size();
         assert_eq!(est_size1, 0);
 
         writer.add_outbound_edge(
@@ -695,7 +693,7 @@ mod test {
             EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
         );
 
-        let est_size2 = writer.writer.est_size();
+        let est_size2 = writer.head.est_size();
         assert!(
             est_size2 > est_size1,
             "Estimated size should be greater than 0 after adding an edge"
@@ -708,7 +706,7 @@ mod test {
             EID(8).with_layer(STATIC_GRAPH_LAYER_ID),
         );
 
-        let est_size3 = writer.writer.est_size();
+        let est_size3 = writer.head.est_size();
         assert!(
             est_size3 > est_size2,
             "Estimated size should increase after adding an inbound edge"
@@ -723,7 +721,7 @@ mod test {
             EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
         );
 
-        let est_size4 = writer.writer.est_size();
+        let est_size4 = writer.head.est_size();
         assert_eq!(
             est_size4, est_size3,
             "Estimated size should not change when adding the same edge again"
@@ -743,7 +741,7 @@ mod test {
             [(prop_id, Prop::U64(73))],
         );
 
-        let est_size5 = writer.writer.est_size();
+        let est_size5 = writer.head.est_size();
         assert!(
             est_size5 > est_size4,
             "Estimated size should increase after adding constant properties"
@@ -751,7 +749,7 @@ mod test {
 
         writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), STATIC_GRAPH_LAYER_ID));
 
-        let est_size6 = writer.writer.est_size();
+        let est_size6 = writer.head.est_size();
         assert!(
             est_size6 > est_size5,
             "Estimated size should increase after updating timestamp"
@@ -771,7 +769,7 @@ mod test {
             [(prop_id, Prop::F64(4.13))],
         );
 
-        let est_size7 = writer.writer.est_size();
+        let est_size7 = writer.head.est_size();
         assert!(
             est_size7 > est_size6,
             "Estimated size should increase after adding temporal properties"
@@ -784,7 +782,7 @@ mod test {
             [(prop_id, Prop::F64(5.41))],
         );
 
-        let est_size8 = writer.writer.est_size();
+        let est_size8 = writer.head.est_size();
         assert!(
             est_size8 > est_size7,
             "Estimated size should increase after adding another temporal property"
@@ -793,11 +791,11 @@ mod test {
         drop(writer);
 
         // after drop the global estimated size should be the same as the last estimated size of the writer
-        assert_eq!(ext.estimated_size(), est_size8);
+        assert_eq!(ext.memory_usage(), est_size8);
 
         drop(segment);
 
         // after the segment is dropped, the global estimated size should be zero (no more usage)
-        assert_eq!(ext.estimated_size(), 0);
+        assert_eq!(ext.memory_usage(), 0);
     }
 }

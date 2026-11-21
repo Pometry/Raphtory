@@ -5,7 +5,7 @@ use crate::{
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::timeindex::AsTime;
-use std::{ops::DerefMut, path::Path};
+use std::ops::DerefMut;
 
 pub struct WriteLockedGraphPropSegment<'a, GS: GraphPropSegmentOps> {
     page: &'a GS,
@@ -54,17 +54,10 @@ impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropSegment<'a, GS> {
         let head = self.lock.deref_mut();
         self.page.flush_with_head(head)
     }
-
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-        self.page.copy_to(dst)
-    }
 }
 
 impl<GS: GraphPropSegmentOps> Drop for WriteLockedGraphPropSegment<'_, GS> {
     fn drop(&mut self) {
-        self.page
-            .notify_write(&mut self.lock)
-            .expect("Failed to persist graph props page");
+        self.page.notify_write(&mut self.lock);
     }
 }

@@ -1,10 +1,10 @@
 use crate::{
     api::node_type_index::NodeTypeIndexOps, error::StorageError,
+    pages::node_type_index::writer::NodeTypeIndexWriter,
     segments::node_type_index::MemNodeTypeIndex,
 };
 use raphtory_api::ArcRwLockWriteGuard;
-use raphtory_core::entities::VID;
-use std::{ops::DerefMut, path::Path, sync::Arc};
+use std::{ops::DerefMut, sync::Arc};
 
 pub struct WriteLockedNodeTypeIndex<NTI> {
     head: ArcRwLockWriteGuard<MemNodeTypeIndex>,
@@ -16,21 +16,12 @@ impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
         Self { head, index }
     }
 
-    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
-        self.head.insert_batch(type_id, vids);
-    }
-
-    pub fn notify_write(&mut self) {
-        self.index.notify_write_with_head(self.head.deref_mut())
+    pub fn writer(&mut self) -> NodeTypeIndexWriter<'_, &mut MemNodeTypeIndex, NTI> {
+        NodeTypeIndexWriter::new_exclusive(self.head.deref_mut(), self.index.as_ref())
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
         let head = self.head.deref_mut();
-        self.index.flush_with_head(head)
-    }
-
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-        self.index.copy_to(dst)
+        self.index.flush(head)
     }
 }

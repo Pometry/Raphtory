@@ -976,6 +976,7 @@ mod io_tests {
         assert!(!g.has_node(9u64));
         assert_eq!(g.node(1u64).unwrap().metadata().get("str_prop"), None);
     }
+
     /// Runs `f` on another thread and fails the test if it does not finish in time,
     /// so a deadlocked load fails instead of hanging the test run.
     fn finishes_within<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {

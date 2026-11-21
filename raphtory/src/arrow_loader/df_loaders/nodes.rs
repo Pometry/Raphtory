@@ -18,6 +18,7 @@ use raphtory_api::{
         },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
+    ArcRwLockWriteGuard,
 };
 use raphtory_core::{
     entities::{GidRef, VID},
@@ -32,10 +33,11 @@ use std::{
 };
 use storage::{
     api::nodes::NodeSegmentOps,
-    pages::locked::{
-        node_type_index::WriteLockedNodeTypeIndex,
-        nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
+    pages::{
+        locked::nodes::{WriteLockedNodeSegment, WriteLockedNodeSegments},
+        node_type_index::writer::NodeTypeIndexWriter,
     },
+    segments::{node::segment::MemNodeSegment, node_type_index::MemNodeTypeIndex},
     Extension, NS, NTI,
 };
 
@@ -286,13 +288,14 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             if resolve_nodes && !gid_str_cache.is_empty() {
                 let index = &mut write_locked_graph.node_type_index;
+                let writer = index.writer();
+
                 populate_node_type_index(
                     gid_str_cache
                         .iter()
                         .map(|(_, (vid, node_type))| (*vid, *node_type)),
-                    index,
+                    writer,
                 );
-                index.notify_write();
             }
 
             // node resolution may have created new node segments
@@ -486,14 +489,15 @@ pub fn load_node_props_from_df<
 
         if pre_resolved && !node_col_resolved.is_empty() {
             let index = &mut write_locked_graph.node_type_index;
+            let writer = index.writer();
+
             populate_node_type_index(
                 node_col_resolved
                     .iter()
                     .zip(node_type_col_resolved)
                     .map(|(vid, node_type)| (*vid, *node_type)),
-                index,
+                writer,
             );
-            index.notify_write();
         }
 
         // node resolution may have created new node segments
@@ -569,7 +573,14 @@ fn get_or_resolve_node_vids<'a: 'c, 'b: 'c, 'c>(
     resolve_nodes: bool,
     df: &'b DFChunk,
     src_col: &'a NodeCol,
-) -> Result<(&'c [VID], Vec<Resolved<'a>>, MemNodeSegmentGuards), GraphError> {
+) -> Result<
+    (
+        &'c [VID],
+        Vec<Resolved<'a>>,
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     if resolve_nodes {
         let cache = node_resolve_cache
             .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
@@ -609,7 +620,14 @@ fn resolve_node_vids_and_types_with_cache<'a>(
     node_col: &'a NodeCol,
     node_types: &[usize],
     len: usize,
-) -> Result<(&'a [VID], Vec<Resolved<'a>>, MemNodeSegmentGuards), GraphError> {
+) -> Result<
+    (
+        &'a [VID],
+        Vec<Resolved<'a>>,
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     node_col_resolved.resize_with(len, Default::default);
     let atomic_node_col = atomic_vid_from_mut_slice(node_col_resolved);
 
@@ -730,7 +748,14 @@ fn get_or_resolve_node_vids_no_events<'a: 'c, 'b: 'c, 'c>(
     src_col: &'a NodeCol,
     node_type_col: LayerCol<'a>,
     is_materializing: bool,
-) -> Result<(&'c [VID], &'c [usize], MemNodeSegmentGuards), GraphError> {
+) -> Result<
+    (
+        &'c [VID],
+        &'c [usize],
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     assert!(!(node_type_ids_col.is_none() ^ node_id_col.is_none())); // both some or both none
     if let Some((node_type_index, node_id_col)) = node_type_ids_col.zip(node_id_col) {
         set_meta_for_pre_resolved_nodes_and_node_ids(
@@ -762,7 +787,14 @@ fn resolve_node_and_meta_for_node_col<'a>(
     src_col: &NodeCol,
     node_type_col: LayerCol<'a>,
     is_materializing: bool,
-) -> Result<(&'a [VID], &'a [usize], MemNodeSegmentGuards), GraphError> {
+) -> Result<
+    (
+        &'a [VID],
+        &'a [usize],
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     node_col_resolved.resize_with(df.len(), Default::default);
     node_type_resolved.resize_with(df.len(), Default::default);
 
@@ -831,7 +863,14 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<'b>(
     node_type_col: LayerCol<'_>,
     node_type_index: usize,
     node_id_col: usize,
-) -> Result<(&'b [VID], &'b [usize], MemNodeSegmentGuards), GraphError> {
+) -> Result<
+    (
+        &'b [VID],
+        &'b [usize],
+        Vec<ArcRwLockWriteGuard<MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     let srcs = df.chunk[node_id_col]
         .as_primitive_opt::<UInt64Type>()
         .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[node_id_col].data_type().clone()))?
@@ -889,7 +928,7 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
 
 fn populate_node_type_index(
     gid_str_cache: impl IntoIterator<Item = (VID, usize)>,
-    index: &WriteLockedNodeTypeIndex<NTI>,
+    writer: NodeTypeIndexWriter<'_, &mut MemNodeTypeIndex, NTI>,
 ) {
     let mut by_type: HashMap<usize, Vec<VID>> = HashMap::new();
 
@@ -903,6 +942,6 @@ fn populate_node_type_index(
     }
 
     by_type.par_iter().for_each(|(node_type, vids)| {
-        index.insert_batch(*node_type, vids.iter().copied());
+        writer.insert_batch(*node_type, vids.iter().copied());
     });
 }

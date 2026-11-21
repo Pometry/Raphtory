@@ -32,12 +32,12 @@ use storage::{
             edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
             graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex,
-            nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
+            nodes::{WriteLockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
-    segments::edge::segment::MemEdgeSegment,
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     transaction::TransactionManager,
     Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
@@ -450,11 +450,6 @@ where
     }
 }
 
-/// How long a bulk load waits to lock a segment created during the load. Nothing should hold
-/// such a segment while the bulk load lock is held exclusively, so timing out means a reader
-/// or an unguarded writer has it.
-pub const NEW_SEGMENT_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
-
 /// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
 where
@@ -463,8 +458,9 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
+    // Deadlock safety: node_type_index must always be locked before node segments.
     pub node_type_index: WriteLockedNodeTypeIndex<EXT::NTI>,
+    pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
     pub edges: WriteLockedEdgeSegments<'a, ES<EXT>>,
     pub graph_props: WriteLockedGraphPropSegment<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
@@ -482,9 +478,10 @@ where
     /// Takes the bulk load write guard first, waiting for regular updates in flight to finish.
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
         let bulk_load = graph.storage.bulk_load_exclusive();
+
         WriteLockedGraph {
-            nodes: graph.storage.nodes().write_locked(),
             node_type_index: graph.storage.node_type_index().write_locked(),
+            nodes: graph.storage.nodes().write_locked(),
             edges: graph.storage.edges().write_locked(),
             graph_props: graph.storage.graph_props().write_locked(),
             graph,
@@ -496,7 +493,7 @@ where
         self.graph
     }
 
-    pub fn extend_nodes(&mut self, mut new_segments: MemNodeSegmentGuards) {
+    pub fn extend_nodes(&mut self, mut new_segments: Vec<ArcRwLockWriteGuard<MemNodeSegment>>) {
         let nodes = self.graph.storage.nodes();
 
         // segments are pushed concurrently from several threads, so the ids arrive in any order

@@ -32,6 +32,7 @@ pub struct Stage<G> {
     /// Read locks need to be held to prevent concurrent writes while staging.
     _src_graph: ReadLockedGraph,
 
+    /// The directory of the graph this stage is based on.
     src_folder: GraphFolder,
 
     /// Version of the graph this stage is based on.
@@ -44,15 +45,20 @@ pub struct Stage<G> {
     _guard: ArcMutexGuard<RawMutex, ()>,
 }
 
-impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
+/// Graphs that can be turned into a [`Stage`].
+pub trait Stageable: CoreGraphOps + Sized {
+    fn from_storage(src: &Self, storage: GraphStorage) -> Self;
+}
+
+impl<G: Stageable> Stage<G> {
     pub fn new(src: &G) -> Result<Self, StageError> {
-        src.core_graph().stage()
+        src.core_graph().stage(src)
     }
 
     /// Get a reference to the staged graph.
     ///
     /// WARNING: Cloning this reference is not advised as the clone points to
-    /// volatile storage which may get discarded at any time.
+    /// a graph directory which may get discarded at any time.
     pub fn graph(&self) -> &G {
         &self.graph
     }
@@ -108,7 +114,7 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
 }
 
 impl GraphStorage {
-    pub(crate) fn stage<G: From<GraphStorage>>(&self) -> Result<Stage<G>, StageError> {
+    pub(crate) fn stage<G: Stageable>(self: &Self, src: &G) -> Result<Stage<G>, StageError> {
         let (src_graph, guard) = match self {
             GraphStorage::Unlocked(graph) => {
                 let guard = graph.try_stage_guard().ok_or(StageError::InProgress)?;
@@ -170,7 +176,7 @@ impl GraphStorage {
         let extension = Extension::load(&staged_graph_path, config)?;
 
         let temporal_graph = TemporalGraph::load(staged_graph_path, extension)?;
-        let graph = G::from(GraphStorage::from(temporal_graph));
+        let graph = G::from_storage(src, GraphStorage::from(temporal_graph));
 
         Ok(Stage {
             graph,

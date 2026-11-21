@@ -16,11 +16,7 @@ use raphtory_api::{
 };
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
-use std::{ops::DerefMut, path::Path};
-
-/// Write guards on the node segments, each taken before its segment was published so
-/// no reader can see its uninitialised nodes.
-pub type MemNodeSegmentGuards = Vec<ArcRwLockWriteGuard<MemNodeSegment>>;
+use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct WriteLockedNodeSegment<'a, NS> {
@@ -54,12 +50,12 @@ impl<'a, NS: NodeSegmentOps> WriteLockedNodeSegment<'a, NS> {
 
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.segment, self.layer_counter, self.head.deref_mut())
+        NodeWriter::new(self.head.deref_mut(), self.segment, self.layer_counter)
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkNodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.segment, self.layer_counter, self.head.deref_mut()).into()
+        NodeWriter::new(self.head.deref_mut(), self.segment, self.layer_counter).into()
     }
 
     pub fn head(&mut self) -> &mut MemNodeSegment {
@@ -191,15 +187,5 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.segments
             .par_iter_mut()
             .try_for_each(|locked_segment| locked_segment.flush())
-    }
-
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-
-        self.segments.par_iter().try_for_each(|locked_segment| {
-            let segment_dst = dst.join(locked_segment.segment_id().to_string());
-
-            locked_segment.segment().copy_to(&segment_dst)
-        })
     }
 }

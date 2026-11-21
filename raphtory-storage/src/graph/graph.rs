@@ -469,10 +469,6 @@ impl GraphStorage {
         }
     }
 
-    pub fn total_allocated_memory(&self) -> usize {
-        self.extension().estimated_size()
-    }
-
     pub fn node_segment_counts(&self) -> SegmentCounts<VID> {
         match self {
             GraphStorage::Locked(storage) => storage.nodes.segment_counts(),

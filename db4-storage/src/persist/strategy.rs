@@ -56,44 +56,41 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_node_segment(
         &self,
-        segment: &Self::NS,
         head: impl DerefMut<Target = MemNodeSegment>,
+        segment: &Self::NS,
     ) where
         Self: Sized;
 
     /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_edge_segment(
         &self,
-        segment: &Self::ES,
         head: impl DerefMut<Target = MemEdgeSegment>,
+        segment: &Self::ES,
     ) where
         Self: Sized;
 
     fn persist_graph_prop_segment(
         &self,
-        segment: &Self::GS,
         head: impl DerefMut<Target = MemGraphPropSegment>,
+        segment: &Self::GS,
     ) where
         Self: Sized;
 
-    fn persist_node_type_index(&self, index: &Self::NTI)
-    where
-        Self: Sized;
-
-    fn persist_node_type_index_with_head(
+    fn persist_node_type_index(
         &self,
+        head: Option<impl DerefMut<Target = MemNodeTypeIndex>>,
         index: &Self::NTI,
-        head: impl DerefMut<Target = MemNodeTypeIndex>,
     ) where
         Self: Sized;
 
     /// Indicates whether the strategy persists to disk or not.
     fn disk_storage_enabled() -> bool;
 
-    /// Estimated global memory used
+    /// Counter for tracking the memory usage of the graph.
     fn memory_tracker(&self) -> &Arc<AtomicUsize>;
 
-    fn estimated_size(&self) -> usize {
+    /// The current memory usage of the graph in bytes.
+    fn memory_usage(&self) -> usize {
         self.memory_tracker().load(Ordering::Relaxed)
     }
 
@@ -215,36 +212,32 @@ impl PersistenceStrategy for NoOpStrategy {
 
     fn persist_node_segment(
         &self,
-        _segment: &Self::NS,
         _head: impl DerefMut<Target = MemNodeSegment>,
+        _segment: &Self::NS,
     ) {
         // No operation
     }
 
     fn persist_edge_segment(
         &self,
-        _segment: &Self::ES,
         _head: impl DerefMut<Target = MemEdgeSegment>,
+        _segment: &Self::ES,
     ) {
         // No operation
     }
 
     fn persist_graph_prop_segment(
         &self,
-        _segment: &Self::GS,
         _head: impl DerefMut<Target = MemGraphPropSegment>,
+        _segment: &Self::GS,
     ) {
         // No operation
     }
 
-    fn persist_node_type_index(&self, _index: &Self::NTI) {
-        // No operation
-    }
-
-    fn persist_node_type_index_with_head(
+    fn persist_node_type_index(
         &self,
+        _head: Option<impl DerefMut<Target = MemNodeTypeIndex>>,
         _index: &Self::NTI,
-        _head: impl DerefMut<Target = MemNodeTypeIndex>,
     ) {
         // No operation
     }

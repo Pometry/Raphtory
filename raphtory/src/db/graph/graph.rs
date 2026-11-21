@@ -33,7 +33,7 @@ use raphtory_storage::{
     graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
-    stage::Stage,
+    stage::{Stage, Stageable},
 };
 use rayon::prelude::*;
 use std::{
@@ -285,6 +285,30 @@ impl Graph {
     }
 }
 
+pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
+    g1: &G1,
+    g2: &G2,
+) -> bool {
+    if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
+        g1.nodes().id().par_iter_values().all(|v| g2.has_node(v)) && // all nodes exist in other
+            g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
+            g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
+                g2
+                    .edge(e.src().id(), e.dst().id())
+                    .filter(|ee| ee.at(e.time().expect("exploded")).is_valid())
+                    .is_some()
+            })
+    } else {
+        false
+    }
+}
+
+impl Stageable for Graph {
+    fn from_storage(_src: &Self, storage: GraphStorage) -> Self {
+        storage.into()
+    }
+}
+
 /// Stage and version methods.
 impl Graph {
     pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
@@ -309,23 +333,5 @@ impl Graph {
 
     pub fn set_active_version(&self, version: u32) -> Result<(), GraphError> {
         Ok(self.core_graph().set_active_version(version)?)
-    }
-}
-
-pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
-    g1: &G1,
-    g2: &G2,
-) -> bool {
-    if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
-        g1.nodes().id().par_iter_values().all(|v| g2.has_node(v)) && // all nodes exist in other
-            g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
-            g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
-                g2
-                    .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| ee.at(e.time().expect("exploded")).is_valid())
-                    .is_some()
-            })
-    } else {
-        false
     }
 }

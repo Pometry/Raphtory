@@ -60,8 +60,6 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
 
 impl<GS: GraphPropSegmentOps> Drop for GraphPropWriter<'_, GS> {
     fn drop(&mut self) {
-        self.graph_props
-            .notify_write(&mut self.mem_segment)
-            .expect("Failed to persist node page");
+        self.graph_props.notify_write(&mut self.mem_segment);
     }
 }

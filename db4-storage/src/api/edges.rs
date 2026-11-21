@@ -88,10 +88,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     fn is_dirty(&self) -> bool;
 
     /// notify that an edge was added (might need to write to disk)
-    fn notify_write(
-        &self,
-        head: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), StorageError>;
+    fn notify_write(&self, head: impl DerefMut<Target = MemEdgeSegment>);
 
     fn increment_num_edges(&self) -> u32 {
         self.edges_counter()
