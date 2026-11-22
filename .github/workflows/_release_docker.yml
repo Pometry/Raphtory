@@ -95,6 +95,15 @@ jobs:
           cache-from: type=registry,ref=${{ env.CACHE_IMAGE }}
           cache-to: type=registry,ref=${{ env.CACHE_IMAGE }},mode=max
 
+      # Smoke test the freshly built image before its digest is exported for the
+      # release manifest. Runs on amd64 (the native runner arch): the GLIBC
+      # version mismatch this guards against is a build/runtime Debian alignment
+      # problem and is architecture-independent, so amd64 coverage is sufficient.
+      - name: Smoke test the built image
+        if: matrix.platform == 'linux/amd64'
+        run: |
+          scripts/docker-smoke-test.sh "${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }}"
+
       - name: Export digest
         run: |
           mkdir -p /tmp/digests

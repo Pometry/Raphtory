@@ -1,7 +1,7 @@
 ARG RUST_VERSION=1.89.0
 ARG RAPHTORY_PROFILE="release"
 
-FROM rust:${RUST_VERSION} AS chef
+FROM rust:${RUST_VERSION}-bookworm AS chef
 RUN cargo install cargo-chef --version 0.1.67
 WORKDIR /app
 
