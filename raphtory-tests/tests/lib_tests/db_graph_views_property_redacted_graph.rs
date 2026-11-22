@@ -324,6 +324,12 @@ mod tests {
             .filter(NodeFilter.property("region").eq("us-west"))
             .unwrap();
         assert_eq!(visible.count_nodes(), 1);
+        // The id lookups on `Nodes` and `Edges` hide the same keys.
+        assert_eq!(view.nodes().get_temporal_prop_id("salary"), None);
+        assert_eq!(view.nodes().get_metadata_id("ssn"), None);
+        assert_eq!(view.edges().get_temporal_prop_id("amount"), None);
+        assert_eq!(view.edges().get_metadata_id("ref"), None);
+        assert!(view.nodes().get_temporal_prop_id("region").is_some());
     }
 
     #[test]
