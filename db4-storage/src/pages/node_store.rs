@@ -429,41 +429,64 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
     }
 
-    /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
+    /// Find a free segment and reserve `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
     ///
     /// # Deadlock Safety: do not hold any node segment locks when calling this function other than the `existing_full_segment` guard passed in!
     pub fn reserve_and_lock_segment(
         &self,
         num_rows: u32,
-        existing_full_segment: Option<&NodeWriter<ArcRwLockWriteGuard<MemNodeSegment>, NS>>,
+        existing_full_segment: Option<&mut NodeWriter<ArcRwLockWriteGuard<MemNodeSegment>, NS>>,
     ) -> (
         LocalPOS,
         NodeWriter<'_, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
     ) {
-        let slot = self.free_segments.slot();
-        let segment_id = *slot.read_recursive();
+        // Important invariants to be upheld:
+        //
+        // 1. Do not hold segment locks when acquiring the free_segments slot! (Deadlock)
+        // 2. Node segment locks should always be acquired in segment id order! (Deadlock)
+        // 3. Before reserving new rows, the segment lock has to be acquired and cannot be released until the rows are initialised!
+        //
+        // If 3. is violated, this will leak uninitialised nodes into the graph!
 
-        let writer_and_row = match existing_full_segment {
-            Some(existing_writer) if existing_writer.segment.segment_id() == segment_id => {
-                // make sure we do not try to relock the already locked segment (it should always be full)
-                None
+        let (mut slot, writer_and_row) = match existing_full_segment {
+            Some(existing_writer) => {
+                // need to unlock the existing writer before acquiring free segment slot
+                let (slot, mut writer_and_row) = existing_writer.unlocked(|| {
+                    let slot = self.free_segments.slot().write();
+                    let free_segment_id = *slot;
+                    if existing_writer.segment.segment_id() <= free_segment_id {
+                        // node segment lock order: relock existing writer before acquiring segment!
+                        (slot, None)
+                    } else {
+                        // node segment lock order: get free writer before relocking existing segment!
+                        let writer = self.writer(free_segment_id);
+                        let row = self.reserve_segment_rows(writer.segment, num_rows);
+                        (slot, Some((writer, row)))
+                    }
+                });
+                let free_segment_id = *slot;
+                if existing_writer.segment.segment_id() < free_segment_id {
+                    let writer = self.writer(free_segment_id);
+                    let row = self.reserve_segment_rows(writer.segment, num_rows);
+                    writer_and_row = Some((writer, row));
+                }
+                (slot, writer_and_row)
             }
-            _ => {
-                let writer = self.writer(segment_id);
+            None => {
+                let slot = self.free_segments.slot().write();
+                let writer = self.writer(*slot);
                 let row = self.reserve_segment_rows(writer.segment, num_rows);
-                Some((writer, row))
+                (slot, Some((writer, row)))
             }
         };
+
         match writer_and_row {
             None | Some((_, None)) => {
                 // The current segment is full, push a new locked free segment before dropping the existing writer lock
 
                 let guard = self.push_new_segment();
-
-                // deadlock safety: we hold the writer for the existing segment (either acquired above or passed in)
-                *slot.write() = guard.segment_id();
-
+                *slot = guard.segment_id();
                 let writer = self.arc_writer(guard);
 
                 let local_pos = self
