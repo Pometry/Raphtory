@@ -1295,6 +1295,10 @@ pub(crate) mod data_tests {
             .unwrap()
             .unwrap();
         assert_eq!(deleted["data"]["deleteGraph"], true);
+        // "other" was written to: flush it while its folder exists, as the server still holds it
+        // when the work dir is removed.
+        let flushed = gql(port, r#"mutation { flush(graphPath: "other") }"#).await;
+        assert_eq!(flushed["data"]["flush"], true);
         running.stop().await;
     }
 
