@@ -177,20 +177,7 @@ impl GraphServer {
             let shacl = !server.config.schema.disable_shacl;
             server.with_schema_plugin(RdfSchema { shacl })
         };
-        let server = extensions.process(server)?;
-        // Without a way to verify a token every caller is read-write, which bypasses any policy.
-        if server.data.auth_policy.is_some()
-            && server.key_resolver.is_none()
-            && server.config.auth.public_key.is_none()
-        {
-            return Err(ConfigError::Message(
-                "an authorization policy is configured but no token can be verified: set \
-                 auth.public_key or configure a token key resolver"
-                    .to_owned(),
-            )
-            .into());
-        }
-        Ok(server)
+        extensions.process(server)
     }
 
     pub async fn new_from_args(args: ServerArgs) -> Result<Self, ServerError> {
