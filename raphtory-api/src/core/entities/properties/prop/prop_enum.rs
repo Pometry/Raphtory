@@ -53,7 +53,7 @@ pub type PropMap = IndexMap<ArcStr, Prop, FxBuildHasher>;
 
 #[derive(Error, Debug)]
 #[error("Decimal {0} too large.")]
-pub struct InvalidBigDecimal(BigDecimal);
+pub struct InvalidBigDecimal(pub(crate) BigDecimal);
 
 #[derive(Debug, PartialEq, Clone, Serialize)]
 #[serde(transparent)]
@@ -639,7 +639,10 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
 
 pub fn validate_bd(bd: &BigDecimal) -> Result<(), InvalidBigDecimal> {
     let (bint, scale) = bd.as_bigint_and_exponent();
-    if bint <= BigInt::from(DECIMAL_MAX) && scale <= 38 {
+    // a negative scale is a positive exponent; it is stored as an i8
+    if bint.magnitude() <= BigInt::from(DECIMAL_MAX).magnitude()
+        && (i8::MIN as i64..=38).contains(&scale)
+    {
         Ok(())
     } else {
         Err(InvalidBigDecimal(bd.clone()))

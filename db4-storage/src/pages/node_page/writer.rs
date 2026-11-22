@@ -6,6 +6,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
     wal::LSN,
 };
+use drop_logging::drop_error;
 use raphtory_api::{
     ArcRwLockWriteGuard,
     core::entities::{
@@ -321,9 +322,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
         self.writer
             .increment_global_est_size(self.writer.est_size() - self.old_est_size);
 
-        self.segment
-            .notify_write(self.writer.deref_mut())
-            .expect("Failed to persist node page");
+        if let Err(err) = self.segment.notify_write(self.writer.deref_mut()) {
+            drop_error!("Failed to persist node page: {err}")
+        }
     }
 }
 

@@ -262,7 +262,7 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 /// The pools are process-global, so tests that jam or saturate them must not overlap.
 #[cfg(test)]
-static TEST_SERIAL: Mutex<()> = Mutex::new(());
+pub(crate) static TEST_SERIAL: Mutex<()> = Mutex::new(());
 
 #[cfg(test)]
 mod deadlock_tests {

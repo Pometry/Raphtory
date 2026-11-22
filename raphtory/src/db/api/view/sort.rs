@@ -76,6 +76,16 @@ pub struct EdgeSortBy {
     pub key: EdgeSortKey,
 }
 
+/// `partial_cmp`, with floats in their total order (`total_cmp`): NaN equal to everything is
+/// not an order, and `sort_by` panics on it.
+fn compare_props(a: Option<Prop>, b: Option<Prop>) -> Option<Ordering> {
+    match (&a, &b) {
+        (Some(Prop::F32(a)), Some(Prop::F32(b))) => Some(a.total_cmp(b)),
+        (Some(Prop::F64(a)), Some(Prop::F64(b))) => Some(a.total_cmp(b)),
+        _ => a.partial_cmp(&b),
+    }
+}
+
 /// Compare two nodes by a single `NodeSortBy` key, applying that key's
 /// `reverse`. Returns `Ordering::Equal` when the key selects nothing or the
 /// values are incomparable. Shared by node sorting and edge endpoint sorting.
@@ -95,10 +105,9 @@ pub fn compare_node<'graph, G: GraphViewOps<'graph>>(
             };
             first.partial_cmp(&second)
         }
-        NodeSortKey::Property(prop) => a
-            .properties()
-            .get(prop)
-            .partial_cmp(&b.properties().get(prop)),
+        NodeSortKey::Property(prop) => {
+            compare_props(a.properties().get(prop), b.properties().get(prop))
+        }
     };
     match ordering {
         Some(o) if sort_by.reverse => o.reverse(),
@@ -130,14 +139,63 @@ pub fn compare_edge<'graph, G: GraphViewOps<'graph>>(
             };
             first.partial_cmp(&second)
         }
-        EdgeSortKey::Property(prop) => a
-            .properties()
-            .get(prop)
-            .partial_cmp(&b.properties().get(prop)),
+        EdgeSortKey::Property(prop) => {
+            compare_props(a.properties().get(prop), b.properties().get(prop))
+        }
     };
     match ordering {
         Some(o) if sort_by.reverse => o.reverse(),
         Some(o) => o,
         None => Ordering::Equal,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sorting_by_a_float_property_with_nan_is_a_total_order() {
+        let g = Graph::new();
+        let values = [1.0, f64::NAN, 3.0, 0.0, 2.0, f64::NAN];
+        for (i, value) in values.iter().cycle().take(24).enumerate() {
+            g.add_node(i as i64, i as u64, [("w", *value)], None, None)
+                .unwrap();
+            g.add_edge(i as i64, i as u64, i as u64 + 1, [("w", *value)], None)
+                .unwrap();
+        }
+        let by_w = NodeSortBy {
+            reverse: false,
+            key: NodeSortKey::Property("w".to_string()),
+        };
+        let by_id = NodeSortBy {
+            reverse: false,
+            key: NodeSortKey::Id,
+        };
+        let sorted: Vec<f64> = g
+            .nodes()
+            .sorted(&[by_w, by_id])
+            .iter()
+            .filter_map(|node| node.properties().get("w").and_then(|w| w.as_f64()))
+            .collect();
+        assert_eq!(sorted.len(), 24);
+        assert!(sorted.is_sorted_by(|a, b| a.total_cmp(b).is_le()));
+        assert!(sorted[..16].iter().all(|w| !w.is_nan()));
+
+        let by_w = EdgeSortBy {
+            reverse: true,
+            key: EdgeSortKey::Property("w".to_string()),
+        };
+        let by_time = EdgeSortBy {
+            reverse: false,
+            key: EdgeSortKey::Time(SortByTime::Earliest),
+        };
+        let sorted: Vec<f64> = g
+            .edges()
+            .sorted(&[by_w, by_time])
+            .iter()
+            .filter_map(|edge| edge.properties().get("w").and_then(|w| w.as_f64()))
+            .collect();
+        assert!(sorted.is_sorted_by(|a, b| a.total_cmp(b).is_ge()));
     }
 }

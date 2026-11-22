@@ -96,17 +96,10 @@ impl From<DateTime<Utc>> for PropRef<'_> {
 
 impl<'a> From<&'a BigDecimal> for PropRef<'a> {
     fn from(decimal: &'a BigDecimal) -> Self {
-        let (num, scale) = decimal.as_bigint_and_exponent();
-        let num = num.to_i128().unwrap_or_else(|| {
-            panic!(
-                "BigDecimal value {} is out of range for i128 representation",
-                decimal
-            )
-        });
-        PropRef::Decimal {
-            num,
-            scale: scale as i8,
-        }
+        // a `Prop::Decimal` built without `validate_bd` panics here rather than being stored as another number
+        PropRef::try_from_bd_ref(decimal).unwrap_or_else(|_| {
+            panic!("BigDecimal value {decimal} is out of range for a 38 digit decimal")
+        })
     }
 }
 
@@ -202,12 +195,16 @@ impl<'a> PropRef<'a> {
     }
 
     pub fn try_from_bd(bd: BigDecimal) -> Result<Self, InvalidBigDecimal> {
-        validate_bd(&bd)?;
+        Self::try_from_bd_ref(&bd)
+    }
+
+    fn try_from_bd_ref(bd: &BigDecimal) -> Result<Self, InvalidBigDecimal> {
+        validate_bd(bd)?;
+        let invalid = || InvalidBigDecimal(bd.clone());
         let (num, scale) = bd.as_bigint_and_exponent();
-        let num = num.to_i128().unwrap();
         Ok(PropRef::Decimal {
-            num,
-            scale: scale as i8,
+            num: num.to_i128().ok_or_else(invalid)?,
+            scale: i8::try_from(scale).map_err(|_| invalid())?,
         })
     }
 }
@@ -254,6 +251,37 @@ impl<'a> Serialize for PropRef<'a> {
                 let decimal = BigDecimal::new((*num).into(), (*scale).into());
                 decimal.serialize(serializer)
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod decimal_tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn decimals_out_of_range_are_refused_on_both_sides() {
+        let nines = "9".repeat(40);
+        for bad in [nines.clone(), format!("-{nines}"), "1e200".into()] {
+            let bd = BigDecimal::from_str(&bad).unwrap();
+            assert!(Prop::try_from_bd(bd.clone()).is_err(), "{bad}");
+            assert!(PropRef::try_from_bd(bd).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn decimals_at_the_bounds_keep_their_value() {
+        let nines = "9".repeat(38);
+        for good in [
+            nines.clone(),
+            format!("-{nines}"),
+            "1e128".into(),
+            "1e-38".into(),
+        ] {
+            let bd = BigDecimal::from_str(&good).unwrap();
+            let prop = Prop::try_from_bd(bd.clone()).unwrap();
+            assert_eq!(Prop::from(prop.as_prop_ref()), Prop::Decimal(bd), "{good}");
         }
     }
 }
