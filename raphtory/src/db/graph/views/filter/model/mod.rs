@@ -149,15 +149,13 @@ fn innermost_element(pt: &PropType) -> &PropType {
     }
 }
 
-/// Narrow an `is_in`/`is_not_in` set to the members that could equal the LHS.
+/// The members of an `is_in`/`is_not_in` set that could equal the LHS.
 ///
-/// Set membership asks whether a value is present, so a member of a type the
-/// LHS can never equal simply is not present: it is dropped rather than
-/// rejected, leaving `is_in` answering "no" where a comparison would refuse
-/// the question. `is_not_in` refuses such a member instead: dropped, it would
-/// answer "yes" for every row. The members that remain are kept exactly as written; the
-/// runtime comparison handles mixed numeric widths by value. An unresolved
-/// LHS type keeps every member.
+/// A member of a type the LHS can never equal is left out here and the
+/// compiled filter refuses the set, as a comparison would: dropped, it would
+/// answer "yes" for every row under `is_not_in` or `~is_in`. The members that
+/// remain are kept exactly as written; the runtime comparison handles mixed
+/// numeric widths by value. An unresolved LHS type keeps every member.
 pub fn comparable_set_values(lhs_pt: &PropType, values: &[Prop]) -> Vec<Prop> {
     values
         .iter()

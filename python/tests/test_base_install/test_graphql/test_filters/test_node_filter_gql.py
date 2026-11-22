@@ -640,7 +640,7 @@ def test_filter_nodes_degree_float_constants_gql(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_filter_nodes_degree_string_constants_gql(graph):
     # A string constant never compares with a degree, even one that spells a
-    # number; in an isIn set it is simply not a member, so the numbers still count.
+    # number, alone or as a member of a set.
     for direction in ["BOTH", "IN", "OUT"]:
         expr = _degree(direction, "eq", '{ str: "4" }')
         query = f"""
@@ -658,21 +658,17 @@ def test_filter_nodes_degree_string_constants_gql(graph):
             graph,
         )
 
-    queries_and_expected_outputs = [
-        _degree_filter_nodes_query_expected_pair(
-            _degree("BOTH", "isIn", '{ list: [{str: "3"}, {u64: 4}] }'),
-            _expected_degree_names(graph, "BOTH", lambda d: d == 4),
-        ),
-        _degree_filter_nodes_query_expected_pair(
-            _degree("OUT", "isIn", '{ list: [{str: "a"}, {str: "b"}] }'),
-            _expected_degree_names(graph, "OUT", lambda d: False),
-        ),
+    # a set refuses a string member: ignored, it would keep every node under
+    # `isNotIn` or `not: { isIn }`
+    is_in_strings = _degree("BOTH", "isIn", '{ list: [{str: "x"}, {str: "y"}] }')
+    refused = [
+        _degree("BOTH", "isIn", '{ list: [{str: "x"}, {u64: 4}] }'),
+        is_in_strings,
+        _degree("BOTH", "isNotIn", '{ list: [{str: "x"}, {u64: 4}] }'),
+        _degree("BOTH", "isNotIn", '{ list: [{str: "x"}, {str: "y"}] }'),
+        f"{{ not: {is_in_strings} }}",
     ]
-    run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=True)
-
-    # isNotIn refuses a string member: ignored, it would keep every node
-    for members in ['[{str: "3"}, {u64: 4}]', '[{str: "x"}, {str: "y"}]']:
-        expr = _degree("BOTH", "isNotIn", f"{{ list: {members} }}")
+    for expr in refused:
         query = f"""
     query {{
       graph(path: "g") {{
@@ -683,7 +679,7 @@ def test_filter_nodes_degree_string_constants_gql(graph):
     }}
     """
         run_graphql_error_test_contains(
-            query, ["is_not_in has a member that cannot be compared"], graph
+            query, ["value x of type Str cannot be compared with U64"], graph
         )
 
 

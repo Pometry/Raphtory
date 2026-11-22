@@ -39,6 +39,7 @@ use crate::{
                 edge_expr_filtered_graph::EdgeExprFilteredGraph,
                 exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
                 model::{
+                    const_mismatch_error,
                     edge_expr::{
                         ops::{
                             AllOfEdgeOp, AnyOfEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
@@ -1236,11 +1237,13 @@ impl<L: Leaf> Expr<L> {
                 let inner = expr.value_op(graph.clone())?;
                 let lhs = expr.resolved_type(&inner);
                 let (out, shape, members) = set_shape(&lhs, values);
-                // An exclusion that ignored a member would keep rows it was asked to drop.
-                if *negated && members.len() < values.len() {
-                    return Err(GraphError::invalid_filter(format!(
-                        "is_not_in has a member that cannot be compared with {lhs}"
-                    )));
+                // A dropped member would widen `is_not_in` and `~is_in`. Members of one type
+                // are kept or dropped together, so the first unmatched type is the culprit.
+                if let Some(bad) = values
+                    .iter()
+                    .find(|v| !members.iter().any(|m| m.dtype() == v.dtype()))
+                {
+                    return Err(const_mismatch_error(bad, &lhs));
                 }
                 let set = SetMembers::new(members, *negated);
                 let domain = if *negated {

@@ -333,10 +333,6 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("weight").is_not_in([3]), 4),
         (filter.ExplodedEdge.property("weight").is_some(), 6),
         (filter.ExplodedEdge.property("weight").is_none(), 0),
-        (
-            filter.ExplodedEdge.property("weight").is_in(["1", 2]),
-            2,
-        ),  # actually does the filter
         # confidence (float)
         (filter.ExplodedEdge.property("confidence") == 0.95, 1),
         (filter.ExplodedEdge.property("confidence") != 0.80, 5),
@@ -348,10 +344,6 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("confidence").is_not_in([0.75]), 5),
         (filter.ExplodedEdge.property("confidence").is_some(), 6),
         (filter.ExplodedEdge.property("confidence").is_none(), 0),
-        (
-            filter.ExplodedEdge.property("confidence").is_in(["1", 0.95]),
-            1,
-        ),  # actually does the filter
         # name (str)
         (filter.ExplodedEdge.property("name") == "bob", 2),
         (filter.ExplodedEdge.property("name") != "greg", 4),
@@ -365,7 +357,6 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("name") > "dave", 2),
         (filter.ExplodedEdge.property("name") <= "dave", 4),
         (filter.ExplodedEdge.property("name") >= "dave", 4),
-        (filter.ExplodedEdge.property("name").is_in([1, 2]), 0),
         (filter.ExplodedEdge.property("name").fuzzy_search("gabe", 2, False), 2),
         # active (bool)
         (filter.ExplodedEdge.property("active") == True, 4),
@@ -379,7 +370,6 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("active") > False, 4),
         (filter.ExplodedEdge.property("active") >= False, 6),
         (filter.ExplodedEdge.property("active") <= False, 2),
-        (filter.ExplodedEdge.property("active").is_in([1, 2]), 0),
         # created (datetime)
         (filter.ExplodedEdge.property("created") == datetime(2023, 1, 1), 1),
         (filter.ExplodedEdge.property("created") != datetime(2023, 1, 1), 5),
@@ -401,7 +391,6 @@ def test_all_property_types(GraphClass):
         ),
         (filter.ExplodedEdge.property("created").is_some(), 6),
         (filter.ExplodedEdge.property("created").is_none(), 0),
-        (filter.ExplodedEdge.property("created").is_in([1, 2]), 0),
         # tags (list of str)
         (filter.ExplodedEdge.property("tags") == ["team_b", "remote"], 1),
         (filter.ExplodedEdge.property("tags") != ["team_b", "remote"], 5),
@@ -419,7 +408,6 @@ def test_all_property_types(GraphClass):
         ),
         (filter.ExplodedEdge.property("tags").is_some(), 6),
         (filter.ExplodedEdge.property("tags").is_none(), 0),
-        (filter.ExplodedEdge.property("tags").is_in([1, 2]).any(), 0),
         # meta (dict)
         (filter.ExplodedEdge.property("meta") == {"location": "SF", "level": 2}, 1),
         (filter.ExplodedEdge.property("meta") != {"location": "SF", "level": 2}, 5),
@@ -437,20 +425,11 @@ def test_all_property_types(GraphClass):
         ),
         (filter.ExplodedEdge.property("meta").is_some(), 6),
         (filter.ExplodedEdge.property("meta").is_none(), 0),
-        # set membership drops a member the property can never equal, so a map
-        # whose shared key `level` is a string is simply not present
-        (filter.ExplodedEdge.property("meta").is_in([{"level": "two"}]), 0),
         (
             filter.ExplodedEdge.property("meta").is_not_in(
                 [{"location": "SF", "level": 2}, {"contract": True}]
             ),
             4,
-        ),
-        (
-            filter.ExplodedEdge.property("meta").is_in(
-                ["hi", {"location": "SF", "level": 2}, {"contract": True}]
-            ),
-            2,
         ),
     ]
     print()
@@ -460,9 +439,21 @@ def test_all_property_types(GraphClass):
             len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
-    # `is_in` drops a member the property can never equal; `is_not_in` refuses it, as
-    # ignoring it would keep every edge
-    mistyped_exclusions = [
+    # a set with a member the property can never equal is refused, as `==` is: ignored, the
+    # member would keep every edge under `is_not_in` or `~is_in`
+    mistyped_sets = [
+        filter.ExplodedEdge.property("weight").is_in(["1", 2]),
+        filter.ExplodedEdge.property("confidence").is_in(["1", 0.95]),
+        filter.ExplodedEdge.property("name").is_in([1, 2]),
+        filter.ExplodedEdge.property("active").is_in([1, 2]),
+        filter.ExplodedEdge.property("created").is_in([1, 2]),
+        filter.ExplodedEdge.property("tags").is_in([1, 2]).any(),
+        # the shared key `level` is a string here and an integer in the property
+        filter.ExplodedEdge.property("meta").is_in([{"level": "two"}]),
+        filter.ExplodedEdge.property("meta").is_in(
+            ["hi", {"location": "SF", "level": 2}, {"contract": True}]
+        ),
+        ~filter.ExplodedEdge.property("weight").is_in(["1"]),
         filter.ExplodedEdge.property("weight").is_not_in(["3"]),
         filter.ExplodedEdge.property("confidence").is_not_in(["3", 0.95]),
         filter.ExplodedEdge.property("name").is_not_in([3, "dave"]),
@@ -470,10 +461,8 @@ def test_all_property_types(GraphClass):
         filter.ExplodedEdge.property("created").is_not_in([3]),
         filter.ExplodedEdge.property("tags").is_not_in([3]).any(),
     ]
-    for expr in mistyped_exclusions:
-        with pytest.raises(
-            Exception, match="is_not_in has a member that cannot be compared"
-        ):
+    for expr in mistyped_sets:
+        with pytest.raises(Exception, match="of type .* cannot be compared with"):
             g.filter(expr)
 
     nonsense_filter_cases = [
