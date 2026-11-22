@@ -161,8 +161,18 @@ pub async fn probe_compute() -> Result<(), ComputeError> {
 async fn spawn_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
     closure: F,
 ) -> Result<R, ComputeError> {
+    spawn_caught(&COMPUTE_POOL, "a compute job", closure).await
+}
+
+/// Run `closure` on `pool`. A panic in it comes back as [`ComputeError::Panicked`], and is
+/// logged as `what` having panicked.
+async fn spawn_caught<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
+    pool: &ThreadPool,
+    what: &str,
+    closure: F,
+) -> Result<R, ComputeError> {
     let (send, recv) = oneshot::channel();
-    COMPUTE_POOL.spawn(move || {
+    pool.spawn(move || {
         // a panic in a rayon job aborts the process, so it is handed back to the caller instead
         let _ = send.send(panic::catch_unwind(AssertUnwindSafe(closure)));
     });
@@ -170,7 +180,7 @@ async fn spawn_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
         .map_err(|_| ComputeError::Dropped)?
         .map_err(|panic| {
             let message = panic_message(panic.as_ref());
-            error!(panic = %message, "a compute job panicked");
+            error!(panic = %message, "{what} panicked");
             ComputeError::Panicked(message)
         })
 }
@@ -251,13 +261,13 @@ fn panic_message(payload: &(dyn Any + Send)) -> String {
     }
 }
 
-/// Use a separate rayon threadpool to execute write tasks to avoid potential deadlocks
-pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
-    let (send, recv) = oneshot::channel();
-    WRITE_POOL.spawn(move || {
-        let _ = send.send(closure()); // this only errors if no-one is listening anymore
-    });
-    recv.await.expect("Function panicked in rayon::spawn")
+/// Use a separate rayon threadpool to execute write tasks to avoid potential deadlocks. A panic
+/// in `closure` comes back as [`ComputeError::Panicked`], and is logged. Locks the closure held
+/// are released, but whatever it had written by then stays written.
+pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
+    closure: F,
+) -> Result<R, ComputeError> {
+    spawn_caught(&WRITE_POOL, "a write", closure).await
 }
 
 /// Graphs are flushed here. A flush waits for queries still reading the graph, so it gets threads
@@ -274,18 +284,7 @@ static FLUSH_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 pub async fn blocking_flush<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
     closure: F,
 ) -> Result<R, ComputeError> {
-    let (send, recv) = oneshot::channel();
-    FLUSH_POOL.spawn(move || {
-        // a panic in a rayon job aborts the process, so it is handed back to the caller instead
-        let _ = send.send(panic::catch_unwind(AssertUnwindSafe(closure)));
-    });
-    recv.await
-        .map_err(|_| ComputeError::Dropped)?
-        .map_err(|panic| {
-            let message = panic_message(panic.as_ref());
-            error!(panic = %message, "a flush panicked");
-            ComputeError::Panicked(message)
-        })
+    spawn_caught(&FLUSH_POOL, "a flush", closure).await
 }
 
 /// The pools are process-global, so tests that jam or saturate them must not overlap.
@@ -367,6 +366,13 @@ mod scheduler_tests {
         let failed = blocking_compute(|| -> usize { panic!("boom") }).await;
         assert!(matches!(failed, Err(ComputeError::Panicked(message)) if message == "boom"));
         assert_eq!(blocking_compute(|| 1).await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_write_job_that_panics_returns_an_error_and_the_pool_keeps_going() {
+        let failed = blocking_write(|| -> usize { panic!("boom") }).await;
+        assert!(matches!(failed, Err(ComputeError::Panicked(message)) if message == "boom"));
+        assert_eq!(blocking_write(|| 1).await.unwrap(), 1);
     }
 
     #[test]

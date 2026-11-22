@@ -758,7 +758,7 @@ impl Data {
                     // from the cache, which means `finish` has to happen under the cache guard.
                     let new_graph = graph
                         .finish()
-                        .await
+                        .await?
                         .map_err(|e| InsertionError::from_graph_err(&graph_path, e))?;
 
                     // The active version should only be changed when there are no other
@@ -786,7 +786,7 @@ impl Data {
                 })
                 .await?;
         } else {
-            graph.finish().await?;
+            graph.finish().await??;
         }
 
         Ok(())

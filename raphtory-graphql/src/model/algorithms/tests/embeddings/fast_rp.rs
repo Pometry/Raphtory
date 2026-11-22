@@ -63,3 +63,21 @@ async fn test_algorithm_fast_rp() {
     ids.sort_unstable();
     assert_eq!(ids, ["a", "b", "c"]);
 }
+
+#[tokio::test]
+async fn fast_rp_refuses_empty_iter_weights() {
+    let graph = Graph::new();
+    graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+    let tmp_dir = tempdir().unwrap();
+    let setup = setup_with_graphs(&[("g", graph.into())], tmp_dir.path()).await;
+
+    let query = r#"{ graph(path: "g") { algorithm {
+        fastRp(embeddingDim: 2, normalizationStrength: 0.5, iterWeights: []) { columnNames }
+    } } }"#;
+    let res = setup.schema.execute(Request::new(query)).await;
+    assert_eq!(res.errors.len(), 1, "{:?}", res.errors);
+    assert_eq!(
+        res.errors[0].message,
+        "Invalid value: iter_weights must hold at least one weight"
+    );
+}
