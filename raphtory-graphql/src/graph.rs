@@ -32,8 +32,8 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-    time::Duration,
 };
+use tokio::sync::Notify;
 use tracing::debug;
 
 #[cfg(feature = "vectors")]
@@ -54,6 +54,19 @@ pub type GraphVectors = ();
 #[derive(Clone)]
 pub struct GraphWithVectors {
     inner: Arc<GraphWithVectorsInner>,
+    // Must stay after `inner`: fields drop in order, so `into_inner` is woken only once this
+    // handle no longer holds the graph.
+    released: Released,
+}
+
+/// Wakes [`GraphWithVectors::into_inner`] when a handle to the graph is dropped.
+#[derive(Clone, Default)]
+struct Released(Arc<Notify>);
+
+impl Drop for Released {
+    fn drop(&mut self) {
+        self.0.notify_waiters();
+    }
 }
 
 pub struct GraphWithVectorsInner {
@@ -98,26 +111,30 @@ impl GraphWithVectors {
             is_flushing: AtomicBool::new(false),
             plugin_data: PluginData::default(),
         });
-        Self { inner }
+        Self {
+            inner,
+            released: Released::default(),
+        }
     }
 
     pub fn plugin_data(&self) -> &PluginData {
         &self.inner.plugin_data
     }
 
-    /// Calls `Arc::try_unwrap` on the underlying Arc until we hold the only reference and returns it
+    /// Waits until every other handle to the graph is dropped, then returns the graph.
     pub async fn into_inner(self) -> GraphWithVectorsInner {
-        let mut inner = self.inner;
+        let Self {
+            mut inner,
+            released,
+        } = self;
         loop {
+            // Created before the check, so a handle dropped right after it still wakes us.
+            let handle_dropped = released.0.notified();
             match Arc::try_unwrap(inner) {
                 Ok(inner) => return inner,
-                Err(shared) => {
-                    inner = shared;
-                    // shortcut: polls, as nothing signals the last other handle's drop; a
-                    // `Pending` with no waker registered was never polled again.
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
+                Err(shared) => inner = shared,
             }
+            handle_dropped.await;
         }
     }
 
@@ -129,11 +146,15 @@ impl GraphWithVectors {
                 inner.graph = inner.graph.read_only();
                 Self {
                     inner: Arc::new(inner),
+                    released: self.released,
                 }
             }
             Err(inner) => {
                 tracing::warn!("graph handle shared during load; serving it without read-only");
-                Self { inner }
+                Self {
+                    inner,
+                    released: self.released,
+                }
             }
         }
     }
