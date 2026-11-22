@@ -1,6 +1,5 @@
-use crate::db::api::view::graph::visible_mapper;
 use crate::{
-    db::api::state::ops::GraphView,
+    db::api::{state::ops::GraphView, view::graph::visible_mapper},
     errors::GraphError,
     parquet_encoder::{run_encode, RecordBatchSink, SECONDARY_INDEX_COL, TIME_COL},
     prelude::{GraphViewOps, Prop, PropertiesOps},

@@ -42,13 +42,15 @@ use crate::{
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use either::Either;
-use raphtory_api::core::entities::properties::{meta::PropMapper, prop::PropType};
 #[cfg(feature = "io")]
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 #[cfg(feature = "io")]
 use raphtory_api::core::storage::graph_folder::Metadata as GraphFolderMetadata;
 use raphtory_api::core::{
-    entities::properties::meta::Meta,
+    entities::properties::{
+        meta::{Meta, PropMapper},
+        prop::PropType,
+    },
     storage::{arc_str::ArcStr, timeindex::EventTime},
     Direction,
 };

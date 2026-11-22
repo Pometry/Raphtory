@@ -1,12 +1,11 @@
 //! Defines the `Node`, which represents a node in the graph.
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::db::api::properties::internal::NodePropertySchemaOps;
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            properties::{Metadata, Properties},
+            properties::{internal::NodePropertySchemaOps, Metadata, Properties},
             state::{
                 ops,
                 ops::{

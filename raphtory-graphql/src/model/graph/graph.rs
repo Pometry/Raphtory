@@ -90,6 +90,15 @@ impl GqlGraph {
         &self.plugin_data
     }
 
+    /// Whether an access policy limits what the caller reads of this graph (a row filter or
+    /// hidden properties), as opposed to views the caller applied.
+    pub fn access_restricted(&self, ctx: &Context<'_>) -> Result<bool, GQLError> {
+        match ctx.data_unchecked::<Data>().auth_policy.as_ref() {
+            None => Ok(false),
+            Some(policy) => Ok(!policy.full_read(ctx, self.path.local_path())?),
+        }
+    }
+
     fn apply<F, G>(&self, graph_operation: F) -> Self
     where
         F: Fn(&DynamicGraph) -> G,

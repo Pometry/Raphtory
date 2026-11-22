@@ -356,6 +356,40 @@ mod tests {
         );
     }
 
+    /// An id taken from the unredacted graph reads as nothing through the view.
+    #[test]
+    fn test_a_hidden_id_reads_as_nothing() {
+        use raphtory::db::api::view::internal::CoreGraphOps;
+        let g = make_graph();
+        let view = g.exclude_properties(
+            &PropertyRedaction::default()
+                .with_node_props(["salary"])
+                .with_node_meta(["ssn"])
+                .with_edge_props(["amount"])
+                .with_edge_meta(["ref"]),
+        );
+        let salary = g.node_meta().get_prop_id("salary", false).unwrap();
+        let region = g.node_meta().get_prop_id("region", false).unwrap();
+        let ssn = g.node_meta().get_prop_id("ssn", true).unwrap();
+        let amount = g.edge_meta().get_prop_id("amount", false).unwrap();
+        let reference = g.edge_meta().get_prop_id("ref", true).unwrap();
+
+        let alice = view.node("alice").unwrap();
+        let temporal = alice.properties().temporal();
+        assert_eq!(temporal.get_by_id(salary).and_then(|p| p.latest()), None);
+        assert!(temporal.get_by_id(salary).unwrap().iter().next().is_none());
+        assert!(temporal
+            .get_by_id(region)
+            .and_then(|p| p.latest())
+            .is_some());
+        assert_eq!(alice.metadata().get_by_id(ssn), None);
+
+        let edge = view.edge("alice", "bob").unwrap();
+        let temporal = edge.properties().temporal();
+        assert_eq!(temporal.get_by_id(amount).and_then(|p| p.latest()), None);
+        assert_eq!(edge.metadata().get_by_id(reference), None);
+    }
+
     #[test]
     fn test_algorithms_read_a_hidden_edge_property_as_missing() {
         let g = make_graph();

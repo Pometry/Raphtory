@@ -1,7 +1,7 @@
 use crate::db::api::{
     properties::internal::{
-        EdgePropertySchemaOps, InheritTemporalPropertyViewOps, InternalMetadataOps,
-        InternalTemporalPropertiesOps, NodePropertySchemaOps,
+        EdgePropertySchemaOps, InternalMetadataOps, InternalTemporalPropertiesOps,
+        InternalTemporalPropertyViewOps, NodePropertySchemaOps,
     },
     view::{
         internal::{
@@ -14,8 +14,11 @@ use crate::db::api::{
 };
 use raphtory_api::{
     core::{
-        entities::{properties::prop::Prop, LayerId},
-        storage::arc_str::ArcStr,
+        entities::{
+            properties::prop::{Prop, PropType},
+            LayerId,
+        },
+        storage::{arc_str::ArcStr, timeindex::EventTime},
     },
     inherit::Base,
 };
@@ -198,9 +201,38 @@ impl<G: GraphView> InheritNodeFilterOps for PropertyRedactedGraph<G> {}
 impl<G: GraphView> InheritAllEdgeFilterOps for PropertyRedactedGraph<G> {}
 impl<G: GraphView> InheritLayerOps for PropertyRedactedGraph<G> {}
 
-// Temporal property view ops (dtype, history iteration) are delegated to the base graph —
-// redaction only affects which IDs are visible, not the values themselves.
-impl<G: GraphView> InheritTemporalPropertyViewOps for PropertyRedactedGraph<G> {}
+// Graph-level temporal properties read by id: a hidden id reads as a property with no values.
+impl<G: GraphView> InternalTemporalPropertyViewOps for PropertyRedactedGraph<G> {
+    fn dtype(&self, id: usize) -> PropType {
+        self.graph.dtype(id)
+    }
+
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
+        if !is_visible(&self.redaction.graph_props_visible, id) {
+            return Box::new(std::iter::empty());
+        }
+        self.graph.temporal_iter(id)
+    }
+
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
+        if !is_visible(&self.redaction.graph_props_visible, id) {
+            return Box::new(std::iter::empty());
+        }
+        self.graph.temporal_iter_rev(id)
+    }
+
+    fn temporal_value(&self, id: usize) -> Option<Prop> {
+        is_visible(&self.redaction.graph_props_visible, id)
+            .then(|| self.graph.temporal_value(id))
+            .flatten()
+    }
+
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
+        is_visible(&self.redaction.graph_props_visible, id)
+            .then(|| self.graph.temporal_value_at(id, t))
+            .flatten()
+    }
+}
 
 // PropertyRedactedGraph overrides NodePropertySchemaOps and EdgePropertySchemaOps to filter
 // hidden keys. It does NOT implement the inherit markers — it provides its own implementations.
@@ -260,6 +292,16 @@ impl<G: GraphView> NodePropertySchemaOps for PropertyRedactedGraph<G> {
         is_visible(&self.redaction.node_meta_visible, prop_id)
             && self.graph.node_layer_has_metadata(layer_id, prop_id)
     }
+
+    fn node_shows_temporal_prop(&self, prop_id: usize) -> bool {
+        is_visible(&self.redaction.node_props_visible, prop_id)
+            && self.graph.node_shows_temporal_prop(prop_id)
+    }
+
+    fn node_shows_metadata(&self, prop_id: usize) -> bool {
+        is_visible(&self.redaction.node_meta_visible, prop_id)
+            && self.graph.node_shows_metadata(prop_id)
+    }
 }
 
 impl<G: GraphView> EdgePropertySchemaOps for PropertyRedactedGraph<G> {
@@ -312,6 +354,16 @@ impl<G: GraphView> EdgePropertySchemaOps for PropertyRedactedGraph<G> {
         is_visible(&self.redaction.edge_meta_visible, prop_id)
             && self.graph.edge_layer_has_metadata(layer_id, prop_id)
     }
+
+    fn edge_shows_temporal_prop(&self, prop_id: usize) -> bool {
+        is_visible(&self.redaction.edge_props_visible, prop_id)
+            && self.graph.edge_shows_temporal_prop(prop_id)
+    }
+
+    fn edge_shows_metadata(&self, prop_id: usize) -> bool {
+        is_visible(&self.redaction.edge_meta_visible, prop_id)
+            && self.graph.edge_shows_metadata(prop_id)
+    }
 }
 
 // Graph-level property redaction: override InternalTemporalPropertiesOps and InternalMetadataOps
@@ -325,6 +377,9 @@ impl<G: GraphView> InternalTemporalPropertiesOps for PropertyRedactedGraph<G> {
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
+        if !is_visible(&self.redaction.graph_props_visible, id) {
+            return ArcStr::default();
+        }
         self.graph.get_temporal_prop_name(id)
     }
 
@@ -344,6 +399,9 @@ impl<G: GraphView> InternalMetadataOps for PropertyRedactedGraph<G> {
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
+        if !is_visible(&self.redaction.graph_meta_visible, id) {
+            return ArcStr::default();
+        }
         self.graph.get_metadata_name(id)
     }
 

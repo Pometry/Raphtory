@@ -1,4 +1,3 @@
-use crate::db::api::view::graph::visible_mapper;
 use crate::{
     core::utils::iter::GenLockedIter,
     db::{
@@ -7,7 +6,7 @@ use crate::{
                 ops::{FilterOps, GraphView},
                 Index,
             },
-            view::internal::List,
+            view::{graph::visible_mapper, internal::List},
         },
         graph::node::NodeView,
     },

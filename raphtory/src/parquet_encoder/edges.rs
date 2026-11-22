@@ -1,10 +1,9 @@
 use super::*;
-use crate::db::api::view::graph::visible_mapper;
 use crate::{
     db::{
         api::{
             state::ops::{FilterOps, GraphView},
-            view::internal::List,
+            view::{graph::visible_mapper, internal::List},
         },
         graph::edge::EdgeView,
     },

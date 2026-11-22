@@ -1,9 +1,11 @@
-use crate::db::api::properties::internal::EdgePropertySchemaOps;
 use crate::{
     api::core::storage::timeindex::AsTime,
     db::{
-        api::view::{
-            DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
+        api::{
+            properties::internal::EdgePropertySchemaOps,
+            view::{
+                DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
+            },
         },
         graph::{
             edge::EdgeView,
