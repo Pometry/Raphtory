@@ -2067,8 +2067,9 @@ mod test_node_filter {
                     "a string constant must not compare with a degree"
                 );
             }
-            // In a set, a string member can never be the degree, so it is simply
-            // not there; the numeric members still count.
+            // In an `is_in` set, a string member can never be the degree, so it is simply
+            // not there; the numeric members still count. `is_not_in` refuses it: ignored,
+            // it would keep every node.
             let strings_only = vec!["3".into_prop(), "4".into_prop()];
             assert_filter(
                 &graph,
@@ -2076,13 +2077,6 @@ mod test_node_filter {
                 dir,
                 |_| false,
                 "is_in(strings)",
-            );
-            assert_filter(
-                &graph,
-                degree.clone().is_not_in(strings_only),
-                dir,
-                |_| true,
-                "is_not_in(strings)",
             );
             let mixed = vec!["3".into_prop(), 4u64.into_prop()];
             assert_filter(
@@ -2092,13 +2086,15 @@ mod test_node_filter {
                 |d| d == 4,
                 "is_in(string, number)",
             );
-            assert_filter(
-                &graph,
-                degree.is_not_in(mixed),
-                dir,
-                |d| d != 4,
-                "is_not_in(string, number)",
-            );
+            for members in [strings_only, mixed] {
+                assert!(
+                    matches!(
+                        graph.filter(degree.clone().is_not_in(members)),
+                        Err(GraphError::InvalidFilter(_))
+                    ),
+                    "is_not_in must refuse a string member"
+                );
+            }
         }
     }
 
@@ -2979,6 +2975,24 @@ mod test_node_property_filter {
             &expected_results,
             TestVariants::All,
         );
+    }
+
+    /// `is_in` drops a member it can never equal; `is_not_in` refuses it, as dropping it would
+    /// keep every row. An empty exclusion keeps every row that has a value.
+    #[test]
+    fn is_not_in_refuses_a_member_it_cannot_compare() {
+        use raphtory::{db::api::view::Filter, errors::GraphError, prelude::*};
+        let g = Graph::new();
+        g.add_node(0, 1, [("p", Prop::I64(1))], None, None).unwrap();
+        g.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        let not_in = |members: Vec<Prop>| g.filter(NodeFilter.property("p").is_not_in(members));
+        assert!(matches!(
+            not_in(vec![Prop::I64(2), Prop::Str("1".into())]),
+            Err(GraphError::InvalidFilter(_))
+        ));
+        assert_eq!(not_in(vec![Prop::I64(2)]).unwrap().count_nodes(), 1);
+        assert_eq!(not_in(vec![Prop::U64(1)]).unwrap().count_nodes(), 0);
+        assert_eq!(not_in(vec![]).unwrap().count_nodes(), 1);
     }
 
     #[test]

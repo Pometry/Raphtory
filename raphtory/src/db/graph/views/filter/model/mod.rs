@@ -154,7 +154,8 @@ fn innermost_element(pt: &PropType) -> &PropType {
 /// Set membership asks whether a value is present, so a member of a type the
 /// LHS can never equal simply is not present: it is dropped rather than
 /// rejected, leaving `is_in` answering "no" where a comparison would refuse
-/// the question. The members that remain are kept exactly as written; the
+/// the question. `is_not_in` refuses such a member instead: dropped, it would
+/// answer "yes" for every row. The members that remain are kept exactly as written; the
 /// runtime comparison handles mixed numeric widths by value. An unresolved
 /// LHS type keeps every member.
 pub fn comparable_set_values(lhs_pt: &PropType, values: &[Prop]) -> Vec<Prop> {

@@ -1234,7 +1234,14 @@ impl<L: Leaf> Expr<L> {
                 negated,
             } => {
                 let inner = expr.value_op(graph.clone())?;
-                let (out, shape, members) = set_shape(&expr.resolved_type(&inner), values);
+                let lhs = expr.resolved_type(&inner);
+                let (out, shape, members) = set_shape(&lhs, values);
+                // An exclusion that ignored a member would keep rows it was asked to drop.
+                if *negated && members.len() < values.len() {
+                    return Err(GraphError::invalid_filter(format!(
+                        "is_not_in has a member that cannot be compared with {lhs}"
+                    )));
+                }
                 let set = SetMembers::new(members, *negated);
                 let domain = if *negated {
                     None
