@@ -36,8 +36,11 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     type Entry = MemNodeTypeEntry;
 
     fn new(_path: Option<&Path>, ext: Self::Extension) -> Result<Self, StorageError> {
+        let lsn = 0;
+
         Ok(Self {
             head: Arc::new(RwLock::new(MemNodeTypeIndex::new(
+                lsn,
                 ext.memory_tracker().clone(),
             ))),
             est_size_cached: AtomicUsize::new(0),

@@ -7,7 +7,7 @@ use std::{
     collections::BTreeSet,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
 };
 
@@ -23,6 +23,9 @@ pub struct MemNodeTypeIndex {
     /// Estimated memory size of the index in bytes.
     est_size: AtomicUsize,
 
+    /// Latest WAL LSN reflected in this in-memory index.
+    lsn: AtomicU64,
+
     /// Counter that tracks the memory usage of the entire graph.
     global_memory_tracker: Arc<AtomicUsize>,
 }
@@ -35,13 +38,22 @@ impl Drop for MemNodeTypeIndex {
 }
 
 impl MemNodeTypeIndex {
-    pub fn new(global_memory_tracker: Arc<AtomicUsize>) -> Self {
+    pub fn new(lsn: u64, global_memory_tracker: Arc<AtomicUsize>) -> Self {
         Self {
             map: FxDashMap::default(),
             entry_count: AtomicUsize::new(0),
             est_size: AtomicUsize::new(0),
+            lsn: AtomicU64::new(lsn),
             global_memory_tracker,
         }
+    }
+
+    pub fn lsn(&self) -> u64 {
+        self.lsn.load(Ordering::Relaxed)
+    }
+
+    pub fn set_lsn(&self, lsn: u64) {
+        self.lsn.fetch_max(lsn, Ordering::Relaxed);
     }
 
     /// Associates `vid` with `type_id`. Idempotent for duplicate pairs.
@@ -100,6 +112,7 @@ impl MemNodeTypeIndex {
             map: std::mem::take(&mut self.map),
             entry_count: AtomicUsize::new(self.entry_count.swap(0, Ordering::Relaxed)),
             est_size: AtomicUsize::new(self.est_size.swap(0, Ordering::Relaxed)),
+            lsn: AtomicU64::new(self.lsn.load(Ordering::Relaxed)),
             global_memory_tracker: self.global_memory_tracker.clone(),
         }
     }
@@ -221,13 +234,14 @@ mod tests {
     }
 
     fn test_index() -> Arc<MemNodeTypeIndex> {
-        Arc::new(MemNodeTypeIndex::new(Arc::new(AtomicUsize::new(0))))
+        Arc::new(MemNodeTypeIndex::new(0, Arc::new(AtomicUsize::new(0))))
     }
 
     fn test_index_rwlock() -> Arc<RwLock<MemNodeTypeIndex>> {
-        Arc::new(RwLock::new(MemNodeTypeIndex::new(Arc::new(
-            AtomicUsize::new(0),
-        ))))
+        Arc::new(RwLock::new(MemNodeTypeIndex::new(
+            0,
+            Arc::new(AtomicUsize::new(0)),
+        )))
     }
 
     #[test]

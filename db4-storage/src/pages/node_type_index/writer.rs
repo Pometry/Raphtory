@@ -48,6 +48,10 @@ impl<'a, M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps>
         self.head.insert_batch(type_id, vids);
     }
 
+    pub fn set_lsn(&self, lsn: u64) {
+        self.head.set_lsn(lsn);
+    }
+
     fn from_head(head: M, index: &'a NTI) -> Self {
         let initial_est_size = head.est_size();
 
