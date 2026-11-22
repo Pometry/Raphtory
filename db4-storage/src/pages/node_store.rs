@@ -810,3 +810,19 @@ pub fn increment_and_clamp(counter: &AtomicU32, increment: u32, limit: u32) -> O
         )
         .ok()
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        Extension, Layer,
+        pages::test_utils::check_reserve_with_full_segment_does_not_wait,
+        persist::{config::BaseConfig, strategy::PersistenceStrategy},
+    };
+
+    #[test]
+    fn reserve_with_full_segment_does_not_wait() {
+        let ext = Extension::new(None, BaseConfig::new(10, 10)).unwrap();
+        let graph = Layer::new(None, ext).unwrap();
+        check_reserve_with_full_segment_does_not_wait(graph.nodes());
+    }
+}
