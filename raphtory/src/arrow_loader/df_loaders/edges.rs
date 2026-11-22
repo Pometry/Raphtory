@@ -285,6 +285,14 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             &shared_metadata_ids,
         );
 
+        // Everything that can refuse the chunk runs before node resolution: resolving reserves
+        // rows whose ids are only written further down.
+        let time_col = df.time_col(time_index)?;
+
+        // Load the secondary index column if it exists, otherwise generate from start_id.
+        let secondary_index_col =
+            extract_secondary_index_col::<G>(secondary_index_index, graph, &df)?;
+
         let (src_vids, dst_vids, gid_str_cache, new_segment_guards) = if resolve_nodes {
             let cache = node_resolve_cache
                 .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
@@ -310,12 +318,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 &dst_col,
             )?
         };
-
-        let time_col = df.time_col(time_index)?;
-
-        // Load the secondary index column if it exists, otherwise generate from start_id.
-        let secondary_index_col =
-            extract_secondary_index_col::<G>(secondary_index_index, graph, &df)?;
 
         // node resolution may have created new node segments
         write_locked_graph.extend_nodes(new_segment_guards);

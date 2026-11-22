@@ -272,7 +272,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 extract_secondary_index_col::<G>(secondary_index_index, graph, &df)?;
             node_col_resolved.resize_with(df.len(), Default::default);
 
-            let (src_vids, gid_str_cache, new_segment_guards) = get_or_resolve_node_vids(
+            let (src_vids, gid_str_cache, new_segment_guards, resolved) = get_or_resolve_node_vids(
                 graph,
                 &write_locked_graph.nodes,
                 node_id_index,
@@ -297,6 +297,16 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             // node resolution may have created new node segments
             write_locked_graph.extend_nodes(new_segment_guards);
+
+            if let Err(err) = resolved {
+                // A refused chunk has already reserved rows and registered their ids in the
+                // resolver: write the ids before returning, so no reader finds a row without one.
+                write_locked_graph
+                    .nodes
+                    .par_iter_mut()
+                    .for_each(|shard| store_node_ids_and_type(&gid_str_cache, shard));
+                return Err(err);
+            }
 
             let rows_by_segment = group_rows_by_vid_segment(
                 src_vids,
@@ -569,12 +579,20 @@ fn get_or_resolve_node_vids<'a: 'c, 'b: 'c, 'c>(
     resolve_nodes: bool,
     df: &'b DFChunk,
     src_col: &'a NodeCol,
-) -> Result<(&'c [VID], Vec<Resolved<'a>>, MemNodeSegmentGuards), GraphError> {
+) -> Result<
+    (
+        &'c [VID],
+        Vec<Resolved<'a>>,
+        MemNodeSegmentGuards,
+        Result<(), GraphError>,
+    ),
+    GraphError,
+> {
     if resolve_nodes {
         let cache = node_resolve_cache
             .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
 
-        resolve_node_vids_and_types_with_cache(
+        Ok(resolve_node_vids_and_types_with_cache(
             graph,
             locked_nodes,
             cache,
@@ -582,7 +600,7 @@ fn get_or_resolve_node_vids<'a: 'c, 'b: 'c, 'c>(
             src_col,
             node_type_resolved,
             df.len(),
-        )
+        ))
     } else {
         let srcs = df.chunk[src_index]
             .as_primitive_opt::<UInt64Type>()
@@ -590,7 +608,7 @@ fn get_or_resolve_node_vids<'a: 'c, 'b: 'c, 'c>(
             .values()
             .as_ref();
 
-        Ok((bytemuck::cast_slice(srcs), vec![], vec![]))
+        Ok((bytemuck::cast_slice(srcs), vec![], vec![], Ok(())))
     }
 }
 
@@ -601,6 +619,9 @@ fn get_or_resolve_node_vids<'a: 'c, 'b: 'c, 'c>(
 ///
 /// Cache hits and existing nodes that already have a matching type are skipped.
 /// A GID that reappears with a different node type is rejected.
+///
+/// The error comes back next to the rows reserved before it, not instead of them: those ids are
+/// already in the resolver, so the caller has to write them to the segments before failing.
 fn resolve_node_vids_and_types_with_cache<'a>(
     graph: &TemporalGraph,
     locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
@@ -609,94 +630,104 @@ fn resolve_node_vids_and_types_with_cache<'a>(
     node_col: &'a NodeCol,
     node_types: &[usize],
     len: usize,
-) -> Result<(&'a [VID], Vec<Resolved<'a>>, MemNodeSegmentGuards), GraphError> {
+) -> (
+    &'a [VID],
+    Vec<Resolved<'a>>,
+    MemNodeSegmentGuards,
+    Result<(), GraphError>,
+) {
     node_col_resolved.resize_with(len, Default::default);
     let atomic_node_col = atomic_vid_from_mut_slice(node_col_resolved);
 
-    let new_gids_by_shard = cache
+    let resolved_by_shard = cache
         .par_iter_mut()
         .map(|mut shard| {
             let mut new_gids = vec![];
             let mut new_segment_guards = vec![];
 
-            for (row, (gid, vid_slot)) in node_col.iter().zip(atomic_node_col.iter()).enumerate() {
-                if !shard.is_in_shard(gid) {
-                    continue;
-                }
+            let result = (|| {
+                for (row, (gid, vid_slot)) in
+                    node_col.iter().zip(atomic_node_col.iter()).enumerate()
+                {
+                    if !shard.is_in_shard(gid) {
+                        continue;
+                    }
 
-                let node_type = node_types[row];
-                let mut should_store = false;
+                    let node_type = node_types[row];
+                    let mut should_store = false;
 
-                let resolved = shard.resolve_with(gid, || {
-                    let (vid, new_seg_guard) =
-                        unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+                    let resolved = shard.resolve_with(gid, || {
+                        let (vid, new_seg_guard) =
+                            unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
 
-                    new_segment_guards.extend(new_seg_guard);
+                        new_segment_guards.extend(new_seg_guard);
 
-                    match vid {
-                        MaybeNew::New(vid) => {
-                            should_store = true;
-                            Ok((vid, node_type))
-                        }
-                        MaybeNew::Existing(vid) => {
-                            match existing_stored_node_type(locked_nodes, vid) {
-                                None => {
-                                    should_store = true;
-                                    Ok((vid, node_type))
+                        match vid {
+                            MaybeNew::New(vid) => {
+                                should_store = true;
+                                Ok((vid, node_type))
+                            }
+                            MaybeNew::Existing(vid) => {
+                                match existing_stored_node_type(locked_nodes, vid) {
+                                    None => {
+                                        should_store = true;
+                                        Ok((vid, node_type))
+                                    }
+                                    Some(existing) if existing == node_type => Ok((vid, existing)),
+                                    Some(existing) => Err(GraphError::LoadError {
+                                        source: LoadError::ConflictingNodeType {
+                                            gid: gid.into(),
+                                            existing: node_type_name(graph, existing),
+                                            new: node_type_name(graph, node_type),
+                                        },
+                                    }),
                                 }
-                                Some(existing) if existing == node_type => Ok((vid, existing)),
-                                Some(existing) => Err(GraphError::LoadError {
-                                    source: LoadError::ConflictingNodeType {
-                                        gid: gid.into(),
-                                        existing: node_type_name(graph, existing),
-                                        new: node_type_name(graph, node_type),
-                                    },
-                                }),
                             }
                         }
+                    })?;
+
+                    let (vid, cached_node_type) = resolved.inner();
+
+                    if cached_node_type != node_type {
+                        return Err(GraphError::LoadError {
+                            source: LoadError::ConflictingNodeType {
+                                gid: gid.into(),
+                                existing: node_type_name(graph, cached_node_type),
+                                new: node_type_name(graph, node_type),
+                            },
+                        });
                     }
-                })?;
 
-                let (vid, cached_node_type) = resolved.inner();
+                    if should_store {
+                        new_gids.push((gid, (vid, cached_node_type)));
+                    }
 
-                if cached_node_type != node_type {
-                    return Err(GraphError::LoadError {
-                        source: LoadError::ConflictingNodeType {
-                            gid: gid.into(),
-                            existing: node_type_name(graph, cached_node_type),
-                            new: node_type_name(graph, node_type),
-                        },
-                    });
+                    vid_slot.store(vid.0, Ordering::Relaxed);
                 }
 
-                if should_store {
-                    new_gids.push((gid, (vid, cached_node_type)));
-                }
+                Ok::<_, GraphError>(())
+            })();
 
-                vid_slot.store(vid.0, Ordering::Relaxed);
-            }
-
-            Ok((new_gids, new_segment_guards))
+            (new_gids, new_segment_guards, result)
         })
-        .collect::<Result<Vec<_>, GraphError>>()?;
-
-    let (new_gids_by_shard, new_segment_guards): (Vec<_>, Vec<_>) =
-        new_gids_by_shard.into_iter().unzip();
-
-    let new_segment_guards = new_segment_guards
-        .into_iter()
-        .reduce(|mut a, b| {
-            a.extend(b);
-            a
-        })
-        .unwrap_or_default();
+        .collect::<Vec<_>>();
 
     // Shards own disjoint gids, so concatenating is already deduplicated.
-    Ok((
+    let mut new_gids = vec![];
+    let mut new_segment_guards = vec![];
+    let mut result = Ok(());
+    for (gids, guards, shard_result) in resolved_by_shard {
+        new_gids.extend(gids);
+        new_segment_guards.extend(guards);
+        result = result.and(shard_result);
+    }
+
+    (
         node_col_resolved.as_slice(),
-        new_gids_by_shard.concat(),
+        new_gids,
         new_segment_guards,
-    ))
+        result,
+    )
 }
 
 /// Reads through the held write locks: the graph's read path would deadlock on them.

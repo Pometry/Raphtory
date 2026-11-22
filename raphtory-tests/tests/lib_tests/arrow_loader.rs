@@ -365,6 +365,97 @@ mod test {
         );
     }
 
+    /// Every node the graph resolves or iterates has an id, and the counts agree.
+    fn assert_no_node_without_id(graph: &Graph, ids: impl IntoIterator<Item = u64>) {
+        // iterating used to panic with "GID should be present" on a reserved row with no id
+        let names = graph.nodes().name().collect::<Vec<_>>();
+        assert_eq!(names.len(), graph.count_nodes());
+        for id in ids {
+            if let Some(node) = graph.node(id) {
+                assert_eq!(node.id(), GID::U64(id));
+                assert!(names.contains(&id.to_string()));
+            }
+        }
+    }
+
+    #[test]
+    fn refused_node_load_leaves_no_node_without_an_id() {
+        let graph = Graph::new();
+        graph
+            .add_node(0, 1000u64, NO_PROPS, None, None)
+            .expect("failed to add node");
+
+        // every id but the first is new, node 1 is given a type and then no type
+        let ids = (1..=64u64).chain([1]).collect::<Vec<_>>();
+        let mut types = vec![Some("a"); 64];
+        types.push(None);
+        let times = (0..65i64).collect::<Vec<_>>();
+
+        let err = load_nodes_with_type_col(&graph, node_type_df(vec![(ids, types, times)]))
+            .expect_err("expected a conflicting node type error");
+        assert!(
+            matches!(
+                &err,
+                GraphError::LoadError {
+                    source: LoadError::ConflictingNodeType { .. }
+                }
+            ),
+            "unexpected error: {err}"
+        );
+
+        assert!(graph.has_node(1000u64));
+        assert_no_node_without_id(&graph, 1..=64);
+    }
+
+    #[test]
+    fn refused_edge_load_leaves_no_node_without_an_id() {
+        let graph = Graph::new();
+        graph
+            .add_node(0, 1000u64, NO_PROPS, None, None)
+            .expect("failed to add node");
+
+        let df = DFView {
+            names: ["src", "dst", "time"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            chunks: vec![Ok(DFChunk {
+                chunk: vec![
+                    Arc::new(UInt64Array::from(vec![1u64, 2])),
+                    Arc::new(UInt64Array::from(vec![2u64, 3])),
+                    Arc::new(Int64Array::from(vec![Some(1i64), None])),
+                ],
+            })]
+            .into_iter(),
+            num_rows: Some(2),
+        };
+
+        let err = load_edges_from_df_prefetch(
+            df,
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
+            &[],
+            &[],
+            None,
+            None,
+            &graph,
+            false,
+        )
+        .expect_err("expected a missing time error");
+        assert!(
+            matches!(
+                &err,
+                GraphError::LoadError {
+                    source: LoadError::MissingTimeError
+                }
+            ),
+            "unexpected error: {err}"
+        );
+
+        assert_no_node_without_id(&graph, 1..=3);
+        assert_eq!(graph.count_nodes(), 1);
+    }
+
     #[test]
     fn str_node_ids_are_cached_across_chunks() {
         let graph = Graph::new();
