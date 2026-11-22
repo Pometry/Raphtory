@@ -11,8 +11,8 @@ pub struct NodeTypeIndexWriter<'a, M: Deref<Target = MemNodeTypeIndex>, NTI: Nod
 }
 
 // NOTE:
-// * Unlike node and edge writers which always acquire a write lock on head, the index writer may
-// hold a read lock.
+// * Unlike node and edge writers which always acquire a write lock on head, the index writer
+// may hold a read lock.
 // * Calling notify_write on drop can then cause deadlocks since notify_write acquires a
 // write lock on flush.
 // * Hence why the index writer calls notify_write on creation before any locks are taken.
