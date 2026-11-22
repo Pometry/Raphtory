@@ -476,6 +476,14 @@ impl Data {
         self.get_graph_unchecked(path).await
     }
 
+    /// The work dir write lock, for replacing or deleting the graph at `path`. The graph is first
+    /// taken out of the cache and flushed, which waits for queries still using it. Waiting here
+    /// rather than under the lock leaves other graphs loadable meanwhile.
+    pub(crate) async fn write_work_dir_replacing(&self, path: &str) -> WorkDirWriteGuard {
+        self.inner.cache.invalidate_with(path, flush_graph).await;
+        self.inner.work_dir.write().await
+    }
+
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
         self.inner.cache.get(path)
     }
@@ -544,7 +552,7 @@ impl Data {
     }
 
     pub async fn delete_graph(&self, path: &str) -> Result<(), DeletionError> {
-        let work_dir = self.inner.work_dir.write().await;
+        let work_dir = self.write_work_dir_replacing(path).await;
         let graph_folder = ExistingGraphFolder::try_from(work_dir.into(), path)?;
         let key = graph_folder.local_path().to_string();
         let dirty_file = mark_dirty(graph_folder.root()).map_err(|err| {
@@ -1000,7 +1008,8 @@ async fn flush_graph(graph: Option<GraphWithVectors>) {
         let inner = old_graph.into_inner().await;
         // The flush waits for queries still reading this graph. It waits on its own pool, so
         // queries and writes on other graphs are not held up.
-        if let Err(panic) = blocking_flush(move || {
+        // best effort: a panic is logged where it is caught
+        let _ = blocking_flush(move || {
             if let Err(e) = inner.graph.flush() {
                 error!(
                     "Failed to flush old graph {} before replacing: {e}",
@@ -1008,10 +1017,7 @@ async fn flush_graph(graph: Option<GraphWithVectors>) {
                 )
             }
         })
-        .await
-        {
-            error!("Flush panic: {panic}")
-        };
+        .await;
     }
 }
 
@@ -1238,7 +1244,12 @@ pub(crate) mod data_tests {
         let data = server.data().clone();
         let threads = std::thread::available_parallelism().map_or(8, |n| n.get());
         for (name, nodes) in [("g", 4 * threads as u64), ("other", 1)] {
-            let graph = Graph::new_with_config(args.clone()).unwrap();
+            // "g" gets the small segments in every build; the others are laid out on insert.
+            let graph = if name == "g" {
+                Graph::new_with_config(args.clone()).unwrap()
+            } else {
+                Graph::new()
+            };
             for node in 0..nodes {
                 graph.add_node(0, node, NO_PROPS, None, None).unwrap();
             }
@@ -1252,7 +1263,6 @@ pub(crate) mod data_tests {
         }
         let running = server.start_with_port(0).await.unwrap();
         let port = running.port();
-        // Served from the cache from here on: `deleteGraph` holds the work dir until it is done.
         assert_eq!(gql(port, OTHER).await["data"]["graph"]["countNodes"], 1);
 
         // Stands in for a long query on "g": every segment read-locked.
@@ -1288,7 +1298,8 @@ pub(crate) mod data_tests {
         running.stop().await;
     }
 
-    /// Deleting a graph waits for its last other handle, and finishes once that is dropped.
+    /// Deleting a graph waits for its last other handle, and finishes once that is dropped. It
+    /// waits without the work dir lock, so a graph that is not in the cache still loads.
     #[tokio::test]
     async fn a_delete_finishes_once_the_last_other_handle_drops() {
         let tmp_work_dir = tempfile::tempdir().unwrap();
@@ -1302,6 +1313,7 @@ pub(crate) mod data_tests {
         data.insert_graph(folder, Graph::new().into())
             .await
             .unwrap();
+        create_graph_folder(&tmp_work_dir.path().join("cold"));
         let held = data.get_graph_for_test("g").await.unwrap();
 
         let deleting = tokio::spawn({
@@ -1309,6 +1321,10 @@ pub(crate) mod data_tests {
             async move { data.delete_graph("g").await }
         });
         sleep(Duration::from_millis(200)).await;
+        tokio::time::timeout(Duration::from_secs(10), data.get_graph_for_test("cold"))
+            .await
+            .expect("loading another graph waited for the delete")
+            .unwrap();
         assert!(
             !deleting.is_finished(),
             "the delete did not wait for the handle"

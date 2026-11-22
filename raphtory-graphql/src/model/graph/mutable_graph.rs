@@ -6,7 +6,7 @@ use crate::{
         timeindex::GqlTimeInput, GqlGraphType,
     },
     paths::ValidGraphPaths,
-    rayon::blocking_write,
+    rayon::{blocking_flush, blocking_write},
     GQLError,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
@@ -554,14 +554,14 @@ impl GqlMutableGraph {
     /// processes attaching a read-only handle observe up-to-date data.
     pub async fn flush(&self) -> Result<bool, GQLError> {
         let self_clone = self.clone();
-        Ok(blocking_write(move || {
+        Ok(blocking_flush(move || {
             let res = self_clone.graph.persist();
             if res.is_err() {
                 self_clone.graph.set_dirty(true);
             }
             res.map(|_| true)
         })
-        .await?)
+        .await??)
     }
 
     /// Build secondary indexes over node property values to speed up property

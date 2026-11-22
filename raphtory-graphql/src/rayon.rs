@@ -260,8 +260,8 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
     recv.await.expect("Function panicked in rayon::spawn")
 }
 
-/// A graph being replaced or deleted is flushed here. The flush waits for queries still reading
-/// the graph, so it gets threads that no query, write or health check needs.
+/// Graphs are flushed here. A flush waits for queries still reading the graph, so it gets threads
+/// that no query, write or health check needs.
 static FLUSH_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .thread_name(|t| format!("RAP-flush-{t}"))
@@ -269,17 +269,23 @@ static FLUSH_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// Run `closure` on the flush pool. A panic comes back as its message.
-pub async fn blocking_flush<F: FnOnce() + Send + 'static>(closure: F) -> Result<(), String> {
+/// Run a flush on the flush pool. A panic in `closure` comes back as
+/// [`ComputeError::Panicked`], and is logged.
+pub async fn blocking_flush<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
+    closure: F,
+) -> Result<R, ComputeError> {
     let (send, recv) = oneshot::channel();
     FLUSH_POOL.spawn(move || {
         // a panic in a rayon job aborts the process, so it is handed back to the caller instead
         let _ = send.send(panic::catch_unwind(AssertUnwindSafe(closure)));
     });
-    match recv.await {
-        Ok(done) => done.map_err(|panic| panic_message(panic.as_ref())),
-        Err(_) => Err("the flush job was dropped before it ran".to_string()),
-    }
+    recv.await
+        .map_err(|_| ComputeError::Dropped)?
+        .map_err(|panic| {
+            let message = panic_message(panic.as_ref());
+            error!(panic = %message, "a flush panicked");
+            ComputeError::Panicked(message)
+        })
 }
 
 /// The pools are process-global, so tests that jam or saturate them must not overlap.
