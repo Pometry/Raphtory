@@ -471,7 +471,9 @@ def test_all_property_types(GraphClass):
         filter.ExplodedEdge.property("tags").is_not_in([3]).any(),
     ]
     for expr in mistyped_exclusions:
-        with pytest.raises(Exception, match="is_not_in has a member that cannot be compared"):
+        with pytest.raises(
+            Exception, match="is_not_in has a member that cannot be compared"
+        ):
             g.filter(expr)
 
     nonsense_filter_cases = [
