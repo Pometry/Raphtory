@@ -433,6 +433,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Returns the reserved position and a locked writer for that segment.
     ///
     /// # Deadlock Safety: do not hold any node segment locks when calling this function other than the `existing_full_segment` guard passed in!
+    /// With one passed in, no other segment lock is waited for.
     pub fn reserve_and_lock_segment(
         &self,
         num_rows: u32,
@@ -445,19 +446,31 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let segment_id = *slot.read_recursive();
 
         let writer_and_row = match existing_full_segment {
-            Some(existing_writer) if existing_writer.segment.segment_id() == segment_id => {
-                // make sure we do not try to relock the already locked segment (it should always be full)
-                None
-            }
-            _ => {
+            None => {
                 let writer = self.writer(segment_id);
                 let row = self.reserve_segment_rows(writer.segment, num_rows);
                 Some((writer, row))
             }
+            Some(existing_writer) => {
+                // We hold `existing_writer`, so we must not wait for another segment: a second
+                // writer can hold that one as its own full segment while it waits for ours,
+                // which its slot may still name. Take the first slot that is free right now.
+                (0..self.free_segments.num_slots()).find_map(|_| {
+                    let segment_id = *self.free_segments.slot().read_recursive();
+                    // never relock the segment we already hold (it is full)
+                    if segment_id == existing_writer.segment.segment_id() {
+                        return None;
+                    }
+                    let writer = self.try_writer(segment_id)?;
+                    let row = self.reserve_segment_rows(writer.segment, num_rows)?;
+                    Some((writer, Some(row)))
+                })
+            }
         };
         match writer_and_row {
             None | Some((_, None)) => {
-                // The current segment is full, push a new locked free segment before dropping the existing writer lock
+                // No segment with room could be locked, push a new locked free segment before
+                // dropping the existing writer lock
 
                 let guard = self.push_new_segment();
 
