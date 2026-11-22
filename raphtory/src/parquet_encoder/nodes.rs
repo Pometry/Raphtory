@@ -1,3 +1,4 @@
+use crate::db::api::view::graph::visible_mapper;
 use crate::{
     core::utils::iter::GenLockedIter,
     db::{
@@ -95,7 +96,10 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
     let (node_list, list_trusted) = g.trusted_node_list();
     run_encode_indexed(
         g,
-        g.node_meta().temporal_prop_mapper(),
+        &visible_mapper(
+            g.node_meta().temporal_prop_mapper(),
+            g.node_visible_temporal_prop_ids(),
+        ),
         get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
         sink_factory_fn,
         |id_type| {
@@ -155,7 +159,10 @@ pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
     let (node_list, list_trusted) = g.trusted_node_list();
     run_encode_indexed(
         g,
-        g.node_meta().metadata_mapper(),
+        &visible_mapper(
+            g.node_meta().metadata_mapper(),
+            g.node_visible_metadata_ids(),
+        ),
         get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
         sink_factory_fn,
         |id_type| {

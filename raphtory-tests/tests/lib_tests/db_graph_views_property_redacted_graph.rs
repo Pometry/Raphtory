@@ -332,6 +332,30 @@ mod tests {
         assert!(view.nodes().get_temporal_prop_id("region").is_some());
     }
 
+    /// A materialised view does not carry the hidden keys in its schema, only without values.
+    #[test]
+    fn test_materialize_drops_hidden_keys_from_the_schema() {
+        use raphtory::db::api::view::internal::CoreGraphOps;
+        let g = make_graph();
+        let redaction = PropertyRedaction::default()
+            .with_node_props(["salary"])
+            .with_node_meta(["ssn"])
+            .with_edge_props(["amount"])
+            .with_edge_meta(["ref"]);
+        let m = g.exclude_properties(&redaction).materialize().unwrap();
+        assert_eq!(m.node_meta().get_prop_id("salary", false), None);
+        assert_eq!(m.node_meta().get_prop_id("ssn", true), None);
+        assert_eq!(m.edge_meta().get_prop_id("amount", false), None);
+        assert_eq!(m.edge_meta().get_prop_id("ref", true), None);
+        assert!(m.node_meta().get_prop_id("region", false).is_some());
+        // nothing hidden: the schema is carried over as it was
+        let whole = g.materialize().unwrap();
+        assert_eq!(
+            whole.node_meta().get_prop_id("salary", false),
+            g.node_meta().get_prop_id("salary", false)
+        );
+    }
+
     #[test]
     fn test_algorithms_read_a_hidden_edge_property_as_missing() {
         let g = make_graph();

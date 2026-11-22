@@ -1,6 +1,7 @@
 //! Defines the `Node`, which represents a node in the graph.
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
+use crate::db::api::properties::internal::NodePropertySchemaOps;
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
@@ -64,7 +65,6 @@ use raphtory_api::{
     },
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
-use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::{
     collections::{HashMap, HashSet},
@@ -748,8 +748,19 @@ impl PyNodes {
         convert_datetime: bool,
     ) -> PyResult<Py<PyAny>> {
         let mut column_names = vec![String::from("name"), String::from("type")];
-        let meta = self.nodes.graph().node_meta();
-        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
+        // through the view, so a key it hides gets no column
+        let graph = self.nodes.graph();
+        let is_prop_both_temp_and_const = get_column_names_from_props(
+            &mut column_names,
+            graph
+                .node_visible_temporal_prop_ids()
+                .filter_map(|id| graph.node_visible_temporal_prop_name(id))
+                .collect(),
+            graph
+                .node_visible_metadata_ids()
+                .filter_map(|id| graph.node_visible_metadata_name(id))
+                .collect(),
+        );
 
         let node_tuples: Vec<_> = self
             .nodes

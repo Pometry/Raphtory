@@ -4,10 +4,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::properties::{
-        meta::Meta,
-        prop::{Prop, PropArray, PropList},
-    },
+    entities::properties::prop::{Prop, PropArray, PropList},
     storage::{arc_str::ArcStr, timeindex::AsTime},
 };
 use rayon::{iter::IntoParallelRefIterator, prelude::*};
@@ -116,16 +113,10 @@ pub(crate) fn extract_properties<P>(
 
 pub(crate) fn get_column_names_from_props(
     column_names: &mut Vec<String>,
-    edge_meta: &Meta,
+    temporal_properties: HashSet<ArcStr>,
+    metadata: HashSet<ArcStr>,
 ) -> HashSet<String> {
     let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
-    let temporal_properties: HashSet<ArcStr> = edge_meta
-        .temporal_prop_mapper()
-        .keys()
-        .iter()
-        .cloned()
-        .collect();
-    let metadata: HashSet<ArcStr> = edge_meta.metadata_mapper().keys().iter().cloned().collect();
     metadata
         .intersection(&temporal_properties)
         .for_each(|name| {

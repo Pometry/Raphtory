@@ -1,3 +1,4 @@
+use crate::db::api::view::graph::visible_mapper;
 use crate::{
     db::api::state::ops::GraphView,
     errors::GraphError,
@@ -17,7 +18,10 @@ pub fn encode_graph_tprop<G: GraphView, S: RecordBatchSink>(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.graph_props_meta().temporal_prop_mapper(),
+        &visible_mapper(
+            g.graph_props_meta().temporal_prop_mapper(),
+            g.temporal_prop_ids(),
+        ),
         1,
         sink_factory_fn,
         |_| {
@@ -98,7 +102,7 @@ pub fn encode_graph_cprop<G: GraphView, S: RecordBatchSink>(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.graph_props_meta().metadata_mapper(),
+        &visible_mapper(g.graph_props_meta().metadata_mapper(), g.metadata_ids()),
         1,
         sink_factory_fn,
         |_| vec![Field::new(TIME_COL, DataType::Int64, true)],

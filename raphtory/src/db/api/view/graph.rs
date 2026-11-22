@@ -42,6 +42,7 @@ use crate::{
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use either::Either;
+use raphtory_api::core::entities::properties::{meta::PropMapper, prop::PropType};
 #[cfg(feature = "io")]
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 #[cfg(feature = "io")]
@@ -342,6 +343,24 @@ impl RecordBatchSink for ChannelRecordBatchSink {
     }
 }
 
+/// A copy of `src` holding its private fields and only the keys in `ids`, for a materialised
+/// graph or an export of a view. With every id it equals `deep_clone`, ids included.
+pub(crate) fn visible_mapper(src: &PropMapper, ids: impl Iterator<Item = usize>) -> PropMapper {
+    let private = src.num_private_fields();
+    let mapper = PropMapper::new_with_private_fields(
+        (0..private).map(|id| src.get_name(id)),
+        (0..private).map(|id| src.get_dtype(id).unwrap_or(PropType::Empty)),
+    );
+    for id in ids {
+        if let Some(dtype) = src.get_dtype(id) {
+            mapper
+                .get_or_create_and_validate(&src.get_name(id), dtype)
+                .expect("a new mapper has no type to conflict with");
+        }
+    }
+    mapper
+}
+
 pub fn materialize_impl(
     graph: &impl GraphView,
     path: Option<&Path>,
@@ -355,13 +374,31 @@ pub fn materialize_impl(
     // windowed views expose the same prop mappings even for keys with no
     // values inside the window.
     // `deep_clone` doesn't copy the per-layer property presence bitset because filters can hide properties/layers.
-    node_meta.set_metadata_mapper(graph.node_meta().metadata_mapper().deep_clone());
-    node_meta.set_temporal_prop_mapper(graph.node_meta().temporal_prop_mapper().deep_clone());
-    edge_meta.set_metadata_mapper(graph.edge_meta().metadata_mapper().deep_clone());
-    edge_meta.set_temporal_prop_mapper(graph.edge_meta().temporal_prop_mapper().deep_clone());
-    graph_props_meta.set_metadata_mapper(graph.graph_props_meta().metadata_mapper().deep_clone());
-    graph_props_meta
-        .set_temporal_prop_mapper(graph.graph_props_meta().temporal_prop_mapper().deep_clone());
+    // Only the keys the view shows: a key it hides must not reach the new graph's schema.
+    node_meta.set_metadata_mapper(visible_mapper(
+        graph.node_meta().metadata_mapper(),
+        graph.node_visible_metadata_ids(),
+    ));
+    node_meta.set_temporal_prop_mapper(visible_mapper(
+        graph.node_meta().temporal_prop_mapper(),
+        graph.node_visible_temporal_prop_ids(),
+    ));
+    edge_meta.set_metadata_mapper(visible_mapper(
+        graph.edge_meta().metadata_mapper(),
+        graph.edge_visible_metadata_ids(),
+    ));
+    edge_meta.set_temporal_prop_mapper(visible_mapper(
+        graph.edge_meta().temporal_prop_mapper(),
+        graph.edge_visible_temporal_prop_ids(),
+    ));
+    graph_props_meta.set_metadata_mapper(visible_mapper(
+        graph.graph_props_meta().metadata_mapper(),
+        graph.metadata_ids(),
+    ));
+    graph_props_meta.set_temporal_prop_mapper(visible_mapper(
+        graph.graph_props_meta().temporal_prop_mapper(),
+        graph.temporal_prop_ids(),
+    ));
 
     let base_layer_meta = graph.edge_meta().layer_meta();
     let layer_meta = edge_meta.layer_meta();
