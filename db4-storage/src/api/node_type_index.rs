@@ -18,13 +18,13 @@ where
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
-    /// **Deadlock safety:** node type index must always be locked before node segments.
+    /// **Deadlock safety:** node type index must be locked before node segments.
     fn head_shared_arc(&self) -> ArcRwLockReadGuard<MemNodeTypeIndex>;
 
-    /// **Deadlock safety:** node type index must always be locked before node segments.
+    /// **Deadlock safety:** node type index must be locked before node segments.
     fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 
-    /// **Deadlock safety:** node type index must always be locked before node segments.
+    /// **Deadlock safety:** node type index must be locked before node segments.
     fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<MemNodeTypeIndex>;
 
     fn entry(&self, type_ids: &[usize]) -> Self::Entry;
@@ -38,8 +38,8 @@ where
     /// The size of `head` in bytes, cached so it can be read without locking.
     fn est_size_cached(&self) -> usize;
 
-    /// Cache the size of `head` so it can be read without locking.
-    fn set_est_size_cached(&self, size: usize);
+    /// Adds `delta` to the cached size of `head`.
+    fn increment_est_size_cached(&self, delta: usize);
 
     fn is_dirty(&self) -> bool;
 

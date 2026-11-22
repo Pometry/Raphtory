@@ -83,8 +83,8 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.est_size_cached.load(Ordering::Relaxed)
     }
 
-    fn set_est_size_cached(&self, size: usize) {
-        self.est_size_cached.store(size, Ordering::Relaxed);
+    fn increment_est_size_cached(&self, delta: usize) {
+        self.est_size_cached.fetch_add(delta, Ordering::Relaxed);
     }
 
     fn is_dirty(&self) -> bool {

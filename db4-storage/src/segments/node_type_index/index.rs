@@ -38,6 +38,9 @@ impl Drop for MemNodeTypeIndex {
 }
 
 impl MemNodeTypeIndex {
+    pub(crate) const ESTIMATED_ENTRY_SIZE: usize =
+        std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
+
     pub fn new(lsn: u64, global_memory_tracker: Arc<AtomicUsize>) -> Self {
         Self {
             map: FxDashMap::default(),
@@ -57,20 +60,25 @@ impl MemNodeTypeIndex {
     }
 
     /// Associates `vid` with `type_id`. Idempotent for duplicate pairs.
-    pub fn insert(&self, type_id: usize, vid: VID) {
+    /// Returns the estimated bytes added.
+    pub fn insert(&self, type_id: usize, vid: VID) -> usize {
         let mut entry = self.map.entry(type_id).or_default();
 
         if entry.insert(vid) {
             self.entry_count.fetch_add(1, Ordering::Relaxed);
 
-            // TODO: Refine est_size calculation.
-            let entry_size = std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
-            self.est_size.fetch_add(entry_size, Ordering::Relaxed);
+            self.est_size
+                .fetch_add(Self::ESTIMATED_ENTRY_SIZE, Ordering::Relaxed);
+
+            Self::ESTIMATED_ENTRY_SIZE
+        } else {
+            0
         }
     }
 
     /// Bulk-inserts `vids` for a single `type_id`.
-    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
+    /// Returns the estimated bytes added.
+    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) -> usize {
         let mut entry = self.map.entry(type_id).or_default();
         let mut added = 0;
 
@@ -83,10 +91,12 @@ impl MemNodeTypeIndex {
         if added > 0 {
             self.entry_count.fetch_add(added, Ordering::Relaxed);
 
-            // TODO: Refine est_size calculation.
-            let entry_size = std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
-            let delta = added * entry_size;
+            let delta = added * Self::ESTIMATED_ENTRY_SIZE;
             self.est_size.fetch_add(delta, Ordering::Relaxed);
+
+            delta
+        } else {
+            0
         }
     }
 

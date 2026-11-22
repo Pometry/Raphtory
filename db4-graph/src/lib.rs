@@ -458,7 +458,7 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    // Deadlock safety: node_type_index must always be locked before node segments.
+    // Deadlock safety: node_type_index must be locked before node segments.
     pub node_type_index: WriteLockedNodeTypeIndex<EXT::NTI>,
     pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
     pub edges: WriteLockedEdgeSegments<'a, ES<EXT>>,

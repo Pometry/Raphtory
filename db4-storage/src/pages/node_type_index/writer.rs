@@ -1,13 +1,17 @@
 use crate::{api::node_type_index::NodeTypeIndexOps, segments::node_type_index::MemNodeTypeIndex};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::{ArcRwLockReadGuard, core::entities::VID};
-use std::ops::Deref;
+use std::{
+    ops::Deref,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 #[derive(Debug)]
 pub struct NodeTypeIndexWriter<'a, M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps> {
     head: M,
     index: &'a NTI,
-    initial_est_size: usize,
+    /// Bytes added to `head` by this writer.
+    est_size_delta: AtomicUsize,
 }
 
 // NOTE:
@@ -41,11 +45,13 @@ impl<'a, M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps>
     NodeTypeIndexWriter<'a, M, NTI>
 {
     pub fn insert(&self, type_id: usize, vid: VID) {
-        self.head.insert(type_id, vid);
+        let delta = self.head.insert(type_id, vid);
+        self.est_size_delta.fetch_add(delta, Ordering::Relaxed);
     }
 
     pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
-        self.head.insert_batch(type_id, vids);
+        let delta = self.head.insert_batch(type_id, vids);
+        self.est_size_delta.fetch_add(delta, Ordering::Relaxed);
     }
 
     pub fn set_lsn(&self, lsn: u64) {
@@ -53,12 +59,10 @@ impl<'a, M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps>
     }
 
     fn from_head(head: M, index: &'a NTI) -> Self {
-        let initial_est_size = head.est_size();
-
         Self {
             head,
             index,
-            initial_est_size,
+            est_size_delta: AtomicUsize::new(0),
         }
     }
 }
@@ -67,9 +71,46 @@ impl<M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps> Drop
     for NodeTypeIndexWriter<'_, M, NTI>
 {
     fn drop(&mut self) {
-        let delta = self.head.est_size() - self.initial_est_size;
+        let delta = self.est_size_delta.load(Ordering::Relaxed);
         self.head.increment_global_memory_tracker(delta);
-        self.index.set_est_size_cached(self.head.est_size());
+        self.index.increment_est_size_cached(delta);
         self.index.set_dirty(true);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        persist::{
+            config::BaseConfig,
+            strategy::{NoOpStrategy, PersistenceStrategy},
+        },
+        segments::node_type_index::NodeTypeIndexView,
+    };
+    use std::sync::{Arc, atomic::Ordering};
+
+    #[test]
+    fn concurrent_shared_writers_update_est_size() {
+        let ext = NoOpStrategy::new(None, BaseConfig::default()).unwrap();
+        let tracker = Arc::clone(ext.memory_tracker());
+        let index = Arc::new(NodeTypeIndexView::new(None, ext).unwrap());
+        const N: usize = 10;
+
+        std::thread::scope(|scope| {
+            for i in 0..N {
+                let index = Arc::clone(&index);
+                scope.spawn(move || {
+                    let writer = NodeTypeIndexWriter::new_shared(index.as_ref());
+                    writer.insert(1, VID(i));
+                });
+            }
+        });
+
+        let expected = N * MemNodeTypeIndex::ESTIMATED_ENTRY_SIZE;
+        assert_eq!(index.head_shared_arc().num_entries(), N);
+        assert_eq!(index.head_shared_arc().est_size(), expected);
+        assert_eq!(index.est_size_cached(), expected);
+        assert_eq!(tracker.load(Ordering::Relaxed), expected);
     }
 }
