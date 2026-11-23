@@ -15,7 +15,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use storage::{api::node_type_index::NodeTypeIndexOps, Args, BaseArgs};
+use storage::{api::node_type_index::NodeTypeIndexOps, persist::args::BaseArgs, Args};
 
 #[test]
 fn type_filter_domain_uses_index() {

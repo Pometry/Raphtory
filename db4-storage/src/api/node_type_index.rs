@@ -32,6 +32,9 @@ where
     /// Returns `true` if the index has no `(type_id, VID)` entries.
     fn is_empty(&self) -> bool;
 
+    /// LSN of the last entry persisted to disk.
+    fn immut_lsn(&self) -> u64;
+
     /// Returns `true` if queries can be served from the index.
     fn is_queryable(&self) -> bool;
 

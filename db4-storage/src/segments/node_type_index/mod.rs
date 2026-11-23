@@ -75,6 +75,10 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head_shared_arc().is_empty()
     }
 
+    fn immut_lsn(&self) -> u64 {
+        0
+    }
+
     fn is_queryable(&self) -> bool {
         self.persistence.config().node_type_index_enabled() && !self.is_empty()
     }

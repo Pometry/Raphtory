@@ -449,23 +449,26 @@ where
                 .set_id(name, layer_id.0);
         }
 
-        // FIXME: Need to check LSN for type_index.
-        if let Some((_, node_type_id)) = node_type_and_id {
-            if node_type_id != DEFAULT_NODE_TYPE_ID {
-                let index_writer = self.node_type_index.writer();
-                index_writer.insert(node_type_id, node_id);
-            }
-        }
-
         // Resolve segment and check LSN.
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
         self.resize_segments_to_vid(node_id);
 
         let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
-        let immut_lsn = segment.immut_lsn();
+        let node_immut_lsn = segment.immut_lsn();
+        let type_index_immut_lsn = self.node_type_index.immut_lsn();
+
+        if type_index_immut_lsn < lsn {
+            if let Some((_, node_type_id)) = node_type_and_id {
+                if node_type_id != DEFAULT_NODE_TYPE_ID {
+                    let index_writer = self.node_type_index.writer();
+                    index_writer.insert(node_type_id, node_id);
+                    index_writer.set_lsn(lsn);
+                }
+            }
+        }
 
         // Replay this entry only if it doesn't exist in immut.
-        if immut_lsn < lsn {
+        if node_immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
             unify_types(node_meta, &props, true)?;
@@ -571,16 +574,17 @@ where
         let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
         self.resize_segments_to_vid(vid);
 
-        // FIXME: Need to check LSN for type_index.
-        if node_type_id != DEFAULT_NODE_TYPE_ID {
+        let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
+        let node_immut_lsn = segment.immut_lsn();
+        let type_index_immut_lsn = self.node_type_index.immut_lsn();
+
+        if type_index_immut_lsn < lsn && node_type_id != DEFAULT_NODE_TYPE_ID {
             let index_writer = self.node_type_index.writer();
             index_writer.insert(node_type_id, vid);
+            index_writer.set_lsn(lsn);
         }
 
-        let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
-        let immut_lsn = segment.immut_lsn();
-
-        if immut_lsn < lsn {
+        if node_immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
             node_meta
