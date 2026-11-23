@@ -35,6 +35,7 @@ use crate::{
 };
 use pyo3::{prelude::*, types::PyDict, Py, PyAny};
 use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
@@ -285,18 +286,13 @@ impl PyEdges {
             String::from("dst"),
             String::from("layer"),
         ];
-        // through the view, so a key it hides gets no column
+        // the ids the view shows, so a key it hides gets no column
         let graph = &self.edges.base_graph;
         let is_prop_both_temp_and_const = get_column_names_from_props(
             &mut column_names,
-            graph
-                .edge_visible_temporal_prop_ids()
-                .filter_map(|id| graph.edge_visible_temporal_prop_name(id))
-                .collect(),
-            graph
-                .edge_visible_metadata_ids()
-                .filter_map(|id| graph.edge_visible_metadata_name(id))
-                .collect(),
+            graph.edge_meta(),
+            graph.edge_visible_temporal_prop_ids(),
+            graph.edge_visible_metadata_ids(),
         );
 
         let mut edges = self.edges.explode_layers();

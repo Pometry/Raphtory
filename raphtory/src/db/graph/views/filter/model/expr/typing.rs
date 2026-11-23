@@ -12,7 +12,7 @@
 
 use crate::{
     db::graph::views::filter::model::{
-        comparable_set_values, const_mismatch_error,
+        const_mismatch_error,
         expr::Agg,
         filter_operator::{BinaryOp, Comparable, StringComparable, StringOp, UnaryOp},
         node_expr::ops::{agg_out_pt, broadcast_binary, broadcast_unary},
@@ -119,18 +119,28 @@ pub(crate) fn string_shape(
     Err(ShapeError::Invalid(not_a_string_error(lhs)))
 }
 
-/// The result type of a membership test, and the members that can match. A
-/// list-valued side whose whole value no member can equal is tested element
-/// by element instead.
-pub(crate) fn set_shape(lhs: &PropType, values: &[Prop]) -> (PropType, Shape, Vec<Prop>) {
-    let whole = comparable_set_values(lhs, values);
-    if let PropType::List(inner) = lhs {
-        if whole.is_empty() && !values.is_empty() {
-            let (out, _, members) = set_shape(inner, values);
-            return (list(out), Shape::Elementwise, members);
+/// The result type of a membership test. A list-valued side whose whole value
+/// no member can equal is tested element by element instead.
+///
+/// The error is a member of a type the side can never equal, for the caller to
+/// refuse as a comparison with it would be: dropped, it would answer "yes" for
+/// every row under `is_not_in` or `~is_in`. The members are kept exactly as
+/// written; the runtime comparison handles mixed numeric widths by value. An
+/// unresolved type passes every member.
+pub(crate) fn set_shape<'a>(
+    lhs: &PropType,
+    values: &'a [Prop],
+) -> Result<(PropType, Shape), &'a Prop> {
+    let comparable = |v: &Prop| lhs.is_comparable_with(&v.dtype());
+    match lhs {
+        PropType::List(inner) if !values.is_empty() && !values.iter().any(comparable) => {
+            set_shape(inner, values).map(|(out, _)| (list(out), Shape::Elementwise))
         }
+        _ => match values.iter().find(|v| !comparable(v)) {
+            Some(mismatched) => Err(mismatched),
+            None => Ok((PropType::Bool, Shape::Whole)),
+        },
     }
-    (PropType::Bool, Shape::Whole, whole)
 }
 
 /// Whether `pt` is one boolean per element, at any list depth: a `List<Bool>`,
@@ -194,12 +204,15 @@ pub(crate) fn static_string_type(lhs: &PropType, rhs: &PropType) -> PropType {
 }
 
 /// The result type of a membership test of `lhs` against `values`, when
-/// `lhs` is known before the filter meets a graph; `Empty` otherwise.
+/// `lhs` is known before the filter meets a graph; `Empty` otherwise, or when
+/// the test is refused.
 pub(crate) fn static_set_type(lhs: &PropType, values: &[Prop]) -> PropType {
     if !is_known(lhs) {
         return PropType::Empty;
     }
-    set_shape(lhs, values).0
+    set_shape(lhs, values)
+        .map(|(out, _)| out)
+        .unwrap_or(PropType::Empty)
 }
 
 /// The result type of `agg` over `inner`, when `inner` is known before the

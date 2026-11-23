@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::ops::{FilterOps, GraphView},
-            view::{graph::visible_mapper, internal::List},
+            view::internal::List,
         },
         graph::edge::EdgeView,
     },
@@ -88,10 +88,9 @@ pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
-            &visible_mapper(
-                g.edge_meta().temporal_prop_mapper(),
-                g.edge_visible_temporal_prop_ids(),
-            ),
+            &g.edge_meta()
+                .temporal_prop_mapper()
+                .deep_clone_ids(g.edge_visible_temporal_prop_ids()),
             get_edges_par_iter(
                 g,
                 &edges_locked,
@@ -159,10 +158,9 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
-            &visible_mapper(
-                g.edge_meta().temporal_prop_mapper(),
-                g.edge_visible_temporal_prop_ids(),
-            ),
+            &g.edge_meta()
+                .temporal_prop_mapper()
+                .deep_clone_ids(g.edge_visible_temporal_prop_ids()),
             get_edges_par_iter(
                 g,
                 &edges_locked,
@@ -233,10 +231,9 @@ pub(crate) fn encode_edge_cprop<G: GraphView, S: RecordBatchSink>(
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
-            &visible_mapper(
-                g.edge_meta().metadata_mapper(),
-                g.edge_visible_metadata_ids(),
-            ),
+            &g.edge_meta()
+                .metadata_mapper()
+                .deep_clone_ids(g.edge_visible_metadata_ids()),
             get_edges_par_iter(
                 g,
                 &edges_locked,

@@ -148,18 +148,3 @@ fn innermost_element(pt: &PropType) -> &PropType {
         other => other,
     }
 }
-
-/// The members of an `is_in`/`is_not_in` set that could equal the LHS.
-///
-/// A member of a type the LHS can never equal is left out here and the
-/// compiled filter refuses the set, as a comparison would: dropped, it would
-/// answer "yes" for every row under `is_not_in` or `~is_in`. The members that
-/// remain are kept exactly as written; the runtime comparison handles mixed
-/// numeric widths by value. An unresolved LHS type keeps every member.
-pub fn comparable_set_values(lhs_pt: &PropType, values: &[Prop]) -> Vec<Prop> {
-    values
-        .iter()
-        .filter(|v| lhs_pt.is_comparable_with(&v.dtype()))
-        .cloned()
-        .collect()
-}

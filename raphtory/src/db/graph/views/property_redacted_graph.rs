@@ -256,6 +256,12 @@ impl<G: GraphView> NodePropertySchemaOps for PropertyRedactedGraph<G> {
         is_visible(&self.redaction.node_props_visible, id).then_some(id)
     }
 
+    fn node_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.graph
+            .node_visible_temporal_prop_id_and_type(name)
+            .filter(|(id, _)| is_visible(&self.redaction.node_props_visible, *id))
+    }
+
     fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
         if !is_visible(&self.redaction.node_props_visible, id) {
             return None;
@@ -274,6 +280,12 @@ impl<G: GraphView> NodePropertySchemaOps for PropertyRedactedGraph<G> {
     fn node_visible_metadata_id(&self, name: &str) -> Option<usize> {
         let id = self.graph.node_visible_metadata_id(name)?;
         is_visible(&self.redaction.node_meta_visible, id).then_some(id)
+    }
+
+    fn node_visible_metadata_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.graph
+            .node_visible_metadata_id_and_type(name)
+            .filter(|(id, _)| is_visible(&self.redaction.node_meta_visible, *id))
     }
 
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
@@ -316,6 +328,12 @@ impl<G: GraphView> EdgePropertySchemaOps for PropertyRedactedGraph<G> {
     fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
         let id = self.graph.edge_visible_temporal_prop_id(name)?;
         is_visible(&self.redaction.edge_props_visible, id).then_some(id)
+    }
+
+    fn edge_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.graph
+            .edge_visible_temporal_prop_id_and_type(name)
+            .filter(|(id, _)| is_visible(&self.redaction.edge_props_visible, *id))
     }
 
     fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {

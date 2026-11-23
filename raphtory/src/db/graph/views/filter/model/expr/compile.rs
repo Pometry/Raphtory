@@ -228,12 +228,11 @@ fn indexed_column(
     history: bool,
     predicate: &NodePropPredicate,
 ) -> Option<NodeList> {
-    let prop_id = if metadata {
-        graph.node_visible_metadata_id(name)
+    let (prop_id, dtype) = if metadata {
+        graph.node_visible_metadata_id_and_type(name)
     } else {
-        graph.node_visible_temporal_prop_id(name)
+        graph.node_visible_temporal_prop_id_and_type(name)
     }?;
-    let (_, dtype) = graph.node_meta().get_prop_id_and_type(name, metadata)?;
     // history reads of list-valued columns are not served
     if history && matches!(dtype, PropType::List(_)) {
         return None;
@@ -1236,16 +1235,9 @@ impl<L: Leaf> Expr<L> {
             } => {
                 let inner = expr.value_op(graph.clone())?;
                 let lhs = expr.resolved_type(&inner);
-                let (out, shape, members) = set_shape(&lhs, values);
-                // A dropped member would widen `is_not_in` and `~is_in`. Members of one type
-                // are kept or dropped together, so the first unmatched type is the culprit.
-                if let Some(bad) = values
-                    .iter()
-                    .find(|v| !members.iter().any(|m| m.dtype() == v.dtype()))
-                {
-                    return Err(const_mismatch_error(bad, &lhs));
-                }
-                let set = SetMembers::new(members, *negated);
+                let (out, shape) =
+                    set_shape(&lhs, values).map_err(|bad| const_mismatch_error(bad, &lhs))?;
+                let set = SetMembers::new(values.clone(), *negated);
                 let domain = if *negated {
                     None
                 } else {

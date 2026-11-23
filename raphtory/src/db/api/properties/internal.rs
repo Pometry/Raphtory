@@ -17,10 +17,12 @@ use raphtory_api::{
 pub trait NodePropertySchemaOps: Send + Sync {
     fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
     fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
+    fn node_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr>;
     fn node_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
     fn node_visible_metadata_id(&self, name: &str) -> Option<usize>;
+    fn node_visible_metadata_id_and_type(&self, name: &str) -> Option<(usize, PropType)>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
     /// O(1) check: is temporal-prop `prop_id` present on any node in `layer_id`?
@@ -38,6 +40,7 @@ pub trait NodePropertySchemaOps: Send + Sync {
 pub trait EdgePropertySchemaOps: Send + Sync {
     fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
     fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
+    fn edge_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr>;
     fn edge_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
@@ -73,6 +76,10 @@ where
         self.base().node_visible_temporal_prop_id(name)
     }
     #[inline]
+    fn node_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.base().node_visible_temporal_prop_id_and_type(name)
+    }
+    #[inline]
     fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
         self.base().node_visible_temporal_prop_name(id)
     }
@@ -83,6 +90,10 @@ where
     #[inline]
     fn node_visible_metadata_id(&self, name: &str) -> Option<usize> {
         self.base().node_visible_metadata_id(name)
+    }
+    #[inline]
+    fn node_visible_metadata_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.base().node_visible_metadata_id_and_type(name)
     }
     #[inline]
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
@@ -117,6 +128,10 @@ where
     #[inline]
     fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.base().edge_visible_temporal_prop_id(name)
+    }
+    #[inline]
+    fn edge_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.base().edge_visible_temporal_prop_id_and_type(name)
     }
     #[inline]
     fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {

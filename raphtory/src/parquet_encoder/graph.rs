@@ -1,5 +1,5 @@
 use crate::{
-    db::api::{state::ops::GraphView, view::graph::visible_mapper},
+    db::api::state::ops::GraphView,
     errors::GraphError,
     parquet_encoder::{run_encode, RecordBatchSink, SECONDARY_INDEX_COL, TIME_COL},
     prelude::{GraphViewOps, Prop, PropertiesOps},
@@ -17,10 +17,9 @@ pub fn encode_graph_tprop<G: GraphView, S: RecordBatchSink>(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        &visible_mapper(
-            g.graph_props_meta().temporal_prop_mapper(),
-            g.temporal_prop_ids(),
-        ),
+        &g.graph_props_meta()
+            .temporal_prop_mapper()
+            .deep_clone_ids(g.temporal_prop_ids()),
         1,
         sink_factory_fn,
         |_| {
@@ -101,7 +100,9 @@ pub fn encode_graph_cprop<G: GraphView, S: RecordBatchSink>(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        &visible_mapper(g.graph_props_meta().metadata_mapper(), g.metadata_ids()),
+        &g.graph_props_meta()
+            .metadata_mapper()
+            .deep_clone_ids(g.metadata_ids()),
         1,
         sink_factory_fn,
         |_| vec![Field::new(TIME_COL, DataType::Int64, true)],

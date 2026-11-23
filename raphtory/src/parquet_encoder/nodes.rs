@@ -6,7 +6,7 @@ use crate::{
                 ops::{FilterOps, GraphView},
                 Index,
             },
-            view::{graph::visible_mapper, internal::List},
+            view::internal::List,
         },
         graph::node::NodeView,
     },
@@ -95,10 +95,9 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
     let (node_list, list_trusted) = g.trusted_node_list();
     run_encode_indexed(
         g,
-        &visible_mapper(
-            g.node_meta().temporal_prop_mapper(),
-            g.node_visible_temporal_prop_ids(),
-        ),
+        &g.node_meta()
+            .temporal_prop_mapper()
+            .deep_clone_ids(g.node_visible_temporal_prop_ids()),
         get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
         sink_factory_fn,
         |id_type| {
@@ -158,10 +157,9 @@ pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
     let (node_list, list_trusted) = g.trusted_node_list();
     run_encode_indexed(
         g,
-        &visible_mapper(
-            g.node_meta().metadata_mapper(),
-            g.node_visible_metadata_ids(),
-        ),
+        &g.node_meta()
+            .metadata_mapper()
+            .deep_clone_ids(g.node_visible_metadata_ids()),
         get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
         sink_factory_fn,
         |id_type| {
