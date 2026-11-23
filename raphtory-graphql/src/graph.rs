@@ -28,13 +28,12 @@ use raphtory_storage::{
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    future::poll_fn,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-    task::Poll,
 };
+use tokio::sync::Notify;
 use tracing::debug;
 
 #[cfg(feature = "vectors")]
@@ -55,6 +54,19 @@ pub type GraphVectors = ();
 #[derive(Clone)]
 pub struct GraphWithVectors {
     inner: Arc<GraphWithVectorsInner>,
+    // Must stay after `inner`: fields drop in order, so `into_inner` is woken only once this
+    // handle no longer holds the graph.
+    released: Released,
+}
+
+/// Wakes [`GraphWithVectors::into_inner`] when a handle to the graph is dropped.
+#[derive(Clone, Default)]
+struct Released(Arc<Notify>);
+
+impl Drop for Released {
+    fn drop(&mut self) {
+        self.0.notify_waiters();
+    }
 }
 
 pub struct GraphWithVectorsInner {
@@ -99,33 +111,31 @@ impl GraphWithVectors {
             is_flushing: AtomicBool::new(false),
             plugin_data: PluginData::default(),
         });
-        Self { inner }
+        Self {
+            inner,
+            released: Released::default(),
+        }
     }
 
     pub fn plugin_data(&self) -> &PluginData {
         &self.inner.plugin_data
     }
 
-    /// Calls `Arc::into_inner` on the underlying Arc until we hold the only reference and returns it
+    /// Waits until every other handle to the graph is dropped, then returns the graph.
     pub async fn into_inner(self) -> GraphWithVectorsInner {
-        let mut inner = Some(self.inner);
-        let future = poll_fn(move |_ctx| {
-            match inner.take() {
-                None => {
-                    unreachable!("poll called after ready returned")
-                }
-                Some(inner_arc) => {
-                    match Arc::try_unwrap(inner_arc) {
-                        Ok(inner) => Poll::Ready(inner),
-                        Err(inner_arc) => {
-                            inner = Some(inner_arc); // put back
-                            Poll::Pending
-                        }
-                    }
-                }
+        let Self {
+            mut inner,
+            released,
+        } = self;
+        loop {
+            // Created before the check, so a handle dropped right after it still wakes us.
+            let handle_dropped = released.0.notified();
+            match Arc::try_unwrap(inner) {
+                Ok(inner) => return inner,
+                Err(shared) => inner = shared,
             }
-        });
-        future.await
+            handle_dropped.await;
+        }
     }
 
     /// Swap in a read-only handle for the graph. No-op with a warning if the inner
@@ -136,11 +146,15 @@ impl GraphWithVectors {
                 inner.graph = inner.graph.read_only();
                 Self {
                     inner: Arc::new(inner),
+                    released: self.released,
                 }
             }
             Err(inner) => {
                 tracing::warn!("graph handle shared during load; serving it without read-only");
-                Self { inner }
+                Self {
+                    inner,
+                    released: self.released,
+                }
             }
         }
     }

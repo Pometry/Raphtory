@@ -300,7 +300,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
 impl<'a, NS: NodeSegmentOps> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
     pub fn unlocked<R>(&mut self, op: impl FnOnce() -> R) -> R {
-        ArcRwLockWriteGuard::unlocked(&mut self.writer, op)
+        self.writer
+            .increment_global_est_size(self.writer.est_size() - self.old_est_size);
+        let result = ArcRwLockWriteGuard::unlocked(&mut self.writer, op);
+        self.old_est_size = self.writer.est_size();
+        result
     }
 }
 
