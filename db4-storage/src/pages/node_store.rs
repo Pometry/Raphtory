@@ -199,6 +199,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         })
     }
 
+    pub fn free_segments(&self) -> &FreeSegmentSlots {
+        &self.free_segments
+    }
+
     pub fn node_entries(&self) -> impl Iterator<Item = SegmentLockedNodeEntry<NS, EXT>> {
         let count = self.segments.count();
         (0..count).flat_map(|id| {
@@ -429,41 +433,65 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
     }
 
-    /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
+    /// Find a free segment and reserve `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
     ///
     /// # Deadlock Safety: do not hold any node segment locks when calling this function other than the `existing_full_segment` guard passed in!
     pub fn reserve_and_lock_segment(
         &self,
         num_rows: u32,
-        existing_full_segment: Option<&NodeWriter<ArcRwLockWriteGuard<MemNodeSegment>, NS>>,
+        existing_full_segment: Option<&mut NodeWriter<ArcRwLockWriteGuard<MemNodeSegment>, NS>>,
     ) -> (
         LocalPOS,
         NodeWriter<'_, ArcRwLockWriteGuard<MemNodeSegment>, NS>,
     ) {
-        let slot = self.free_segments.slot();
-        let segment_id = *slot.read_recursive();
+        // Important invariants to be upheld:
+        //
+        // 1. Do not hold segment locks when acquiring the free_segments slot! (Deadlock)
+        // 2. Node segment locks should always be acquired in segment id order! (Deadlock)
+        // 3. Before reserving new rows, the segment lock has to be acquired and cannot be released until the rows are initialised!
+        //
+        // If 3. is violated, this will leak uninitialised nodes into the graph!
 
-        let writer_and_row = match existing_full_segment {
-            Some(existing_writer) if existing_writer.segment.segment_id() == segment_id => {
-                // make sure we do not try to relock the already locked segment (it should always be full)
-                None
+        let (mut slot, writer_and_row) = match existing_full_segment {
+            Some(existing_writer) => {
+                // need to unlock the existing writer before acquiring free segment slot
+                let existing_segment_id = existing_writer.segment.segment_id();
+                let (slot, mut writer_and_row) = existing_writer.unlocked(|| {
+                    let slot = self.free_segments.slot().write();
+                    let free_segment_id = *slot;
+                    if existing_segment_id <= free_segment_id {
+                        // node segment lock order: relock existing writer before acquiring segment!
+                        (slot, None)
+                    } else {
+                        // node segment lock order: get free writer before relocking existing segment!
+                        let writer = self.writer(free_segment_id);
+                        let row = self.reserve_segment_rows(writer.segment, num_rows);
+                        (slot, Some((writer, row)))
+                    }
+                });
+                let free_segment_id = *slot;
+                if existing_segment_id < free_segment_id {
+                    let writer = self.writer(free_segment_id);
+                    let row = self.reserve_segment_rows(writer.segment, num_rows);
+                    writer_and_row = Some((writer, row));
+                }
+                (slot, writer_and_row)
             }
-            _ => {
-                let writer = self.writer(segment_id);
+            None => {
+                let slot = self.free_segments.slot().write();
+                let writer = self.writer(*slot);
                 let row = self.reserve_segment_rows(writer.segment, num_rows);
-                Some((writer, row))
+                (slot, Some((writer, row)))
             }
         };
+
         match writer_and_row {
             None | Some((_, None)) => {
-                // The current segment is full, push a new locked free segment before dropping the existing writer lock
+                // The free segment is full, push a new locked free segment before releasing the slot lock
 
                 let guard = self.push_new_segment();
-
-                // deadlock safety: we hold the writer for the existing segment (either acquired above or passed in)
-                *slot.write() = guard.segment_id();
-
+                *slot = guard.segment_id();
                 let writer = self.arc_writer(guard);
 
                 let local_pos = self
@@ -796,4 +824,71 @@ pub fn increment_and_clamp(counter: &AtomicU32, increment: u32, limit: u32) -> O
             },
         )
         .ok()
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        Extension, Layer,
+        api::nodes::NodeSegmentOps,
+        persist::{config::BaseConfig, strategy::PersistenceStrategy},
+    };
+    use std::{sync::mpsc, thread, time::Duration};
+
+    #[test]
+    fn reserve_with_full_segment_does_not_wait() {
+        let (sender_1_main, receiver_1_main) = mpsc::channel();
+        let (sender_2_main, receiver_2_main) = mpsc::channel();
+
+        thread::spawn(move || {
+            let ext = Extension::new(None, BaseConfig::new(2, 1)).unwrap();
+            let graph = Layer::new(None, ext).unwrap();
+
+            let nodes = graph.nodes();
+            let num_slot_segments = nodes.num_segments();
+            // fill up all segments
+            for segment in nodes.segments_iter() {
+                while nodes.reserve_segment_row(segment).is_some() {}
+            }
+
+            let (sender_1_2, receiver_1_2) = mpsc::channel();
+            let (sender_2_1, receiver_2_1) = mpsc::channel();
+
+            thread::scope(move |scope| {
+                scope.spawn(move || {
+                    let guard = nodes.segments[1].head_mut_arc();
+                    let mut full = nodes.arc_writer(guard);
+                    sender_1_2.send(()).unwrap(); // signal other thread to proceed
+                    receiver_2_1
+                        .recv_timeout(Duration::from_secs(5))
+                        .expect("initial lock acquisition should not deadlock");
+                    sender_1_2.send(()).unwrap(); // other thread can proceed as well
+                    let (_, writer) = nodes.reserve_and_lock_segment(1, Some(&mut full));
+                    sender_1_main.send(writer.segment.segment_id()).unwrap();
+                });
+
+                scope.spawn(move || {
+                    let guard = nodes.segments[0].head_mut_arc();
+                    let mut full = nodes.arc_writer(guard);
+                    sender_2_1.send(()).unwrap(); // signal other thread to proceed
+                    receiver_1_2
+                        .recv_timeout(Duration::from_secs(5))
+                        .expect("initial lock acquisition should not deadlock");
+                    receiver_1_2
+                        .recv_timeout(Duration::from_secs(5))
+                        .expect("expected signal to proceed");
+                    thread::sleep(Duration::from_millis(1)); // should be enough to ensure that the other thread gets the first slot
+                    let (_, writer) = nodes.reserve_and_lock_segment(1, Some(&mut full));
+                    sender_2_main.send(writer.segment.segment_id()).unwrap();
+                });
+            });
+        });
+
+        receiver_1_main
+            .recv_timeout(Duration::from_secs(10))
+            .expect("writer 1 should not deadlock");
+        receiver_2_main
+            .recv_timeout(Duration::from_secs(10))
+            .expect("writer 2 should not deadlock");
+    }
 }
