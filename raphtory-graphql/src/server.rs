@@ -615,8 +615,11 @@ mod server_tests {
         running.stop().await
     }
 
+    // It reads /health, which fails while another test jams the process-global pools.
+    #[allow(clippy::await_holding_lock)]
     #[tokio::test]
     async fn test_disable_ui_serves_api_not_ui() {
+        let _serial = crate::rayon::TEST_SERIAL.lock();
         let work_dir = tempdir().unwrap();
         let app_config = AppConfigBuilder::new().with_disable_ui(true).build();
         let server = GraphServer::new(
