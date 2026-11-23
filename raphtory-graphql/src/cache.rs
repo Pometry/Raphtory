@@ -3,7 +3,7 @@ use crate::{
     data::{InsertionError, MutationErrorInner},
     graph::GraphWithVectors,
     paths::ValidGraphPaths,
-    rayon::{blocking_compute, EVICT_POOL},
+    rayon::EVICT_POOL,
 };
 use quick_cache::{
     sync::{Cache, EntryAction, EntryResult},
@@ -126,19 +126,6 @@ impl GraphCache {
     pub fn flush_and_clear(&self) {
         for (_, graph) in self.cache.drain() {
             flush_graph(graph);
-        }
-    }
-
-    /// remove a graph from the cache, locking the cache entry until the graph is dropped
-    pub async fn remove(&self, key: &str) {
-        let res = self
-            .cache
-            .entry_async(key, |_, _| EntryAction::<()>::ReplaceWithGuard)
-            .await;
-
-        if let EntryResult::Replaced(_guard, graph) = res {
-            // best effort, like the flush itself: a failed job is logged where it is caught
-            let _ = blocking_compute(move || flush_graph(graph)).await;
         }
     }
 
