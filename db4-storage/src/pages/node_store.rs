@@ -199,6 +199,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         })
     }
 
+    pub fn free_segments(&self) -> &FreeSegmentSlots {
+        &self.free_segments
+    }
+
     pub fn node_entries(&self) -> impl Iterator<Item = SegmentLockedNodeEntry<NS, EXT>> {
         let count = self.segments.count();
         (0..count).flat_map(|id| {
