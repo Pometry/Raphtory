@@ -1112,7 +1112,7 @@ pub fn fast_rp(
     iter_weights: Vec<f64>,
     seed: Option<u64>,
     threads: Option<usize>,
-) -> OutputTypedNodeState<'static, DynamicGraph> {
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     fast_rp_rs(
         &graph.graph,
         embedding_dim,
@@ -1121,7 +1121,7 @@ pub fn fast_rp(
         seed,
         threads,
     )
-    .to_output_nodestate()
+    .map(|result| result.to_output_nodestate())
 }
 
 /// Alternating mask algorithm. It is a mock algorithm suitable only for testing purposes.
