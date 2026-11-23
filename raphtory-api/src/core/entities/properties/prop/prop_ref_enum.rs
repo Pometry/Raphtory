@@ -1,11 +1,11 @@
 use crate::core::entities::properties::prop::{
+    decimal_parts,
     prop_col::{MapCol, PropCol},
-    validate_bd, ArrowRow, InvalidBigDecimal, Prop, PropArray, PropMap, PropUnwrap, SerdeArrowList,
+    ArrowRow, InvalidBigDecimal, Prop, PropArray, PropMap, PropUnwrap, SerdeArrowList,
     SerdeArrowMap,
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use num_traits::ToPrimitive;
 use serde::Serialize;
 use std::{borrow::Cow, sync::Arc};
 
@@ -96,7 +96,7 @@ impl From<DateTime<Utc>> for PropRef<'_> {
 
 impl<'a> From<&'a BigDecimal> for PropRef<'a> {
     fn from(decimal: &'a BigDecimal) -> Self {
-        // a `Prop::Decimal` built without `validate_bd` panics here rather than being stored as another number
+        // a `Prop::Decimal` not built by `Prop::try_from_bd` panics here rather than being stored as another number
         PropRef::try_from_bd_ref(decimal).unwrap_or_else(|_| {
             panic!("BigDecimal value {decimal} is out of range for a 38 digit decimal")
         })
@@ -199,13 +199,7 @@ impl<'a> PropRef<'a> {
     }
 
     fn try_from_bd_ref(bd: &BigDecimal) -> Result<Self, InvalidBigDecimal> {
-        validate_bd(bd)?;
-        let invalid = || InvalidBigDecimal(bd.clone());
-        let (num, scale) = bd.as_bigint_and_exponent();
-        Ok(PropRef::Decimal {
-            num: num.to_i128().ok_or_else(invalid)?,
-            scale: i8::try_from(scale).map_err(|_| invalid())?,
-        })
+        decimal_parts(bd).map(|(num, scale)| PropRef::Decimal { num, scale })
     }
 }
 

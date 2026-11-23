@@ -49,7 +49,10 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     task::{Context, Poll},
     time::Duration,
 };
@@ -64,7 +67,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
@@ -89,7 +92,8 @@ pub const DEFAULT_PORT: u16 = 1736;
 const WORK_DIR_LOCK_FILE: &str = ".raphtory-server.lock";
 
 /// How long a stopping server waits for the requests in flight. After it, their connections are
-/// closed, so that a request that never completes cannot keep the server from stopping.
+/// closed, so that a request that never completes cannot keep the server from stopping, and the
+/// server reports that it timed out.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(if cfg!(test) { 1 } else { 30 });
 
 #[derive(Error, Debug)]
@@ -374,16 +378,42 @@ impl GraphServer {
             .as_socket_addr()
             .unwrap()
             .port();
+        let stopping = Arc::new(AtomicBool::new(false));
+        let cut_off = Arc::new(AtomicBool::new(false));
+        let app = app.around({
+            let (stopping, cut_off) = (stopping.clone(), cut_off.clone());
+            move |endpoint, request| {
+                let (stopping, cut_off) = (stopping.clone(), cut_off.clone());
+                async move {
+                    let mut in_flight = InFlight {
+                        stopping,
+                        cut_off,
+                        answered: false,
+                    };
+                    let response = endpoint.call(request).await;
+                    in_flight.answered = true;
+                    response
+                }
+            }
+        });
         let server_task = async move {
+            let termination = async move {
+                server_termination(signal_receiver, tp).await;
+                stopping.store(true, Ordering::Release);
+            };
             let result = Server::new_with_acceptor(acceptor)
-                .run_with_graceful_shutdown(
-                    app,
-                    server_termination(signal_receiver, tp),
-                    Some(SHUTDOWN_GRACE),
-                )
+                .run_with_graceful_shutdown(app, termination, Some(SHUTDOWN_GRACE))
                 .await;
             // released only now, after the server has dropped its graphs, which flushes them
             drop(work_dir_lock);
+            if cut_off.load(Ordering::Acquire) {
+                let error = format!(
+                    "Requests were still running {}s after the server was told to stop, and were cut off",
+                    SHUTDOWN_GRACE.as_secs()
+                );
+                error!("{error}");
+                return Err(io::Error::new(ErrorKind::TimedOut, error));
+            }
             result
         };
         let server_result = AbortOnDrop(tokio::spawn(server_task));
@@ -494,6 +524,22 @@ impl GraphServer {
     /// Run the server on the given port until completion.
     pub async fn run_with_port(self, port: u16) -> IoResult<()> {
         self.start_with_port(port).await?.wait().await
+    }
+}
+
+/// A request being answered. Dropped unanswered while the server is stopping, it was cut off
+/// at the shutdown deadline, which poem does not report.
+struct InFlight {
+    stopping: Arc<AtomicBool>,
+    cut_off: Arc<AtomicBool>,
+    answered: bool,
+}
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        if !self.answered && self.stopping.load(Ordering::Acquire) {
+            self.cut_off.store(true, Ordering::Release);
+        }
     }
 }
 
@@ -746,9 +792,10 @@ mod server_tests {
         running.stop().await;
         let stopped = tokio::time::timeout(Duration::from_secs(20), running.wait()).await;
         drop(guard);
-        stopped
+        let error = stopped
             .expect("the server did not stop while a request was stuck")
-            .unwrap();
+            .expect_err("a request cut off at the deadline was not reported");
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
         assert!(stuck.await.unwrap().is_err());
     }
 

@@ -155,7 +155,7 @@ fn column_cmp<'a>(
         let a = a.get(column).and_then(|v| v.as_ref());
         let b = b.get(column).and_then(|v| v.as_ref());
         match (a, b) {
-            (Some(a), Some(b)) => a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal),
+            (Some(a), Some(b)) => a.0.total_cmp(&b.0).unwrap_or(Ordering::Equal),
             (None, None) => Ordering::Equal,
             (None, Some(_)) => {
                 if nulls_last {

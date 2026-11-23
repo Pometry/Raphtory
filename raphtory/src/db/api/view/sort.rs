@@ -76,13 +76,11 @@ pub struct EdgeSortBy {
     pub key: EdgeSortKey,
 }
 
-/// `partial_cmp`, with floats in their total order (`total_cmp`): NaN equal to everything is
-/// not an order, and `sort_by` panics on it.
+/// A missing property sorts before any value, as `Option` orders it.
 fn compare_props(a: Option<Prop>, b: Option<Prop>) -> Option<Ordering> {
-    match (&a, &b) {
-        (Some(Prop::F32(a)), Some(Prop::F32(b))) => Some(a.total_cmp(b)),
-        (Some(Prop::F64(a)), Some(Prop::F64(b))) => Some(a.total_cmp(b)),
-        _ => a.partial_cmp(&b),
+    match (a, b) {
+        (Some(a), Some(b)) => a.total_cmp(&b),
+        (a, b) => Some(a.is_some().cmp(&b.is_some())),
     }
 }
 
