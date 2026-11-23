@@ -59,6 +59,24 @@ pub enum PropPredicate<'a> {
     StartsWith(&'a str),
     EndsWith(&'a str),
     Contains(&'a str),
+    /// `casefold(value).contains(&casefold(pattern))`.
+    ContainsCaseInsensitive(&'a str),
+}
+
+/// The lowercasing case-insensitive predicates compare under. Per character,
+/// unlike `str::to_lowercase`, whose context rules (a final Σ folds to ς) could
+/// fold the same characters differently in a value and in a pattern, so a
+/// pattern found in a value could stop being found once both are folded.
+pub fn casefold(value: &str) -> String {
+    let mut folded = String::with_capacity(value.len());
+    casefold_into(value, &mut folded);
+    folded
+}
+
+/// [`casefold`] into `out`, replacing its contents, to reuse one buffer.
+pub fn casefold_into(value: &str, out: &mut String) {
+    out.clear();
+    out.extend(value.chars().flat_map(char::to_lowercase));
 }
 
 /// Which value(s) of a property a [`PropPredicate`] is asked about. A

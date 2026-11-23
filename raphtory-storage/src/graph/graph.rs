@@ -33,8 +33,8 @@ use storage::{
 use thiserror::Error;
 
 pub use storage::api::nodes::{
-    GlobalPropCandidates as NodeGlobalPropCandidates, PropPredicate as NodePropPredicate,
-    PropSemantics as NodePropSemantics,
+    casefold, casefold_into, GlobalPropCandidates as NodeGlobalPropCandidates,
+    PropPredicate as NodePropPredicate, PropSemantics as NodePropSemantics,
 };
 
 #[derive(Clone, Debug)]
