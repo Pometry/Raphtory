@@ -452,10 +452,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let (mut slot, writer_and_row) = match existing_full_segment {
             Some(existing_writer) => {
                 // need to unlock the existing writer before acquiring free segment slot
+                let existing_segment_id = existing_writer.segment.segment_id();
                 let (slot, mut writer_and_row) = existing_writer.unlocked(|| {
                     let slot = self.free_segments.slot().write();
                     let free_segment_id = *slot;
-                    if existing_writer.segment.segment_id() <= free_segment_id {
+                    if existing_segment_id <= free_segment_id {
                         // node segment lock order: relock existing writer before acquiring segment!
                         (slot, None)
                     } else {
@@ -466,7 +467,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                     }
                 });
                 let free_segment_id = *slot;
-                if existing_writer.segment.segment_id() < free_segment_id {
+                if existing_segment_id < free_segment_id {
                     let writer = self.writer(free_segment_id);
                     let row = self.reserve_segment_rows(writer.segment, num_rows);
                     writer_and_row = Some((writer, row));
