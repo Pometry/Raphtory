@@ -15,7 +15,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use storage::{api::node_type_index::NodeTypeIndexOps, persist::args::BaseArgs, Args};
+use storage::{api::node_type_index::NodeTypeIndexOps, Args};
 
 #[test]
 fn type_filter_domain_uses_index() {
@@ -58,8 +58,7 @@ fn type_filter_domain_uses_index() {
 /// Builds the same graph twice, with and without the node type index enabled.
 fn build_graphs() -> (Graph, Graph) {
     let build = |index_enabled: bool| {
-        let args = Args::default()
-            .with_base(BaseArgs::default().with_node_type_index_enabled(index_enabled));
+        let args = Args::default().with_node_type_index_enabled(index_enabled);
         let g = Graph::new_with_config(args).unwrap();
 
         let nodes = [
@@ -292,7 +291,7 @@ fn type_index_nodes_len_on_filtered_base() {
 
 #[test]
 fn node_type_index_disabled_falls_back_to_scan() {
-    let args = Args::default().with_base(BaseArgs::default().with_node_type_index_enabled(false));
+    let args = Args::default().with_node_type_index_enabled(false);
     let g = Graph::new_with_config(args).unwrap();
     g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
     g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
