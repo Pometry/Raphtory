@@ -488,7 +488,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         match writer_and_row {
             None | Some((_, None)) => {
-                // The current segment is full, push a new locked free segment before dropping the existing writer lock
+                // The free segment is full, push a new locked free segment before releasing the slot lock
 
                 let guard = self.push_new_segment();
                 *slot = guard.segment_id();

@@ -10,7 +10,6 @@ use storage::{
 };
 
 #[test]
-///
 fn test_concurrent_additions() {
     proptest!(|(graph_f in generate_mutations(0..=10, 0..=10, 0..=10, 0..=10, 0), num_threads in 1..=10usize, num_free_segments in 1..=10usize, node_segment_size in 2..=10u32, edge_segment_size in 1..=10u32)| {
         let TestInput {fixture,updates} = graph_f;
