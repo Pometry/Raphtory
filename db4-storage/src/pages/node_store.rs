@@ -797,3 +797,70 @@ pub fn increment_and_clamp(counter: &AtomicU32, increment: u32, limit: u32) -> O
         )
         .ok()
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        Extension, Layer,
+        api::nodes::NodeSegmentOps,
+        persist::{config::BaseConfig, strategy::PersistenceStrategy},
+    };
+    use std::{sync::mpsc, thread, time::Duration};
+
+    #[test]
+    fn reserve_with_full_segment_does_not_wait() {
+        let (sender_1_main, receiver_1_main) = mpsc::channel();
+        let (sender_2_main, receiver_2_main) = mpsc::channel();
+
+        thread::spawn(move || {
+            let ext = Extension::new(None, BaseConfig::new(2, 1)).unwrap();
+            let graph = Layer::new(None, ext).unwrap();
+
+            let nodes = graph.nodes();
+            let num_slot_segments = nodes.num_segments();
+            // fill up all segments
+            for segment in nodes.segments_iter() {
+                while nodes.reserve_segment_row(segment).is_some() {}
+            }
+
+            let (sender_1_2, receiver_1_2) = mpsc::channel();
+            let (sender_2_1, receiver_2_1) = mpsc::channel();
+
+            thread::scope(move |scope| {
+                scope.spawn(move || {
+                    let guard = nodes.segments[1].head_mut_arc();
+                    let mut full = nodes.arc_writer(guard);
+                    sender_1_2.send(()).unwrap(); // signal other thread to proceed
+                    receiver_2_1
+                        .recv_timeout(Duration::from_secs(5))
+                        .expect("initial lock acquisition should not deadlock");
+                    sender_1_2.send(()).unwrap(); // other thread can proceed as well
+                    let (_, writer) = nodes.reserve_and_lock_segment(1, Some(&mut full));
+                    sender_1_main.send(writer.segment.segment_id()).unwrap();
+                });
+
+                scope.spawn(move || {
+                    let guard = nodes.segments[0].head_mut_arc();
+                    let mut full = nodes.arc_writer(guard);
+                    sender_2_1.send(()).unwrap(); // signal other thread to proceed
+                    receiver_1_2
+                        .recv_timeout(Duration::from_secs(5))
+                        .expect("initial lock acquisition should not deadlock");
+                    receiver_1_2
+                        .recv_timeout(Duration::from_secs(5))
+                        .expect("expected signal to proceed");
+                    thread::sleep(Duration::from_millis(1)); // should be enough to ensure that the other thread gets the first slot
+                    let (_, writer) = nodes.reserve_and_lock_segment(1, Some(&mut full));
+                    sender_2_main.send(writer.segment.segment_id()).unwrap();
+                });
+            });
+        });
+
+        receiver_1_main
+            .recv_timeout(Duration::from_secs(10))
+            .expect("writer 1 should not deadlock");
+        receiver_2_main
+            .recv_timeout(Duration::from_secs(10))
+            .expect("writer 2 should not deadlock");
+    }
+}
