@@ -141,10 +141,13 @@ impl ArgsOps for BaseArgs {
         // shortcut: an explicit page size equal to the env value is ignored rather than
         // refused; track provenance in `BaseArgs` if that ever matters.
         let env = Self::default();
-        let explicit = |new: Option<u32>, env: Option<u32>| new.is_some() && new != env;
-        if explicit(new_args.max_node_page_len, env.max_node_page_len)
-            || explicit(new_args.max_edge_page_len, env.max_edge_page_len)
-        {
+        let node_len = new_args.max_node_page_len.is_some()
+            && new_args.max_node_page_len != env.max_node_page_len;
+
+        let edge_len = new_args.max_edge_page_len.is_some()
+            && new_args.max_edge_page_len != env.max_edge_page_len;
+
+        if node_len || edge_len {
             return Err(StorageError::GenericFailure(
                 "Page sizes cannot be overridden after graph creation".to_string(),
             ));
