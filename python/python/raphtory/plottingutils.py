@@ -181,14 +181,10 @@ def cdf(observations, normalised=True):
     Returns:
         Tuple[np.ndarray, np.ndarray]: the x and y coordinates for the cdf
     """
-    data = np.array(observations, dtype=object)
-    N = len(observations)
-
-    x = np.sort(data)
+    x = np.sort(np.array(observations, dtype=object))
+    y = np.searchsorted(x, x, side="right")
     if normalised:
-        y = np.arange(N) / float(N - 1)
-    else:
-        y = np.arange(N)
+        y = y / len(x)
     return x, y
 
 
@@ -201,13 +197,13 @@ def ccdf(observations, normalised=True):
         normalised(bool,optional): Defaults to True. If true, y coordinates normalised such that y is the probability of finding a value greater than than or equal to x, if false y is the number of observations greater than or equal to x.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: x and y coordinates for the cdf
+        Tuple[np.ndarray, np.ndarray]: x and y coordinates for the ccdf
     """
-    x, y = cdf(observations, normalised)
+    x = np.sort(np.array(observations, dtype=object))
+    y = len(x) - np.searchsorted(x, x, side="left")
     if normalised:
-        return x, 1.0 - y
-    else:
-        return x, len(observations) - y
+        y = y / len(x)
+    return x, y
 
 
 def lorenz(observations):
