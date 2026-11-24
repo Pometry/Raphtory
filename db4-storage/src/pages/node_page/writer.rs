@@ -304,7 +304,13 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
 impl<'a, NS: NodeSegmentOps> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
     pub fn unlocked<R>(&mut self, op: impl FnOnce() -> R) -> R {
-        ArcRwLockWriteGuard::unlocked(&mut self.head, op)
+        // Size tracking needs to be properly accounted for during unlocked
+        // in case another writer acquires this segment.
+        let delta = self.head.est_size() - self.initial_est_size;
+        self.head.increment_global_memory_tracker(delta);
+        let result = ArcRwLockWriteGuard::unlocked(&mut self.head, op);
+        self.initial_est_size = self.head.est_size();
+        result
     }
 }
 
@@ -325,8 +331,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     fn drop(&mut self) {
         let delta = self.head.est_size() - self.initial_est_size;
         self.head.increment_global_memory_tracker(delta);
-        let head_mut = self.head.deref_mut();
-        if let Err(err) = self.segment.notify_write(head_mut) {
+        let head = self.head.deref_mut();
+
+        if let Err(err) = self.segment.notify_write(head) {
             drop_error!("Failed to persist node page: {err}")
         }
     }
