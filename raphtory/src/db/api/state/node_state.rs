@@ -1058,8 +1058,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
 
     /// create a new empty NodeState
     pub fn new_empty(graph: G) -> Self {
-        let index = Index::for_graph(&graph);
-        Self::new(graph, [].into(), index)
+        Self::new(graph, [].into(), Index::default())
     }
 
     /// create a new NodeState from a list of values for the node (takes care of creating an index for
@@ -1075,7 +1074,12 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
         mut values: HashMap<VID, R, S>,
         map: impl Fn(R) -> V,
     ) -> Self {
-        if values.len() == graph.count_nodes() {
+        if values.len() == graph.count_nodes()
+            && graph
+                .nodes()
+                .iter()
+                .all(|node| values.contains_key(&node.node))
+        {
             let values: Vec<_> = graph
                 .nodes()
                 .iter()
