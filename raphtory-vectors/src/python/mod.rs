@@ -407,12 +407,12 @@ impl PyVectorisedGraph {
         self.0.empty_selection()
     }
 
-    /// Perform a similarity search between each entity's associated document and a specified `query`. Returns a number of entities up to a specified `limit` ranked in ascending order of distance.
+    /// Perform a similarity search between each entity's associated document and a specified `query`. Returns a number of entities up to a specified `limit` ranked by cosine distance, closest first.
     ///
     /// Args:
-    ///   query (str | list): The text or the embedding to calculate the distance from.
+    ///   query (str | list[float]): The text to embed, or an embedding of the model's dimension.
     ///   limit (int): The maximum number of new entities in the result.
-    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
+    ///   window (Tuple[TimeInput, TimeInput], optional): Only entities present in [start, end) are considered.
     ///
     /// Returns:
     ///   VectorSelection: The vector selection resulting from the search.
@@ -433,12 +433,12 @@ impl PyVectorisedGraph {
         Ok(s)
     }
 
-    /// Perform a similarity search between each node's associated document and a specified `query`. Returns a number of nodes up to a specified `limit` ranked in ascending order of distance.
+    /// Perform a similarity search between each node's associated document and a specified `query`. Returns a number of nodes up to a specified `limit` ranked by cosine distance, closest first.
     ///
     /// Args:
-    ///   query (str | list): The text or the embedding to calculate the distance from.
+    ///   query (str | list[float]): The text to embed, or an embedding of the model's dimension.
     ///   limit (int): The maximum number of new nodes in the result.
-    ///   window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
+    ///   window (Tuple[TimeInput, TimeInput], optional): Only entities present in [start, end) are considered.
     ///
     /// Returns:
     ///   VectorSelection: The vector selection resulting from the search.
@@ -456,12 +456,12 @@ impl PyVectorisedGraph {
         )?)
     }
 
-    /// Perform a similarity search between each edge's associated document and a specified `query`. Returns a number of edges up to a specified `limit` ranked in ascending order of distance.
+    /// Perform a similarity search between each edge's associated document and a specified `query`. Returns a number of edges up to a specified `limit` ranked by cosine distance, closest first.
     ///
     /// Args:
-    ///   query (str | list): The text or the embedding to calculate the distance from.
+    ///   query (str | list[float]): The text to embed, or an embedding of the model's dimension.
     ///   limit (int): The maximum number of new edges in the results.
-    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
+    ///   window (Tuple[TimeInput, TimeInput], optional): Only entities present in [start, end) are considered.
     ///
     /// Returns:
     ///   VectorSelection: The vector selection resulting from the search.
@@ -573,7 +573,7 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   hops (int): The number of hops to carry out the expansion.
-    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
+    ///   window (Tuple[TimeInput, TimeInput], optional): Only entities present in [start, end) are considered.
     ///
     /// Returns:
     ///     None:
@@ -588,15 +588,15 @@ impl PyVectorSelection {
     ///
     /// 1. All the entities 1 hop away of some of the entities included on the selection (and
     ///    not already selected) are marked as candidates.
-    /// 2. Those candidates are added to the selection in ascending distance from `query`.
+    /// 2. Those candidates are added to the selection in ascending cosine distance from `query`.
     ///
     /// This loop goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available.
     ///
     /// Args:
-    ///   query (str | list): The text or the embedding to calculate the distance from.
+    ///   query (str | list[float]): The text to embed, or an embedding of the model's dimension.
     ///   limit (int): The number of documents to add.
-    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
+    ///   window (Tuple[TimeInput, TimeInput], optional): Only entities present in [start, end) are considered.
     ///
     /// Returns:
     ///     None:
@@ -622,9 +622,9 @@ impl PyVectorSelection {
     /// This function has the same behaviour as `expand_entities_by_similarity()` but it only considers nodes.
     ///
     /// Args:
-    ///   query (str | list): The text or the embedding to calculate the distance from.
+    ///   query (str | list[float]): The text to embed, or an embedding of the model's dimension.
     ///   limit (int): The maximum number of new nodes to add.
-    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
+    ///   window (Tuple[TimeInput, TimeInput], optional): Only entities present in [start, end) are considered.
     ///
     /// Returns:
     ///     None:
@@ -649,9 +649,9 @@ impl PyVectorSelection {
     /// This function has the same behaviour as `expand_entities_by_similarity()` but it only considers edges.
     ///
     /// Args:
-    ///   query (str | list): The text or the embedding to calculate the distance from.
+    ///   query (str | list[float]): The text to embed, or an embedding of the model's dimension.
     ///   limit (int): The maximum number of new edges to add.
-    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
+    ///   window (Tuple[TimeInput, TimeInput], optional): Only entities present in [start, end) are considered.
     ///
     /// Returns:
     ///     None:
