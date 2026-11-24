@@ -480,8 +480,6 @@ impl PyVectorisedGraph {
 #[pyclass(name = "VectorSelection", module = "raphtory.vectors")]
 pub struct PyVectorSelection(DynamicVectorSelection);
 
-/// A VectorisedGraph, containing a set of documents positioned in the graph space and a selection
-/// over those documents
 #[pymethods]
 impl PyVectorSelection {
     /// Returns the nodes present in the current selection.
