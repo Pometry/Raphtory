@@ -38,16 +38,9 @@ def shuffle_column(
     else:
         df = graph_df.copy()
 
-    no_events = len(df)
-
-    if col_number is not None:
-        col = df[df.columns[col_number]].sample(n=no_events)
-        col.reset_index(inplace=True, drop=True)
-        df[df.columns[col_number]] = col
-    if col_name is not None:
-        col = df[col_name].sample(n=no_events)
-        col.reset_index(inplace=True, drop=True)
-        df[col_name] = col
+    column = df.columns[col_number] if col_number is not None else col_name
+    # assigned by position, so the shuffled values do not realign on the index
+    df[column] = df[column].sample(frac=1).array
     return df
 
 
@@ -81,12 +74,13 @@ def shuffle_multiple_columns(
         col_names is not None and col_numbers is not None
     ), f"Cannot have both column numbers and column names."
 
+    df = graph_df if inplace else graph_df.copy()
     if col_numbers is not None:
         for n in col_numbers:
-            df = shuffle_column(graph_df, col_number=n, inplace=inplace)
+            shuffle_column(df, col_number=n, inplace=True)
     if col_names is not None:
         for name in col_names:
-            df = shuffle_column(graph_df, col_name=name)
+            shuffle_column(df, col_name=name, inplace=True)
     return df
 
 
