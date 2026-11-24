@@ -20,10 +20,11 @@ raphtory-api = { workspace = true, features = ["template"], optional = true }
 raphtory-core = { workspace = true, optional = true }
 raphtory-storage = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
+arrow-array = { workspace = true, optional = true }
+arrow-buffer = { workspace = true, optional = true }
 async-openai = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
-bytemuck = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
 either = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
@@ -45,8 +46,6 @@ tracing = { workspace = true, optional = true }
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
-arrow-array = { workspace = true, optional = true }
-arrow-buffer = { workspace = true, optional = true }
 
 [dev-dependencies]
 dotenvy.workspace = true
@@ -62,10 +61,11 @@ vectors = [
     "dep:raphtory-core",
     "dep:raphtory-storage",
     "dep:ahash",
+    "dep:arrow-array",
+    "dep:arrow-buffer",
     "dep:async-openai",
     "dep:async-trait",
     "dep:axum",
-    "dep:bytemuck",
     "dep:bytes",
     "dep:either",
     "dep:futures-util",
@@ -88,8 +88,6 @@ python = [
     "vectors",
     "dep:pyo3",
     "dep:pyo3-arrow",
-    "dep:arrow-array",
-    "dep:arrow-buffer",
     "raphtory/python",
     "raphtory-api/python",
 ]

@@ -200,7 +200,7 @@ bitvec = "1.0.1"
 sysinfo = "0.40.1"
 strum = "0.28.0"
 strum_macros = "0.28.0"
-pythonize = { version = "0.29.0" }
+pythonize = { version = "0.30.0" }
 test-log = "0.2.19"
 axum = "0.8.9"
 serde-diff = "0.4.1"

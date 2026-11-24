@@ -7,7 +7,7 @@ use bytes::Bytes;
 use futures_util::TryStreamExt;
 use itertools::Itertools;
 // lancedb pins its own arrow version, which is not the one the rest of raphtory uses, so only go
-// through its re-exports here; embeddings cross over to raphtory as `bytes::Bytes`
+// through its re-exports here; see `embedding_from_lance` for the crossing into raphtory's arrow
 use lancedb::{
     arrow::{
         arrow_array::{
@@ -276,12 +276,14 @@ impl AsRef<[u8]> for LanceBuffer {
     }
 }
 
-/// Zero-copy: the embedding keeps the lance buffer alive. Nulls are dropped, the vector column
-/// only has null entries for rows that don't exist.
+/// Moves a lance (arrow 58) array into raphtory's arrow without copying, with `bytes::Bytes` as
+/// the version-independent go-between. Nulls are dropped, the vector column only has null
+/// entries for rows that don't exist.
 fn embedding_from_lance(array: Float32Array) -> Embedding {
     let (_, values, _) = array.into_parts(); // already sliced to this vector
     let bytes = Bytes::from_owner(LanceBuffer(values.into_inner()));
-    Embedding::from_bytes(bytes).expect("a f32 buffer has a length that is a multiple of 4")
+    let values = arrow_buffer::ScalarBuffer::from(arrow_buffer::Buffer::from(bytes));
+    arrow_array::Float32Array::new(values, None).into()
 }
 
 async fn connect(path: &Path) -> lancedb::Result<Connection> {
