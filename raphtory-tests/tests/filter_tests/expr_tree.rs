@@ -221,10 +221,17 @@ fn string_and_set_tests() {
     assert_eq!(nodes(&g, &starts), ["alice"]);
     let members = node(Expr::In {
         expr: Box::new(field(Field::Name)),
-        values: vec!["alice".into(), "dave".into(), 7i64.into()],
+        values: vec!["alice".into(), "dave".into()],
         negated: false,
     });
     assert_eq!(nodes(&g, &members), ["alice", "dave"]);
+    // A member that can never be a name is refused, not dropped.
+    let mistyped = node(Expr::In {
+        expr: Box::new(field(Field::Name)),
+        values: vec!["alice".into(), 7i64.into()],
+        negated: false,
+    });
+    assert!(g.filter(mistyped).is_err());
     let others = node(Expr::In {
         expr: Box::new(field(Field::Name)),
         values: vec!["alice".into(), "dave".into()],

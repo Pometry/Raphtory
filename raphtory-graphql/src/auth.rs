@@ -169,6 +169,12 @@ impl<E> AuthenticatedGraphQL<E> {
                 )) as Arc<dyn KeyResolver>
             })
         });
+        if key_resolver.is_none() {
+            warn!(
+                "No auth.public_key or token key resolver is configured: every caller, with or \
+                 without a token, can create, write and delete graphs"
+            );
+        }
         Self {
             executor,
             config,

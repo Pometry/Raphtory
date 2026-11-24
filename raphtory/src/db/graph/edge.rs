@@ -519,6 +519,9 @@ impl<'graph, G: GraphViewOps<'graph> + EdgePropertySchemaOps> InternalMetadataOp
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
+        if !self.graph.edge_shows_metadata(id) {
+            return None;
+        }
         let edge = self.graph.core_edge(Either::Right(self.edge));
         edge_reads::metadata(&self.graph, edge.as_ref(), EdgeAt::of(self.edge), id)
     }
@@ -534,11 +537,17 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
+        if !self.graph.edge_shows_temporal_prop(id) {
+            return None;
+        }
         let edge = self.graph.core_edge(Either::Right(self.edge));
         edge_reads::temporal_value(&self.graph, edge.as_ref(), EdgeAt::of(self.edge), id)
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
+        if !self.graph.edge_shows_temporal_prop(id) {
+            return iter::empty().into_dyn_boxed();
+        }
         let edge = self.graph.core_edge(Either::Right(self.edge));
         let graph = &self.graph;
         let at = EdgeAt::of(self.edge);
@@ -549,7 +558,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     }
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
-        if edge_valid_layer(&self.graph, self.edge) {
+        if self.graph.edge_shows_temporal_prop(id) && edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(Either::Right(self.edge));
             let graph = &self.graph;
@@ -593,7 +602,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     }
 
     fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
-        if edge_valid_layer(&self.graph, self.edge) {
+        if self.graph.edge_shows_temporal_prop(id) && edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(Either::Right(self.edge));
 

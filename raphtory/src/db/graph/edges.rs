@@ -235,11 +235,11 @@ impl<'graph, G: GraphView + 'graph, K: EdgeItem> Edges<'graph, G, K> {
     }
 
     pub fn get_metadata_id(&self, prop_name: &str) -> Option<usize> {
-        self.base_graph.edge_meta().get_prop_id(prop_name, true)
+        self.base_graph.edge_visible_metadata_id(prop_name)
     }
 
     pub fn get_temporal_prop_id(&self, prop_name: &str) -> Option<usize> {
-        self.base_graph.edge_meta().get_prop_id(prop_name, false)
+        self.base_graph.edge_visible_temporal_prop_id(prop_name)
     }
 }
 
