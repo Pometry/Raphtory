@@ -53,12 +53,14 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn copy_to(&self, src: &Path, dst: &Path) -> Result<(), StorageError>;
 
-    /// Called after every write and checks memory limits to decide if a flush is needed
+    /// Called after every write and checks memory limits to decide if a flush is needed.
+    /// An error is a flush that ran inline and failed; the write itself is in memory.
     fn persist_node_segment(
         &self,
         head: impl DerefMut<Target = MemNodeSegment>,
         segment: &Self::NS,
-    ) where
+    ) -> Result<(), StorageError>
+    where
         Self: Sized;
 
     /// Called after every write and checks memory limits to decide if a flush is needed
@@ -66,14 +68,16 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         &self,
         head: impl DerefMut<Target = MemEdgeSegment>,
         segment: &Self::ES,
-    ) where
+    ) -> Result<(), StorageError>
+    where
         Self: Sized;
 
     fn persist_graph_prop_segment(
         &self,
         head: impl DerefMut<Target = MemGraphPropSegment>,
         segment: &Self::GS,
-    ) where
+    ) -> Result<(), StorageError>
+    where
         Self: Sized;
 
     fn persist_node_type_index(
@@ -214,24 +218,24 @@ impl PersistenceStrategy for NoOpStrategy {
         &self,
         _head: impl DerefMut<Target = MemNodeSegment>,
         _segment: &Self::NS,
-    ) {
-        // No operation
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 
     fn persist_edge_segment(
         &self,
         _head: impl DerefMut<Target = MemEdgeSegment>,
         _segment: &Self::ES,
-    ) {
-        // No operation
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 
     fn persist_graph_prop_segment(
         &self,
         _head: impl DerefMut<Target = MemGraphPropSegment>,
         _segment: &Self::GS,
-    ) {
-        // No operation
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 
     fn persist_node_type_index(

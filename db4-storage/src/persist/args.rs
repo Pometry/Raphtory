@@ -162,7 +162,16 @@ impl ArgsOps for BaseArgs {
     type Config = BaseConfig;
 
     fn merge(&mut self, new_args: Self) -> Result<(), StorageError> {
-        if new_args.max_node_page_len.is_some() || new_args.max_edge_page_len.is_some() {
+        let env = Self::default();
+
+        // page_len values set through the env should always be ignored.
+        let node_len_set = new_args.max_node_page_len.is_some()
+            && new_args.max_node_page_len != env.max_node_page_len;
+
+        let edge_len_set = new_args.max_edge_page_len.is_some()
+            && new_args.max_edge_page_len != env.max_edge_page_len;
+
+        if node_len_set || edge_len_set {
             return Err(StorageError::GenericFailure(
                 "Page sizes cannot be overridden after graph creation".to_string(),
             ));

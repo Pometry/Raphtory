@@ -460,7 +460,7 @@ where
         if type_index_immut_lsn < lsn {
             if let Some((_, node_type_id)) = node_type_and_id {
                 if node_type_id != DEFAULT_NODE_TYPE_ID {
-                    let index_writer = self.node_type_index.writer();
+                    let index_writer = self.node_type_index.writer()?;
                     index_writer.insert(node_type_id, node_id);
                     index_writer.set_lsn(lsn);
                 }
@@ -579,7 +579,7 @@ where
         let type_index_immut_lsn = self.node_type_index.immut_lsn();
 
         if type_index_immut_lsn < lsn && node_type_id != DEFAULT_NODE_TYPE_ID {
-            let index_writer = self.node_type_index.writer();
+            let index_writer = self.node_type_index.writer()?;
             index_writer.insert(node_type_id, vid);
             index_writer.set_lsn(lsn);
         }

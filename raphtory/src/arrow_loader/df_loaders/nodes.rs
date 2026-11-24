@@ -288,7 +288,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             if resolve_nodes && !gid_str_cache.is_empty() {
                 let index = &mut write_locked_graph.node_type_index;
-                let writer = index.writer();
+                let writer = index.writer()?;
 
                 populate_node_type_index(
                     gid_str_cache
@@ -489,7 +489,7 @@ pub fn load_node_props_from_df<
 
         if pre_resolved && !node_col_resolved.is_empty() {
             let index = &mut write_locked_graph.node_type_index;
-            let writer = index.writer();
+            let writer = index.writer()?;
 
             populate_node_type_index(
                 node_col_resolved

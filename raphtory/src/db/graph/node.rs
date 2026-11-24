@@ -249,6 +249,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
+        if !self.graph.node_shows_temporal_prop(id) {
+            return None;
+        }
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         semantics
@@ -257,6 +260,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
+        if !self.graph.node_shows_temporal_prop(id) {
+            return std::iter::empty().into_dyn_boxed();
+        }
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
@@ -268,6 +274,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
     }
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
+        if !self.graph.node_shows_temporal_prop(id) {
+            return std::iter::empty().into_dyn_boxed();
+        }
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
@@ -279,6 +288,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
     }
 
     fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
+        if !self.graph.node_shows_temporal_prop(id) {
+            return None;
+        }
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         semantics
@@ -340,6 +352,9 @@ impl<'graph, G: CoreGraphOps + NodePropertySchemaOps> InternalMetadataOps for No
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
+        if !self.graph.node_shows_metadata(id) {
+            return None;
+        }
         self.graph.node_metadata(self.node, id)
     }
 }

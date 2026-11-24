@@ -679,6 +679,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             })
     }
 
+    pub fn free_segments(&self) -> &FreeSegmentSlots {
+        &self.free_segments
+    }
+
     /// Returns an iterator over the segments of the edge store, where each segment is
     /// a tuple of the segment index and an iterator over the entries in that segment.
     pub fn segmented_par_iter(

@@ -1,9 +1,20 @@
 #[cfg(test)]
 mod tests {
     use raphtory::{
-        db::graph::{graph::Graph, views::property_redacted_graph::*},
+        algorithms::{
+            metrics::balance::balance, pathing::dijkstra::dijkstra_single_source_shortest_paths,
+        },
+        db::{
+            api::view::Filter,
+            graph::{
+                graph::Graph,
+                views::{filter::model::PropertyExprFactory, property_redacted_graph::*},
+            },
+        },
+        errors::GraphError,
         prelude::*,
     };
+    use raphtory_api::core::Direction;
 
     fn make_graph() -> Graph {
         let g = Graph::new();
@@ -280,5 +291,120 @@ mod tests {
             alice.properties().get("region").is_some(),
             "region should still be visible"
         );
+    }
+
+    /// A hidden key answers as a key the graph never had, so a filter cannot test its values.
+    #[test]
+    fn test_filter_reads_a_hidden_key_as_missing() {
+        let g = make_graph();
+        let view = g.exclude_properties(
+            &PropertyRedaction::default()
+                .with_node_props(["salary"])
+                .with_node_meta(["ssn"])
+                .with_edge_props(["amount"])
+                .with_edge_meta(["ref"]),
+        );
+        assert!(matches!(
+            view.filter(NodeFilter.property("salary").gt(0i64)),
+            Err(GraphError::PropertyMissingError(_))
+        ));
+        assert!(matches!(
+            view.filter(NodeFilter.metadata("ssn").eq("123-45-6789")),
+            Err(GraphError::MetadataMissingError(_))
+        ));
+        assert!(matches!(
+            view.filter(EdgeFilter.property("amount").gt(0i64)),
+            Err(GraphError::PropertyMissingError(_))
+        ));
+        assert!(matches!(
+            view.filter(EdgeFilter.metadata("ref").eq("REF001")),
+            Err(GraphError::MetadataMissingError(_))
+        ));
+        let visible = view
+            .filter(NodeFilter.property("region").eq("us-west"))
+            .unwrap();
+        assert_eq!(visible.count_nodes(), 1);
+        // The id lookups on `Nodes` and `Edges` hide the same keys.
+        assert_eq!(view.nodes().get_temporal_prop_id("salary"), None);
+        assert_eq!(view.nodes().get_metadata_id("ssn"), None);
+        assert_eq!(view.edges().get_temporal_prop_id("amount"), None);
+        assert_eq!(view.edges().get_metadata_id("ref"), None);
+        assert!(view.nodes().get_temporal_prop_id("region").is_some());
+    }
+
+    /// A materialised view does not carry the hidden keys in its schema, only without values.
+    #[test]
+    fn test_materialize_drops_hidden_keys_from_the_schema() {
+        use raphtory::db::api::view::internal::CoreGraphOps;
+        let g = make_graph();
+        let redaction = PropertyRedaction::default()
+            .with_node_props(["salary"])
+            .with_node_meta(["ssn"])
+            .with_edge_props(["amount"])
+            .with_edge_meta(["ref"]);
+        let m = g.exclude_properties(&redaction).materialize().unwrap();
+        assert_eq!(m.node_meta().get_prop_id("salary", false), None);
+        assert_eq!(m.node_meta().get_prop_id("ssn", true), None);
+        assert_eq!(m.edge_meta().get_prop_id("amount", false), None);
+        assert_eq!(m.edge_meta().get_prop_id("ref", true), None);
+        assert!(m.node_meta().get_prop_id("region", false).is_some());
+        // nothing hidden: the schema is carried over as it was
+        let whole = g.materialize().unwrap();
+        assert_eq!(
+            whole.node_meta().get_prop_id("salary", false),
+            g.node_meta().get_prop_id("salary", false)
+        );
+    }
+
+    /// An id taken from the unredacted graph reads as nothing through the view.
+    #[test]
+    fn test_a_hidden_id_reads_as_nothing() {
+        use raphtory::db::api::view::internal::CoreGraphOps;
+        let g = make_graph();
+        let view = g.exclude_properties(
+            &PropertyRedaction::default()
+                .with_node_props(["salary"])
+                .with_node_meta(["ssn"])
+                .with_edge_props(["amount"])
+                .with_edge_meta(["ref"]),
+        );
+        let salary = g.node_meta().get_prop_id("salary", false).unwrap();
+        let region = g.node_meta().get_prop_id("region", false).unwrap();
+        let ssn = g.node_meta().get_prop_id("ssn", true).unwrap();
+        let amount = g.edge_meta().get_prop_id("amount", false).unwrap();
+        let reference = g.edge_meta().get_prop_id("ref", true).unwrap();
+
+        let alice = view.node("alice").unwrap();
+        let temporal = alice.properties().temporal();
+        assert_eq!(temporal.get_by_id(salary).and_then(|p| p.latest()), None);
+        assert!(temporal.get_by_id(salary).unwrap().iter().next().is_none());
+        assert!(temporal
+            .get_by_id(region)
+            .and_then(|p| p.latest())
+            .is_some());
+        assert_eq!(alice.metadata().get_by_id(ssn), None);
+
+        let edge = view.edge("alice", "bob").unwrap();
+        let temporal = edge.properties().temporal();
+        assert_eq!(temporal.get_by_id(amount).and_then(|p| p.latest()), None);
+        assert_eq!(edge.metadata().get_by_id(reference), None);
+    }
+
+    #[test]
+    fn test_algorithms_read_a_hidden_edge_property_as_missing() {
+        let g = make_graph();
+        let view = g.exclude_properties(&PropertyRedaction::default().with_edge_props(["amount"]));
+        assert!(balance(&view, "amount".to_string(), Direction::BOTH).is_err());
+        assert!(matches!(
+            dijkstra_single_source_shortest_paths(
+                &view,
+                "alice",
+                vec!["bob"],
+                Some("amount"),
+                Direction::OUT,
+                None,
+            ),
+            Err(GraphError::PropertyMissingError(_))
+        ));
     }
 }

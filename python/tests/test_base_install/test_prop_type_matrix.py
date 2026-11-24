@@ -130,8 +130,8 @@ def test_comparison_is_exact_beyond_float53():
 
 
 def test_bool_ordering_and_membership():
-    """Bools support the full operator set (`False < True`); comparing a bool against numbers via
-    `is_in` simply doesn't match (mirroring `is_in([1, 2]) == 0`)."""
+    """Bools support the full operator set (`False < True`); a number is refused as a member of
+    an `is_in` set, as it is by `==`."""
     g = Graph()
     for name, v in [("t1", True), ("t2", True), ("f1", False)]:
         g.add_node(0, name, properties={"active": Prop.bool(v)})
@@ -145,10 +145,13 @@ def test_bool_ordering_and_membership():
     assert g.filter(active > False).count_nodes() == 2
     assert g.filter(active >= False).count_nodes() == 3
     assert g.filter(active <= False).count_nodes() == 1
-    # NOTE (for team discussion): asymmetry — `active == 1` *raises* (bool is its own comparison
-    # family, see test_comparison_works_within_family_and_errors_across), but `is_in` with numbers
-    # silently returns no match instead of raising. Left as-is pending a decision on which wins.
-    assert g.filter(active.is_in([1, 2])).count_nodes() == 0
+    # a number is refused as a set member, as `active == 1` is (bool is its own comparison
+    # family, see test_comparison_works_within_family_and_errors_across)
+    for expr in (active.is_in([1, 2]), active.is_in([True, 1]), ~active.is_in([1])):
+        with pytest.raises(
+            Exception, match="value 1 of type I64 cannot be compared with Bool"
+        ):
+            g.filter(expr)
     assert g.filter(active.is_some()).count_nodes() == 3
     assert g.filter(active.is_none()).count_nodes() == 0
 

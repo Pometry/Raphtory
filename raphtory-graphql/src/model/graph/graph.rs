@@ -18,7 +18,7 @@ use crate::{
         schema::graph_schema::GraphSchema,
     },
     paths::{UnlockedGraphFolder, ValidGraphPaths},
-    rayon::blocking_compute,
+    rayon::{blocking_compute, blocking_write},
     GQLError,
 };
 use async_graphql::Context;
@@ -88,6 +88,15 @@ impl GqlGraph {
     /// The served graph's plugin data; views derived from it share it.
     pub fn plugin_data(&self) -> &PluginData {
         &self.plugin_data
+    }
+
+    /// Whether an access policy limits what the caller reads of this graph (a row filter or
+    /// hidden properties), as opposed to views the caller applied.
+    pub fn access_restricted(&self, ctx: &Context<'_>) -> Result<bool, GQLError> {
+        match ctx.data_unchecked::<Data>().auth_policy.as_ref() {
+            None => Ok(false),
+            Some(policy) => Ok(!policy.full_read(ctx, self.path.local_path())?),
+        }
     }
 
     fn apply<F, G>(&self, graph_operation: F) -> Self
@@ -704,16 +713,20 @@ impl GqlGraph {
         let data = ctx.data_unchecked::<Data>();
         let other_g = data
             .get_graph_with_write_permission(ctx, path.as_ref())
-            .await?
-            .graph()
-            .clone();
+            .await?;
         let g = self.graph.clone();
-        blocking_compute(move || {
-            other_g.import_nodes(g.nodes(), true)?;
-            other_g.import_edges(g.edges(), true)?;
-            Ok(true)
+        // A write: on the compute pool a reader of `other_g` can pick this job up while it holds
+        // the segment read locks the import needs, and never release them.
+        blocking_write(move || {
+            // dirty before the import, so what a failed import did write is persisted too
+            other_g.set_dirty(true);
+            other_g.graph().import_nodes(g.nodes(), true)?;
+            other_g.graph().import_edges(g.edges(), true)?;
+            Ok::<_, raphtory::errors::GraphError>(())
         })
-        .await?
+        .await??;
+        data.notify_graph_mutated(&path);
+        Ok(true)
     }
 
     /// Returns a filtered view of the graph. Applies a mixed node/edge filter

@@ -42,7 +42,7 @@ where
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
 
-    fn notify_write(&self, head: &mut RwLockWriteGuard<'_, MemGraphPropSegment>);
+    fn notify_write(&self, head: &mut RwLockWriteGuard<'_, MemGraphPropSegment>) -> Result<(), StorageError>;
 
     fn flush(&self) -> Result<(), StorageError> {
         let head = self.head_mut();

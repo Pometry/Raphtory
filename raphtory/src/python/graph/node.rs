@@ -5,7 +5,7 @@ use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            properties::{Metadata, Properties},
+            properties::{internal::NodePropertySchemaOps, Metadata, Properties},
             state::{
                 ops,
                 ops::{
@@ -748,8 +748,14 @@ impl PyNodes {
         convert_datetime: bool,
     ) -> PyResult<Py<PyAny>> {
         let mut column_names = vec![String::from("name"), String::from("type")];
-        let meta = self.nodes.graph().node_meta();
-        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
+        // the ids the view shows, so a key it hides gets no column
+        let graph = self.nodes.graph();
+        let is_prop_both_temp_and_const = get_column_names_from_props(
+            &mut column_names,
+            graph.node_meta(),
+            graph.node_visible_temporal_prop_ids(),
+            graph.node_visible_metadata_ids(),
+        );
 
         let node_tuples: Vec<_> = self
             .nodes

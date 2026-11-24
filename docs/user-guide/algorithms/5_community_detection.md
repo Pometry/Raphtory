@@ -110,7 +110,9 @@ To do this assign a type to nodes of each cluster and start the Raphtory server.
 labels = {0:'Cobra Kai',1:'Miyagi-Do',2:'Polarslaget',3:'Redentores'}
 for node, cluster in clustering.items():
     G.node(node).set_node_type(labels[cluster["community_id"]])
+```
 
+```{.python notest}
 # Start a Raphtory server and send the karate graph
 server = graphql.GraphServer(".idea/my-test/graphs")
 client = server.start().get_client()
@@ -121,6 +123,13 @@ client.send_graph("cluster-graph", G, overwrite=True)
 ///
 
 ```{.python continuation hide}
+# Tested twin of the block above: it stops its server, because a server left
+# running keeps its working directory locked for the rest of the test run.
+import tempfile
+
+with graphql.GraphServer(tempfile.mkdtemp()).start() as server:
+    server.get_client().send_graph("cluster-graph", G, overwrite=True)
+
 # One node type per cluster. Not a hard-coded 4: `louvain` does not always
 # return the same number of communities (see the `>= 3` assertion above), so
 # pinning the count here would fail whenever it returns three.

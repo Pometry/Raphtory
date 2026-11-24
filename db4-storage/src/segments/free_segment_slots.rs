@@ -49,4 +49,8 @@ impl FreeSegmentSlots {
     pub fn num_slots(&self) -> usize {
         self.slots.len()
     }
+
+    pub fn iter_slots(&self) -> impl Iterator<Item = &RwLock<usize>> {
+        self.slots.iter()
+    }
 }

@@ -485,14 +485,14 @@ impl GraphMutationOps for TemporalGraph {
             }
             (MaybeInit::Init(src_init), Some(MaybeInit::VID(dst_id))) => {
                 let (dst_chunk, _) = nodes.resolve_pos(dst_id);
-                let dst_writer = nodes.writer(dst_chunk);
+                let mut dst_writer = nodes.writer(dst_chunk);
                 match nodes.reserve_segment_row(dst_writer.segment) {
                     None => {
                         // existing segment is full, need to get a new one, pass in the existing
                         // writer reference so we don't end up trying to block on it when
                         // potentially evicting it from free segments
                         let (src_pos, src_writer) =
-                            nodes.reserve_and_lock_segment(1, Some(&dst_writer));
+                            nodes.reserve_and_lock_segment(1, Some(&mut dst_writer));
                         let src_id = src_pos.as_vid(
                             src_writer.segment.segment_id(),
                             src_writer.head.max_page_len(),
@@ -530,11 +530,11 @@ impl GraphMutationOps for TemporalGraph {
             }
             (MaybeInit::VID(src_id), Some(MaybeInit::Init(dst_init))) => {
                 let (src_chunk, _) = nodes.resolve_pos(src_id);
-                let src_writer = nodes.writer(src_chunk);
+                let mut src_writer = nodes.writer(src_chunk);
                 match nodes.reserve_segment_row(src_writer.segment) {
                     None => {
                         let (dst_pos, dst_writer) =
-                            nodes.reserve_and_lock_segment(1, Some(&src_writer));
+                            nodes.reserve_and_lock_segment(1, Some(&mut src_writer));
                         let dst_id = dst_pos.as_vid(
                             dst_writer.segment.segment_id(),
                             dst_writer.head.max_page_len(),
@@ -700,7 +700,7 @@ impl GraphMutationOps for TemporalGraph {
     ) -> Result<AtomicAddNode<'_>, MutationError> {
         // Deadlock safety: node type index must be locked before node segments.
         let type_index = self.storage().node_type_index();
-        let type_index_writer = NodeTypeIndexWriterT::new_shared(type_index.as_ref());
+        let type_index_writer = NodeTypeIndexWriterT::new_shared(type_index.as_ref())?;
 
         let node_vid = match node {
             NodeRef::Internal(vid) => vid,

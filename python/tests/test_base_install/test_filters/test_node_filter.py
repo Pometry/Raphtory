@@ -138,26 +138,22 @@ def test_degree_filter_with_float_constants(value):
 
 
 def test_degree_filter_refuses_string_constants():
-    # A string never compares with a degree, even one that spells a number; in
-    # a set it is simply not a member.
+    # A string never compares with a degree, even one that spells a number, alone
+    # or as a member of a set.
     graph = degree_graph_with_add_node_and_add_edge(Graph())
     for op in ("__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"):
         with pytest.raises(TypeError, match="of type Str cannot be compared with U64"):
             getattr(filter.Node.degree(), op)("3")
-    assert_filter(
-        graph,
-        filter.Node.degree().is_in(["3", 4]),
-        "both",
-        lambda d: d == 4,
-        "is_in(string, number)",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree().is_in(["3", "4"]),
-        "both",
-        lambda d: False,
-        "is_in(strings)",
-    )
+    for members in (["3", 4], ["3", "4"]):
+        for expr in (
+            filter.Node.degree().is_in(members),
+            filter.Node.degree().is_not_in(members),
+            ~filter.Node.degree().is_in(members),
+        ):
+            with pytest.raises(
+                Exception, match="value 3 of type Str cannot be compared with U64"
+            ):
+                graph.filter(expr)
 
 
 @pytest.mark.parametrize("value", range(0, 15))

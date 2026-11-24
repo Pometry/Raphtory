@@ -539,20 +539,18 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.segment.try_write()
     }
 
-    fn try_head_mut_arc_for(
-        &self,
-        timeout: std::time::Duration,
-    ) -> Option<ArcRwLockWriteGuard<MemEdgeSegment>> {
-        self.segment.try_write_arc_for(timeout)
-    }
-
     fn set_dirty(&self, _dirty: bool) {}
 
     fn is_dirty(&self) -> bool {
         true
     }
 
-    fn notify_write(&self, _head: impl DerefMut<Target = MemEdgeSegment>) {}
+    fn notify_write(
+        &self,
+        _head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
 
     fn increment_num_edges(&self) -> u32 {
         self.num_edges.fetch_add(1, Ordering::Relaxed)

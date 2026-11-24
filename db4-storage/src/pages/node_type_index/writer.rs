@@ -1,4 +1,7 @@
-use crate::{api::node_type_index::NodeTypeIndexOps, segments::node_type_index::MemNodeTypeIndex};
+use crate::{
+    api::node_type_index::NodeTypeIndexOps, error::StorageError,
+    segments::node_type_index::MemNodeTypeIndex,
+};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::{ArcRwLockReadGuard, core::entities::VID};
 use std::{
@@ -24,10 +27,10 @@ impl<'a, NTI: NodeTypeIndexOps> NodeTypeIndexWriter<'a, ArcRwLockReadGuard<MemNo
     /// Create a new index writer with a shared read lock on the head.
     ///
     /// May flush dirty data to disk before returning a writer.
-    pub fn new_shared(index: &'a NTI) -> Self {
-        index.notify_write(None::<RwLockWriteGuard<'_, MemNodeTypeIndex>>);
+    pub fn new_shared(index: &'a NTI) -> Result<Self, StorageError> {
+        index.notify_write(None::<RwLockWriteGuard<'_, MemNodeTypeIndex>>)?;
         let head = index.head_shared_arc();
-        Self::from_head(head, index)
+        Ok(Self::from_head(head, index))
     }
 }
 
@@ -35,9 +38,12 @@ impl<'a, NTI: NodeTypeIndexOps> NodeTypeIndexWriter<'a, &'a mut MemNodeTypeIndex
     /// Create a new index writer with an exclusive write lock on the head.
     ///
     /// May flush dirty data to disk before returning a writer.
-    pub(crate) fn new_exclusive(head: &'a mut MemNodeTypeIndex, index: &'a NTI) -> Self {
-        index.notify_write(Some(&mut *head));
-        Self::from_head(head, index)
+    pub(crate) fn new_exclusive(
+        head: &'a mut MemNodeTypeIndex,
+        index: &'a NTI,
+    ) -> Result<Self, StorageError> {
+        index.notify_write(Some(&mut *head))?;
+        Ok(Self::from_head(head, index))
     }
 }
 
@@ -101,7 +107,7 @@ mod tests {
             for i in 0..N {
                 let index = Arc::clone(&index);
                 scope.spawn(move || {
-                    let writer = NodeTypeIndexWriter::new_shared(index.as_ref());
+                    let writer = NodeTypeIndexWriter::new_shared(index.as_ref()).unwrap();
                     writer.insert(1, VID(i));
                 });
             }

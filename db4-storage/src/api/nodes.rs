@@ -228,7 +228,10 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
 
-    fn notify_write(&self, head: impl DerefMut<Target = MemNodeSegment>);
+    fn notify_write(
+        &self,
+        head: impl DerefMut<Target = MemNodeSegment>,
+    ) -> Result<(), StorageError>;
 
     fn set_dirty(&self, dirty: bool);
 

@@ -2,6 +2,7 @@ use crate::{
     api::graph_props::GraphPropSegmentOps, error::StorageError,
     segments::graph_prop::segment::MemGraphPropSegment, wal::LSN,
 };
+use drop_logging::drop_error;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::{AsPropEntry, AsPropRef, Prop};
 use raphtory_core::storage::timeindex::AsTime;
@@ -60,6 +61,8 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
 
 impl<GS: GraphPropSegmentOps> Drop for GraphPropWriter<'_, GS> {
     fn drop(&mut self) {
-        self.graph_props.notify_write(&mut self.mem_segment);
+        if let Err(err) = self.graph_props.notify_write(&mut self.mem_segment) {
+            drop_error!("Failed to persist graph props page: {err}")
+        }
     }
 }

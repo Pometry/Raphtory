@@ -21,7 +21,9 @@ impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
     }
 
     /// **Deadlock safety:** node type index must always be locked before node segments.
-    pub fn writer(&mut self) -> NodeTypeIndexWriter<'_, &mut MemNodeTypeIndex, NTI> {
+    pub fn writer(
+        &mut self,
+    ) -> Result<NodeTypeIndexWriter<'_, &mut MemNodeTypeIndex, NTI>, StorageError> {
         NodeTypeIndexWriter::new_exclusive(self.head.deref_mut(), self.index.as_ref())
     }
 

@@ -22,7 +22,6 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
-    time::Duration,
 };
 
 pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
@@ -78,17 +77,15 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
-    fn try_head_mut_arc_for(
-        &self,
-        timeout: Duration,
-    ) -> Option<ArcRwLockWriteGuard<MemEdgeSegment>>;
-
     fn set_dirty(&self, dirty: bool);
 
     fn is_dirty(&self) -> bool;
 
     /// notify that an edge was added (might need to write to disk)
-    fn notify_write(&self, head: impl DerefMut<Target = MemEdgeSegment>);
+    fn notify_write(
+        &self,
+        head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError>;
 
     fn increment_num_edges(&self) -> u32 {
         self.edges_counter()

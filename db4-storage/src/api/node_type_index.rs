@@ -50,7 +50,10 @@ where
 
     /// Called to decide if the index should be flushed to disk.
     /// If `head` is None, may try to acquire an exclusive lock on `head` to flush.
-    fn notify_write(&self, head: Option<impl DerefMut<Target = MemNodeTypeIndex>>);
+    fn notify_write(
+        &self,
+        head: Option<impl DerefMut<Target = MemNodeTypeIndex>>,
+    ) -> Result<(), StorageError>;
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self>;
 

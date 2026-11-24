@@ -99,7 +99,12 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.is_dirty.store(dirty, Ordering::Release);
     }
 
-    fn notify_write(&self, _head: Option<impl DerefMut<Target = MemNodeTypeIndex>>) {}
+    fn notify_write(
+        &self,
+        _head: Option<impl DerefMut<Target = MemNodeTypeIndex>>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
         let head = self.head_exclusive_arc();

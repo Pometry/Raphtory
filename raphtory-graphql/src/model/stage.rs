@@ -3,7 +3,7 @@ use crate::{
     graph::GraphWithVectors,
     model::parse_json_schema,
     paths::ValidGraphPaths,
-    rayon::blocking_write,
+    rayon::{blocking_write, ComputeError},
     GQLError,
 };
 use async_graphql::Context;
@@ -133,9 +133,9 @@ impl GqlStagedGraph {
                 )
                 .map_err(GqlStageError::Graph)
             })
-            .await?;
+            .await??;
 
-            Ok::<(), GqlStageError>(())
+            Ok::<(), GQLError>(())
         }
         .await;
 
@@ -220,9 +220,9 @@ impl GqlStagedGraph {
                 )
                 .map_err(GqlStageError::Graph)
             })
-            .await?;
+            .await??;
 
-            Ok::<(), GqlStageError>(())
+            Ok::<(), GQLError>(())
         }
         .await;
 
@@ -245,7 +245,7 @@ impl GqlStagedGraph {
             .ok_or(GqlStageError::AlreadyFinished)?;
 
         if self.load_failed.load(Ordering::Relaxed) {
-            graph.discard().await.map_err(GqlStageError::Graph)?;
+            graph.discard().await?.map_err(GqlStageError::Graph)?;
 
             return Err(GqlStageError::DiscardedAfterLoadFailure)?;
         }
@@ -281,7 +281,7 @@ impl GqlStagedGraph {
 
             Ok(Arc::new(Mutex::new(Some(staged_graph))))
         })
-        .await?;
+        .await??;
 
         Ok(Self {
             graph,
@@ -307,7 +307,9 @@ impl StagedGraph {
     }
 
     // Finalize the snapshot without promoting it to the active version.
-    pub(crate) async fn finish(self) -> Result<MaterializedGraph, GraphError> {
+    pub(crate) async fn finish(
+        self,
+    ) -> Result<Result<MaterializedGraph, GraphError>, ComputeError> {
         blocking_write(move || {
             // NOTE: We are dropping the source here and decrementing the pin count.
             let Self { stage, .. } = self;
@@ -318,7 +320,7 @@ impl StagedGraph {
         .await
     }
 
-    pub(crate) async fn discard(self) -> Result<(), GraphError> {
+    pub(crate) async fn discard(self) -> Result<Result<(), GraphError>, ComputeError> {
         blocking_write(move || {
             // NOTE: We are dropping the source here and decrementing the pin count.
             let Self { stage, .. } = self;
