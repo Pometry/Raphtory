@@ -46,7 +46,7 @@ type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 ///     api_key_env (str, optional): Environment variable name to read the API key from. If None, reads from `OPENAI_API_KEY`. Defaults to None.
 ///     org_id (str, optional): OpenAI organization id. If None, no org id is sent. Defaults to None.
 ///     project_id (str, optional): OpenAI project id. If None, no project id is sent. Defaults to None.
-///     dim (int, optional): Embedding dimension override. If None, the model's native dimension is used. Defaults to None.
+///     dim (int, optional): Not sent to the API, and does not change the embeddings: their width is the width of the vectors the endpoint returns. Defaults to None.
 #[pyclass(name = "OpenAIEmbeddings", from_py_object)]
 #[derive(Clone)]
 pub struct PyOpenAIEmbeddings {
