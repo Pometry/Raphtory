@@ -409,7 +409,8 @@ class RunningEmbeddingServer(object):
 def embedding_server(function: Callable[[str], list[float]]) -> EmbeddingServer:
     """
     Wrap a Python callable so it can be served as an OpenAI-compatible
-    embedding endpoint via `EmbeddingServer.serve(...)`.
+    embedding endpoint with `EmbeddingServer.start(port)`, which returns a `RunningEmbeddingServer`,
+    or `EmbeddingServer.run(port)`.
 
     Arguments:
         function (Callable[[str], list[float]]): A callable that maps a text input to its embedding vector.
