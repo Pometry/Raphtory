@@ -1305,7 +1305,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     fn get_sort_exprs(
         sort_params: IndexMap<String, Option<String>>,
         schema: &Schema,
-    ) -> Vec<PhysicalSortExpr> {
+    ) -> Result<Vec<PhysicalSortExpr>, GraphError> {
         let sort_exprs: Result<Vec<PhysicalSortExpr>, ArrowError> = sort_params
             .into_iter()
             .map(|(name, sort_opt)| {
@@ -1326,7 +1326,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 })
             })
             .collect();
-        sort_exprs.unwrap()
+        Ok(sort_exprs?)
     }
 
     // NOTE(wyatt): maybe just steal this
@@ -1341,7 +1341,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         }
 
         let sort_exprs: Vec<PhysicalSortExpr> =
-            Self::get_sort_exprs(sort_params, &self.values().schema());
+            Self::get_sort_exprs(sort_params, &self.values().schema())?;
 
         // Build SortField configuration for arrow-row
         let sort_fields: Vec<SortField> = sort_exprs
@@ -1437,7 +1437,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         }
 
         let sort_exprs: Vec<PhysicalSortExpr> =
-            Self::get_sort_exprs(sort_params, &self.values().schema());
+            Self::get_sort_exprs(sort_params, &self.values().schema())?;
 
         // Build a RowConverter that encodes the sort key (handles asc/desc/nulls).
         let sort_fields: Vec<SortField> = sort_exprs
