@@ -401,6 +401,11 @@ pub fn process_parquet_file_to_df(
     batch_size: Option<usize>,
     schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>, GraphError> {
+    if batch_size == Some(0) {
+        return Err(GraphError::InvalidValue {
+            reason: "batch_size must be at least 1".to_string(),
+        });
+    }
     let (names, chunks, num_rows) = read_parquet_file(parquet_file_path, col_names)?;
 
     let names: Vec<String> = names
