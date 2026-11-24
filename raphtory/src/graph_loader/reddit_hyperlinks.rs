@@ -32,13 +32,15 @@
 //! use raphtory::graph_loader::reddit_hyperlinks::reddit_graph;
 //! use raphtory::prelude::*;
 //!
-//! let graph = reddit_graph(120, false);
+//! let graph = reddit_graph(120, false).unwrap();
 //!
 //! println!("The graph has {:?} nodes", graph.count_nodes());
 //! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 
-use crate::{db::api::mutation::AdditionOps, graph_loader::fetch_file, prelude::*};
+use crate::{
+    db::api::mutation::AdditionOps, errors::GraphError, graph_loader::fetch_file, prelude::*,
+};
 use chrono::*;
 use itertools::Itertools;
 use std::{
@@ -91,67 +93,67 @@ where
 ///
 /// Returns:
 ///
-/// * `Graph` - The graph containing the Reddit hyperlinks dataset
-pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
-    let mut g = Graph::new();
-    if let Ok(path) = reddit_file(timeout, Some(test_file)) {
-        g = generate_reddit_graph(path);
-    }
-    g
+/// * `Graph` - The graph containing the Reddit hyperlinks dataset, or an error if the download fails
+pub fn reddit_graph(timeout: u64, test_file: bool) -> Result<Graph, GraphError> {
+    let path = reddit_file(timeout, Some(test_file)).map_err(|err| {
+        GraphError::LoadFailure(format!("could not download the Reddit dataset: {err}"))
+    })?;
+    generate_reddit_graph(path)
 }
 
-pub fn generate_reddit_graph(path: PathBuf) -> Graph {
+/// Load a Reddit hyperlinks file into a graph, or return an error if the file cannot be read
+pub fn generate_reddit_graph(path: PathBuf) -> Result<Graph, GraphError> {
     let g = Graph::new();
-    if let Ok(lines) = read_lines(path.as_path()) {
-        // Consumes the iterator, returns an (Optional) String
-        for reddit in lines.dropping(1).map_while(Result::ok) {
-            let reddit: Vec<&str> = reddit.split('\t').collect();
-            let src_id = &reddit[0];
-            let dst_id = &reddit[1];
-            let post_id = reddit[2].to_string();
+    let lines = read_lines(path.as_path())
+        .map_err(|err| GraphError::LoadFailure(format!("{}: {err}", path.display())))?;
+    // Consumes the iterator, returns an (Optional) String
+    for reddit in lines.dropping(1).map_while(Result::ok) {
+        let reddit: Vec<&str> = reddit.split('\t').collect();
+        let src_id = &reddit[0];
+        let dst_id = &reddit[1];
+        let post_id = reddit[2].to_string();
 
-            match NaiveDateTime::parse_from_str(reddit[3], "%Y-%m-%d %H:%M:%S") {
-                Ok(time) => {
-                    let time = time.and_utc().timestamp_millis();
-                    let post_label: i32 = reddit[4].parse::<i32>().unwrap();
-                    let post_properties: Vec<f64> = reddit[5]
-                        .split(',')
-                        .map(|s| s.parse::<f64>().unwrap())
-                        .collect();
-                    let edge_properties = [
-                        ("post_label".to_string(), Prop::I32(post_label)),
-                        ("post_id".to_string(), Prop::str(post_id)),
-                        ("word_count".to_string(), Prop::F64(post_properties[7])),
-                        ("long_words".to_string(), Prop::F64(post_properties[9])),
-                        ("sentences".to_string(), Prop::F64(post_properties[13])),
-                        ("readability".to_string(), Prop::F64(post_properties[17])),
-                        (
-                            "positive_sentiment".to_string(),
-                            Prop::F64(post_properties[18]),
-                        ),
-                        (
-                            "negative_sentiment".to_string(),
-                            Prop::F64(post_properties[19]),
-                        ),
-                        (
-                            "compound_sentiment".to_string(),
-                            Prop::F64(post_properties[20]),
-                        ),
-                    ];
-                    g.add_node(time, *src_id, NO_PROPS, None, None)
-                        .map_err(|err| error!("{:?}", err))
-                        .ok();
-                    g.add_node(time, *dst_id, NO_PROPS, None, None)
-                        .map_err(|err| error!("{:?}", err))
-                        .ok();
-                    g.add_edge(time, *src_id, *dst_id, edge_properties, None)
-                        .expect("Error: Unable to add edge");
-                }
-                Err(e) => {
-                    error!("{}", e)
-                }
+        match NaiveDateTime::parse_from_str(reddit[3], "%Y-%m-%d %H:%M:%S") {
+            Ok(time) => {
+                let time = time.and_utc().timestamp_millis();
+                let post_label: i32 = reddit[4].parse::<i32>().unwrap();
+                let post_properties: Vec<f64> = reddit[5]
+                    .split(',')
+                    .map(|s| s.parse::<f64>().unwrap())
+                    .collect();
+                let edge_properties = [
+                    ("post_label".to_string(), Prop::I32(post_label)),
+                    ("post_id".to_string(), Prop::str(post_id)),
+                    ("word_count".to_string(), Prop::F64(post_properties[7])),
+                    ("long_words".to_string(), Prop::F64(post_properties[9])),
+                    ("sentences".to_string(), Prop::F64(post_properties[13])),
+                    ("readability".to_string(), Prop::F64(post_properties[17])),
+                    (
+                        "positive_sentiment".to_string(),
+                        Prop::F64(post_properties[18]),
+                    ),
+                    (
+                        "negative_sentiment".to_string(),
+                        Prop::F64(post_properties[19]),
+                    ),
+                    (
+                        "compound_sentiment".to_string(),
+                        Prop::F64(post_properties[20]),
+                    ),
+                ];
+                g.add_node(time, *src_id, NO_PROPS, None, None)
+                    .map_err(|err| error!("{:?}", err))
+                    .ok();
+                g.add_node(time, *dst_id, NO_PROPS, None, None)
+                    .map_err(|err| error!("{:?}", err))
+                    .ok();
+                g.add_edge(time, *src_id, *dst_id, edge_properties, None)
+                    .expect("Error: Unable to add edge");
+            }
+            Err(e) => {
+                error!("{}", e)
             }
         }
     }
-    g
+    Ok(g)
 }
