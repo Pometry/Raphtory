@@ -17,12 +17,14 @@ use arrow::{
     datatypes::{DataType, FieldRef, Fields},
     error::ArrowError,
 };
+use either::Either;
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
 use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
     collections::HashMap,
     fs,
     fs::File,
+    iter,
     ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
@@ -177,14 +179,15 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
     let all_df_view = get_parquet_file_paths(parquet_path)?
         .into_iter()
         .flat_map(|file| {
-            let df_view = process_parquet_file_to_df(
+            match process_parquet_file_to_df(
                 file.as_path(),
                 Some(&cols_to_check),
                 batch_size,
                 schema.clone(),
-            )
-            .expect("Failed to process Parquet file");
-            df_view.chunks
+            ) {
+                Ok(df_view) => Either::Left(df_view.chunks),
+                Err(err) => Either::Right(iter::once(Err(err))),
+            }
         });
 
     let df_view = DFView {
