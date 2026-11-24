@@ -232,8 +232,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     ///    not already selected) are marked as candidates.
     /// 2. Those candidates are added to the selection in ascending distance from `query`.
     ///
-    /// This loops goes on until the number of new entities reaches a total of `limit`
-    /// entities or until no more documents are available
+    /// This loop goes on until the number of new entities reaches a total of `limit`
+    /// entities or until no more documents are available.
     ///
     /// Args:
     ///   query (str | list): the text or the embedding to calculate the distance from

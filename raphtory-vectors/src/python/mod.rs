@@ -590,8 +590,8 @@ impl PyVectorSelection {
     ///    not already selected) are marked as candidates.
     /// 2. Those candidates are added to the selection in ascending distance from `query`.
     ///
-    /// This loops goes on until the number of new entities reaches a total of `limit`
-    /// entities or until no more documents are available
+    /// This loop goes on until the number of new entities reaches a total of `limit`
+    /// entities or until no more documents are available.
     ///
     /// Args:
     ///   query (str | list): The text or the embedding to calculate the distance from.
@@ -619,7 +619,7 @@ impl PyVectorSelection {
 
     /// Add to the selection the `limit` adjacent nodes closest to `query`
     ///
-    /// This function has the same behaviour as expand_entities_by_similarity but it only considers nodes.
+    /// This function has the same behaviour as `expand_entities_by_similarity()` but it only considers nodes.
     ///
     /// Args:
     ///   query (str | list): The text or the embedding to calculate the distance from.
@@ -646,7 +646,7 @@ impl PyVectorSelection {
 
     /// Add to the selection the `limit` adjacent edges closest to `query`
     ///
-    /// This function has the same behaviour as expand_entities_by_similarity but it only considers edges.
+    /// This function has the same behaviour as `expand_entities_by_similarity()` but it only considers edges.
     ///
     /// Args:
     ///   query (str | list): The text or the embedding to calculate the distance from.
