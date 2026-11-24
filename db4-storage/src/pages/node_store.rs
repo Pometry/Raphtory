@@ -847,7 +847,9 @@ mod test {
         let (sender_2_main, receiver_2_main) = mpsc::channel();
 
         thread::spawn(move || {
-            let config = BaseConfig::default().with_max_node_page_len(2).with_max_edge_page_len(1);
+            let config = BaseConfig::default()
+                .with_max_node_page_len(2)
+                .with_max_edge_page_len(1);
             let ext = Extension::new(None, config).unwrap();
             let graph = Layer::new(None, ext).unwrap();
 

@@ -7,7 +7,9 @@ use raphtory_api::core::entities::GID;
 use std::sync::atomic::Ordering;
 
 fn new_graph() -> Layer<Extension> {
-    let config = BaseConfig::default().with_max_node_page_len(10).with_max_edge_page_len(10);
+    let config = BaseConfig::default()
+        .with_max_node_page_len(10)
+        .with_max_edge_page_len(10);
     Layer::new(None, Extension::new(None, config).unwrap()).unwrap()
 }
 
