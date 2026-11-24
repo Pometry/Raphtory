@@ -545,7 +545,7 @@ impl PyVectorSelection {
     /// Documents added by this call are assumed to have a distance of 0.
     ///
     /// Args:
-    ///   edges (list):  List of the edge ids or edges to add.
+    ///   edges (list[Tuple[NodeInput, NodeInput]]): List of `(src, dst)` pairs naming the edges to add.
     ///
     /// Returns:
     ///     None:

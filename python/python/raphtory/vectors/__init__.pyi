@@ -167,14 +167,14 @@ class VectorSelection(object):
     with the expand methods.
     """
 
-    def add_edges(self, edges: list) -> None:
+    def add_edges(self, edges: list[Tuple[NodeInput, NodeInput]]) -> None:
         """
         Add all the documents associated with the specified `edges` to the current selection.
 
         Documents added by this call are assumed to have a distance of 0.
 
         Args:
-          edges (list):  List of the edge ids or edges to add.
+          edges (list[Tuple[NodeInput, NodeInput]]): List of `(src, dst)` pairs naming the edges to add.
 
         Returns:
             None:
