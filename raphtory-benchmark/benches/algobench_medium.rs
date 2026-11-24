@@ -330,7 +330,7 @@ pub fn graphgen_fast_rp(c: &mut Criterion) {
         5,
         10,
         medium_random_attachment_graph,
-        |graph, _| fast_rp(graph, 32, 0.5, vec![1.0, 1.0, 1.0], Some(1), None),
+        |graph, _| fast_rp(graph, 32, 0.5, vec![1.0, 1.0, 1.0], Some(1), None).unwrap(),
     );
 }
 

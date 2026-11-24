@@ -4,7 +4,10 @@ use crate::db::api::{
     view::BoxedLIter,
 };
 use raphtory_api::{
-    core::{entities::LayerId, storage::arc_str::ArcStr},
+    core::{
+        entities::{properties::prop::PropType, LayerId},
+        storage::arc_str::ArcStr,
+    },
     iter::IntoDynBoxed,
 };
 
@@ -18,6 +21,11 @@ impl NodePropertySchemaOps for GraphStorage {
     fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.node_meta().temporal_prop_mapper().get_id(name)
     }
+    fn node_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.node_meta()
+            .temporal_prop_mapper()
+            .get_id_and_dtype(name)
+    }
     fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
         Some(self.node_meta().temporal_prop_mapper().get_name(id).clone())
     }
@@ -27,6 +35,9 @@ impl NodePropertySchemaOps for GraphStorage {
     fn node_visible_metadata_id(&self, name: &str) -> Option<usize> {
         self.node_meta().metadata_mapper().get_id(name)
     }
+    fn node_visible_metadata_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.node_meta().metadata_mapper().get_id_and_dtype(name)
+    }
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         Some(self.node_meta().metadata_mapper().get_name(id).clone())
     }
@@ -35,6 +46,12 @@ impl NodePropertySchemaOps for GraphStorage {
     }
     fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
         self.node_metadata_presence().has(layer_id, prop_id)
+    }
+    fn node_shows_temporal_prop(&self, _prop_id: usize) -> bool {
+        true
+    }
+    fn node_shows_metadata(&self, _prop_id: usize) -> bool {
+        true
     }
 }
 
@@ -47,6 +64,11 @@ impl EdgePropertySchemaOps for GraphStorage {
     }
     fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.edge_meta().temporal_prop_mapper().get_id(name)
+    }
+    fn edge_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.edge_meta()
+            .temporal_prop_mapper()
+            .get_id_and_dtype(name)
     }
     fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
         Some(self.edge_meta().temporal_prop_mapper().get_name(id).clone())
@@ -65,5 +87,11 @@ impl EdgePropertySchemaOps for GraphStorage {
     }
     fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
         self.edge_metadata_presence().has(layer_id, prop_id)
+    }
+    fn edge_shows_temporal_prop(&self, _prop_id: usize) -> bool {
+        true
+    }
+    fn edge_shows_metadata(&self, _prop_id: usize) -> bool {
+        true
     }
 }

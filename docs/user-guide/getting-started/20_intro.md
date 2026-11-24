@@ -107,12 +107,21 @@ To start the Raphtory UI you need to:
 3. Send the relevant graphs to this client (in this case you only have one graph available).
 
 /// tab | :fontawesome-brands-python: Python
-```{.python continuation}
+```{.python notest}
 server = graphql.GraphServer(".idea/my-test/graphs")
 client = server.start().get_client()
 client.send_graph("OBS-graph", g, overwrite=True)
 ```
 ///
+
+```{.python continuation hide}
+# Tested twin of the block above: it stops its server, because a server left
+# running keeps its working directory locked for the rest of the test run.
+import tempfile
+
+with graphql.GraphServer(tempfile.mkdtemp()).start() as server:
+    server.get_client().send_graph("OBS-graph", g, overwrite=True)
+```
 
 This will start the UI locally on the default port `1736`, you should see **Search** page by default.
 

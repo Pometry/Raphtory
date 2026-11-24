@@ -314,9 +314,9 @@ pub fn dijkstra_single_source_shortest_paths<'a, G: StaticGraphViewOps, T: AsNod
             },
         },
         Some(weight_prop) => {
+            // Resolved through the view so a property the view hides reads as missing.
             let (weight_prop_id, dtype) = g
-                .edge_meta()
-                .get_prop_id_and_type(weight_prop, false)
+                .edge_visible_temporal_prop_id_and_type(weight_prop)
                 .ok_or_else(|| GraphError::PropertyMissingError(weight_prop.to_string()))?;
             match dtype {
                 PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {

@@ -200,6 +200,7 @@ mod fast_rp_test {
         ]);
         test_storage!(&graph, |graph| {
             let results = fast_rp(graph, 16, 1.0, vec![1.0, 1.0], Some(42), None)
+                .unwrap()
                 .to_hashmap(|value| value.embedding_state);
             assert_eq!(results, baseline);
         });
