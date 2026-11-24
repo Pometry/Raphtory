@@ -4,17 +4,14 @@ use crate::{
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::{ArcRwLockReadGuard, core::entities::VID};
-use std::{
-    ops::Deref,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct NodeTypeIndexWriter<'a, M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps> {
     head: M,
     index: &'a NTI,
     /// Bytes added to `head` by this writer.
-    est_size_delta: AtomicUsize,
+    est_size_delta: usize,
 }
 
 // NOTE:
@@ -50,17 +47,17 @@ impl<'a, NTI: NodeTypeIndexOps> NodeTypeIndexWriter<'a, &'a mut MemNodeTypeIndex
 impl<'a, M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps>
     NodeTypeIndexWriter<'a, M, NTI>
 {
-    pub fn insert(&self, type_id: usize, vid: VID) {
+    pub fn insert(&mut self, type_id: usize, vid: VID) {
         let delta = self.head.insert(type_id, vid);
-        self.est_size_delta.fetch_add(delta, Ordering::Relaxed);
+        self.est_size_delta += delta;
     }
 
-    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
+    pub fn insert_batch(&mut self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
         let delta = self.head.insert_batch(type_id, vids);
-        self.est_size_delta.fetch_add(delta, Ordering::Relaxed);
+        self.est_size_delta += delta;
     }
 
-    pub fn set_lsn(&self, lsn: u64) {
+    pub fn set_lsn(&mut self, lsn: u64) {
         self.head.set_lsn(lsn);
     }
 
@@ -68,7 +65,7 @@ impl<'a, M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps>
         Self {
             head,
             index,
-            est_size_delta: AtomicUsize::new(0),
+            est_size_delta: 0,
         }
     }
 }
@@ -77,7 +74,7 @@ impl<M: Deref<Target = MemNodeTypeIndex>, NTI: NodeTypeIndexOps> Drop
     for NodeTypeIndexWriter<'_, M, NTI>
 {
     fn drop(&mut self) {
-        let delta = self.est_size_delta.load(Ordering::Relaxed);
+        let delta = self.est_size_delta;
         self.head.increment_global_memory_tracker(delta);
         self.index.increment_est_size_cached(delta);
         self.index.set_dirty(true);
@@ -107,7 +104,7 @@ mod tests {
             for i in 0..N {
                 let index = Arc::clone(&index);
                 scope.spawn(move || {
-                    let writer = NodeTypeIndexWriter::new_shared(index.as_ref()).unwrap();
+                    let mut writer = NodeTypeIndexWriter::new_shared(index.as_ref()).unwrap();
                     writer.insert(1, VID(i));
                 });
             }

@@ -928,7 +928,7 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
 
 fn populate_node_type_index(
     gid_str_cache: impl IntoIterator<Item = (VID, usize)>,
-    writer: NodeTypeIndexWriter<'_, &mut MemNodeTypeIndex, NTI>,
+    mut writer: NodeTypeIndexWriter<'_, &mut MemNodeTypeIndex, NTI>,
 ) {
     let mut by_type: HashMap<usize, Vec<VID>> = HashMap::new();
 
@@ -941,7 +941,7 @@ fn populate_node_type_index(
         by_type.entry(node_type).or_default().push(vid);
     }
 
-    by_type.par_iter().for_each(|(node_type, vids)| {
+    for (node_type, vids) in &by_type {
         writer.insert_batch(*node_type, vids.iter().copied());
-    });
+    }
 }
