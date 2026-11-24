@@ -845,7 +845,6 @@ mod test {
             let graph = Layer::new(None, ext).unwrap();
 
             let nodes = graph.nodes();
-            let num_slot_segments = nodes.num_segments();
             // fill up all segments
             for segment in nodes.segments_iter() {
                 while nodes.reserve_segment_row(segment).is_some() {}

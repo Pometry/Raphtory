@@ -715,7 +715,7 @@ impl GqlGraph {
             other_g.graph().import_edges(g.edges(), true)?;
             Ok::<_, raphtory::errors::GraphError>(())
         })
-        .await?;
+        .await??;
         data.notify_graph_mutated(&path);
         Ok(true)
     }
