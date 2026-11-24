@@ -33,7 +33,7 @@ use storage::{
 use thiserror::Error;
 
 pub use storage::api::nodes::{
-    casefold, casefold_into, GlobalPropCandidates as NodeGlobalPropCandidates,
+    index_lowercase, index_lowercase_into, GlobalPropCandidates as NodeGlobalPropCandidates,
     PropPredicate as NodePropPredicate, PropSemantics as NodePropSemantics,
 };
 

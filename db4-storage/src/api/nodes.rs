@@ -59,24 +59,32 @@ pub enum PropPredicate<'a> {
     StartsWith(&'a str),
     EndsWith(&'a str),
     Contains(&'a str),
-    /// `casefold(value).contains(&casefold(pattern))`.
+    /// Values that contain the pattern once both are lowercased with [`index_lowercase`].
     ContainsCaseInsensitive(&'a str),
 }
 
-/// The lowercasing case-insensitive predicates compare under. Per character,
-/// unlike `str::to_lowercase`, whose context rules (a final Σ folds to ς) could
-/// fold the same characters differently in a value and in a pattern, so a
-/// pattern found in a value could stop being found once both are folded.
-pub fn casefold(value: &str) -> String {
-    let mut folded = String::with_capacity(value.len());
-    casefold_into(value, &mut folded);
-    folded
+/// The lowercasing case-insensitive predicates compare under: each character
+/// lowercased on its own, with a final sigma (ς) read as σ. Not Unicode case
+/// folding, which also expands characters (ß to ss). It is coarser than
+/// `str::to_lowercase`, which picks ς or σ by context: when a lowercased value
+/// contains a pattern, the value contains the pattern under this too, so an
+/// index answering under it returns a superset of what a lowercasing filter
+/// keeps.
+pub fn index_lowercase(value: &str) -> String {
+    let mut lowered = String::with_capacity(value.len());
+    index_lowercase_into(value, &mut lowered);
+    lowered
 }
 
-/// [`casefold`] into `out`, replacing its contents, to reuse one buffer.
-pub fn casefold_into(value: &str, out: &mut String) {
+/// [`index_lowercase`] into `out`, replacing its contents, to reuse one buffer.
+pub fn index_lowercase_into(value: &str, out: &mut String) {
     out.clear();
-    out.extend(value.chars().flat_map(char::to_lowercase));
+    out.extend(
+        value
+            .chars()
+            .flat_map(char::to_lowercase)
+            .map(|c| if c == 'ς' { 'σ' } else { c }),
+    );
 }
 
 /// Which value(s) of a property a [`PropPredicate`] is asked about. A
@@ -568,5 +576,30 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
             .into()
             .into_iter_with_static(self.internal_num_layers())
             .filter(move |layer| self.has_layer_inner(*layer))
+    }
+}
+
+#[cfg(test)]
+mod index_lowercase_tests {
+    use super::index_lowercase;
+    use proptest::prelude::*;
+
+    #[test]
+    fn final_sigma_lowercases_as_any_sigma() {
+        assert_eq!(index_lowercase("ΟΔΥΣΣΕΥΣ"), "οδυσσευσ");
+        assert_eq!(index_lowercase("ς"), "σ");
+        assert_eq!(index_lowercase("Straße"), "straße");
+    }
+
+    proptest! {
+        #[test]
+        fn index_lowercase_keeps_what_lowercasing_finds(
+            value in "[a-cA-C ßΣσςİi]{0,12}",
+            pattern in "[a-cA-C ßΣσςİi]{0,4}",
+        ) {
+            if value.to_lowercase().contains(&pattern) {
+                prop_assert!(index_lowercase(&value).contains(&index_lowercase(&pattern)));
+            }
+        }
     }
 }
