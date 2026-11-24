@@ -266,6 +266,26 @@ mod sum_weight_test {
             assert_eq!(res, expected);
         });
     }
+
+    #[test]
+    fn errors_name_the_weight_property() {
+        let graph = Graph::new();
+        graph
+            .add_edge(1, "1", "2", [("label", Prop::str("heavy"))], None)
+            .unwrap();
+
+        let not_numeric = balance(&graph, "label".to_string(), Direction::BOTH)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(not_numeric.contains("Edge property label is not numeric"));
+
+        let missing = balance(&graph, "weight".to_string(), Direction::BOTH)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(missing.contains("Edge property weight does not exist"));
+    }
 }
 
 mod degree_test {
