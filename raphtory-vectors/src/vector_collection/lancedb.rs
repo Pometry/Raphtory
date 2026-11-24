@@ -13,8 +13,8 @@ use lancedb::{
         arrow_array::{
             builder::{FixedSizeListBuilder, Float32Builder},
             types::{Float32Type, UInt64Type},
-            Array, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, Float32Array,
-            PrimitiveArray, RecordBatch, RecordBatchIterator, UInt64Array,
+            Array, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, Float32Array, PrimitiveArray,
+            RecordBatch, RecordBatchIterator, UInt64Array,
         },
         arrow_buffer::Buffer,
         arrow_schema::{DataType, Field, Schema},
