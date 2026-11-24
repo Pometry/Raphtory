@@ -154,6 +154,7 @@ pub fn embedding_server(function: Py<PyFunction>) -> PyEmbeddingServer {
 //     server: EmbeddingServer,
 // }
 
+/// A Python callable wrapped by `embedding_server()`, ready to be served with `start()` or `run()`.
 #[pyclass(name = "EmbeddingServer")]
 pub struct PyEmbeddingServer {
     function: Arc<Py<PyFunction>>,
@@ -202,6 +203,7 @@ impl PyEmbeddingServer {
     }
 }
 
+/// An EmbeddingServer running in the background, returned by `start()`; `stop()` ends it.
 #[pyclass(name = "RunningEmbeddingServer")]
 pub struct PyRunningEmbeddingServer {
     runtime: Runtime,
@@ -473,6 +475,8 @@ impl PyVectorisedGraph {
     }
 }
 
+/// A selection of documents from a VectorisedGraph, returned by the similarity searches and grown
+/// with the expand methods.
 #[pyclass(name = "VectorSelection", module = "raphtory.vectors")]
 pub struct PyVectorSelection(DynamicVectorSelection);
 

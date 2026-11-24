@@ -148,6 +148,8 @@ class Document(object):
         """
 
 class Embedding(object):
+    """The embedding vector of a Document."""
+
     def __repr__(self):
         """Return repr(self)."""
 
@@ -160,6 +162,11 @@ class Embedding(object):
         """
 
 class VectorSelection(object):
+    """
+    A selection of documents from a VectorisedGraph, returned by the similarity searches and grown
+    with the expand methods.
+    """
+
     def add_edges(self, edges: list) -> None:
         """
         Add all the documents associated with the specified `edges` to the current selection.
@@ -356,6 +363,8 @@ class VectorCache(object):
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class EmbeddingServer(object):
+    """A Python callable wrapped by `embedding_server()`, ready to be served with `start()` or `run()`."""
+
     def run(self, port: int, host: Optional[str] = None) -> None:
         """
         Run the embedding server in the foreground until it's stopped.
@@ -381,6 +390,8 @@ class EmbeddingServer(object):
         """
 
 class RunningEmbeddingServer(object):
+    """An EmbeddingServer running in the background, returned by `start()`; `stop()` ends it."""
+
     def __enter__(self): ...
     def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
     def stop(self) -> None:
