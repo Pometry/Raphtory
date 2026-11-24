@@ -204,7 +204,11 @@ impl<G: GraphView> InheritLayerOps for PropertyRedactedGraph<G> {}
 // Graph-level temporal properties read by id: a hidden id reads as a property with no values.
 impl<G: GraphView> InternalTemporalPropertyViewOps for PropertyRedactedGraph<G> {
     fn dtype(&self, id: usize) -> PropType {
-        self.graph.dtype(id)
+        if is_visible(&self.redaction.graph_props_visible, id) {
+            self.graph.dtype(id)
+        } else {
+            PropType::Empty
+        }
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
