@@ -62,13 +62,6 @@ pub enum PropPredicate<'a> {
     ContainsCaseInsensitive(&'a str),
 }
 
-/// The lowercasing case-insensitive predicates compare under: each character
-/// lowercased on its own, with a final sigma (ς) read as σ. Not Unicode case
-/// folding, which also expands characters (ß to ss). It is coarser than
-/// `str::to_lowercase`, which picks ς or σ by context: when a lowercased value
-/// contains a pattern, the value contains the pattern under this too, so an
-/// index answering under it returns a superset of what a lowercasing filter
-/// keeps.
 pub fn index_lowercase(value: &str) -> String {
     let mut lowered = String::with_capacity(value.len());
     index_lowercase_into(value, &mut lowered);
