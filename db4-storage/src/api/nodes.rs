@@ -59,7 +59,6 @@ pub enum PropPredicate<'a> {
     StartsWith(&'a str),
     EndsWith(&'a str),
     Contains(&'a str),
-    /// Values that contain the pattern once both are lowercased with [`index_lowercase`].
     ContainsCaseInsensitive(&'a str),
 }
 
