@@ -951,3 +951,12 @@ def test_sort_by_and_top_k_on_an_unknown_column_raise_a_regular_exception():
         result.sort_by({"node": "asc"})
     with pytest.raises(Exception, match="degree_centrality"):
         result.top_k({"node": "asc"}, 1)
+
+
+def test_groups_with_no_columns_raises_a_regular_exception():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+
+    # a regular exception, never a PanicException
+    with pytest.raises(Exception, match="at least one column"):
+        algorithms.hits(g).groups([])

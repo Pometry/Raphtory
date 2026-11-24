@@ -824,6 +824,11 @@ impl<
 
     #[cfg(feature = "datafusion")]
     pub fn get_groups(&self, cols: Vec<String>) -> Result<Vec<(T, Nodes<'graph, G>)>, GraphError> {
+        if cols.is_empty() {
+            return Err(GraphError::InvalidValue {
+                reason: "groups() needs at least one column".to_string(),
+            });
+        }
         let num_rows = self.state.values().num_rows();
         if num_rows == 0 {
             return Ok(vec![]);
