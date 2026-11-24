@@ -214,12 +214,11 @@ def lorenz(observations):
         observations(list): list of observations, should be numeric
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: x and y coordinates for the cdf
+        Tuple[np.ndarray, np.ndarray]: x and y coordinates for the Lorenz curve, from (0, 0) to (1, 1)
     """
     tmp_arr = np.array(sorted(observations))
-    # print(tmp_arr[0])
-    x = np.arange(len(observations)) / (len(observations) - 1)
-    y = tmp_arr.cumsum() / tmp_arr.sum()
+    x = np.arange(len(tmp_arr) + 1) / len(tmp_arr)
+    y = np.concatenate(([0], tmp_arr.cumsum())) / tmp_arr.sum()
     return x, y
 
 
