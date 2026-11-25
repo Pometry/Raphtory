@@ -17,8 +17,8 @@ struct Visitor {
     time: i64,
 }
 
-/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
-/// will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
+/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta >= 0, the projection graph G' pivoting over type B nodes,
+/// will make a connection between distinct nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| <= delta.
 ///
 /// # Arguments
 /// - `graph`: A directed raphtory graph.
@@ -27,11 +27,19 @@ struct Visitor {
 ///
 /// # Returns
 /// Projected (unipartite) temporal graph.
+///
+/// # Errors
+/// [GraphError::InvalidValue] if `delta` is negative.
 pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     graph: &G,
     delta: i64,
     pivot_type: &str,
 ) -> Result<Graph, GraphError> {
+    if delta < 0 {
+        return Err(GraphError::InvalidValue {
+            reason: format!("delta must not be negative, got {delta}"),
+        });
+    }
     let new_graph = Graph::new();
     let nodes = graph.nodes();
     let pivot_type_id = graph
@@ -68,11 +76,11 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(
         let mut start = 0;
         let mut to_process: Vec<Visitor> = vec![];
         for nb in visitors.iter() {
-            while visitors[start].time + delta < nb.time {
+            while visitors[start].time.saturating_add(delta) < nb.time {
                 to_process.remove(0);
                 start += 1
             }
-            for node in &to_process {
+            for node in to_process.iter().filter(|node| node.name != nb.name) {
                 let new_time = average_floor(nb.time, node.time);
                 new_graph.add_edge(new_time, node.name.clone(), nb.name.clone(), NO_PROPS, None)?;
             }
