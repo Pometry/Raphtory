@@ -3,7 +3,7 @@ use crate::{
     persist::config::{BaseConfig, ConfigOps},
 };
 use clap::{
-    ArgAction, Args as ClapArgs, Command,
+    Args as ClapArgs, Command,
     error::{ContextKind, ContextValue},
 };
 use serde::Deserialize;
@@ -83,13 +83,6 @@ pub struct BaseArgs {
 
     #[arg(long, env = "RAPHTORY_MAX_EDGE_PAGE_LEN")]
     max_edge_page_len: Option<u32>,
-
-    /// Use the node type index for queries.
-    ///
-    /// Set to `false` to fall back to a full scan. The index is still maintained.
-    /// Default: `true`.
-    #[arg(long, env = "RAPHTORY_NODE_TYPE_INDEX_ENABLED", action = ArgAction::Set)]
-    node_type_index_enabled: Option<bool>,
 }
 
 impl Default for BaseArgs {
@@ -108,10 +101,6 @@ impl BaseArgs {
         self.max_edge_page_len
     }
 
-    pub fn node_type_index_enabled(&self) -> Option<bool> {
-        self.node_type_index_enabled
-    }
-
     pub fn with_max_node_page_len(mut self, page_len: u32) -> Self {
         self.max_node_page_len = Some(page_len);
         self
@@ -119,11 +108,6 @@ impl BaseArgs {
 
     pub fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
         self.max_edge_page_len = Some(page_len);
-        self
-    }
-
-    pub fn with_node_type_index_enabled(mut self, enabled: bool) -> Self {
-        self.node_type_index_enabled = Some(enabled);
         self
     }
 }
@@ -140,10 +124,6 @@ impl From<BaseArgs> for BaseConfig {
             config = config.with_max_edge_page_len(v);
         }
 
-        if let Some(v) = args.node_type_index_enabled {
-            config = config.with_node_type_index_enabled(v);
-        }
-
         config
     }
 }
@@ -153,7 +133,6 @@ impl From<BaseConfig> for BaseArgs {
         Self {
             max_node_page_len: Some(config.max_node_page_len()),
             max_edge_page_len: Some(config.max_edge_page_len()),
-            node_type_index_enabled: Some(config.node_type_index_enabled()),
         }
     }
 }
@@ -175,10 +154,6 @@ impl ArgsOps for BaseArgs {
             return Err(StorageError::GenericFailure(
                 "Page sizes cannot be overridden after graph creation".to_string(),
             ));
-        }
-
-        if let Some(v) = new_args.node_type_index_enabled {
-            self.node_type_index_enabled = Some(v);
         }
 
         Ok(())

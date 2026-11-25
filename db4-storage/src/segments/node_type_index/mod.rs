@@ -1,10 +1,9 @@
 mod index;
 
 use crate::{
-    api::node_type_index::NodeTypeIndexOps,
-    error::StorageError,
+    api::node_type_index::NodeTypeIndexOps, error::StorageError,
     pages::locked::node_type_index::WriteLockedNodeTypeIndex,
-    persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    persist::strategy::PersistenceStrategy,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard};
@@ -28,7 +27,7 @@ pub struct NodeTypeIndexView<P: PersistenceStrategy> {
     /// Used to get memory usage without acquiring the `head` lock.
     est_size_cached: AtomicUsize,
     is_dirty: AtomicBool,
-    persistence: P,
+    _persistence: P,
 }
 
 impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
@@ -45,7 +44,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
             ))),
             est_size_cached: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
-            persistence: ext,
+            _persistence: ext,
         })
     }
 
@@ -80,7 +79,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     }
 
     fn is_queryable(&self) -> bool {
-        self.persistence.config().node_type_index_enabled() && !self.is_empty()
+        !self.is_empty()
     }
 
     fn est_size_cached(&self) -> usize {

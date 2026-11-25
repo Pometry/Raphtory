@@ -15,7 +15,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use storage::{api::node_type_index::NodeTypeIndexOps, Args};
+use storage::Args;
 
 #[test]
 fn type_filter_domain_uses_index() {
@@ -57,9 +57,8 @@ fn type_filter_domain_uses_index() {
 
 /// Builds the same graph twice, with and without the node type index enabled.
 fn build_graphs() -> (Graph, Graph) {
-    let build = |index_enabled: bool| {
-        let args = Args::default().with_node_type_index_enabled(index_enabled);
-        let g = Graph::new_with_config(args).unwrap();
+    let build = || {
+        let g = Graph::new_with_config(Args::default()).unwrap();
 
         let nodes = [
             ("a", "Person", 1i64),
@@ -91,7 +90,7 @@ fn build_graphs() -> (Graph, Graph) {
         g
     };
 
-    (build(true), build(false))
+    (build(), build())
 }
 
 fn sorted_names<'graph, G: GraphViewOps<'graph>>(g: &G) -> Vec<String> {
@@ -287,28 +286,4 @@ fn type_index_nodes_len_on_filtered_base() {
         assert_eq!(persons.iter().count(), 1);
         assert_eq!(persons.len(), 1);
     }
-}
-
-#[test]
-fn node_type_index_disabled_falls_back_to_scan() {
-    let args = Args::default().with_node_type_index_enabled(false);
-    let g = Graph::new_with_config(args).unwrap();
-    g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
-    g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
-    g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
-
-    let storage = g.core_graph();
-    assert!(!storage.node_type_index().is_empty());
-
-    let op = NodeTypeFilterOp::from_values(["Person"], &g);
-    assert!(
-        matches!(op.domain(storage), NodeList::All),
-        "disabled index should fall back to a full scan"
-    );
-
-    let persons = g.subgraph_node_types(["Person"]);
-    assert!(matches!(persons.node_list(), NodeList::All));
-    assert_eq!(sorted_names(&persons), ["a", "b"]);
-    assert_eq!(persons.count_nodes(), 2);
-    assert_eq!(g.nodes().type_filter(["Person"]).len(), 2);
 }

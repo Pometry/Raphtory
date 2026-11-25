@@ -21,9 +21,7 @@ use raphtory_api::{
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::graph::GraphStorage,
-    mutation::InheritMutationOps,
+    core_ops::CoreGraphOps, graph::graph::GraphStorage, mutation::InheritMutationOps,
     stage::Stageable,
 };
 use std::{

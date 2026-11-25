@@ -29,11 +29,8 @@ use crate::{
 };
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps,
-    graph::graph::GraphStorage,
-    layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps,
-    stage::Stageable,
+    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
+    mutation::InheritMutationOps, stage::Stageable,
 };
 use rayon::prelude::*;
 use std::{

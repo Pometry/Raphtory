@@ -719,8 +719,8 @@ impl GraphMutationOps for TemporalGraph {
 
                     let mut atomic = AtomicAddNode {
                         vid: MaybeNew::New(vid),
-                        node_writer,
                         type_index_writer,
+                        node_writer,
                     };
 
                     atomic.store_node_id(gid.to_owned());
@@ -744,8 +744,8 @@ impl GraphMutationOps for TemporalGraph {
 
         let mut atomic = AtomicAddNode {
             vid: MaybeNew::Existing(node_vid),
-            node_writer,
             type_index_writer,
+            node_writer,
         };
 
         // The node already exists, set or validate the given node type.

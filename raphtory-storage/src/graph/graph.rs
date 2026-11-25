@@ -330,10 +330,9 @@ impl GraphStorage {
     /// Try to get a node that may not be initialised yet
     pub fn try_core_node<'a>(&'a self, vid: VID) -> Option<NodeStorageEntry<'a>> {
         match self {
-            GraphStorage::Locked(storage) => storage
-                .nodes()
-                .try_node_ref(vid)
-                .map(NodeStorageEntry::Mem),
+            GraphStorage::Locked(storage) => {
+                storage.nodes().try_node_ref(vid).map(NodeStorageEntry::Mem)
+            }
             GraphStorage::Unlocked(storage) => storage
                 .storage()
                 .nodes()

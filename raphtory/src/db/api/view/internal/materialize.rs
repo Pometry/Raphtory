@@ -9,9 +9,7 @@ use crate::{
 };
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{
-    graph::graph::GraphStorage,
-    mutation::InheritMutationOps,
-    stage::Stageable,
+    graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stageable,
 };
 use std::ops::Range;
 
