@@ -278,13 +278,13 @@ mod sum_weight_test {
             .err()
             .unwrap()
             .to_string();
-        assert!(not_numeric.contains("Edge property label is not numeric"));
+        assert!(not_numeric.contains("Edge property 'label' is not numeric"));
 
         let missing = balance(&graph, "weight".to_string(), Direction::BOTH)
             .err()
             .unwrap()
             .to_string();
-        assert!(missing.contains("Edge property weight does not exist"));
+        assert!(missing.contains("Edge property 'weight' does not exist"));
     }
 }
 
