@@ -93,11 +93,11 @@ impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
 /// or other vectorisation entry points.
 ///
 /// The cache maps each document text to its embedding. With `cache`, it is stored at that path,
-/// and a later VectorCache on the same path embeds only the texts it does not hold. To use a model
-/// served with `embedding_server()`, pass `OpenAIEmbeddings(api_base="http://localhost:<port>")`.
+/// and a later VectorCache on the same path embeds only the texts it does not hold.
 ///
 /// Arguments:
-///     v_cache (OpenAIEmbeddings): Embedding model configuration.
+///     v_cache (OpenAIEmbeddings): Embedding model configuration. For a model served with
+///         `embedding_server()`, use `OpenAIEmbeddings(api_base="http://localhost:<port>")`.
 ///     cache (str, optional): Path to persist the embedding cache on disk. Defaults to None.
 #[pyclass(name = "VectorCache", from_py_object)]
 #[derive(Clone)]
