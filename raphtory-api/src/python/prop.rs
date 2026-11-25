@@ -696,15 +696,15 @@ impl<'source> FromPyObject<'_, 'source> for PropType {
                 "i64" | "int64" | "int" => Ok(PropType::I64),
                 "i32" | "int32" => Ok(PropType::I32),
                 "u64" | "uint64" => Ok(PropType::U64),
-                "u32" | "uint32" => Ok(PropType::I32),
+                "u32" | "uint32" => Ok(PropType::U32),
                 "u16" | "uint16" => Ok(PropType::U16),
                 "u8" | "uint8" => Ok(PropType::U8),
                 "f64" | "float64" | "float" | "double" => Ok(PropType::F64),
                 "f32" | "float32" => Ok(PropType::F32),
                 "bool" | "boolean" => Ok(PropType::Bool),
                 "str" | "string" | "utf8" => Ok(PropType::Str),
-                "ndtime" | "naivedatetime" | "datetime" => Ok(PropType::NDTime),
-                "dtime" | "datetimetz" => Ok(PropType::DTime),
+                "ndtime" | "naivedatetime" => Ok(PropType::NDTime),
+                "dtime" | "datetimetz" | "datetime" => Ok(PropType::DTime),
                 other => Err(PyTypeError::new_err(format!(
                     "Unknown type name '{other:?}'"
                 ))),
