@@ -7,7 +7,7 @@ use storage::{
 };
 
 /// A fully locked, read-only graph.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReadLockedGraph {
     // Must be locked before nodes.
     node_type_index: Arc<ArcRwLockReadGuard<MemNodeTypeIndex>>,
@@ -52,18 +52,5 @@ impl ReadLockedGraph {
     pub(crate) fn edge_presence(&self) -> &ReadLockedMetaPresence {
         self.edge_presence
             .get_or_init(|| self.graph.edge_meta().read_lock_layer_presence())
-    }
-}
-
-impl Clone for ReadLockedGraph {
-    fn clone(&self) -> Self {
-        ReadLockedGraph {
-            node_type_index: self.node_type_index.clone(),
-            nodes: self.nodes.clone(),
-            edges: self.edges.clone(),
-            node_presence: self.node_presence.clone(),
-            edge_presence: self.edge_presence.clone(),
-            graph: self.graph.clone(),
-        }
     }
 }
