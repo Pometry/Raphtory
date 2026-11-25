@@ -219,6 +219,39 @@ def test_decimal_from_python_decimal_high_precision():
     assert str(p.dtype()) == "Decimal { scale: 24 }"
 
 
+class DecimalFloat(float):
+    pass
+
+
+class DecimalLabel(str):
+    pass
+
+
+class Money(Decimal):
+    pass
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (DecimalFloat(0.5), 0.5),
+        (DecimalLabel("hello"), "hello"),
+        (Money("1.10000000000000000001"), Decimal("1.10000000000000000001")),
+    ],
+)
+def test_decimal_is_detected_by_type_not_name(value, expected):
+    g = Graph()
+    g.add_node(1, "a", properties={"p": value})
+    stored = g.node("a").properties.get("p")
+    assert stored == expected
+    assert type(stored) is type(expected)
+
+
+def test_decimal_from_python_decimal_subclass():
+    p = Prop.decimal(Money("1.10000000000000000001"))
+    assert str(p.dtype()) == "Decimal { scale: 20 }"
+
+
 def test_decimal_from_int():
     p = Prop.decimal(7)
     assert str(p.dtype()) == "Decimal { scale: 0 }"

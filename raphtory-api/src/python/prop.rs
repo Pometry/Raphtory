@@ -385,7 +385,7 @@ impl PyProp {
     ///     Prop:
     #[staticmethod]
     pub fn decimal(value: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let bd = if value.get_type().name()?.contains("Decimal")? {
+        let bd = if value.is_instance(get_decimal_cls(value.py())?)? {
             // decimal.Decimal — go via its str representation for full precision.
             let s = value.str()?.to_cow()?.into_owned();
             BigDecimal::from_str(&s)
@@ -451,7 +451,7 @@ impl<'py> FromPyObject<'_, 'py> for Prop {
             return Ok(Prop::U64(v));
         }
 
-        if ob.get_type().name()?.contains("Decimal")? {
+        if ob.is_instance(get_decimal_cls(ob.py())?)? {
             // this sits before f64, otherwise it will be picked up as f64
             let py_str = &ob.str()?;
             let rs_str = &py_str.to_cow()?;
