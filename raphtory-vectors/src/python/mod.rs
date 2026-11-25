@@ -46,7 +46,6 @@ type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 ///     api_key_env (str, optional): Environment variable name to read the API key from. If None, reads from `OPENAI_API_KEY`. Defaults to None.
 ///     org_id (str, optional): OpenAI organization id. If None, no org id is sent. Defaults to None.
 ///     project_id (str, optional): OpenAI project id. If None, no project id is sent. Defaults to None.
-///     dim (int, optional): Not sent to the API, and does not change the embeddings: their width is the width of the vectors the endpoint returns. Defaults to None.
 #[pyclass(name = "OpenAIEmbeddings", from_py_object)]
 #[derive(Clone)]
 pub struct PyOpenAIEmbeddings {
@@ -55,20 +54,18 @@ pub struct PyOpenAIEmbeddings {
     api_key_env: Option<String>,
     org_id: Option<String>,
     project_id: Option<String>,
-    dim: Option<usize>,
 }
 
 #[pymethods]
 impl PyOpenAIEmbeddings {
     #[new]
-    #[pyo3(signature = (model="text-embedding-3-small", api_base=None, api_key_env=None, org_id=None, project_id=None, dim=None))]
+    #[pyo3(signature = (model="text-embedding-3-small", api_base=None, api_key_env=None, org_id=None, project_id=None))]
     fn new(
         model: &str,
         api_base: Option<String>,
         api_key_env: Option<String>,
         org_id: Option<String>,
         project_id: Option<String>,
-        dim: Option<usize>,
     ) -> Self {
         Self {
             model: model.to_owned(),
@@ -76,7 +73,6 @@ impl PyOpenAIEmbeddings {
             api_key_env,
             org_id,
             project_id,
-            dim,
         }
     }
 }
@@ -88,7 +84,7 @@ impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
             api_key_env: value.api_key_env.clone(),
             org_id: value.org_id.clone(),
             project_id: value.project_id.clone(),
-            dim: value.dim,
+            dim: None,
         }
     }
 }
