@@ -423,8 +423,9 @@ impl GqlAlgorithms {
         #[graphql(desc = "Node ids to compute the coefficient for.")] nodes: Vec<GqlNodeId>,
     ) -> Result<GqlNodeState, GQLError> {
         Ok(self
-            .run(move |graph| local_clustering_coefficient_batch(&graph, nodes).into())
-            .await?)
+            .run(move |graph| local_clustering_coefficient_batch(&graph, nodes))
+            .await??
+            .into())
     }
 
     /// Returns the global clustering coefficient of the graph.

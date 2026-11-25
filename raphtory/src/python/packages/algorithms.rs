@@ -346,6 +346,9 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 ///
 /// Returns:
 ///     OutputNodeState: Mapping of vertices to lcc score
+///
+/// Raises:
+///     Exception: If a node of `v` is not in `graph`.
 #[pyfunction]
 #[pyo3(signature = (graph, v=None))]
 pub fn local_clustering_coefficient_batch(
@@ -357,7 +360,7 @@ pub fn local_clustering_coefficient_batch(
         Some(v) => process_node_param(v)?,
         None => Vec::new(),
     };
-    Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate())
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, v)?.to_output_nodestate())
 }
 
 /// Graph density - measures how dense or sparse a graph is.

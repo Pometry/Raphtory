@@ -439,6 +439,9 @@ def local_clustering_coefficient_batch(
 
     Returns:
         OutputNodeState: Mapping of vertices to lcc score
+
+    Raises:
+        Exception: If a node of `v` is not in `graph`.
     """
 
 def weakly_connected_components(graph: GraphView) -> OutputNodeState:

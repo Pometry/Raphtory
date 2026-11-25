@@ -194,7 +194,7 @@ pub fn graphgen_local_clustering_coefficient_batch(c: &mut Criterion) {
         10,
         large_random_attachment_graph,
         first_node_id,
-        |graph, node_id| local_clustering_coefficient_batch(graph, vec![node_id.clone()]),
+        |graph, node_id| local_clustering_coefficient_batch(graph, vec![node_id.clone()]).unwrap(),
     );
 }
 
