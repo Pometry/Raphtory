@@ -23,17 +23,16 @@ mod test {
     }
 
     #[test]
-    fn new_from_map_skips_a_key_outside_the_view() {
+    fn new_from_map_refuses_a_key_outside_the_view() {
         let g = Graph::new();
         g.add_node(0, "a", NO_PROPS, None, None).unwrap();
         let b = g.add_node(5, "b", NO_PROPS, None, None).unwrap().node;
         let view = g.window(0, 1);
 
         // one value, as many as the view has nodes, but for a node the view hides
-        let state = NodeState::new_from_map(view, HashMap::from([(b, 1.0f64)]), |v| v);
+        let result = NodeState::new_from_map(view, HashMap::from([(b, 1.0f64)]), |v| v);
 
-        assert_eq!(state.len(), 0);
-        assert!(state.get_by_node("a").is_none());
+        assert!(matches!(result, Err(GraphError::NodeMissingError(gid)) if gid == GID::from("b")));
     }
 
     #[test]
