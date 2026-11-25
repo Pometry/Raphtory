@@ -150,11 +150,6 @@ pub fn embedding_server(function: Py<PyFunction>) -> PyEmbeddingServer {
     }
 }
 
-// struct RunningServer {
-//     runtime: Runtime,
-//     server: EmbeddingServer,
-// }
-
 /// A Python callable wrapped by `embedding_server()`, ready to be served with `start()` or `run()`.
 #[pyclass(name = "EmbeddingServer")]
 pub struct PyEmbeddingServer {
