@@ -3,16 +3,22 @@ use crate::{
     vector_collection::{CollectionPath, VectorCollection, VectorCollectionFactory},
     Embedding,
 };
-use arrow_array::{
-    builder::{FixedSizeListBuilder, Float32Builder},
-    types::{Float32Type, UInt64Type},
-    Array, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
-    RecordBatchIterator, UInt64Array,
-};
+use bytes::Bytes;
 use futures_util::TryStreamExt;
 use itertools::Itertools;
+// lancedb pins its own arrow version, which is not the one the rest of raphtory uses, so only go
+// through its re-exports here; see `embedding_from_lance` for the crossing into raphtory's arrow
 use lancedb::{
-    arrow::arrow_schema::{DataType, Field, Schema},
+    arrow::{
+        arrow_array::{
+            builder::{FixedSizeListBuilder, Float32Builder},
+            types::{Float32Type, UInt64Type},
+            Array, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, Float32Array, PrimitiveArray,
+            RecordBatch, RecordBatchIterator, UInt64Array,
+        },
+        arrow_buffer::Buffer,
+        arrow_schema::{DataType, Field, Schema},
+    },
     database::CreateTableMode,
     index::{
         vector::{IvfFlatIndexBuilder, IvfPqIndexBuilder},
@@ -146,7 +152,7 @@ impl VectorCollection for LanceDbCollection {
         if let Some(batch) = batches.first() {
             let array = get_vector_array_from_simple_batch(batch)
                 .ok_or(VectorError::InvalidVectorDbSchema)?;
-            Ok(Some(array.into()))
+            Ok(Some(embedding_from_lance(array)))
         } else {
             Ok(None)
         }
@@ -258,6 +264,26 @@ fn get_vector_array_from_simple_batch(batch: &RecordBatch) -> Option<PrimitiveAr
     let array_list = col.as_any().downcast_ref::<FixedSizeListArray>();
     let array = array_list?.value(0);
     array.as_any().downcast_ref().cloned()
+}
+
+/// Owns a lance arrow buffer for [`Bytes::from_owner`]; arrow only implements
+/// `AsRef<[u8]>` for `&Buffer`.
+struct LanceBuffer(Buffer);
+
+impl AsRef<[u8]> for LanceBuffer {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+/// Moves a lance (arrow 58) array into raphtory's arrow without copying, with `bytes::Bytes` as
+/// the version-independent go-between. Nulls are dropped, the vector column only has null
+/// entries for rows that don't exist.
+fn embedding_from_lance(array: Float32Array) -> Embedding {
+    let (_, values, _) = array.into_parts(); // already sliced to this vector
+    let bytes = Bytes::from_owner(LanceBuffer(values.into_inner()));
+    let values = arrow_buffer::ScalarBuffer::from(arrow_buffer::Buffer::from(bytes));
+    arrow_array::Float32Array::new(values, None).into()
 }
 
 async fn connect(path: &Path) -> lancedb::Result<Connection> {

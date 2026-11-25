@@ -82,4 +82,4 @@ name = "temporal_props"
 harness = false
 
 [features]
-vectors = ["dep:raphtory-vectors"]
+vectors = ["dep:raphtory-vectors", "raphtory-vectors/vectors"]

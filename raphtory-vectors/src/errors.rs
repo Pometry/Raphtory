@@ -35,7 +35,7 @@ pub enum VectorError {
     SerdeError(#[from] serde_json::Error),
 
     #[error(transparent)]
-    ArrowError(#[from] arrow_schema::ArrowError),
+    ArrowError(#[from] lancedb::arrow::arrow_schema::ArrowError),
 
     #[error("The stored template or embedding model differs from the one requested, so only entities missing from the index cannot be added; re-vectorise instead")]
     VectorTemplateChanged,
