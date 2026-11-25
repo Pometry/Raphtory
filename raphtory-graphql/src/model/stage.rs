@@ -14,6 +14,7 @@ use raphtory::{
     db::api::view::{internal::InternalStorageOps, MaterializedGraph},
     errors::GraphError,
     io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
+    prelude::StageOps,
 };
 use raphtory_storage::stage::Stage;
 use std::{
@@ -276,7 +277,6 @@ impl GqlStagedGraph {
 
         let graph = blocking_write(move || -> Result<_, GqlStageError> {
             let stage = source.graph().stage()?;
-
             let staged_graph = StagedGraph { source, stage };
 
             Ok(Arc::new(Mutex::new(Some(staged_graph))))

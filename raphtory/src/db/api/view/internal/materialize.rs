@@ -11,7 +11,7 @@ use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{
     graph::graph::GraphStorage,
     mutation::InheritMutationOps,
-    stage::{Stage, Stageable},
+    stage::Stageable,
 };
 use std::ops::Range;
 
@@ -277,16 +277,5 @@ where
 impl Stageable for MaterializedGraph {
     fn from_storage(src: &Self, storage: GraphStorage) -> Self {
         src.new_base_graph(storage)
-    }
-}
-
-// Stage and version methods.
-impl MaterializedGraph {
-    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
-        Stage::new(self).map_err(GraphError::from)
-    }
-
-    pub fn version(&self) -> Result<u32, GraphError> {
-        for_all!(self, g => g.version())
     }
 }

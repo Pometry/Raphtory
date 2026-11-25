@@ -29,11 +29,11 @@ use crate::{
 };
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    core_ops::InheritCoreGraphOps,
     graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
-    stage::{Stage, Stageable},
+    stage::Stageable,
 };
 use rayon::prelude::*;
 use std::{
@@ -306,32 +306,5 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
 impl Stageable for Graph {
     fn from_storage(_src: &Self, storage: GraphStorage) -> Self {
         storage.into()
-    }
-}
-
-/// Stage and version methods.
-impl Graph {
-    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
-        Stage::new(self).map_err(GraphError::from)
-    }
-
-    pub fn version(&self) -> Result<u32, GraphError> {
-        Ok(self.core_graph().version()?)
-    }
-
-    pub fn src_version(&self) -> Result<Option<u32>, GraphError> {
-        Ok(self.core_graph().src_version()?)
-    }
-
-    pub fn active_version(&self) -> Result<u32, GraphError> {
-        Ok(self.core_graph().active_version()?)
-    }
-
-    pub fn all_versions(&self) -> Result<Vec<u32>, GraphError> {
-        Ok(self.core_graph().all_versions()?)
-    }
-
-    pub fn set_active_version(&self, version: u32) -> Result<(), GraphError> {
-        Ok(self.core_graph().set_active_version(version)?)
     }
 }
