@@ -1791,7 +1791,7 @@ impl Display for Prop {
                         .join(", ")
                 )
             }
-            Prop::Decimal(d) => write!(f, "Decimal({})", d.as_bigint_and_scale().1),
+            Prop::Decimal(d) => write!(f, "{d}"),
         }
     }
 }

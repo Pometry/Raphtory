@@ -45,7 +45,7 @@ def test_list_from_bools():
 def test_list_from_decimals():
     xs = Prop.list([Decimal("1.25"), Decimal("2.50")])
     assert xs.dtype() == PropType.list(PropType.decimal(2))
-    assert repr(xs) == "[Decimal(2), Decimal(2)]"
+    assert repr(xs) == "[1.25, 2.50]"
 
 
 def test_list_empty():
@@ -108,7 +108,7 @@ def test_map_from_decimals():
     assert xs.dtype() == PropType.map(
         {"a": PropType.decimal(2), "b": PropType.decimal(2)}
     )
-    assert_in_all(repr(xs), ['"a": Decimal(2)', '"b": Decimal(2)'])
+    assert_in_all(repr(xs), ['"a": 1.25', '"b": 2.50'])
 
 
 def test_map_empty():
