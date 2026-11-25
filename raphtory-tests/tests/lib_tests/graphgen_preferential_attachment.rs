@@ -10,8 +10,8 @@ mod preferential_attachment_tests {
     fn blank_graph() {
         let graph = Graph::new();
         ba_preferential_attachment(&graph, 1000, 10, None);
-        assert_eq!(graph.count_edges(), 10009);
-        assert_eq!(graph.count_nodes(), 1010);
+        assert_eq!(graph.count_edges(), 10010);
+        assert_eq!(graph.count_nodes(), 1011);
     }
 
     #[test]

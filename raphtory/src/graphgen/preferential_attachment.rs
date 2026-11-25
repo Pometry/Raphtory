@@ -72,9 +72,9 @@ pub fn ba_preferential_attachment(
 
     let mut max_id = next_id(view, ids.iter().max().cloned());
 
-    // two nodes at least, so the chain below adds an edge to sample from
+    // one more node than edges per step, so the chain below adds the edges to sample from
     let initial_nodes = if edges_per_step > 0 {
-        edges_per_step.max(2)
+        edges_per_step + 1
     } else {
         0
     };
