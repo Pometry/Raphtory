@@ -33,8 +33,8 @@ use storage::{
 use thiserror::Error;
 
 pub use storage::api::nodes::{
-    index_lowercase, index_lowercase_into, GlobalPropCandidates as NodeGlobalPropCandidates,
-    PropPredicate as NodePropPredicate, PropSemantics as NodePropSemantics,
+    GlobalPropCandidates as NodeGlobalPropCandidates, PropPredicate as NodePropPredicate,
+    PropSemantics as NodePropSemantics,
 };
 
 #[derive(Clone, Debug)]

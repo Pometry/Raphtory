@@ -1,32 +1,32 @@
 use crate::{
-    LocalPOS,
     error::StorageError,
     generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
     segments::node::segment::MemNodeSegment,
     utils::{Iter3, Iter4},
     wal::LSN,
+    LocalPOS,
 };
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
-    ArcRwLockReadGuard, ArcRwLockWriteGuard,
     core::{
-        Direction,
         entities::{
-            LayerId,
             properties::{
                 meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
-                prop::{Prop, PropRef, PropUnwrap, prop_hashable::HashableProp},
+                prop::{prop_hashable::HashableProp, Prop, PropRef, PropUnwrap},
                 tprop::TPropOps,
             },
+            LayerId,
         },
+        Direction,
     },
     iter::IntoDynBoxed,
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::{EID, GidRef, LayerIds, VID, edges::edge_ref::EdgeRef},
+    entities::{edges::edge_ref::EdgeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::{EventTime, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
@@ -39,8 +39,8 @@ use std::{
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
     sync::{
-        Arc,
         atomic::{AtomicU32, Ordering},
+        Arc,
     },
     time::Duration,
 };
@@ -59,24 +59,10 @@ pub enum PropPredicate<'a> {
     StartsWith(&'a str),
     EndsWith(&'a str),
     Contains(&'a str),
+    /// [`Contains`](Self::Contains) with both sides lowercased per character
+    /// (`char::to_lowercase`, so with no context: a final sigma `ς` folds as
+    /// `σ`), which may keep more than `str::to_lowercase` would.
     ContainsCaseInsensitive(&'a str),
-}
-
-pub fn index_lowercase(value: &str) -> String {
-    let mut lowered = String::with_capacity(value.len());
-    index_lowercase_into(value, &mut lowered);
-    lowered
-}
-
-/// [`index_lowercase`] into `out`, replacing its contents, to reuse one buffer.
-pub fn index_lowercase_into(value: &str, out: &mut String) {
-    out.clear();
-    out.extend(
-        value
-            .chars()
-            .flat_map(char::to_lowercase)
-            .map(|c| if c == 'ς' { 'σ' } else { c }),
-    );
 }
 
 /// Which value(s) of a property a [`PropPredicate`] is asked about. A
@@ -568,30 +554,5 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
             .into()
             .into_iter_with_static(self.internal_num_layers())
             .filter(move |layer| self.has_layer_inner(*layer))
-    }
-}
-
-#[cfg(test)]
-mod index_lowercase_tests {
-    use super::index_lowercase;
-    use proptest::prelude::*;
-
-    #[test]
-    fn final_sigma_lowercases_as_any_sigma() {
-        assert_eq!(index_lowercase("ΟΔΥΣΣΕΥΣ"), "οδυσσευσ");
-        assert_eq!(index_lowercase("ς"), "σ");
-        assert_eq!(index_lowercase("Straße"), "straße");
-    }
-
-    proptest! {
-        #[test]
-        fn index_lowercase_keeps_what_lowercasing_finds(
-            value in "[a-cA-C ßΣσςİi]{0,12}",
-            pattern in "[a-cA-C ßΣσςİi]{0,4}",
-        ) {
-            if value.to_lowercase().contains(&pattern) {
-                prop_assert!(index_lowercase(&value).contains(&index_lowercase(&pattern)));
-            }
-        }
     }
 }
