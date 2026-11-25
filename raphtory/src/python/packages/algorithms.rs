@@ -730,14 +730,17 @@ pub fn min_degree(graph: &PyGraphView) -> usize {
 /// Returns:
 ///     NodeStateNodes: Mapping from end node to shortest path from the source node.
 ///
+/// Raises:
+///     Exception: If `source` is not in `graph`.
+///
 #[pyfunction]
 #[pyo3[signature = (graph, source, cutoff=None)]]
 pub fn single_source_shortest_path(
     graph: &PyGraphView,
     source: PyNodeRef,
     cutoff: Option<usize>,
-) -> OutputTypedNodeState<'static, DynamicGraph> {
-    single_source_shortest_path_rs(&graph.graph, source, cutoff).to_output_nodestate()
+) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
+    Ok(single_source_shortest_path_rs(&graph.graph, source, cutoff)?.to_output_nodestate())
 }
 
 /// Finds the shortest paths from a single source to multiple targets in a graph.

@@ -344,6 +344,9 @@ def single_source_shortest_path(
     Returns:
         NodeStateNodes: Mapping from end node to shortest path from the source node.
 
+    Raises:
+        Exception: If `source` is not in `graph`.
+
     """
 
 def global_clustering_coefficient(graph: GraphView) -> float:

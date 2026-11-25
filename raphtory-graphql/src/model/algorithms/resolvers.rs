@@ -179,8 +179,9 @@ impl GqlAlgorithms {
         cutoff: Option<usize>,
     ) -> Result<GqlNodeState, GQLError> {
         Ok(self
-            .run(move |graph| single_source_shortest_path(&graph, source, cutoff).into())
-            .await?)
+            .run(move |graph| single_source_shortest_path(&graph, source, cutoff))
+            .await??
+            .into())
     }
 
     /// Returns the in component (all nodes that can reach it following out-edges) of every node.
