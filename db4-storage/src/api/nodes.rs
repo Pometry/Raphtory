@@ -1,32 +1,32 @@
 use crate::{
+    LocalPOS,
     error::StorageError,
     generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
     segments::node::segment::MemNodeSegment,
     utils::{Iter3, Iter4},
     wal::LSN,
-    LocalPOS,
 };
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard,
     core::{
+        Direction,
         entities::{
+            LayerId,
             properties::{
                 meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
-                prop::{prop_hashable::HashableProp, Prop, PropRef, PropUnwrap},
+                prop::{Prop, PropRef, PropUnwrap, prop_hashable::HashableProp},
                 tprop::TPropOps,
             },
-            LayerId,
         },
-        Direction,
     },
     iter::IntoDynBoxed,
-    ArcRwLockReadGuard, ArcRwLockWriteGuard,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::{edges::edge_ref::EdgeRef, GidRef, LayerIds, EID, VID},
+    entities::{EID, GidRef, LayerIds, VID, edges::edge_ref::EdgeRef},
     storage::timeindex::{EventTime, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
@@ -39,8 +39,8 @@ use std::{
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicU32, Ordering},
     },
     time::Duration,
 };
@@ -59,9 +59,6 @@ pub enum PropPredicate<'a> {
     StartsWith(&'a str),
     EndsWith(&'a str),
     Contains(&'a str),
-    /// [`Contains`](Self::Contains) with both sides lowercased per character
-    /// (`char::to_lowercase`, so with no context: a final sigma `ς` folds as
-    /// `σ`), which may keep more than `str::to_lowercase` would.
     ContainsCaseInsensitive(&'a str),
 }
 
