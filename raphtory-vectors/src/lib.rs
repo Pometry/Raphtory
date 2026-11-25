@@ -1,3 +1,6 @@
+//! Everything in this crate is behind the non-default `vectors` feature.
+#![cfg(feature = "vectors")]
+
 use arrow_array::Float32Array;
 use raphtory::db::{
     api::view::StaticGraphViewOps,
