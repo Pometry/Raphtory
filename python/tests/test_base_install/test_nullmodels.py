@@ -17,6 +17,7 @@ def test_shuffle_column_keeps_every_value_and_the_dtype():
     assert sorted(shuffled["time"].dropna().tolist()) == [30, 40, 50]
     assert shuffled["time"].isna().sum() == 1
     assert shuffled["time"].dtype == df["time"].dtype
+    assert shuffled["src"].tolist() == df["src"].tolist()
 
 
 def test_shuffle_multiple_columns_shuffles_every_column():
