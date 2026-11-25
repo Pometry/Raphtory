@@ -108,7 +108,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
                 "path".to_string(),
                 (NodeStateOutputType::Nodes, None),
             )])),
-        ),
+        )?,
         PathState::node_transform,
     ))
 }
