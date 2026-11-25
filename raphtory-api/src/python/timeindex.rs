@@ -16,7 +16,6 @@ use pyo3::{
     types::{PyDate, PyDateAccess, PyDateTime, PyList, PyTuple},
 };
 use serde::Serialize;
-use std::hash::{DefaultHasher, Hash, Hasher};
 
 impl<'py> IntoPyObject<'py> for EventTime {
     type Target = PyEventTime;
@@ -296,10 +295,9 @@ impl PyEventTime {
         self.time.to_string()
     }
 
-    pub fn __hash__(&self) -> isize {
-        let mut hasher = DefaultHasher::new();
-        self.time.hash(&mut hasher);
-        hasher.finish() as isize
+    // hash the timestamp as Python hashes the int, so `t == 5` agrees with `hash(t) == hash(5)`
+    pub fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
+        self.t().into_pyobject(py)?.hash()
     }
 
     pub fn __int__(&self) -> i64 {
@@ -438,6 +436,13 @@ impl PyOptionalEventTime {
 
     pub fn __bool__(&self) -> bool {
         self.inner.is_some()
+    }
+
+    pub fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
+        match self.inner {
+            Some(time) => time.t().into_pyobject(py)?.hash(),
+            None => py.None().bind(py).hash(),
+        }
     }
 
     // we assume None < Some(_)

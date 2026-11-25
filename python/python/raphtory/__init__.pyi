@@ -7054,6 +7054,9 @@ class OptionalEventTime(object):
     def __gt__(self, value):
         """Return self>value."""
 
+    def __hash__(self):
+        """Return hash(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
 
