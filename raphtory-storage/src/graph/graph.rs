@@ -124,7 +124,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn nodes(&self) -> NodesStorageEntry<'_> {
         match self {
-            GraphStorage::Locked(storage) => NodesStorageEntry::Mem(&storage.nodes),
+            GraphStorage::Locked(storage) => NodesStorageEntry::Mem(storage.nodes().as_ref()),
             GraphStorage::Unlocked(storage) => {
                 NodesStorageEntry::Unlocked(storage.storage().nodes().locked())
             }
@@ -310,7 +310,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn core_nodes(&self) -> NodesStorage {
         match self {
-            GraphStorage::Locked(storage) => NodesStorage::new(storage.nodes.clone()),
+            GraphStorage::Locked(storage) => NodesStorage::new(storage.nodes().clone()),
             GraphStorage::Unlocked(storage) => {
                 NodesStorage::new(storage.read_locked().nodes.clone())
             }
@@ -320,7 +320,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn core_node<'a>(&'a self, vid: VID) -> NodeStorageEntry<'a> {
         match self {
-            GraphStorage::Locked(storage) => NodeStorageEntry::Mem(storage.nodes.node_ref(vid)),
+            GraphStorage::Locked(storage) => NodeStorageEntry::Mem(storage.nodes().node_ref(vid)),
             GraphStorage::Unlocked(storage) => {
                 NodeStorageEntry::Unlocked(storage.storage().nodes().node(vid))
             }
@@ -330,9 +330,10 @@ impl GraphStorage {
     /// Try to get a node that may not be initialised yet
     pub fn try_core_node<'a>(&'a self, vid: VID) -> Option<NodeStorageEntry<'a>> {
         match self {
-            GraphStorage::Locked(storage) => {
-                storage.nodes.try_node_ref(vid).map(NodeStorageEntry::Mem)
-            }
+            GraphStorage::Locked(storage) => storage
+                .nodes()
+                .try_node_ref(vid)
+                .map(NodeStorageEntry::Mem),
             GraphStorage::Unlocked(storage) => storage
                 .storage()
                 .nodes()
@@ -344,7 +345,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn edges(&self) -> EdgesStorageRef<'_> {
         match self {
-            GraphStorage::Locked(storage) => EdgesStorageRef::Mem(&storage.edges),
+            GraphStorage::Locked(storage) => EdgesStorageRef::Mem(storage.edges().as_ref()),
             GraphStorage::Unlocked(storage) => {
                 EdgesStorageRef::Unlocked(UnlockedEdges(storage.storage()))
             }
@@ -354,7 +355,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn owned_edges(&self) -> EdgesStorage {
         match self {
-            GraphStorage::Locked(storage) => EdgesStorage::new(storage.edges.clone()),
+            GraphStorage::Locked(storage) => EdgesStorage::new(storage.edges().clone()),
             GraphStorage::Unlocked(storage) => {
                 EdgesStorage::new(storage.storage().edges().locked().into())
             }
@@ -364,7 +365,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn edge_entry(&self, eid: Either<EID, EdgeRef>) -> EdgeStorageEntry<'_> {
         match self {
-            GraphStorage::Locked(storage) => EdgeStorageEntry::Mem(storage.edges.edge_ref(eid)),
+            GraphStorage::Locked(storage) => EdgeStorageEntry::Mem(storage.edges().edge_ref(eid)),
             GraphStorage::Unlocked(storage) => {
                 EdgeStorageEntry::Unlocked(storage.storage().edges().edge(eid))
             }
@@ -471,7 +472,7 @@ impl GraphStorage {
 
     pub fn node_segment_counts(&self) -> SegmentCounts<VID> {
         match self {
-            GraphStorage::Locked(storage) => storage.nodes.segment_counts(),
+            GraphStorage::Locked(storage) => storage.nodes().segment_counts(),
             GraphStorage::Unlocked(storage) => storage.storage().node_segment_counts(),
         }
     }
@@ -480,10 +481,10 @@ impl GraphStorage {
         match self {
             GraphStorage::Locked(storage) => Iter2::I1(
                 storage
-                    .nodes
+                    .nodes()
                     .segment_counts()
                     .into_iter()
-                    .map(|vid| NodeStorageEntry::Mem(storage.nodes.node_ref(vid))),
+                    .map(|vid| NodeStorageEntry::Mem(storage.nodes().node_ref(vid))),
             ),
             GraphStorage::Unlocked(storage) => Iter2::I2(
                 storage
@@ -501,7 +502,7 @@ impl GraphStorage {
 
     pub fn edge_segment_counts(&self) -> SegmentCounts<EID> {
         match self {
-            GraphStorage::Locked(storage) => storage.edges.segment_counts(),
+            GraphStorage::Locked(storage) => storage.edges().segment_counts(),
             GraphStorage::Unlocked(storage) => storage.storage().edge_segment_counts(),
         }
     }

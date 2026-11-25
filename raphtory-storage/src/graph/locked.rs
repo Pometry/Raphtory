@@ -10,9 +10,9 @@ use storage::{
 #[derive(Debug)]
 pub struct ReadLockedGraph {
     // Must be locked before nodes.
-    _node_type_index: Arc<ArcRwLockReadGuard<MemNodeTypeIndex>>,
-    pub(crate) nodes: Arc<ReadLockedNodes<Extension>>,
-    pub(crate) edges: Arc<ReadLockedEdges<Extension>>,
+    node_type_index: Arc<ArcRwLockReadGuard<MemNodeTypeIndex>>,
+    nodes: Arc<ReadLockedNodes<Extension>>,
+    edges: Arc<ReadLockedEdges<Extension>>,
     /// Presence bitsets, read-locked only on first use.
     node_presence: Arc<OnceLock<ReadLockedMetaPresence>>,
     edge_presence: Arc<OnceLock<ReadLockedMetaPresence>>,
@@ -27,13 +27,21 @@ impl ReadLockedGraph {
         let edges = Arc::new(storage.edges().locked());
 
         Self {
-            _node_type_index: node_type_index,
+            node_type_index,
             nodes,
             edges,
             node_presence: Default::default(),
             edge_presence: Default::default(),
             graph,
         }
+    }
+
+    pub(crate) fn nodes(&self) -> &Arc<ReadLockedNodes<Extension>> {
+        &self.nodes
+    }
+
+    pub(crate) fn edges(&self) -> &Arc<ReadLockedEdges<Extension>> {
+        &self.edges
     }
 
     pub(crate) fn node_presence(&self) -> &ReadLockedMetaPresence {
@@ -50,7 +58,7 @@ impl ReadLockedGraph {
 impl Clone for ReadLockedGraph {
     fn clone(&self) -> Self {
         ReadLockedGraph {
-            _node_type_index: self._node_type_index.clone(),
+            node_type_index: self.node_type_index.clone(),
             nodes: self.nodes.clone(),
             edges: self.edges.clone(),
             node_presence: self.node_presence.clone(),

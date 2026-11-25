@@ -275,8 +275,8 @@ impl<'a> AtomicUpdateEdge<'a> {
 #[derive(Debug)]
 pub struct AtomicAddNode<'a> {
     vid: MaybeNew<VID>,
-    node_writer: NodeWriterT<'a>,
     type_index_writer: NodeTypeIndexWriterT<'a>,
+    node_writer: NodeWriterT<'a>,
 }
 
 impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
