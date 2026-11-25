@@ -5,6 +5,7 @@ use raphtory_api::{ArcRwLockReadGuard, core::storage::FxDashMap, iter::IntoDynBo
 use raphtory_core::{entities::VID, utils::iter::GenLockedIter};
 use std::{
     collections::BTreeSet,
+    ops::Deref,
     sync::{
         Arc,
         atomic::{AtomicU64, AtomicUsize, Ordering},
@@ -150,15 +151,18 @@ impl MemNodeTypeIndex {
 }
 
 #[self_referencing]
-pub struct MemNodeTypeEntry {
-    head: ArcRwLockReadGuard<MemNodeTypeIndex>,
+pub struct GenericNodeTypeEntry<H: Deref<Target = MemNodeTypeIndex> + 'static> {
+    head: H,
     #[borrows(head)]
     #[covariant]
     sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
 }
 
-impl MemNodeTypeEntry {
-    pub fn with_types(head: ArcRwLockReadGuard<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
+pub type MemNodeTypeEntry = GenericNodeTypeEntry<ArcRwLockReadGuard<MemNodeTypeIndex>>;
+pub type FrozenNodeTypeEntry = GenericNodeTypeEntry<Arc<MemNodeTypeIndex>>;
+
+impl<H: Deref<Target = MemNodeTypeIndex> + 'static> GenericNodeTypeEntry<H> {
+    pub fn with_types(head: H, type_ids: &[usize]) -> Self {
         Self::new(head, |head| head.type_sets(type_ids))
     }
 
@@ -168,44 +172,6 @@ impl MemNodeTypeEntry {
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
-        self.borrow_sets()
-            .iter()
-            .map(|set| set.iter().copied())
-            .kmerge()
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn into_iter(self) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |entry| {
-            entry
-                .borrow_sets()
-                .iter()
-                .map(|set| set.iter().copied())
-                .kmerge()
-                .into_dyn_boxed()
-        })
-    }
-}
-
-#[self_referencing]
-pub struct FrozenNodeTypeEntry {
-    frozen: Arc<MemNodeTypeIndex>,
-    #[borrows(frozen)]
-    #[covariant]
-    sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
-}
-
-impl FrozenNodeTypeEntry {
-    pub fn with_types(frozen: Arc<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
-        Self::new(frozen, |frozen| frozen.type_sets(type_ids))
-    }
-
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
-        self.borrow_sets().iter().map(|set| set.len()).sum()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {

@@ -10,7 +10,7 @@ use storage::{
 #[derive(Debug, Clone)]
 pub struct ReadLockedGraph {
     // Must be locked before nodes.
-    node_type_index: Arc<ArcRwLockReadGuard<MemNodeTypeIndex>>,
+    _node_type_index: Arc<ArcRwLockReadGuard<MemNodeTypeIndex>>,
     nodes: Arc<ReadLockedNodes<Extension>>,
     edges: Arc<ReadLockedEdges<Extension>>,
     /// Presence bitsets, read-locked only on first use.
@@ -22,12 +22,12 @@ pub struct ReadLockedGraph {
 impl ReadLockedGraph {
     pub fn new(graph: Arc<TemporalGraph>) -> Self {
         let storage = graph.storage();
-        let node_type_index = Arc::new(storage.node_type_index().head_shared_arc());
+        let _node_type_index = Arc::new(storage.node_type_index().head_shared_arc());
         let nodes = Arc::new(storage.nodes().locked());
         let edges = Arc::new(storage.edges().locked());
 
         Self {
-            node_type_index,
+            _node_type_index,
             nodes,
             edges,
             node_presence: Default::default(),
