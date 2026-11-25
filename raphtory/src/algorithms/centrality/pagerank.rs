@@ -82,7 +82,7 @@ pub fn page_rank<G: StaticGraphViewOps>(
 
     ctx.global_agg_reset(total_sink_contribution);
 
-    let weight_id = weight.and_then(|key| g.edge_meta().get_prop_id(key, false));
+    let weight_id = weight.and_then(|key| g.edge_visible_temporal_prop_id(key));
 
     let step1 = ATask::new({
         move |s| {

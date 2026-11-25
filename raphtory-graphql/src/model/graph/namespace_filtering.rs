@@ -585,9 +585,7 @@ impl SortValue {
                 a.cmp(b).then_with(|| a_tie.compare(b_tie))
             }
             (SortValue::Text(a), SortValue::Text(b)) => a.cmp(b),
-            (SortValue::Number(a), SortValue::Number(b)) => {
-                a.partial_cmp(b).unwrap_or(Ordering::Equal)
-            }
+            (SortValue::Number(a), SortValue::Number(b)) => a.total_cmp(b),
             // Mixed types only arise from inconsistently-typed metadata; fall
             // back to the string form so the order is at least deterministic.
             (a, b) => a.as_text().cmp(&b.as_text()),

@@ -271,6 +271,77 @@ mod graphql_test {
         assert_eq!(res.errors, []);
     }
 
+    /// Work dir with `src` (one edge), and empty `dst` and `other`.
+    fn export_to_work_dir() -> TempDir {
+        let tmp_dir = tempdir().unwrap();
+        let src = Graph::new();
+        // the nodes carry updates of their own, so that exportTo can import them
+        src.add_node(1, "x", NO_PROPS, None, None).unwrap();
+        src.add_node(1, "y", NO_PROPS, None, None).unwrap();
+        src.add_edge(1, "x", "y", NO_PROPS, None).unwrap();
+        src.encode(tmp_dir.path().join("src")).unwrap();
+        for name in ["dst", "other"] {
+            Graph::new().encode(tmp_dir.path().join(name)).unwrap();
+        }
+        tmp_dir
+    }
+
+    async fn count_edges(schema: &Schema, path: &str) -> Value {
+        let query = format!(r#"{{ graph(path: "{path}") {{ countEdges }} }}"#);
+        let res = schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, []);
+        res.data.into_json().unwrap()["graph"]["countEdges"].clone()
+    }
+
+    const EXPORT_TO: &str = r#"{ graph(path: "src") { exportTo(path: "dst") } }"#;
+
+    // Pometry/v4-storage#293: the destination was left clean, so eviction dropped the import.
+    #[tokio::test]
+    async fn export_to_survives_eviction_of_the_destination() {
+        let tmp_dir = export_to_work_dir();
+        let config = crate::config::app_config::AppConfigBuilder::new()
+            .with_cache_capacity(1)
+            .build();
+        let data = Data::new(tmp_dir.path(), &config, Args::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let res = schema
+            .execute(Request::new(EXPORT_TO).data(Access::Rw))
+            .await;
+        assert_eq!(res.errors, []);
+        assert_eq!(count_edges(&schema, "dst").await, json!(1));
+        assert_eq!(count_edges(&schema, "other").await, json!(0)); // capacity 1: evicts dst
+        assert_eq!(count_edges(&schema, "dst").await, json!(1));
+    }
+
+    // Pometry/v4-storage#298: on the compute pool the import could be picked up by a reader that
+    // holds the destination's segment locks. A write runs on the write pool.
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn export_to_does_not_run_on_the_compute_pool() {
+        let _serial = crate::rayon::TEST_SERIAL.lock();
+        let tmp_dir = export_to_work_dir();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+        assert_eq!(count_edges(&schema, "src").await, json!(1)); // loads src
+
+        let jam = Arc::new(parking_lot::Mutex::new(()));
+        let guard = jam.lock();
+        let jam_clone = jam.clone();
+        crate::rayon::COMPUTE_POOL.spawn_broadcast(move |_| drop(jam_clone.lock()));
+        let res = tokio::time::timeout(
+            std::time::Duration::from_secs(20),
+            schema.execute(Request::new(EXPORT_TO).data(Access::Rw)),
+        )
+        .await;
+        drop(guard);
+        assert_eq!(
+            res.expect("exportTo waited for the compute pool").errors,
+            []
+        );
+        assert_eq!(count_edges(&schema, "dst").await, json!(1));
+    }
+
     #[tokio::test]
     async fn basic_query() {
         let graph = PersistentGraph::new();

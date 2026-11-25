@@ -267,6 +267,11 @@ impl GraphStorage {
         self.temporal_graph().storage().extension().indexed_gid()
     }
 
+    /// Whether the index is built and up to date
+    pub fn index_serves(&self) -> bool {
+        self.temporal_graph().storage().extension().index_serves()
+    }
+
     #[inline(always)]
     pub fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {

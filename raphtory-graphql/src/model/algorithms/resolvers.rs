@@ -526,9 +526,9 @@ impl GqlAlgorithms {
                     seed,
                     threads,
                 )
-                .into()
             })
-            .await?)
+            .await??
+            .into())
     }
 
     /// Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.

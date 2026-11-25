@@ -15,6 +15,7 @@ use super::{
 use crate::{
     db::{
         api::{
+            properties::internal::{EdgePropertySchemaOps, NodePropertySchemaOps},
             state::{
                 ops::{
                     filter::NodeExistsOp,
@@ -38,6 +39,7 @@ use crate::{
                 edge_expr_filtered_graph::EdgeExprFilteredGraph,
                 exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
                 model::{
+                    const_mismatch_error,
                     edge_expr::{
                         ops::{
                             AllOfEdgeOp, AnyOfEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
@@ -226,7 +228,11 @@ fn indexed_column(
     history: bool,
     predicate: &NodePropPredicate,
 ) -> Option<NodeList> {
-    let (prop_id, dtype) = graph.node_meta().get_prop_id_and_type(name, metadata)?;
+    let (prop_id, dtype) = if metadata {
+        graph.node_visible_metadata_id_and_type(name)
+    } else {
+        graph.node_visible_temporal_prop_id_and_type(name)
+    }?;
     // history reads of list-valued columns are not served
     if history && matches!(dtype, PropType::List(_)) {
         return None;
@@ -352,9 +358,9 @@ fn node_property<'g>(
     name: &str,
     graph: DynGraphArc<'g>,
 ) -> Result<(DynGraphArc<'g>, usize, bool), GraphError> {
+    // Resolved through the view so a property the view hides reads as missing.
     let prop_id = graph
-        .node_meta()
-        .get_prop_id(name, false)
+        .node_visible_temporal_prop_id(name)
         .ok_or_else(|| GraphError::PropertyMissingError(name.to_owned()))?;
     Ok((apply_views(graph, views)?, prop_id, narrows(views)))
 }
@@ -389,8 +395,7 @@ fn node_metadata_op<'g>(
     graph: DynGraphArc<'g>,
 ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
     let prop_id = graph
-        .node_meta()
-        .get_prop_id(name, true)
+        .node_visible_metadata_id(name)
         .ok_or_else(|| GraphError::MetadataMissingError(name.to_owned()))?;
     Ok(Arc::new(NodeMetaOp {
         graph: apply_views(graph, views)?,
@@ -407,8 +412,7 @@ fn edge_property<'g>(
     graph: DynGraphArc<'g>,
 ) -> Result<(DynGraphArc<'g>, usize), GraphError> {
     let prop_id = graph
-        .edge_meta()
-        .get_prop_id(name, false)
+        .edge_visible_temporal_prop_id(name)
         .ok_or_else(|| GraphError::PropertyMissingError(name.to_owned()))?;
     Ok((apply_views(graph, views)?, prop_id))
 }
@@ -435,8 +439,7 @@ fn edge_metadata_op<'g>(
     graph: DynGraphArc<'g>,
 ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
     let prop_id = graph
-        .edge_meta()
-        .get_prop_id(name, true)
+        .edge_visible_metadata_id(name)
         .ok_or_else(|| GraphError::MetadataMissingError(name.to_owned()))?;
     let graph = apply_views(graph, views)?;
     Ok(Arc::new(EdgeMetaOp { graph, prop_id }))
@@ -1231,8 +1234,10 @@ impl<L: Leaf> Expr<L> {
                 negated,
             } => {
                 let inner = expr.value_op(graph.clone())?;
-                let (out, shape, members) = set_shape(&expr.resolved_type(&inner), values);
-                let set = SetMembers::new(members, *negated);
+                let lhs = expr.resolved_type(&inner);
+                let (out, shape) =
+                    set_shape(&lhs, values).map_err(|bad| const_mismatch_error(bad, &lhs))?;
+                let set = SetMembers::new(values.clone(), *negated);
                 let domain = if *negated {
                     None
                 } else {

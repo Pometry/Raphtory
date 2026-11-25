@@ -20,7 +20,7 @@ use crate::{
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
     permissions::{parent_namespace, require_graph_write, require_namespace_write},
-    rayon::{blocking_compute, blocking_write},
+    rayon::{blocking_compute, blocking_flush},
     url_encode::{url_decode_graph_at, url_encode_graph},
     GQLError,
 };
@@ -291,11 +291,12 @@ impl Mut {
         let ns = parent_namespace(&path);
         require_namespace_write(ctx, &data.auth_policy, ns, &path, "create")?;
         let overwrite = false;
-        let folder = data
-            .work_dir()
-            .write()
-            .await
-            .validate_path_for_insert(&path, overwrite)?;
+        let work_dir = if overwrite {
+            data.write_work_dir_replacing(&path).await
+        } else {
+            data.work_dir().write().await
+        };
+        let folder = work_dir.validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
         let graph: MaterializedGraph = if Extension::disk_storage_enabled() {
             match graph_type {
@@ -377,11 +378,12 @@ impl Mut {
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let graph = src.graph().clone();
         drop(src);
-        let folder = data
-            .work_dir()
-            .write()
-            .await
-            .validate_path_for_insert(new_path, overwrite)?;
+        let work_dir = if overwrite {
+            data.write_work_dir_replacing(new_path).await
+        } else {
+            data.work_dir().write().await
+        };
+        let folder = work_dir.validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, graph).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, new_path) {
             let _ = data.delete_graph(new_path).await;
@@ -405,11 +407,12 @@ impl Mut {
         let dst_ns = parent_namespace(&path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &path, "upload")?;
         let in_file = graph.value(ctx)?.content;
-        let folder = data
-            .work_dir()
-            .write()
-            .await
-            .validate_path_for_insert(&path, overwrite)?;
+        let work_dir = if overwrite {
+            data.write_work_dir_replacing(&path).await
+        } else {
+            data.work_dir().write().await
+        };
+        let folder = work_dir.validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
             let _ = data.delete_graph(&path).await;
@@ -432,7 +435,11 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, path, "send")?;
-        let work_dir = data.work_dir().write().await;
+        let work_dir = if overwrite {
+            data.write_work_dir_replacing(path).await
+        } else {
+            data.work_dir().write().await
+        };
         let folder = if overwrite {
             ValidWriteableGraphFolder::try_existing_or_new(work_dir, path)?
         } else {
@@ -554,11 +561,12 @@ impl Mut {
         let (_, parent_graph) = data
             .get_graph_requiring_read(ctx, parent_path, None)
             .await?;
-        let folder = data
-            .work_dir()
-            .write()
-            .await
-            .validate_path_for_insert(&new_path, overwrite)?;
+        let work_dir = if overwrite {
+            data.write_work_dir_replacing(&new_path).await
+        } else {
+            data.work_dir().write().await
+        };
+        let folder = work_dir.validate_path_for_insert(&new_path, overwrite)?;
         let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {
             let subgraph = parent_graph.subgraph(nodes);
@@ -588,14 +596,14 @@ impl Mut {
         let graph = data
             .get_graph_with_write_permission(ctx, &graph_path)
             .await?;
-        blocking_write(move || {
+        blocking_flush(move || {
             let res = graph.persist();
             if res.is_err() {
                 graph.set_dirty(true);
             }
             res
         })
-        .await?;
+        .await??;
         Ok(true)
     }
 }

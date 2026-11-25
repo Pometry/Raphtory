@@ -1,8 +1,11 @@
 use crate::{
     api::core::storage::timeindex::AsTime,
     db::{
-        api::view::{
-            DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
+        api::{
+            properties::internal::EdgePropertySchemaOps,
+            view::{
+                DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
+            },
         },
         graph::{
             edge::EdgeView,
@@ -283,8 +286,14 @@ impl PyEdges {
             String::from("dst"),
             String::from("layer"),
         ];
-        let edge_meta = self.edges.base_graph.edge_meta();
-        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
+        // the ids the view shows, so a key it hides gets no column
+        let graph = &self.edges.base_graph;
+        let is_prop_both_temp_and_const = get_column_names_from_props(
+            &mut column_names,
+            graph.edge_meta(),
+            graph.edge_visible_temporal_prop_ids(),
+            graph.edge_visible_metadata_ids(),
+        );
 
         let mut edges = self.edges.explode_layers();
         if explode {

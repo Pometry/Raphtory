@@ -407,6 +407,24 @@ impl PropMapper {
         }
     }
 
+    /// `deep_clone` of the private fields and only the keys in `ids`, which get new ids in that
+    /// order: with every id, in order, it equals `deep_clone`.
+    pub fn deep_clone_ids(&self, ids: impl Iterator<Item = usize>) -> Self {
+        let private = self.num_private_fields();
+        let mapper = Self::new_with_private_fields(
+            (0..private).map(|id| self.get_name(id)),
+            (0..private).map(|id| self.get_dtype(id).unwrap_or(PropType::Empty)),
+        );
+        for id in ids {
+            if let Some(dtype) = self.get_dtype(id) {
+                mapper
+                    .get_or_create_and_validate(&self.get_name(id), dtype)
+                    .expect("a new mapper has no type to conflict with");
+            }
+        }
+        mapper
+    }
+
     #[inline]
     pub fn row_size(&self) -> usize {
         self.row_size.load(atomic::Ordering::Relaxed)
