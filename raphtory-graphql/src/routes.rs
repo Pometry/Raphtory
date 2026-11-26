@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use futures_util::future::join;
 use poem::{
     endpoint::{EmbeddedFileEndpoint, EmbeddedFilesEndpoint, StaticFilesEndpoint},
@@ -8,7 +9,11 @@ use poem::{
 };
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, time::Duration};
+use std::{
+    hash::{DefaultHasher, Hash, Hasher},
+    path::PathBuf,
+    time::Duration,
+};
 
 use crate::rayon::{blocking_write, probe_compute};
 
@@ -61,6 +66,7 @@ pub(crate) struct PublicFilesEndpoint<G> {
     public_dir: Option<PathBuf>,
     disable_ui: bool,
     base_path: Option<String>,
+    bundled_page: Option<TaggedPage>,
     gql: G,
 }
 
@@ -74,6 +80,7 @@ impl<G> PublicFilesEndpoint<G> {
             public_dir,
             disable_ui,
             base_path: None,
+            bundled_page: None,
             gql,
         }
     }
@@ -85,16 +92,26 @@ impl<G> PublicFilesEndpoint<G> {
         self.base_path = base_path
             .map(|path| path.trim_end_matches('/').to_owned())
             .filter(|path| !path.is_empty());
+        // The bundled page never changes while the server runs, so it is tagged once, here.
+        // Pages in `public_dir` can change on disk and are tagged as they are served.
+        self.bundled_page = match (&self.base_path, &self.public_dir) {
+            (Some(base_path), None) => TaggedPage::bundled(base_path),
+            _ => None,
+        };
         self
     }
 
     async fn page(&self, req: Request) -> poem::Result<Response> {
         if let Some(public_dir) = &self.public_dir {
-            StaticFilesEndpoint::new(public_dir)
+            let response = StaticFilesEndpoint::new(public_dir)
                 .index_file("index.html")
                 .fallback_to_index()
                 .call(req)
-                .await
+                .await?;
+            match &self.base_path {
+                Some(base_path) => with_base_path_meta(response, base_path).await,
+                None => Ok(response),
+            }
         } else {
             let path = req.uri().path().trim_start_matches('/');
             let file_name = req.uri().path().split('/').next_back().unwrap_or("");
@@ -104,13 +121,19 @@ impl<G> PublicFilesEndpoint<G> {
                 EmbeddedFileEndpoint::<PublicFolder>::new(file_name)
                     .call(req)
                     .await
-            } else if !path.is_empty()
-                && PublicFolder::get(path).is_none()
-                && PublicFolder::get(&format!("{path}/index.html")).is_none()
+            } else if path.is_empty()
+                || path == "index.html"
+                || (PublicFolder::get(path).is_none()
+                    && PublicFolder::get(&format!("{path}/index.html")).is_none())
             {
-                EmbeddedFileEndpoint::<PublicFolder>::new("index.html")
-                    .call(req)
-                    .await
+                match &self.bundled_page {
+                    Some(page) => Ok(page.respond(&req)),
+                    None => {
+                        EmbeddedFileEndpoint::<PublicFolder>::new("index.html")
+                            .call(req)
+                            .await
+                    }
+                }
             } else {
                 EmbeddedFilesEndpoint::<PublicFolder>::new().call(req).await
             }
@@ -118,7 +141,51 @@ impl<G> PublicFilesEndpoint<G> {
     }
 }
 
-/// Adds `<meta name="raphtory-base-path">` to an HTML page; any other response is returned as is.
+/// Writes the base path into a page, as a tag at the top of its `<head>`.
+fn tag_base_path(html: &str, base_path: &str) -> String {
+    let escaped = base_path
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;");
+    let meta = format!(r#"<head><meta name="raphtory-base-path" content="{escaped}" />"#);
+    html.replacen("<head>", &meta, 1)
+}
+
+/// The bundled UI page with the base path written into it.
+struct TaggedPage {
+    body: Bytes,
+    etag: String,
+}
+
+impl TaggedPage {
+    fn bundled(base_path: &str) -> Option<Self> {
+        let page = PublicFolder::get("index.html")?;
+        let body = tag_base_path(&String::from_utf8_lossy(&page.data), base_path);
+        // Its own validator: the bundled file's no longer describes this body.
+        let mut hasher = DefaultHasher::new();
+        body.hash(&mut hasher);
+        Some(Self {
+            etag: format!("\"{:x}\"", hasher.finish()),
+            body: body.into(),
+        })
+    }
+
+    fn respond(&self, req: &Request) -> Response {
+        let unchanged = req
+            .headers()
+            .get(header::IF_NONE_MATCH)
+            .is_some_and(|seen| seen.as_bytes() == self.etag.as_bytes());
+        if unchanged {
+            return StatusCode::NOT_MODIFIED.into_response();
+        }
+        Response::builder()
+            .content_type("text/html; charset=utf-8")
+            .header(header::ETAG, &self.etag)
+            .body(self.body.clone())
+    }
+}
+
+/// Tags an HTML page served from `public_dir`; any other response is returned as is.
 async fn with_base_path_meta(response: Response, base_path: &str) -> poem::Result<Response> {
     let is_html = response
         .content_type()
@@ -128,18 +195,13 @@ async fn with_base_path_meta(response: Response, base_path: &str) -> poem::Resul
     }
     let (mut parts, body) = response.into_parts();
     let html = body.into_string().await?;
-    let escaped = base_path
-        .replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;");
-    let meta = format!(r#"<head><meta name="raphtory-base-path" content="{escaped}" />"#);
     // The body no longer matches the length or the validators of the file it came from.
     for stale in [header::CONTENT_LENGTH, header::ETAG, header::LAST_MODIFIED] {
         parts.headers.remove(stale);
     }
     Ok(Response::from_parts(
         parts,
-        Body::from_string(html.replacen("<head>", &meta, 1)),
+        Body::from_string(tag_base_path(&html, base_path)),
     ))
 }
 
@@ -155,11 +217,7 @@ where
         } else if self.disable_ui {
             Ok(StatusCode::NOT_FOUND.into_response())
         } else {
-            let response = self.page(req).await?;
-            match &self.base_path {
-                Some(base_path) => with_base_path_meta(response, base_path).await,
-                None => Ok(response),
-            }
+            self.page(req).await
         }
     }
 }
@@ -169,8 +227,8 @@ mod tests {
     use super::PublicFilesEndpoint;
     use poem::{
         endpoint::make_sync,
-        http::{Method, StatusCode},
-        Endpoint, Request, Response,
+        http::{header, Method, StatusCode},
+        Endpoint, IntoResponse, Request, Response,
     };
     use std::{fs, path::Path};
     use tempfile::tempdir;
@@ -286,5 +344,42 @@ mod tests {
         // a file that is not a page is served untouched
         let resp = get(&endpoint, "/app.js").await;
         assert_eq!(resp.into_body().into_string().await.unwrap(), "<head>");
+    }
+
+    #[tokio::test]
+    async fn bundled_page_carries_the_base_path_and_can_be_revalidated() {
+        let gql = make_sync(|_| Response::builder().body("gql"));
+        let endpoint =
+            PublicFilesEndpoint::new(None, false, gql).with_base_path(Some("/proxy/1736".into()));
+        let tag = r#"<head><meta name="raphtory-base-path" content="/proxy/1736" />"#;
+
+        let mut etags = vec![];
+        for path in ["/", "/index.html", "/graph/nested/route"] {
+            let resp = get(&endpoint, path).await;
+            assert_eq!(resp.status(), StatusCode::OK, "GET {path}");
+            etags.push(resp.header(header::ETAG).unwrap().to_owned());
+            let page = resp.into_body().into_string().await.unwrap();
+            assert_eq!(page.matches(tag).count(), 1, "GET {path}");
+        }
+        assert!(etags.iter().all(|etag| etag == &etags[0]));
+
+        // a browser that already has this page is told so instead of being sent it again
+        let revalidate = Request::builder()
+            .method(Method::GET)
+            .uri("/graph/nested/route".parse().unwrap())
+            .header(header::IF_NONE_MATCH, &etags[0])
+            .finish();
+        let resp = endpoint.call(revalidate).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_MODIFIED);
+
+        // without a base path the bundled page is served as it is
+        let plain = PublicFilesEndpoint::new(None, false, make_sync(|_| "gql".into_response()));
+        let page = get(&plain, "/")
+            .await
+            .into_body()
+            .into_string()
+            .await
+            .unwrap();
+        assert!(!page.contains("raphtory-base-path"));
     }
 }
