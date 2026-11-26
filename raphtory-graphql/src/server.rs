@@ -697,7 +697,7 @@ mod server_tests {
     }
 
     /// A reverse proxy that serves the server on `upstream_port` under `prefix` and nothing else.
-    /// Like the Databricks driver proxy, it strips the prefix before it forwards a request.
+    /// It strips the prefix before it forwards a request, as such proxies commonly do.
     async fn start_prefix_proxy(
         prefix: &'static str,
         upstream_port: u16,
@@ -750,17 +750,14 @@ mod server_tests {
         use raphtory::prelude::*;
 
         // Long, and with segments named like the UI's own routes (`graph`, `search`).
-        const PREFIX: &str =
-            "/driver-proxy/o/1234567890123456/graph/search/0401-123456-abc_def/1736";
+        const PREFIX: &str = "/proxy/org-1234567890/graph/search/app_01-ab/8080";
 
         let work_dir = tempdir().unwrap();
         let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        std::fs::create_dir(work_dir.path().join("folder")).unwrap();
         graph
-            .add_edge(1, "hacker_0", "mule_a01", NO_PROPS, None)
-            .unwrap();
-        std::fs::create_dir(work_dir.path().join("traces")).unwrap();
-        graph
-            .encode(work_dir.path().join("traces").join("trace_1"))
+            .encode(work_dir.path().join("folder").join("graph"))
             .unwrap();
 
         let app_config = AppConfigBuilder::new()
@@ -783,8 +780,8 @@ mod server_tests {
         for page in [
             "/",
             "/search",
-            "/graph/traces/trace_1",
-            "/saved-graphs/traces",
+            "/graph/folder/graph",
+            "/saved-graphs/folder",
         ] {
             let resp = reqwest::get(format!("{site}{PREFIX}{page}")).await.unwrap();
             assert_eq!(resp.status(), 200, "GET {page}");
@@ -793,8 +790,7 @@ mod server_tests {
         }
 
         // The graph comes back from the address the UI builds out of that prefix.
-        let query =
-            r#"{"query":"{ graph(path: \"traces/trace_1\") { nodes { list { name } } } }"}"#;
+        let query = r#"{"query":"{ graph(path: \"folder/graph\") { nodes { list { name } } } }"}"#;
         let resp = client
             .post(format!("{site}{PREFIX}/graphql"))
             .header("content-type", "application/json")
@@ -806,12 +802,12 @@ mod server_tests {
         let data: serde_json::Value = resp.json().await.unwrap();
         assert_eq!(
             data["data"]["graph"]["nodes"]["list"],
-            serde_json::json!([{ "name": "hacker_0" }, { "name": "mule_a01" }]),
+            serde_json::json!([{ "name": "a" }, { "name": "b" }]),
             "{data}"
         );
 
         // Outside the prefix there is no server: the address the UI used before this setting.
-        let get = reqwest::get(format!("{site}/graph/traces/trace_1"))
+        let get = reqwest::get(format!("{site}/graph/folder/graph"))
             .await
             .unwrap();
         assert_eq!(get.status(), 404);
