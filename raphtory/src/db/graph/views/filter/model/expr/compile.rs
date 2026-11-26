@@ -1399,14 +1399,14 @@ pub(crate) fn both_ends(nodes: NodeExpr) -> EdgeExpr {
     ])
 }
 
-/// The boolean value of each edge a node predicate is: both ends pass it. A
-/// constant predicate is refused, as it is on its own; the check must see the
-/// node predicate itself, since wrapped in `src`/`dst` it is a term.
+/// The boolean value of each edge a node predicate is: both ends pass it. The
+/// predicate is checked as a filter first, as it is on its own: wrapped in
+/// `src`/`dst` it is a term, and its refusal would name the `and` of the ends.
 fn both_ends_value<'g>(
     nodes: &NodeExpr,
     graph: DynGraphArc<'g>,
 ) -> Result<Arc<<EdgeOps as OpFamily>::Value<'g>>, GraphError> {
-    nodes.refuse_constant()?;
+    nodes.filter_value(graph.clone())?;
     both_ends(nodes.clone()).filter_value(graph)
 }
 
