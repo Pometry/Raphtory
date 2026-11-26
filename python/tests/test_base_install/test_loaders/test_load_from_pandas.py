@@ -2048,6 +2048,47 @@ def test_load_edges_with_datetime_schema():
     )
 
 
+@pytest.mark.parametrize("schema_type", ["u32", "uint32", PropType.u32()])
+def test_load_edges_with_u32_schema(schema_type):
+    df = pd.DataFrame({"src": ["a"], "dst": ["b"], "time": [1], "c": [4_000_000_000]})
+    g = Graph()
+    g.load_edges(
+        df,
+        time="time",
+        src="src",
+        dst="dst",
+        properties=["c"],
+        schema={"c": schema_type},
+    )
+    props = g.edge("a", "b").properties
+    assert props.get_dtype_of("c") == PropType.u32()
+    assert props.get("c") == 4_000_000_000
+
+
+@pytest.mark.parametrize(
+    "name, prop_type",
+    [
+        ("datetime", PropType.datetime()),
+        ("dtime", PropType.datetime()),
+        ("ndtime", PropType.naive_datetime()),
+    ],
+)
+def test_datetime_schema_names_match_their_prop_types(name, prop_type):
+    df = pd.DataFrame(
+        {
+            "src": ["a"],
+            "dst": ["b"],
+            "time": [1],
+            "w": pd.to_datetime(["2024-01-01T00:00:00Z"]),
+        }
+    )
+    g = Graph()
+    g.load_edges(
+        df, time="time", src="src", dst="dst", properties=["w"], schema={"w": name}
+    )
+    assert g.edge("a", "b").properties.get_dtype_of("w") == prop_type
+
+
 def test_failed_load_edge_metadata_leaves_the_graph_unchanged():
     g = Graph()
     g.add_edge(1, "a", "b")

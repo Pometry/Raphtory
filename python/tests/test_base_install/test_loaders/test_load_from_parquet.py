@@ -1007,3 +1007,16 @@ def test_load_nodes_from_parquet_timestamp_ns_no_tz(tmp_path):
     ]
     actual = sorted(v.history.dt[0] for v in g.nodes)
     assert actual == expected
+
+
+def test_load_from_parquet_refuses_a_batch_size_of_zero(tmp_path):
+    path = tmp_path / "edges.parquet"
+    pq.write_table(pa.table({"time": [1], "src": ["a"], "dst": ["b"]}), str(path))
+
+    g = Graph()
+    with pytest.raises(Exception, match="batch_size must be at least 1"):
+        g.load_edges(data=str(path), time="time", src="src", dst="dst", batch_size=0)
+    assert g.count_edges() == 0
+
+    g.load_edges(data=str(path), time="time", src="src", dst="dst", batch_size=1)
+    assert g.count_edges() == 1

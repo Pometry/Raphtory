@@ -62,10 +62,10 @@ pub fn random_attachment(
     }
     let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     let mut ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
-    let mut max_id = next_id(graph, ids.iter().max().cloned());
+    let mut max_id = next_id(graph, ids.iter().max().cloned(), &mut rng);
 
     while ids.len() < edges_per_step {
-        max_id = next_id(graph, Some(max_id));
+        max_id = next_id(graph, Some(max_id), &mut rng);
         latest_time += 1;
         graph
             .add_node(latest_time, &max_id, NO_PROPS, None, None)
@@ -76,7 +76,7 @@ pub fn random_attachment(
 
     for _ in 0..nodes_to_add {
         let edges = ids.sample(&mut rng, edges_per_step);
-        max_id = next_id(graph, Some(max_id));
+        max_id = next_id(graph, Some(max_id), &mut rng);
         latest_time += 1;
         edges.for_each(|neighbour| {
             graph

@@ -148,4 +148,35 @@ mod bipartite_graph_tests {
         assert_eq!(new_graph.count_nodes(), 0);
         assert_eq!(new_graph.count_edges(), 0);
     }
+
+    fn visits(edges: &[(i64, &str, &str)]) -> Graph {
+        let g = Graph::new();
+        for (t, visitor, place) in edges {
+            g.add_node(*t, *visitor, NO_PROPS, Some("Person"), None)
+                .unwrap();
+            g.add_node(*t, *place, NO_PROPS, Some("Place"), None)
+                .unwrap();
+            g.add_edge(*t, *visitor, *place, NO_PROPS, None).unwrap();
+        }
+        g
+    }
+
+    #[test]
+    fn repeat_visits_make_no_self_loop() {
+        let g = visits(&[
+            (1, "alice", "cafe"),
+            (2, "alice", "cafe"),
+            (3, "bob", "cafe"),
+        ]);
+        let projected = temporal_bipartite_projection(&g, 5, "Place").unwrap();
+        assert!(!projected.has_edge("alice", "alice"));
+        assert!(projected.has_edge("alice", "bob"));
+    }
+
+    #[test]
+    fn largest_delta_connects_every_visit() {
+        let g = visits(&[(1, "alice", "cafe"), (2, "bob", "cafe")]);
+        let projected = temporal_bipartite_projection(&g, u64::MAX, "Place").unwrap();
+        assert!(projected.has_edge("alice", "bob"));
+    }
 }

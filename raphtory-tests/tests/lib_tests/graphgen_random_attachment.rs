@@ -35,7 +35,20 @@ mod random_graph_test {
         let graph = Graph::new();
         ba_preferential_attachment(&graph, 300, 7, None);
         random_attachment(&graph, 4000, 12, None);
-        assert_eq!(graph.count_edges(), 50106);
-        assert_eq!(graph.count_nodes(), 4307);
+        assert_eq!(graph.count_edges(), 50107);
+        assert_eq!(graph.count_nodes(), 4308);
+    }
+
+    #[test]
+    fn seed_fixes_the_new_string_ids() {
+        let run = || {
+            let graph = Graph::new();
+            graph.add_edge(0, "alice", "bob", NO_PROPS, None).unwrap();
+            random_attachment(&graph, 10, 1, Some([7; 32]));
+            let mut ids = graph.nodes().id().collect::<Vec<_>>();
+            ids.sort();
+            ids
+        };
+        assert_eq!(run(), run());
     }
 }

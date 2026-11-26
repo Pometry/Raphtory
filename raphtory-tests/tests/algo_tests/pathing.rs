@@ -468,11 +468,22 @@ mod sssp_tests {
     use raphtory::{
         algorithms::pathing::single_source_shortest_path::single_source_shortest_path,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
+        errors::GraphError,
         prelude::*,
     };
-    use raphtory_api::core::utils::logging::global_info_logger;
+    use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
     use raphtory_tests::test_storage;
     use std::collections::HashMap;
+
+    #[test]
+    fn refuses_a_source_outside_the_view() {
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let result = single_source_shortest_path(&graph.subgraph([2]), 1, None);
+
+        assert!(matches!(result, Err(GraphError::NodeMissingError(gid)) if gid == GID::U64(1)));
+    }
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -498,7 +509,7 @@ mod sssp_tests {
         ]);
 
         test_storage!(&graph, |graph| {
-            let results = single_source_shortest_path(graph, 1, Some(4));
+            let results = single_source_shortest_path(graph, 1, Some(4)).unwrap();
             let expected: HashMap<String, Vec<String>> = HashMap::from([
                 ("1".to_string(), vec!["1".to_string()]),
                 ("2".to_string(), vec!["1".to_string(), "2".to_string()]),
@@ -531,7 +542,7 @@ mod sssp_tests {
                     values
                 );
             }
-            let _ = single_source_shortest_path(graph, 5, Some(4));
+            single_source_shortest_path(graph, 5, Some(4)).unwrap();
         });
     }
 }

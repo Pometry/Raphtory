@@ -13,12 +13,25 @@ use serde_json::json;
 
 #[test]
 fn proptest_layering() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, false), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, false), layer in proptest::collection::vec(proptest::sample::select(&["_default", "a", "b"]), 0..5))| {
         let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
         let g = Graph::from(build_graph(&graph_f));
             let g_layer = g.valid_layers(layer.clone());
             assert_graph_equal(&g_layer, &g_layer_expected);
     })
+}
+
+#[test]
+fn repeated_layer_names_select_each_layer_once() {
+    let g = Graph::new();
+    g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
+    g.add_edge(0, 1, 3, NO_PROPS, Some("b")).unwrap();
+
+    let layered = g.layers(["a", "a"]).unwrap();
+    assert_eq!(layered.unique_layers().collect_vec(), ["a"]);
+    assert_eq!(layered.count_edges(), 1);
+    assert_eq!(g.valid_layers(["a", "a", "missing"]).count_edges(), 1);
+    assert_eq!(g.exclude_layers(["a", "a"]).unwrap().count_edges(), 1);
 }
 
 #[test]
@@ -88,7 +101,7 @@ fn test_node_layer_visibility_under_valid_layers() {
 
 #[test]
 fn proptest_layering_persistent_graph() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), layer in proptest::collection::vec(proptest::sample::select(&["_default", "a", "b"]), 0..5))| {
         let g_layer_expected = PersistentGraph::from(build_graph_layer(&graph_f, &layer));
         let g = PersistentGraph::from(build_graph(&graph_f));
         let g_layer = g.valid_layers(layer);
