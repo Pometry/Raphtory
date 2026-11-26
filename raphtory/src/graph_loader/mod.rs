@@ -55,7 +55,7 @@
 //!         [("type", Prop::str("Character"))],
 //!         None, None
 //!     )
-//!     .expect("Failed to add node");
+//!     ?;
 //!
 //!     g.add_node(
 //!         lotr.time,
@@ -63,7 +63,7 @@
 //!         [("type", Prop::str("Character"))],
 //!         None, None
 //!     )
-//!     .expect("Failed to add node");
+//!     ?;
 //!
 //!     g.add_edge(
 //!         lotr.time,
@@ -75,7 +75,8 @@
 //!         )],
 //!         None,
 //!     )
-//!     .expect("Failed to add edge");
+//!     ?;
+//!     Ok(())
 //! })
 //! .expect("Failed to load graph from CSV data files");
 //! ```

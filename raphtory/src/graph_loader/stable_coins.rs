@@ -1,6 +1,7 @@
 use crate::{
+    errors::GraphError,
     graph_loader::{fetch_file, unzip_file},
-    io::csv_loader::CsvLoader,
+    io::csv_loader::{CsvErr, CsvLoader},
     prelude::*,
 };
 use chrono::DateTime;
@@ -34,7 +35,12 @@ pub struct StableCoin {
 ///
 /// Returns:
 ///     Graph:
-pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
+///
+/// # Errors
+///
+/// [CsvErr] if a data file cannot be read, a row does not parse, or a row names an unknown
+/// contract address or an out-of-range timestamp.
+pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Result<Graph, CsvErr> {
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
         None => PathBuf::from("/tmp/stablecoin"),
@@ -77,54 +83,62 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
     }
 
     let encoded_data_dir = data_dir.join("graphdb_bincode");
-    let g = restore_from_file(&encoded_data_dir).unwrap_or_else(|| {
-        let g = Graph::new();
-        let now = Instant::now();
+    if let Some(g) = restore_from_file(&encoded_data_dir) {
+        return Ok(g);
+    }
+    let g = Graph::new();
+    let now = Instant::now();
 
-        let contract_addr_labels = HashMap::from([
-            ("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "USD"),
-            ("0xd2877702675e6ceb975b4a1dff9fb7baf4c91ea9", "LUNC"),
-            ("0xa47c8bf37f92abed4a126bda807a7b7498661acd", "USTC"),
-            ("0x6b175474e89094c44da98b954eedeac495271d0f", "Dai"),
-            ("0xdac17f958d2ee523a2206206994597c13d831ec7", "USDT"),
-            ("0x8e870d67f660d95d5be530380d0ec0bd388289e1", "USDP"),
-        ]);
+    let contract_addr_labels = HashMap::from([
+        ("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "USD"),
+        ("0xd2877702675e6ceb975b4a1dff9fb7baf4c91ea9", "LUNC"),
+        ("0xa47c8bf37f92abed4a126bda807a7b7498661acd", "USTC"),
+        ("0x6b175474e89094c44da98b954eedeac495271d0f", "Dai"),
+        ("0xdac17f958d2ee523a2206206994597c13d831ec7", "USDT"),
+        ("0x8e870d67f660d95d5be530380d0ec0bd388289e1", "USDP"),
+    ]);
 
-        let re = if subset {
-            Regex::new(r"token_transfers.csv").unwrap()
-        } else {
-            Regex::new(r"token_transfers(_V\d+\.\d+\.\d+)?\.csv").unwrap()
-        };
-        CsvLoader::new(data_dir)
-            .with_filter(re)
-            .set_header(true)
-            .set_delimiter(",")
-            .load_into_graph(&g, |stablecoin: StableCoin, g: &Graph| {
-                let s: &str = &stablecoin.contract_address;
-                let label = *contract_addr_labels.get(s).unwrap();
-                g.add_edge(
-                    DateTime::from_timestamp(stablecoin.time_stamp, 0).unwrap(),
-                    stablecoin.from_address,
-                    stablecoin.to_address,
-                    [("value", stablecoin.value)],
-                    Some(label),
-                )
-                .expect("Failed to add edge");
-            })
-            .expect("Failed to load graph from CSV data files");
+    let re = if subset {
+        Regex::new(r"token_transfers.csv").unwrap()
+    } else {
+        Regex::new(r"token_transfers(_V\d+\.\d+\.\d+)?\.csv").unwrap()
+    };
+    CsvLoader::new(data_dir)
+        .with_filter(re)
+        .set_header(true)
+        .set_delimiter(",")
+        .load_into_graph(&g, |stablecoin: StableCoin, g: &Graph| {
+            let address = stablecoin.contract_address.as_str();
+            let label =
+                *contract_addr_labels
+                    .get(address)
+                    .ok_or_else(|| GraphError::InvalidValue {
+                        reason: format!("unknown contract address {address}"),
+                    })?;
+            let time = DateTime::from_timestamp(stablecoin.time_stamp, 0).ok_or_else(|| {
+                GraphError::InvalidValue {
+                    reason: format!("timestamp {} is out of range", stablecoin.time_stamp),
+                }
+            })?;
+            g.add_edge(
+                time,
+                stablecoin.from_address,
+                stablecoin.to_address,
+                [("value", stablecoin.value)],
+                Some(label),
+            )?;
+            Ok(())
+        })?;
 
-        info!(
-            "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
-            encoded_data_dir.to_str().unwrap(),
-            g.count_nodes(),
-            g.count_edges(),
-            now.elapsed().as_secs()
-        );
+    info!(
+        "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
+        encoded_data_dir.to_str().unwrap(),
+        g.count_nodes(),
+        g.count_edges(),
+        now.elapsed().as_secs()
+    );
 
-        g.encode(encoded_data_dir).expect("Failed to save graph");
+    g.encode(encoded_data_dir).expect("Failed to save graph");
 
-        g
-    });
-
-    g
+    Ok(g)
 }

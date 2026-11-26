@@ -55,13 +55,15 @@
 //!                  Prop::str("Character Co-occurrence"),
 //!              )],
 //!              None,
-//!          ).expect("Failed to add edge");
+//!          )?;
+//!          Ok(())
 //!      })
 //!      .expect("Csv did not parse.");
 //! ```
 //!
 
 /// Module for loading CSV files into a graph.
+use crate::errors::GraphError;
 use bzip2::read::BzDecoder;
 use csv::StringRecord;
 use flate2; // 1.0
@@ -87,6 +89,8 @@ pub enum CsvErr {
     IoError(io::Error),
     /// A CSV parsing error that occurred while parsing the CSV data.
     CsvError(csv::Error),
+    /// A GraphError that occurred while loading the CSV data into the graph.
+    GraphError(GraphError),
 }
 
 impl From<io::Error> for CsvErr {
@@ -98,6 +102,12 @@ impl From<io::Error> for CsvErr {
 impl From<csv::Error> for CsvErr {
     fn from(value: csv::Error) -> Self {
         Self::CsvError(value)
+    }
+}
+
+impl From<GraphError> for CsvErr {
+    fn from(value: GraphError) -> Self {
+        Self::GraphError(value)
     }
 }
 
@@ -115,6 +125,7 @@ impl Error for CsvErr {
         match self {
             CsvErr::IoError(error) => Some(error),
             CsvErr::CsvError(error) => Some(error),
+            CsvErr::GraphError(error) => Some(error),
         }
     }
 }
@@ -329,15 +340,15 @@ impl CsvLoader {
     ///
     /// # Errors
     ///
-    /// An error of type CsvErr is returned if an I/O error occurs while reading the files or parsing the CSV data.
+    /// An error of type CsvErr is returned if an I/O error occurs while reading the files or parsing the CSV data,
+    /// or if `loader` returns an error for a record.
     ///
     pub fn load_into_graph<F, REC, G>(&self, g: &G, loader: F) -> Result<(), CsvErr>
     where
         REC: DeserializeOwned + Debug,
-        F: Fn(REC, &G) + Send + Sync,
+        F: Fn(REC, &G) -> Result<(), GraphError> + Send + Sync,
         G: Sync,
     {
-        //FIXME: loader function should return a result for reporting parsing errors
         let paths = self.files_vec()?;
         paths
             .par_iter()
@@ -358,14 +369,14 @@ impl CsvLoader {
     ///
     /// # Errors
     ///
-    /// An error of type CsvErr is returned if an I/O error occurs while reading the files or parsing the CSV data.
+    /// An error of type CsvErr is returned if an I/O error occurs while reading the files or parsing the CSV data,
+    /// or if `loader` returns an error for a record.
     ///
     pub fn load_rec_into_graph<F, G>(&self, g: &G, loader: F) -> Result<(), CsvErr>
     where
-        F: Fn(StringRecord, &G) + Send + Sync,
+        F: Fn(StringRecord, &G) -> Result<(), GraphError> + Send + Sync,
         G: Sync,
     {
-        //FIXME: loader function should return a result for reporting parsing errors
         let paths = self.files_vec()?;
         paths
             .par_iter()
@@ -393,7 +404,7 @@ impl CsvLoader {
     ) -> Result<(), CsvErr>
     where
         REC: DeserializeOwned + Debug,
-        F: Fn(REC, &G),
+        F: Fn(REC, &G) -> Result<(), GraphError>,
     {
         let file_path: PathBuf = path.into();
         if self.print_file_name {
@@ -402,10 +413,8 @@ impl CsvLoader {
         let mut csv_reader = self.csv_reader(file_path)?;
         let records_iter = csv_reader.deserialize::<REC>();
 
-        //TODO this needs better error handling for files without perfect data
         for rec in records_iter {
-            let record = rec.expect("Failed to deserialize");
-            loader(record, g)
+            loader(rec?, g)?;
         }
 
         Ok(())
@@ -418,14 +427,13 @@ impl CsvLoader {
         loader: &F,
     ) -> Result<(), CsvErr>
     where
-        F: Fn(StringRecord, &G),
+        F: Fn(StringRecord, &G) -> Result<(), GraphError>,
     {
         let file_path: PathBuf = path.into();
 
         let mut csv_reader = self.csv_reader(file_path)?;
         for rec in csv_reader.records() {
-            let record = rec?;
-            loader(record, g)
+            loader(rec?, g)?;
         }
 
         Ok(())

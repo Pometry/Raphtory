@@ -37,12 +37,11 @@ fn layered_sx_super_user_graph(
                     edge.dst_id,
                     NO_PROPS,
                     Some(layer.as_str()),
-                )
-                .expect("Error: Unable to add edge");
+                )?;
             } else {
-                g.add_edge(edge.time, edge.src_id, edge.dst_id, NO_PROPS, None)
-                    .expect("Error: Unable to add edge");
+                g.add_edge(edge.time, edge.src_id, edge.dst_id, NO_PROPS, None)?;
             }
+            Ok(())
         })?;
 
     Ok(graph)

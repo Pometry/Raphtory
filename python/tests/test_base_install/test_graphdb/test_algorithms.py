@@ -975,3 +975,24 @@ def test_groups_with_no_columns_raises_a_regular_exception():
     # a regular exception, never a PanicException
     with pytest.raises(Exception, match="at least one column"):
         algorithms.hits(g).groups([])
+
+
+_STABLE_COIN_HEADER = "block_number,transaction_index,from_address,to_address,time_stamp,contract_address,value\n"
+_USD = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+
+
+@pytest.mark.parametrize(
+    "row, message",
+    [
+        (f"2,0,0xaa,0xcc,1600000001,{_USD},abc\n", "CSV"),
+        ("3,0,0xaa,0xdd,1600000002,0xdeadbeef,2.0\n", "unknown contract address"),
+    ],
+)
+def test_stable_coin_graph_raises_on_a_bad_row(row, message):
+    with tempfile.TemporaryDirectory() as data_dir:
+        with open(f"{data_dir}/token_transfers.csv", "w") as f:
+            f.write(
+                _STABLE_COIN_HEADER + f"1,0,0xaa,0xbb,1600000000,{_USD},1.5\n" + row
+            )
+        with pytest.raises(Exception, match=message):
+            graph_loader.stable_coin_graph(path=data_dir, subset=True)

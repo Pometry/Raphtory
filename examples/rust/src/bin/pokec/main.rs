@@ -29,8 +29,8 @@ fn main() {
             .set_delimiter("\t")
             .set_header(false)
             .load_into_graph(&g, |e: Edge, g| {
-                g.add_edge(0, e.src, e.dst, NO_PROPS, None)
-                    .expect("Failed to add edge");
+                g.add_edge(0, e.src, e.dst, NO_PROPS, None)?;
+                Ok(())
             })
             .expect("Failed to load graph from encoded data files");
 

@@ -91,8 +91,8 @@ pub fn lotr_graph() -> Graph {
             g.add_node(time, dst_id.clone(), NO_PROPS, None, None)
                 .map_err(|err| error!("{:?}", err))
                 .ok();
-            g.add_edge(time, src_id.clone(), dst_id.clone(), NO_PROPS, None)
-                .expect("Error: Unable to add edge");
+            g.add_edge(time, src_id.clone(), dst_id.clone(), NO_PROPS, None)?;
+            Ok(())
         })
         .expect("Failed to load graph from CSV data files");
     g
@@ -117,6 +117,7 @@ pub fn lotr_graph_with_props() -> Graph {
                     ("gender", char.gender),
                 ]));
             }
+            Ok(())
         })
         .expect("Failed to load graph from CSV data files");
     g

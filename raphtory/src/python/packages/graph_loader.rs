@@ -113,7 +113,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult
     PyGraph::py_from_db_graph(crate::graph_loader::stable_coins::stable_coin_graph(
         path,
         subset.unwrap_or(false),
-    ))
+    )?)
 }
 
 /// `karate_club_graph` constructs a karate club graph.

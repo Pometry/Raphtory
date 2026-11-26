@@ -1,5 +1,6 @@
 use chrono::DateTime;
 use raphtory::{
+    errors::GraphError,
     io::csv_loader::CsvLoader,
     prelude::{AdditionOps, Graph, NO_PROPS},
 };
@@ -218,7 +219,7 @@ pub fn generate_data_write_to_csv(
 fn load_nodes<T, F>(graph: &Graph, path: &Path, load_fn: F)
 where
     T: DeserializeOwned + Debug + Send + Sync,
-    F: Fn(T, &Graph) + Send + Sync,
+    F: Fn(T, &Graph) -> Result<(), GraphError> + Send + Sync,
 {
     let now = Instant::now();
     CsvLoader::new(path.to_path_buf())
@@ -239,7 +240,7 @@ where
 fn load_edges<T, F>(graph: &Graph, path: &Path, load_fn: F)
 where
     T: DeserializeOwned + Debug + Send + Sync,
-    F: Fn(T, &Graph) + Send + Sync,
+    F: Fn(T, &Graph) -> Result<(), GraphError> + Send + Sync,
 {
     let now = Instant::now();
     CsvLoader::new(path.to_path_buf())
@@ -283,15 +284,14 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             NO_PROPS,
             Some("person"),
             None,
-        )
-        .expect("Failed to add node")
+        )?
         .add_metadata([
             ("first_name", Prop::Str(ArcStr::from(person.first_name))),
             ("last_name", Prop::Str(ArcStr::from(person.last_name))),
             ("gender", Prop::Str(ArcStr::from(person.gender))),
             ("birthday", Prop::I64(person.birthday)),
-        ])
-        .expect("Failed to add node static property");
+        ])?;
+        Ok(())
     });
 
     load_nodes(&g, &csv_paths["forums"], |forum: Forum, g| {
@@ -301,10 +301,9 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             NO_PROPS,
             Some("forum"),
             None,
-        )
-        .expect("Failed to add node")
-        .add_metadata([("title", Prop::Str(ArcStr::from(forum.title)))])
-        .expect("Failed to add node static property");
+        )?
+        .add_metadata([("title", Prop::Str(ArcStr::from(forum.title)))])?;
+        Ok(())
     });
 
     load_nodes(&g, &csv_paths["posts"], |post: Post, g| {
@@ -319,10 +318,9 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             ],
             Some("post"),
             None,
-        )
-        .expect("Failed to add node")
-        .add_metadata([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
-        .expect("Failed to add node static property");
+        )?
+        .add_metadata([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])?;
+        Ok(())
     });
 
     load_nodes(&g, &csv_paths["comments"], |comment: Comment, g| {
@@ -340,10 +338,9 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             ],
             Some("comment"),
             None,
-        )
-        .expect("Failed to add node")
-        .add_metadata([("creator_id", Prop::Str(ArcStr::from(comment.creator_id)))])
-        .expect("Failed to add node static property");
+        )?
+        .add_metadata([("creator_id", Prop::Str(ArcStr::from(comment.creator_id)))])?;
+        Ok(())
     });
 
     // Load edges
@@ -357,8 +354,8 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
                 ("is_moderator", Prop::Bool(rel.is_moderator)),
             ],
             None,
-        )
-        .expect("Failed to add edge");
+        )?;
+        Ok(())
     });
 
     load_edges(&g, &csv_paths["post_forum"], |rel: PostForum, g| {
@@ -372,8 +369,8 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
                 ("comments_count", Prop::U64(rel.comments_count)),
             ],
             None,
-        )
-        .expect("Failed to add edge");
+        )?;
+        Ok(())
     });
 
     load_edges(&g, &csv_paths["comment_post"], |rel: CommentPost, g| {
@@ -387,8 +384,8 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
                 ("reply_count", Prop::U64(rel.reply_count)),
             ],
             None,
-        )
-        .expect("Failed to add edge");
+        )?;
+        Ok(())
     });
 
     g.encode(output_dir).expect("Failed to save graph");

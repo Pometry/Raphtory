@@ -98,8 +98,8 @@ fn main() {
                     dst,
                     [("amount".to_string(), Prop::U64(sent.amount_btc))],
                     None,
-                )
-                .unwrap();
+                )?;
+                Ok(())
             })
             .expect("Failed to load graph from CSV data files");
 
