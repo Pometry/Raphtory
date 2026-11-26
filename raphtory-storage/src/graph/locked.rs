@@ -9,7 +9,8 @@ use storage::{
 /// A fully locked, read-only graph.
 #[derive(Debug, Clone)]
 pub struct ReadLockedGraph {
-    // Must be locked before nodes.
+    // NOTE: node_type_index isn't currently used through ReadLockedGraph,
+    // but it is still necessary to hold the guard for lock order consistency.
     _node_type_index: Arc<ArcRwLockReadGuard<MemNodeTypeIndex>>,
     nodes: Arc<ReadLockedNodes<Extension>>,
     edges: Arc<ReadLockedEdges<Extension>>,
