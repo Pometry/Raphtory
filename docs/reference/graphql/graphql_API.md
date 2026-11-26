@@ -4425,7 +4425,7 @@ expression and narrows nodes, edges, and their properties to what matches.
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. Views alone combine under `or` and `not` into one view; a `view` beside a predicate cannot appear under `or` or `not`. If omitted, applies the identity filter.
+Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. Views alone combine under `or` and `not` into one view; a `view` beside a predicate cannot appear under `or`, and `not` distributes first, so `not(or(expr, view))` is accepted where `not(and(expr, view))` is not. If omitted, applies the identity filter.
 
 </td>
 </tr>
