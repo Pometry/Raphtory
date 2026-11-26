@@ -385,7 +385,7 @@ impl PyProp {
     ///     Prop:
     #[staticmethod]
     pub fn decimal(value: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let bd = if value.get_type().name()?.contains("Decimal")? {
+        let bd = if value.is_instance(get_decimal_cls(value.py())?)? {
             // decimal.Decimal — go via its str representation for full precision.
             let s = value.str()?.to_cow()?.into_owned();
             BigDecimal::from_str(&s)
@@ -451,7 +451,7 @@ impl<'py> FromPyObject<'_, 'py> for Prop {
             return Ok(Prop::U64(v));
         }
 
-        if ob.get_type().name()?.contains("Decimal")? {
+        if ob.is_instance(get_decimal_cls(ob.py())?)? {
             // this sits before f64, otherwise it will be picked up as f64
             let py_str = &ob.str()?;
             let rs_str = &py_str.to_cow()?;
@@ -696,15 +696,15 @@ impl<'source> FromPyObject<'_, 'source> for PropType {
                 "i64" | "int64" | "int" => Ok(PropType::I64),
                 "i32" | "int32" => Ok(PropType::I32),
                 "u64" | "uint64" => Ok(PropType::U64),
-                "u32" | "uint32" => Ok(PropType::I32),
+                "u32" | "uint32" => Ok(PropType::U32),
                 "u16" | "uint16" => Ok(PropType::U16),
                 "u8" | "uint8" => Ok(PropType::U8),
                 "f64" | "float64" | "float" | "double" => Ok(PropType::F64),
                 "f32" | "float32" => Ok(PropType::F32),
                 "bool" | "boolean" => Ok(PropType::Bool),
                 "str" | "string" | "utf8" => Ok(PropType::Str),
-                "ndtime" | "naivedatetime" | "datetime" => Ok(PropType::NDTime),
-                "dtime" | "datetimetz" => Ok(PropType::DTime),
+                "ndtime" | "naivedatetime" => Ok(PropType::NDTime),
+                "dtime" | "datetimetz" | "datetime" => Ok(PropType::DTime),
                 other => Err(PyTypeError::new_err(format!(
                     "Unknown type name '{other:?}'"
                 ))),

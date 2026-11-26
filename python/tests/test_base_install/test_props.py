@@ -45,7 +45,7 @@ def test_list_from_bools():
 def test_list_from_decimals():
     xs = Prop.list([Decimal("1.25"), Decimal("2.50")])
     assert xs.dtype() == PropType.list(PropType.decimal(2))
-    assert repr(xs) == "[Decimal(2), Decimal(2)]"
+    assert repr(xs) == "[1.25, 2.50]"
 
 
 def test_list_empty():
@@ -108,7 +108,7 @@ def test_map_from_decimals():
     assert xs.dtype() == PropType.map(
         {"a": PropType.decimal(2), "b": PropType.decimal(2)}
     )
-    assert_in_all(repr(xs), ['"a": Decimal(2)', '"b": Decimal(2)'])
+    assert_in_all(repr(xs), ['"a": 1.25', '"b": 2.50'])
 
 
 def test_map_empty():
@@ -217,6 +217,39 @@ def test_decimal_from_python_decimal_high_precision():
     """`decimal.Decimal` preserves precision regardless of float limits."""
     p = Prop.decimal(Decimal("1.234567890123456789012345"))
     assert str(p.dtype()) == "Decimal { scale: 24 }"
+
+
+class DecimalFloat(float):
+    pass
+
+
+class DecimalLabel(str):
+    pass
+
+
+class Money(Decimal):
+    pass
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (DecimalFloat(0.5), 0.5),
+        (DecimalLabel("hello"), "hello"),
+        (Money("1.10000000000000000001"), Decimal("1.10000000000000000001")),
+    ],
+)
+def test_decimal_is_detected_by_type_not_name(value, expected):
+    g = Graph()
+    g.add_node(1, "a", properties={"p": value})
+    stored = g.node("a").properties.get("p")
+    assert stored == expected
+    assert type(stored) is type(expected)
+
+
+def test_decimal_from_python_decimal_subclass():
+    p = Prop.decimal(Money("1.10000000000000000001"))
+    assert str(p.dtype()) == "Decimal { scale: 20 }"
 
 
 def test_decimal_from_int():
