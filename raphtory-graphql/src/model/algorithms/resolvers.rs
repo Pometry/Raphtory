@@ -99,7 +99,7 @@ impl From<DynamicGraph> for GqlAlgorithms {
 }
 
 impl GqlAlgorithms {
-    /// Runs algorithm on the blocking thread pool.
+    /// Runs the algorithm on the server's compute pool, the pool the rest of the query work shares.
     pub async fn run<F: FnOnce(DynamicGraph) -> O + Send + 'static, O: Send + 'static>(
         &self,
         algo: F,

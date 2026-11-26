@@ -100,7 +100,7 @@ pub fn balance<G: StaticGraphViewOps>(
     if let Some((weight_id, weight_type)) = graph.edge_visible_temporal_prop_id_and_type(&name) {
         if !weight_type.is_numeric() {
             return Err(GraphError::InvalidProperty {
-                reason: format!("Edge property {name} is not numeric"),
+                reason: format!("Edge property '{name}' is not numeric"),
             });
         }
         let values: Vec<_> = graph
@@ -118,7 +118,7 @@ pub fn balance<G: StaticGraphViewOps>(
         )))
     } else {
         Err(GraphError::InvalidProperty {
-            reason: format!("Edge property {name} does not exist"),
+            reason: format!("Edge property '{name}' does not exist"),
         })
     }
 }

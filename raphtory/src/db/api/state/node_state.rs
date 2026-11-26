@@ -17,6 +17,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
+    errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
 };
 use ahash::RandomState;
@@ -25,6 +26,7 @@ use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator}
 use itertools::Itertools;
 use ouroboros::self_referencing;
 use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{
     iter::{
         plumbing::{bridge, Consumer, Producer, ProducerCallback, UnindexedConsumer},
@@ -1058,8 +1060,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
 
     /// create a new empty NodeState
     pub fn new_empty(graph: G) -> Self {
-        let index = Index::for_graph(&graph);
-        Self::new(graph, [].into(), index)
+        Self::new(graph, [].into(), Index::default())
     }
 
     /// create a new NodeState from a list of values for the node (takes care of creating an index for
@@ -1070,25 +1071,36 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     }
 
     /// create a new NodeState from a HashMap of values
+    ///
+    /// Errors with `NodeMissingError` if a key is not a node of `graph`.
     pub fn new_from_map<R, S: BuildHasher>(
         graph: G,
         mut values: HashMap<VID, R, S>,
         map: impl Fn(R) -> V,
-    ) -> Self {
+    ) -> Result<Self, GraphError> {
+        if let Some(&missing) = values.keys().find(|&&node| !graph.has_node(node)) {
+            return Err(GraphError::NodeMissingError(
+                graph.core_graph().node_id(missing),
+            ));
+        }
         if values.len() == graph.count_nodes() {
             let values: Vec<_> = graph
                 .nodes()
                 .iter()
                 .map(|node| map(values.remove(&node.node).unwrap()))
                 .collect();
-            Self::new_from_values(graph, values)
+            Ok(Self::new_from_values(graph, values))
         } else {
             let (index, values): (IndexSet<VID, RandomState>, Vec<_>) = graph
                 .nodes()
                 .iter()
                 .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
                 .unzip();
-            Self::new(graph, values.into(), Index::Partial(index.into()))
+            Ok(Self::new(
+                graph,
+                values.into(),
+                Index::Partial(index.into()),
+            ))
         }
     }
 

@@ -35,6 +35,8 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps {
     /// * `v` - The node (can be a string or integer)
     /// * `props` - The properties of the node
     /// * `node_type` - The optional string which will be used as a node type
+    /// * `layer` - The optional layer the update belongs to. Without a layer, the update
+    ///   belongs to no named layer and shows in every layer view.
     ///
     /// Returns:
     ///
