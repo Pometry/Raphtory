@@ -76,14 +76,17 @@ impl GraphStorage {
     /// Check if two storage instances point at the same underlying storage
     pub fn ptr_eq(&self, other: &Self) -> bool {
         match self {
-            GraphStorage::Locked(ReadLockedGraph {
-                graph: this_graph, ..
-            })
-            | GraphStorage::Unlocked(this_graph) => match other {
-                GraphStorage::Locked(ReadLockedGraph {
-                    graph: other_graph, ..
-                })
-                | GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(this_graph, other_graph),
+            GraphStorage::Locked(this_graph) => {
+                let graph = this_graph.graph();
+
+                match other {
+                    GraphStorage::Locked(other) => Arc::ptr_eq(graph, other.graph()),
+                    GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(graph, other_graph),
+                }
+            }
+            GraphStorage::Unlocked(this_graph) => match other {
+                GraphStorage::Locked(other) => Arc::ptr_eq(this_graph, other.graph()),
+                GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(this_graph, other_graph),
             },
         }
     }
@@ -133,28 +136,28 @@ impl GraphStorage {
 
     pub fn num_node_segments(&self) -> usize {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.storage().nodes().num_segments(),
+            GraphStorage::Locked(storage) => storage.graph().storage().nodes().num_segments(),
             GraphStorage::Unlocked(storage) => storage.storage().nodes().num_segments(),
         }
     }
 
     pub fn node_type_index(&self) -> &Arc<NTI> {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.storage().nodes().node_type_index(),
+            GraphStorage::Locked(storage) => storage.graph().storage().nodes().node_type_index(),
             GraphStorage::Unlocked(storage) => storage.storage().nodes().node_type_index(),
         }
     }
 
     pub fn num_edge_segments(&self) -> usize {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.storage().edges().num_segments(),
+            GraphStorage::Locked(storage) => storage.graph().storage().edges().num_segments(),
             GraphStorage::Unlocked(storage) => storage.storage().edges().num_segments(),
         }
     }
 
     fn temporal_graph(&self) -> &TemporalGraph {
         match self {
-            GraphStorage::Locked(storage) => &storage.graph,
+            GraphStorage::Locked(storage) => storage.graph(),
             GraphStorage::Unlocked(storage) => storage,
         }
     }
@@ -277,7 +280,7 @@ impl GraphStorage {
         match v {
             NodeRef::Internal(vid) => Some(vid),
             node_ref => match self {
-                GraphStorage::Locked(locked) => locked.graph.resolve_node_ref(node_ref),
+                GraphStorage::Locked(locked) => locked.graph().resolve_node_ref(node_ref),
                 GraphStorage::Unlocked(unlocked) => unlocked.resolve_node_ref(node_ref),
             },
         }
@@ -286,7 +289,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn unfiltered_num_nodes(&self, layer_ids: &LayerIds) -> usize {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.internal_num_nodes(layer_ids),
+            GraphStorage::Locked(storage) => storage.graph().internal_num_nodes(layer_ids),
             GraphStorage::Unlocked(storage) => storage.internal_num_nodes(layer_ids),
         }
     }
@@ -294,7 +297,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn unfiltered_num_edges(&self, layer_ids: &LayerIds) -> usize {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.internal_num_edges(layer_ids),
+            GraphStorage::Locked(storage) => storage.graph().internal_num_edges(layer_ids),
             GraphStorage::Unlocked(storage) => storage.internal_num_edges(layer_ids),
         }
     }
@@ -302,7 +305,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn unfiltered_num_layers(&self) -> usize {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.num_layers(),
+            GraphStorage::Locked(storage) => storage.graph().num_layers(),
             GraphStorage::Unlocked(storage) => storage.num_layers(),
         }
     }
@@ -375,7 +378,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn graph_entry(&self) -> GraphPropEntry<'_> {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.storage().graph_props().graph_entry(),
+            GraphStorage::Locked(storage) => storage.graph().storage().graph_props().graph_entry(),
             GraphStorage::Unlocked(storage) => storage.storage().graph_props().graph_entry(),
         }
     }
@@ -395,21 +398,21 @@ impl GraphStorage {
 
     pub fn node_meta(&self) -> &Meta {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.node_meta(),
+            GraphStorage::Locked(storage) => storage.graph().node_meta(),
             GraphStorage::Unlocked(storage) => storage.node_meta(),
         }
     }
 
     pub fn edge_meta(&self) -> &Meta {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.edge_meta(),
+            GraphStorage::Locked(storage) => storage.graph().edge_meta(),
             GraphStorage::Unlocked(storage) => storage.edge_meta(),
         }
     }
 
     pub fn graph_props_meta(&self) -> &Meta {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.graph_props_meta(),
+            GraphStorage::Locked(storage) => storage.graph().graph_props_meta(),
             GraphStorage::Unlocked(storage) => storage.graph_props_meta(),
         }
     }
@@ -464,7 +467,7 @@ impl GraphStorage {
 
     pub fn extension(&self) -> &Extension {
         match self {
-            GraphStorage::Locked(storage) => storage.graph.extension(),
+            GraphStorage::Locked(storage) => storage.graph().extension(),
             GraphStorage::Unlocked(storage) => storage.extension(),
         }
     }

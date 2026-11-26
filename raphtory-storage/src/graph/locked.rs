@@ -17,7 +17,7 @@ pub struct ReadLockedGraph {
     /// Presence bitsets, read-locked only on first use.
     node_presence: Arc<OnceLock<ReadLockedMetaPresence>>,
     edge_presence: Arc<OnceLock<ReadLockedMetaPresence>>,
-    pub graph: Arc<TemporalGraph>,
+    graph: Arc<TemporalGraph>,
 }
 
 impl ReadLockedGraph {
@@ -35,6 +35,10 @@ impl ReadLockedGraph {
             edge_presence: Default::default(),
             graph,
         }
+    }
+
+    pub fn graph(&self) -> &Arc<TemporalGraph> {
+        &self.graph
     }
 
     pub(crate) fn nodes(&self) -> &Arc<ReadLockedNodes<Extension>> {

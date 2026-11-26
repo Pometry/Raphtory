@@ -16,7 +16,7 @@ use raphtory_core::{
     storage::timeindex::EventTime,
 };
 use rayon::prelude::*;
-use std::{ops::Deref, path::Path, sync::Arc, time::Duration};
+use std::{ops::Deref, path::Path, sync::Arc};
 use storage::{
     api::{
         edges::EdgeSegmentOps,

@@ -12,7 +12,7 @@ use raphtory_api::{
     iter::{BoxedLIter, IntoDynBoxed},
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::graph::{locked::ReadLockedGraph, nodes::node_storage_ops::NodeStorageOps};
+use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
 use storage::{
@@ -49,18 +49,16 @@ impl GraphTimeSemanticsOps for GraphStorage {
     #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.graph_earliest_time()
-            }
+            GraphStorage::Locked(locked) => locked.graph().graph_earliest_time(),
+            GraphStorage::Unlocked(graph) => graph.graph_earliest_time(),
         }
     }
 
     #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.graph_latest_time()
-            }
+            GraphStorage::Locked(locked) => locked.graph().graph_latest_time(),
+            GraphStorage::Unlocked(graph) => graph.graph_latest_time(),
         }
     }
 

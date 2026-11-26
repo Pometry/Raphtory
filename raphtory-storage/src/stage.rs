@@ -143,12 +143,12 @@ impl GraphStorage {
             }
             GraphStorage::Locked(locked_graph) => {
                 let guard = locked_graph
-                    .graph
+                    .graph()
                     .try_stage_guard()
                     .ok_or(StageError::InProgress)?;
 
                 // Callers need to call flush themselves before staging a locked graph.
-                if locked_graph.graph.is_dirty() {
+                if locked_graph.graph().is_dirty() {
                     return Err(StageError::DirtyGraph);
                 }
 
@@ -157,19 +157,19 @@ impl GraphStorage {
         };
 
         let src_path = src_graph
-            .graph
+            .graph()
             .graph_dir()
             .ok_or(StageError::MissingGraphDir)?;
 
         let src_folder = GraphFolder::from_graph_path(src_path)?;
         let src_version = version(src_path)?;
-        let src_event_id = src_graph.graph.read_event_id() as u64;
+        let src_event_id = src_graph.graph().read_event_id() as u64;
 
         let staged_folder = src_folder.clone().init_swap().map_err(StageError::Init)?;
         let staged_graph_path = staged_folder.graph_path().map_err(StageError::Init)?;
 
         // Copy existing flushed data to the staged graph to create a fork.
-        src_graph.graph.copy_to(&staged_graph_path)?;
+        src_graph.graph().copy_to(&staged_graph_path)?;
 
         // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
         let config = Config::load_from_dir(&staged_graph_path)?;
