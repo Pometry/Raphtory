@@ -2,9 +2,9 @@ use futures_util::future::join;
 use poem::{
     endpoint::{EmbeddedFileEndpoint, EmbeddedFilesEndpoint, StaticFilesEndpoint},
     handler,
-    http::{Method, StatusCode},
+    http::{header, Method, StatusCode},
     web::{Json, Query},
-    Endpoint, IntoResponse, Request, Response,
+    Body, Endpoint, IntoResponse, Request, Response,
 };
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
@@ -60,6 +60,7 @@ struct PublicFolder;
 pub(crate) struct PublicFilesEndpoint<G> {
     public_dir: Option<PathBuf>,
     disable_ui: bool,
+    base_path: Option<String>,
     gql: G,
 }
 
@@ -72,23 +73,23 @@ impl<G> PublicFilesEndpoint<G> {
         PublicFilesEndpoint {
             public_dir,
             disable_ui,
+            base_path: None,
             gql,
         }
     }
-}
 
-impl<G> Endpoint for PublicFilesEndpoint<G>
-where
-    G: Endpoint<Output = Response>,
-{
-    type Output = Response;
+    /// The path prefix the server is reached under, when a reverse proxy mounts it below the
+    /// site root. It is written into every HTML page so the UI can find its own routes and the
+    /// GraphQL endpoint.
+    pub(crate) fn with_base_path(mut self, base_path: Option<String>) -> Self {
+        self.base_path = base_path
+            .map(|path| path.trim_end_matches('/').to_owned())
+            .filter(|path| !path.is_empty());
+        self
+    }
 
-    async fn call(&self, req: Request) -> poem::Result<Self::Output> {
-        if req.method() == Method::POST {
-            self.gql.call(req).await
-        } else if self.disable_ui {
-            Ok(StatusCode::NOT_FOUND.into_response())
-        } else if let Some(public_dir) = &self.public_dir {
+    async fn page(&self, req: Request) -> poem::Result<Response> {
+        if let Some(public_dir) = &self.public_dir {
             StaticFilesEndpoint::new(public_dir)
                 .index_file("index.html")
                 .fallback_to_index()
@@ -117,6 +118,52 @@ where
     }
 }
 
+/// Adds `<meta name="raphtory-base-path">` to an HTML page; any other response is returned as is.
+async fn with_base_path_meta(response: Response, base_path: &str) -> poem::Result<Response> {
+    let is_html = response
+        .content_type()
+        .is_some_and(|content_type| content_type.starts_with("text/html"));
+    if !is_html || !response.is_success() {
+        return Ok(response);
+    }
+    let (mut parts, body) = response.into_parts();
+    let html = body.into_string().await?;
+    let escaped = base_path
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;");
+    let meta = format!(r#"<head><meta name="raphtory-base-path" content="{escaped}" />"#);
+    // The body no longer matches the length or the validators of the file it came from.
+    for stale in [header::CONTENT_LENGTH, header::ETAG, header::LAST_MODIFIED] {
+        parts.headers.remove(stale);
+    }
+    Ok(Response::from_parts(
+        parts,
+        Body::from_string(html.replacen("<head>", &meta, 1)),
+    ))
+}
+
+impl<G> Endpoint for PublicFilesEndpoint<G>
+where
+    G: Endpoint<Output = Response>,
+{
+    type Output = Response;
+
+    async fn call(&self, req: Request) -> poem::Result<Self::Output> {
+        if req.method() == Method::POST {
+            self.gql.call(req).await
+        } else if self.disable_ui {
+            Ok(StatusCode::NOT_FOUND.into_response())
+        } else {
+            let response = self.page(req).await?;
+            match &self.base_path {
+                Some(base_path) => with_base_path_meta(response, base_path).await,
+                None => Ok(response),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::PublicFilesEndpoint;
@@ -128,7 +175,7 @@ mod tests {
     use std::{fs, path::Path};
     use tempfile::tempdir;
 
-    fn public_dir_endpoint(dir: &Path) -> impl Endpoint<Output = Response> {
+    fn public_dir_endpoint(dir: &Path) -> PublicFilesEndpoint<impl Endpoint<Output = Response>> {
         PublicFilesEndpoint::new(
             Some(dir.to_path_buf()),
             false,
@@ -214,5 +261,30 @@ mod tests {
         let resp = get(&endpoint, "/assets/app.js").await;
         assert_eq!(resp.status(), StatusCode::OK);
         assert_eq!(resp.into_body().into_string().await.unwrap(), "js-content");
+    }
+
+    #[tokio::test]
+    async fn base_path_is_written_into_pages_only() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join("index.html"),
+            "<html><head></head>ui</html>",
+        )
+        .unwrap();
+        fs::write(dir.path().join("app.js"), "<head>").unwrap();
+        let endpoint = public_dir_endpoint(dir.path()).with_base_path(Some("/proxy/1736/".into()));
+
+        for path in ["/", "/graph/nested/route"] {
+            let resp = get(&endpoint, path).await;
+            assert_eq!(resp.status(), StatusCode::OK, "GET {path}");
+            assert_eq!(
+                resp.into_body().into_string().await.unwrap(),
+                r#"<html><head><meta name="raphtory-base-path" content="/proxy/1736" /></head>ui</html>"#,
+                "GET {path}"
+            );
+        }
+        // a file that is not a page is served untouched
+        let resp = get(&endpoint, "/app.js").await;
+        assert_eq!(resp.into_body().into_string().await.unwrap(), "<head>");
     }
 }

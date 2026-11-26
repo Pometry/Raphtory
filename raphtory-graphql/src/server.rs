@@ -494,7 +494,8 @@ impl GraphServer {
                     config.public_dir.clone(),
                     config.schema.disable_ui,
                     graphql.clone(),
-                ),
+                )
+                .with_base_path(config.base_path.clone()),
             )
             .at("/health", get(health))
             .at("/version", get(version))

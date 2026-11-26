@@ -291,6 +291,13 @@ pub struct ConfigArgs {
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", help = "Public directory path")]
     pub(crate) public_dir: Option<PathBuf>,
 
+    #[arg(
+        long,
+        env = "RAPHTORY_BASE_PATH",
+        help = "Path prefix the server is reached under behind a reverse proxy, e.g. /proxy/1736"
+    )]
+    pub(crate) base_path: Option<String>,
+
     #[command(flatten)]
     pub(crate) extensions: ArgExtensions,
 }
