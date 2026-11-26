@@ -7,7 +7,7 @@ mod io_tests {
         ArrayRef, Int32Array, Int64Array,
     };
     use itertools::Itertools;
-    use proptest::proptest;
+    use proptest::{prop_assume, proptest};
     use raphtory::{
         arrow_loader::{
             dataframe::{DFChunk, DFView},
@@ -1159,6 +1159,8 @@ mod io_tests {
     #[test]
     fn test_failed_bulk_load_is_still_ordered() {
         proptest!(|(edges in build_edge_list(300, 4), chunk_size in 1usize..=300)| {
+            // an empty load returns before reading any chunk, so it never sees the error
+            prop_assume!(!edges.is_empty());
             let DFView { names, chunks, num_rows } = build_df(chunk_size, &edges);
             let failing = DFView {
                 names,

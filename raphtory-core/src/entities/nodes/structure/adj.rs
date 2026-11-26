@@ -1,4 +1,4 @@
-use crate::entities::{edges::edge_ref::Dir, nodes::structure::adjset::AdjSet, EID, VID};
+use crate::entities::{nodes::structure::adjset::AdjSet, EID, VID};
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::{
@@ -134,21 +134,6 @@ impl Adj {
                     .merge(into.iter())
                     .dedup_by(|v1, v2| v1.0 == v2.0)
                     .count(),
-            },
-        }
-    }
-
-    pub fn fill_page<const P: usize>(
-        &self,
-        last: Option<VID>,
-        page: &mut [(VID, EID); P],
-        dir: Dir,
-    ) -> usize {
-        match self {
-            Adj::Solo => 0,
-            Adj::List { out, into } => match dir {
-                Dir::Out => out.fill_page(last, page),
-                Dir::Into => into.fill_page(last, page),
             },
         }
     }

@@ -54,8 +54,10 @@ pub struct Properties {
     pub deletions_count: usize,
     /// Distinct `(timestamp, event_id)` temporal updates; see `t_additions_count()`.
     t_additions_count: usize,
-    /// Reverse time indexes: rows by update time, for property updates, then edge events.
-    time_rows: [ReverseTIndex; 2],
+    /// Reverse time index of property updates: rows by the time a property was updated.
+    prop_update_rows: ReverseTIndex,
+    /// Reverse time index of edge events (additions and deletions): rows by event time.
+    event_rows: ReverseTIndex,
     /// a bulk load appended to some cells without ordering them (see [`Self::sort_deferred`])
     unsorted: bool,
 }
@@ -163,9 +165,8 @@ impl Properties {
                 cell.sort_dedup();
             }
             self.t_additions_count = self.times_from_props.iter().map(|cell| cell.len()).sum();
-            for rows in &mut self.time_rows {
-                rows.sort_dedup();
-            }
+            self.prop_update_rows.sort_dedup();
+            self.event_rows.sort_dedup();
         }
     }
 
@@ -350,16 +351,17 @@ impl Properties {
         debug_assert!(!self.unsorted, "reverse time index read during a bulk load");
         let range =
             (EventTime::start(*window.start()), 0)..=(EventTime::end(*window.end()), u32::MAX);
-        let kinds = [props, events].into_iter().zip(&self.time_rows);
+        let kinds = [(props, &self.prop_update_rows), (events, &self.event_rows)];
         kinds
+            .into_iter()
             .filter(move |(wanted, _)| *wanted && window.start() <= window.end())
             .flat_map(move |(_, rows)| rows.range(range.clone()))
             .map(|(t, row)| (*row as usize, t.0))
     }
 
     /// Entries of the row sets, for size estimates.
-    pub fn time_rows_len(&self) -> usize {
-        self.time_rows.iter().map(|rows| rows.len()).sum()
+    pub fn reverse_tindex_len(&self) -> usize {
+        self.prop_update_rows.len() + self.event_rows.len()
     }
 
     pub fn num_updates(&self) -> usize {
@@ -417,7 +419,9 @@ impl<'a> PropMutEntry<'a> {
         self.properties.unsorted = true;
         self.properties.times_from_props[self.row].push_unsorted(t, Some(t_prop_row));
         self.properties.t_additions_count += 1;
-        self.properties.time_rows[0].push_unsorted(t, self.row as u32);
+        self.properties
+            .prop_update_rows
+            .push_unsorted(t, self.row as u32);
     }
 
     pub(crate) fn set_time(&mut self, t: EventTime, t_prop_row: usize) {
@@ -426,7 +430,7 @@ impl<'a> PropMutEntry<'a> {
         if prop_timestamps.set(t, Some(t_prop_row)) {
             self.properties.t_additions_count += 1;
         }
-        self.properties.time_rows[0].insert(t, self.row as u32);
+        self.properties.prop_update_rows.insert(t, self.row as u32);
     }
 
     pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID, mode: WriteMode) {
@@ -442,12 +446,12 @@ impl<'a> PropMutEntry<'a> {
             WriteMode::Online => {
                 debug_assert!(!self.properties.unsorted, "online write during a bulk load");
                 prop_timestamps.set(t, edge_id);
-                self.properties.time_rows[1].insert(t, self.row as u32);
+                self.properties.event_rows.insert(t, self.row as u32);
             }
             WriteMode::Bulk => {
                 self.properties.unsorted = true;
                 prop_timestamps.push_unsorted(t, edge_id);
-                self.properties.time_rows[1].push_unsorted(t, self.row as u32);
+                self.properties.event_rows.push_unsorted(t, self.row as u32);
             }
         }
 
@@ -471,7 +475,7 @@ impl<'a> PropMutEntry<'a> {
 
         let prop_timestamps = &mut self.properties.deletions[self.row];
         prop_timestamps.set(t, edge_id.unwrap_or_default());
-        let rows = &mut self.properties.time_rows[1];
+        let rows = &mut self.properties.event_rows;
         match mode {
             WriteMode::Online => {
                 debug_assert!(!self.properties.unsorted, "online write during a bulk load");

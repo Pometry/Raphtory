@@ -160,6 +160,42 @@ impl<T: HasRow> SparseVec<T> {
     }
 }
 
+/// A set of rows in one segment, as a bitset grown on demand: a row never exceeds the segment's
+/// `max_page_len`, so it costs at most `max_page_len / 8` bytes however often a row is inserted.
+#[derive(Debug, Default)]
+struct RowSet {
+    words: Vec<u64>,
+}
+
+impl RowSet {
+    fn insert(&mut self, row: usize) {
+        let word = row / 64;
+        if word >= self.words.len() {
+            self.words.resize(word + 1, 0);
+        }
+        self.words[word] |= 1 << (row % 64);
+    }
+
+    /// Nothing was inserted; inserting never clears a word, so a non-empty set has words.
+    fn is_empty(&self) -> bool {
+        self.words.is_empty()
+    }
+
+    /// The rows in ascending order.
+    fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        self.words.iter().enumerate().flat_map(|(i, &word)| {
+            let mut bits = word;
+            std::iter::from_fn(move || {
+                (bits != 0).then(|| {
+                    let bit = bits.trailing_zeros() as usize;
+                    bits &= bits - 1;
+                    i * 64 + bit
+                })
+            })
+        })
+    }
+}
+
 /// A single layer's data in a Mem(Edge/Node)Segment. Only accessed through a RwLock, so no concurrent writing.
 #[derive(Debug)]
 pub struct SegmentContainer<T> {
@@ -170,8 +206,8 @@ pub struct SegmentContainer<T> {
     meta: Arc<Meta>,
     out_count: usize, // used to count num edges
     inb_count: usize, // used to count num edges
-    /// rows whose item a bulk load may have left unsorted, with repeats
-    unsorted_rows: Vec<usize>,
+    /// rows whose item a bulk load may have left unsorted
+    unsorted_rows: RowSet,
 }
 
 pub trait HasRow: Default + Send + Sync + Sized {
@@ -192,7 +228,7 @@ impl<T: HasRow> SegmentContainer<T> {
             meta,
             out_count: 0,
             inb_count: 0,
-            unsorted_rows: Vec::new(),
+            unsorted_rows: RowSet::default(),
         }
     }
 
@@ -215,7 +251,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     /// Records that the item at `row` may be out of order until [`Self::sort_unsorted_rows`].
     pub(crate) fn mark_unsorted_row(&mut self, row: usize) {
-        self.unsorted_rows.push(row);
+        self.unsorted_rows.insert(row);
     }
 
     /// Whether some items still need [`Self::sort_unsorted_rows`].
@@ -226,10 +262,8 @@ impl<T: HasRow> SegmentContainer<T> {
     /// Sorts each item marked by [`Self::mark_unsorted_row`] once with `sort`, which returns the
     /// number of inbound edges it removed as duplicates.
     pub(crate) fn sort_unsorted_rows(&mut self, mut sort: impl FnMut(&mut T) -> usize) {
-        let mut rows = std::mem::take(&mut self.unsorted_rows);
-        rows.sort_unstable();
-        rows.dedup();
-        for row in rows {
+        let rows = std::mem::take(&mut self.unsorted_rows);
+        for row in rows.iter() {
             self.inb_count -= sort(self.data.get_row_mut(row));
         }
     }
@@ -249,7 +283,7 @@ impl<T: HasRow> SegmentContainer<T> {
             (self.data.num_filled() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
         let timestamp_size = std::mem::size_of::<EventTime>();
         (self.properties.additions_count * timestamp_size)
-            + self.properties.time_rows_len() * std::mem::size_of::<(EventTime, u32)>()
+            + self.properties.reverse_tindex_len() * std::mem::size_of::<(EventTime, u32)>()
             + data_size
             + self.t_prop_est_size()
             + self.c_prop_est_size()
@@ -497,5 +531,24 @@ impl<T: HasRow> SegmentContainer<T> {
             .get(item_pos)
             .and_then(|entry| self.properties.times_from_props(entry.row()))
             .unwrap_or(&TCell::Empty)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RowSet;
+
+    #[test]
+    fn row_set_yields_each_row_once_in_order() {
+        let mut rows = RowSet::default();
+        assert!(rows.is_empty());
+        for row in [130, 0, 63, 64, 130, 5, 0, 127] {
+            rows.insert(row);
+        }
+        assert!(!rows.is_empty());
+        assert_eq!(
+            rows.iter().collect::<Vec<_>>(),
+            vec![0, 5, 63, 64, 127, 130]
+        );
     }
 }

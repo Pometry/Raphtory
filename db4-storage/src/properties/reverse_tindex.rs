@@ -85,8 +85,13 @@ impl ReverseTIndex {
             Self::Svm(svm) => {
                 let entries = svm.as_slice();
                 let start = entries.partition_point(|(e, _)| e < range.start());
-                let end = entries.partition_point(|(e, _)| e <= range.end());
-                Either::Left(entries[start..end].iter().map(|(e, _)| e))
+                let end = *range.end();
+                Either::Left(
+                    entries[start..]
+                        .iter()
+                        .map(|(e, _)| e)
+                        .take_while(move |e| **e <= end),
+                )
             }
             Self::BTree(set) => Either::Right(set.range(range)),
         })
