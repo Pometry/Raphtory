@@ -230,6 +230,19 @@ impl MemEdgeSegment {
         dst: VID,
         layer_id: LayerId,
     ) -> bool {
+        self.delete_edge_with(t, edge_pos, src, dst, layer_id, WriteMode::Online)
+    }
+
+    /// As [`Self::delete_edge_internal`], ordering the edge event times as `mode` says.
+    pub(crate) fn delete_edge_with<T: AsTime>(
+        &mut self,
+        t: T,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        layer_id: LayerId,
+        mode: WriteMode,
+    ) -> bool {
         let t = EventTime::new(t.t(), t.i());
 
         // Ensure we have enough layers
@@ -240,7 +253,9 @@ impl MemEdgeSegment {
             .reserve_local_row(edge_pos, src, dst, layer_id)
             .into_inner_with_status();
         let props = self.layers[layer_id.0].properties_mut();
-        props.get_mut_entry(local_row).deletion_timestamp(t, None);
+        props
+            .get_mut_entry(local_row)
+            .deletion_timestamp(t, None, mode);
         let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
         is_new

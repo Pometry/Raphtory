@@ -1154,6 +1154,39 @@ mod io_tests {
         }
     }
 
+    /// A bulk load that fails after writing some chunks still orders what it wrote, when its
+    /// locked segments drop.
+    #[test]
+    fn test_failed_bulk_load_is_still_ordered() {
+        proptest!(|(edges in build_edge_list(300, 4), chunk_size in 1usize..=300)| {
+            let DFView { names, chunks, num_rows } = build_df(chunk_size, &edges);
+            let failing = DFView {
+                names,
+                chunks: chunks.chain(std::iter::once(Err(GraphError::DiskGraphNotEnabled))),
+                num_rows,
+            };
+            let g = small_pages_graph();
+            let props = ["str_prop", "int_prop"];
+            let column_names = ColumnNames::new("time", None, "src", "dst", None);
+            let res = load_edges_from_df(failing, column_names, true, &props, &[], None, None, &g, false);
+            assert!(res.is_err());
+
+            let expected = Graph::new();
+            for (src, dst, time, str_prop, int_prop) in &edges {
+                let props = [
+                    ("str_prop", str_prop.clone().into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ];
+                expected.add_edge(*time, *src, *dst, props, None).unwrap();
+            }
+            assert_graph_equal(&g, &expected);
+            // online writes after the failed load find everything ordered
+            g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+            expected.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+            assert_graph_equal(&g, &expected);
+        })
+    }
+
     #[test]
     fn test_bulk_load_orders_deferred_times_proptest() {
         proptest!(|(edges in build_edge_list(600, 4), chunk_size in 1usize..=600)| {

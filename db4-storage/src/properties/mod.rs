@@ -19,9 +19,11 @@ use raphtory_core::{
     },
     storage::{PropColumn, TColumns, timeindex::EventTime},
 };
-use std::{collections::BTreeSet, ops::RangeInclusive, sync::Arc};
+use reverse_tindex::ReverseTIndex;
+use std::{ops::RangeInclusive, sync::Arc};
 
 pub mod props_meta_writer;
+pub mod reverse_tindex;
 
 /// Whether a write keeps the time structures it touches ordered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,8 +54,8 @@ pub struct Properties {
     pub deletions_count: usize,
     /// Distinct `(timestamp, event_id)` temporal updates; see `t_additions_count()`.
     t_additions_count: usize,
-    /// Rows by update time: property updates, then edge events.
-    time_rows: [BTreeSet<(EventTime, u32)>; 2],
+    /// Reverse time indexes: rows by update time, for property updates, then edge events.
+    time_rows: [ReverseTIndex; 2],
     /// a bulk load appended to some cells without ordering them (see [`Self::sort_deferred`])
     unsorted: bool,
 }
@@ -161,6 +163,9 @@ impl Properties {
                 cell.sort_dedup();
             }
             self.t_additions_count = self.times_from_props.iter().map(|cell| cell.len()).sum();
+            for rows in &mut self.time_rows {
+                rows.sort_dedup();
+            }
         }
     }
 
@@ -342,6 +347,7 @@ impl Properties {
         events: bool,
         window: RangeInclusive<i64>,
     ) -> impl Iterator<Item = (usize, i64)> + '_ {
+        debug_assert!(!self.unsorted, "reverse time index read during a bulk load");
         let range =
             (EventTime::start(*window.start()), 0)..=(EventTime::end(*window.end()), u32::MAX);
         let kinds = [props, events].into_iter().zip(&self.time_rows);
@@ -411,7 +417,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.unsorted = true;
         self.properties.times_from_props[self.row].push_unsorted(t, Some(t_prop_row));
         self.properties.t_additions_count += 1;
-        self.properties.time_rows[0].insert((t, self.row as u32));
+        self.properties.time_rows[0].push_unsorted(t, self.row as u32);
     }
 
     pub(crate) fn set_time(&mut self, t: EventTime, t_prop_row: usize) {
@@ -420,7 +426,7 @@ impl<'a> PropMutEntry<'a> {
         if prop_timestamps.set(t, Some(t_prop_row)) {
             self.properties.t_additions_count += 1;
         }
-        self.properties.time_rows[0].insert((t, self.row as u32));
+        self.properties.time_rows[0].insert(t, self.row as u32);
     }
 
     pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID, mode: WriteMode) {
@@ -436,18 +442,24 @@ impl<'a> PropMutEntry<'a> {
             WriteMode::Online => {
                 debug_assert!(!self.properties.unsorted, "online write during a bulk load");
                 prop_timestamps.set(t, edge_id);
+                self.properties.time_rows[1].insert(t, self.row as u32);
             }
             WriteMode::Bulk => {
                 self.properties.unsorted = true;
                 prop_timestamps.push_unsorted(t, edge_id);
+                self.properties.time_rows[1].push_unsorted(t, self.row as u32);
             }
         }
-        self.properties.time_rows[1].insert((t, self.row as u32));
 
         self.properties.update_earliest_latest(t);
     }
 
-    pub(crate) fn deletion_timestamp(&mut self, t: EventTime, edge_id: Option<ELID>) {
+    pub(crate) fn deletion_timestamp(
+        &mut self,
+        t: EventTime,
+        edge_id: Option<ELID>,
+        mode: WriteMode,
+    ) {
         if self.properties.deletions.len() <= self.row {
             self.properties
                 .deletions
@@ -459,7 +471,17 @@ impl<'a> PropMutEntry<'a> {
 
         let prop_timestamps = &mut self.properties.deletions[self.row];
         prop_timestamps.set(t, edge_id.unwrap_or_default());
-        self.properties.time_rows[1].insert((t, self.row as u32));
+        let rows = &mut self.properties.time_rows[1];
+        match mode {
+            WriteMode::Online => {
+                debug_assert!(!self.properties.unsorted, "online write during a bulk load");
+                rows.insert(t, self.row as u32);
+            }
+            WriteMode::Bulk => {
+                self.properties.unsorted = true;
+                rows.push_unsorted(t, self.row as u32);
+            }
+        }
         self.properties.update_earliest_latest(t);
     }
 
@@ -511,5 +533,50 @@ impl<'a> PropEntry<'a> {
 
     pub fn deletions(self) -> &'a TCell<ELID> {
         self.properties.deletions(self.row).unwrap_or(&TCell::Empty)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use raphtory_api::core::entities::{EID, LayerId};
+
+    fn events(props: &Properties) -> Vec<(usize, i64)> {
+        props
+            .rows_updated_in(false, true, i64::MIN..=i64::MAX)
+            .collect()
+    }
+
+    #[test]
+    fn bulk_events_are_ordered_once_the_bulk_load_finishes() {
+        let eid = EID(0).with_layer(LayerId(1));
+        let writes = [(3, 1), (1, 0), (3, 0), (2, 1), (1, 0)];
+
+        let mut online = Properties::default();
+        let mut bulk = Properties::default();
+        for (t, row) in writes {
+            let t = EventTime(t, 0);
+            online
+                .get_mut_entry(row)
+                .addition_timestamp(t, eid, WriteMode::Online);
+            bulk.get_mut_entry(row)
+                .addition_timestamp(t, eid, WriteMode::Bulk);
+        }
+        bulk.get_mut_entry(1)
+            .deletion_timestamp(EventTime(0, 0), None, WriteMode::Bulk);
+        online
+            .get_mut_entry(1)
+            .deletion_timestamp(EventTime(0, 0), None, WriteMode::Online);
+
+        assert!(bulk.needs_sort());
+        bulk.sort_deferred();
+        assert!(!bulk.needs_sort());
+
+        // both rows updated at t = 3 are kept
+        let expected = vec![(1, 0), (0, 1), (1, 2), (0, 3), (1, 3)];
+        assert_eq!(events(&online), expected);
+        assert_eq!(events(&bulk), expected);
+        assert_eq!(bulk.additions(0), online.additions(0));
+        assert_eq!(bulk.additions(1), online.additions(1));
     }
 }

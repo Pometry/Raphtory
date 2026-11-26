@@ -99,7 +99,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         if self
             .ew
             .writer
-            .delete_edge_internal(t, edge_pos, src, dst, layer_id)
+            .delete_edge_with(t, edge_pos, src, dst, layer_id, WriteMode::Bulk)
             && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
         {
             self.increment_layer_num_edges(layer_id);
