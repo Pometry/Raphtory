@@ -56,6 +56,27 @@ impl Adj {
         }
     }
 
+    /// As [`Self::add_edge_into`], but appends without keeping the in set sorted or checking for
+    /// duplicates (see [`AdjSet::push_unsorted`]). Returns `true` if the in set may now be out
+    /// of order.
+    pub fn add_edge_into_unsorted(&mut self, v: VID, e: EID) -> bool {
+        match self {
+            Adj::Solo => {
+                *self = Self::new_into(v, e);
+                false
+            }
+            Adj::List { into, .. } => into.push_unsorted(v, e),
+        }
+    }
+
+    /// Sorts the in set after [`Self::add_edge_into_unsorted`]; returns the duplicates removed.
+    pub fn sort_dedup_into(&mut self) -> usize {
+        match self {
+            Adj::Solo => 0,
+            Adj::List { into, .. } => into.sort_dedup(),
+        }
+    }
+
     /// Adds an edge in the out direction, creating a new adjacency if necessary.
     /// Returns `true` if the edge was added, `false` if it already exists.
     pub fn add_edge_out(&mut self, v: VID, e: EID) -> bool {

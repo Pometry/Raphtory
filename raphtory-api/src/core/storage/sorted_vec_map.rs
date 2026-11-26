@@ -96,6 +96,28 @@ impl<K: Ord, V> SVM<K, V> {
         }
     }
 
+    /// Inserts a key-value pair if the key is absent, keeping the value already there otherwise.
+    /// Returns `true` if the pair was inserted. Like [`Self::insert`], appending a key greater
+    /// than all others is amortized O(1).
+    pub fn insert_if_absent(&mut self, k: K, v: V) -> bool {
+        if self.0.last().is_none_or(|(last, _)| *last < k) {
+            self.0.push((k, v));
+            return true;
+        }
+        match self.find_index(&k) {
+            Ok(_) => false,
+            Err(index) => {
+                self.0.insert(index, (k, v));
+                true
+            }
+        }
+    }
+
+    /// The entries in key order.
+    pub fn as_slice(&self) -> &[(K, V)] {
+        &self.0
+    }
+
     /// Appends without keeping the map sorted (bulk loading); call [`Self::sort_dedup`] before
     /// any lookup or ordered iteration.
     #[inline]

@@ -175,10 +175,12 @@ impl MemNodeSegment {
         }
     }
 
-    /// Orders what a bulk load left unordered; cheap when nothing is.
+    /// Orders what a bulk load left unordered (addition cells and inbound adjacency sets);
+    /// cheap when nothing is.
     pub fn sort_deferred(&mut self) {
         for layer in &mut self.layers {
             layer.properties_mut().sort_deferred();
+            layer.sort_unsorted_rows(|entry| entry.adj.sort_dedup_into());
         }
     }
 
@@ -294,14 +296,28 @@ impl MemNodeSegment {
         let dst_pos = dst_pos.into();
 
         let layer = self.get_or_create_layer(layer_id);
+        debug_assert!(
+            mode == WriteMode::Bulk || !layer.has_unsorted_rows(),
+            "online write during a bulk load"
+        );
         let est_size = layer.est_size();
 
         let (is_new_edge, row, new_entry) = {
             let add_in = layer.reserve_local_row(dst_pos);
             let new_entry = add_in.is_new();
             let add_in = add_in.inner();
-            let is_new_edge = add_in.adj.add_edge_into(src, e_id.eid());
             let row = add_in.row;
+            let is_new_edge = match mode {
+                WriteMode::Online => add_in.adj.add_edge_into(src, e_id.eid()),
+                // a bulk load adds each inbound edge once; duplicates are removed (and
+                // uncounted) by `sort_deferred`
+                WriteMode::Bulk => {
+                    if add_in.adj.add_edge_into_unsorted(src, e_id.eid()) {
+                        layer.mark_unsorted_row(row);
+                    }
+                    true
+                }
+            };
             (is_new_edge, row, new_entry)
         };
 
