@@ -1593,6 +1593,18 @@ impl CreateFilter for GqlFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type PathEdgeFilter<'graph, G, S>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
+    type PathNodeFilter<'graph, G, S>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
 
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
@@ -1613,5 +1625,19 @@ impl CreateFilter for GqlFilter {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         expr::FilterExpr::try_from(self)?.create_edge_filter(graph)
+    }
+
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        graph: G,
+        select: S,
+    ) -> Result<
+        (
+            Self::PathEdgeFilter<'graph, G, S>,
+            Self::PathNodeFilter<'graph, G, S>,
+        ),
+        GraphError,
+    > {
+        expr::FilterExpr::try_from(self)?.create_path_filter(graph, select)
     }
 }
