@@ -692,7 +692,7 @@ class GraphView(object):
           verbose (bool): Enable to print logs reporting progress. Defaults to False.
 
         Returns:
-          VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
+          VectorisedGraph: A VectorisedGraph with all the documents and their embeddings. A `VectorSelection` is obtained from `empty_selection()` or from a similarity search.
 
         Note:
           A template string is rendered as it is, so a bare word such as `"description"` becomes the literal document `description` for every entity; to embed a property, interpolate it: `"{{ properties.description }}"`.

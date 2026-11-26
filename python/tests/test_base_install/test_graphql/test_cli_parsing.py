@@ -158,3 +158,18 @@ def test_sparql_limits_from_every_config_source():
     assert concurrency["max_shacl_shapes_length"] == 2000
     assert concurrency["max_shacl_results"] == 7
     assert concurrency["max_shacl_validation_ms"] == 3000
+
+
+def test_cli_reads_sys_argv():
+    script = (
+        "import sys; sys.argv = ['raphtory', 'schema']; "
+        "from raphtory.graphql import cli; cli()"
+    )
+    # the process arguments after the script are not CLI arguments
+    result = subprocess.run(
+        [sys.executable, "-c", script, "--not-a-flag"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "type QueryRoot {" in result.stdout

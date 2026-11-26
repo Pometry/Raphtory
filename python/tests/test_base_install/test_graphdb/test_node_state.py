@@ -72,3 +72,13 @@ def test_node_states_of_two_graphs_compare_by_node_id():
     # different graphs over the same four nodes, never a panic
     assert g.nodes.degree() != i.nodes.degree()
     assert i.nodes.degree() != g.nodes.degree()
+
+
+def test_valid_datetime_states_keep_only_the_nodes_with_a_value():
+    g = Graph()
+    g.add_node(1, "a")
+    g.add_node(2**62, "z")  # outside the datetime range, so its dt is an error
+
+    for state in (g.nodes.earliest_time.dt, g.nodes.latest_time.dt):
+        assert list(state.sorted_by_id_valid().nodes().name) == ["a"]
+        assert list(state.compute_valid().nodes().name) == ["a"]
