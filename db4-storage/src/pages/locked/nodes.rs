@@ -72,6 +72,7 @@ impl<'a, NS: NodeSegmentOps> WriteLockedNodeSegment<'a, NS> {
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
         let head = self.head.deref_mut();
+        head.sort_deferred();
         self.segment.flush_with_head(head)
     }
 
@@ -106,6 +107,20 @@ impl<'a, NS: NodeSegmentOps> WriteLockedNodeSegment<'a, NS> {
         self.head
             .get_metadata(pos, layer_id, prop_id)
             .or_else(|| self.segment.get_metadata_immut(pos, layer_id, prop_id))
+    }
+}
+
+impl<NS> WriteLockedNodeSegment<'_, NS> {
+    /// Finishes a bulk load on this segment: orders what its bulk writers left unordered.
+    /// Runs on drop too, so a failed load still leaves the segment ordered.
+    pub fn finish_bulk_load(&mut self) {
+        self.head.sort_deferred();
+    }
+}
+
+impl<NS> Drop for WriteLockedNodeSegment<'_, NS> {
+    fn drop(&mut self) {
+        self.finish_bulk_load();
     }
 }
 
@@ -191,6 +206,13 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.segments
             .par_iter_mut()
             .try_for_each(|locked_segment| locked_segment.flush())
+    }
+
+    /// [`WriteLockedNodeSegment::finish_bulk_load`] on every segment, in parallel.
+    pub fn finish_bulk_load(&mut self) {
+        self.segments
+            .par_iter_mut()
+            .for_each(WriteLockedNodeSegment::finish_bulk_load);
     }
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {

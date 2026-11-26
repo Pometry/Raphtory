@@ -3,6 +3,7 @@ use crate::{
     api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{layer_counter::GraphStats, resolve_pos},
+    properties::WriteMode,
     segments::node::segment::MemNodeSegment,
     wal::LSN,
 };
@@ -51,7 +52,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
     ) {
-        self.add_outbound_edge_inner(t, src_pos, dst, e_id, |layer_id| {
+        self.add_outbound_edge_inner(t, src_pos, dst, e_id, WriteMode::Online, |layer_id| {
             self.graph_stats.increment(layer_id);
         });
     }
@@ -68,6 +69,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             src_pos,
             dst,
             e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            WriteMode::Online,
             |layer_id| {
                 self.graph_stats.increment(layer_id);
             },
@@ -80,6 +82,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         src_pos: impl Into<LocalPOS>,
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
+        mode: WriteMode,
         mut layer_counter: impl FnMut(LayerId),
     ) {
         let src_pos = src_pos.into();
@@ -90,7 +93,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
         let e_id = e_id.into();
         let layer_id = e_id.layer();
-        let (is_new_node, add) = self.writer.add_outbound_edge(t, src_pos, dst, e_id);
+        let (is_new_node, add) = self.writer.add_outbound_edge(t, src_pos, dst, e_id, mode);
         self.writer.increment_est_size(add);
 
         if is_new_node && !self.segment.has_node(src_pos, layer_id) {
@@ -105,7 +108,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
     ) {
-        self.add_inbound_edge_inner(t, dst_pos, src, e_id, |layer| {
+        self.add_inbound_edge_inner(t, dst_pos, src, e_id, WriteMode::Online, |layer| {
             self.graph_stats.increment(layer);
         });
     }
@@ -122,6 +125,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             dst_pos,
             src,
             e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            WriteMode::Online,
             |layer| {
                 self.graph_stats.increment(layer);
             },
@@ -134,6 +138,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
+        mode: WriteMode,
         mut layer_counter: impl FnMut(LayerId),
     ) {
         let e_id = e_id.into();
@@ -145,7 +150,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
         let layer = e_id.layer();
         let dst_pos = dst_pos.into();
-        let (is_new_node, add) = self.writer.add_inbound_edge(t, dst_pos, src, e_id);
+        let (is_new_node, add) = self.writer.add_inbound_edge(t, dst_pos, src, e_id, mode);
 
         self.writer.increment_est_size(add);
 
@@ -219,8 +224,18 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID) {
+        self.update_timestamp_inner(t, pos, e_id, WriteMode::Online);
+    }
+
+    pub(crate) fn update_timestamp_inner<T: AsTime>(
+        &mut self,
+        t: T,
+        pos: LocalPOS,
+        e_id: ELID,
+        mode: WriteMode,
+    ) {
         self.graph_stats.update_time(t.t());
-        let add = self.writer.update_timestamp(t, pos, e_id);
+        let add = self.writer.update_timestamp(t, pos, e_id, mode);
         self.writer.increment_est_size(add);
     }
 

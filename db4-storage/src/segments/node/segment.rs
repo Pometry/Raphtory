@@ -4,7 +4,7 @@ use crate::{
     error::StorageError,
     loop_lock_write, loop_lock_write_arc,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
-    properties::PropEntry,
+    properties::{PropEntry, WriteMode},
     segments::{
         HasRow, SegmentContainer,
         node::entry::{MemNodeEntry, MemNodeRef},
@@ -175,6 +175,13 @@ impl MemNodeSegment {
         }
     }
 
+    /// Orders what a bulk load left unordered; cheap when nothing is.
+    pub fn sort_deferred(&mut self) {
+        for layer in &mut self.layers {
+            layer.properties_mut().sort_deferred();
+        }
+    }
+
     pub fn to_vid(&self, pos: LocalPOS) -> VID {
         pos.as_vid(self.segment_id, self.max_page_len)
     }
@@ -247,6 +254,7 @@ impl MemNodeSegment {
         src_pos: LocalPOS,
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
+        mode: WriteMode,
     ) -> (bool, usize) {
         let dst = dst.into();
         let e_id = e_id.into();
@@ -264,7 +272,7 @@ impl MemNodeSegment {
         };
         layer.inc_out_count(is_new_edge as usize);
         if let Some(t) = t {
-            self.update_timestamp_inner(t, row, e_id);
+            self.update_timestamp_inner(t, row, e_id, mode);
         }
         let layer_est_size = self.layers[layer_id.0].est_size();
         let added_size =
@@ -278,6 +286,7 @@ impl MemNodeSegment {
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
+        mode: WriteMode,
     ) -> (bool, usize) {
         let src = src.into();
         let e_id = e_id.into();
@@ -299,7 +308,7 @@ impl MemNodeSegment {
         layer.inc_inb_count(is_new_edge as usize);
 
         if let Some(t) = t {
-            self.update_timestamp_inner(t, row, e_id);
+            self.update_timestamp_inner(t, row, e_id, mode);
         }
         let layer_est_size = self.layers[layer_id.0].est_size();
         let added_size =
@@ -307,16 +316,22 @@ impl MemNodeSegment {
         (new_entry, added_size)
     }
 
-    fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID) {
+    fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID, mode: WriteMode) {
         let mut prop_mut_entry = self.layers[e_id.layer().0]
             .properties_mut()
             .get_mut_entry(row);
         let ts = EventTime::new(t.t(), t.i());
 
-        prop_mut_entry.addition_timestamp(ts, e_id);
+        prop_mut_entry.addition_timestamp(ts, e_id, mode);
     }
 
-    pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) -> usize {
+    pub fn update_timestamp<T: AsTime>(
+        &mut self,
+        t: T,
+        node_pos: LocalPOS,
+        e_id: ELID,
+        mode: WriteMode,
+    ) -> usize {
         let layer_id = e_id.layer();
         let (est_size, row) = {
             let segment_container = self.get_or_create_layer(layer_id); //&mut self.layers[e_id.layer()];
@@ -324,7 +339,7 @@ impl MemNodeSegment {
             let row = segment_container.reserve_local_row(node_pos).inner().row();
             (est_size, row)
         };
-        self.update_timestamp_inner(t, row, e_id);
+        self.update_timestamp_inner(t, row, e_id, mode);
         let layer_est_size = self.layers[layer_id.0].est_size();
         layer_est_size - est_size
     }

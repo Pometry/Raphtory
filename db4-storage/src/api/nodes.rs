@@ -258,7 +258,8 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn locked(&self) -> Self::ArcLockedSegment;
 
     fn flush(&self) -> Result<(), StorageError> {
-        let head = self.head_mut();
+        let mut head = self.head_mut();
+        head.sort_deferred();
         self.flush_with_head(head)
     }
 

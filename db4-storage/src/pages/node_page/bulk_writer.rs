@@ -11,7 +11,7 @@ use raphtory_core::{
 
 use crate::{
     LocalPOS, api::nodes::NodeSegmentOps, pages::node_page::writer::NodeWriter,
-    segments::node::segment::MemNodeSegment,
+    properties::WriteMode, segments::node::segment::MemNodeSegment,
 };
 
 #[derive(Debug)]
@@ -57,6 +57,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
             src_pos,
             dst,
             e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            WriteMode::Bulk,
             |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             },
@@ -75,6 +76,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
             dst_pos,
             src,
             e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            WriteMode::Bulk,
             |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             },
@@ -90,7 +92,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
         e_id: impl Into<ELID>,
     ) {
         self.nw
-            .add_outbound_edge_inner(t, src_pos, dst, e_id, |layer_id| {
+            .add_outbound_edge_inner(t, src_pos, dst, e_id, WriteMode::Bulk, |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             });
     }
@@ -103,7 +105,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
         e_id: impl Into<ELID>,
     ) {
         self.nw
-            .add_inbound_edge_inner(t, dst_pos, src, e_id, |layer_id| {
+            .add_inbound_edge_inner(t, dst_pos, src, e_id, WriteMode::Bulk, |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             });
     }
@@ -117,7 +119,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
 
     #[inline(always)]
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID) {
-        self.nw.update_timestamp(t, pos, e_id);
+        self.nw
+            .update_timestamp_inner(t, pos, e_id, WriteMode::Bulk);
     }
 
     #[inline(always)]

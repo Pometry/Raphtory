@@ -23,6 +23,16 @@ use std::{collections::BTreeSet, ops::RangeInclusive, sync::Arc};
 
 pub mod props_meta_writer;
 
+/// Whether a write keeps the time structures it touches ordered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WriteMode {
+    /// An online write: every structure is ordered once it returns.
+    Online,
+    /// A bulk load write: appends without ordering; the structure is ordered once, when the
+    /// bulk load finishes or the segment is flushed (see [`Properties::sort_deferred`]).
+    Bulk,
+}
+
 /// Contains the properties of a `SegmentContainer` (which corresponds to one layer in a Mem(Edge/Node)Segment)
 #[derive(Debug, Default)]
 pub struct Properties {
@@ -44,6 +54,8 @@ pub struct Properties {
     t_additions_count: usize,
     /// Rows by update time: property updates, then edge events.
     time_rows: [BTreeSet<(EventTime, u32)>; 2],
+    /// a bulk load appended to some cells without ordering them (see [`Self::sort_deferred`])
+    unsorted: bool,
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -130,6 +142,20 @@ impl Properties {
 
     pub fn has_deletions(&self) -> bool {
         self.has_deletions
+    }
+
+    /// Whether a bulk load left some cells unordered (see [`Self::sort_deferred`]).
+    pub fn needs_sort(&self) -> bool {
+        self.unsorted
+    }
+
+    /// Orders the cells a bulk load appended to without ordering; a no-op otherwise.
+    pub fn sort_deferred(&mut self) {
+        if std::mem::take(&mut self.unsorted) {
+            for cell in &mut self.additions {
+                cell.sort_dedup();
+            }
+        }
     }
 
     pub(crate) fn column_as_array(
@@ -375,7 +401,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.time_rows[0].insert((t, self.row as u32));
     }
 
-    pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID) {
+    pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID, mode: WriteMode) {
         if self.properties.additions.len() <= self.row {
             self.properties
                 .additions
@@ -384,7 +410,16 @@ impl<'a> PropMutEntry<'a> {
 
         self.properties.has_additions = true;
         let prop_timestamps = &mut self.properties.additions[self.row];
-        prop_timestamps.set(t, edge_id);
+        match mode {
+            WriteMode::Online => {
+                debug_assert!(!self.properties.unsorted, "online write during a bulk load");
+                prop_timestamps.set(t, edge_id);
+            }
+            WriteMode::Bulk => {
+                self.properties.unsorted = true;
+                prop_timestamps.push_unsorted(t, edge_id);
+            }
+        }
         self.properties.time_rows[1].insert((t, self.row as u32));
 
         self.properties.update_earliest_latest(t);

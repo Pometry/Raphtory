@@ -30,6 +30,37 @@ impl<A: PartialEq> TCell<A> {
         TCell::TCell1(t, value)
     }
 
+    /// Bulk-load insert: appends `(t, value)` without keeping the cell sorted, so a run of
+    /// out-of-order inserts costs O(1) each instead of a search and shift. The cell must be
+    /// restored with [`Self::sort_dedup`] before it is read.
+    #[inline]
+    pub fn push_unsorted(&mut self, t: EventTime, value: A) {
+        match self {
+            TCell::Empty => *self = TCell::TCell1(t, value),
+            TCell::TCell1(..) => {
+                if let TCell::TCell1(t0, value0) = std::mem::take(self) {
+                    let mut svm = SVM::new();
+                    svm.push_unsorted(t0, value0);
+                    svm.push_unsorted(t, value);
+                    *self = TCell::TCellCap(svm);
+                }
+            }
+            TCell::TCellCap(svm) => svm.push_unsorted(t, value),
+            TCell::TCellN(btm) => {
+                btm.insert(t, value);
+            }
+        }
+    }
+
+    /// Sorts a cell filled with [`Self::push_unsorted`], keeping the last value for a repeated
+    /// `t` as [`Self::set`] would. Large cells stay vectors; [`Self::set`] turns them into a
+    /// `BTreeMap` if they are written to again.
+    pub fn sort_dedup(&mut self) {
+        if let TCell::TCellCap(svm) = self {
+            svm.sort_dedup();
+        }
+    }
+
     #[inline]
     /// Sets the value at `t`, overwriting any value already there.
     ///

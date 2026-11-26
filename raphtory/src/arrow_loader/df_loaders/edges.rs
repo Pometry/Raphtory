@@ -515,6 +515,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
+    // the bulk writers appended node additions unordered; order them once, in parallel
+    write_locked_graph.nodes.finish_bulk_load();
     Ok::<_, GraphError>(())
 }
 
