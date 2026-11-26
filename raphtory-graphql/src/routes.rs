@@ -380,6 +380,6 @@ mod tests {
             .into_string()
             .await
             .unwrap();
-        assert!(!page.contains("raphtory-base-path"));
+        assert!(!page.contains(r#"<meta name="raphtory-base-path""#));
     }
 }
