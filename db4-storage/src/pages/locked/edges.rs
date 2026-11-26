@@ -89,7 +89,22 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
         let head = self.head.deref_mut();
+        head.sort_deferred();
         self.segment.flush_with_head(head)
+    }
+}
+
+impl<ES> LockedEdgeSegment<'_, ES> {
+    /// Finishes a bulk load on this segment: orders what its bulk writers left unordered.
+    /// Runs on drop too, so a failed load still leaves the segment ordered.
+    pub fn finish_bulk_load(&mut self) {
+        self.head.sort_deferred();
+    }
+}
+
+impl<ES> Drop for LockedEdgeSegment<'_, ES> {
+    fn drop(&mut self) {
+        self.finish_bulk_load();
     }
 }
 
@@ -128,6 +143,13 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedEdgeSegment<'a, ES>> + 'a {
         self.segments.into_par_iter()
+    }
+
+    /// [`LockedEdgeSegment::finish_bulk_load`] on every segment, in parallel.
+    pub fn finish_bulk_load(&mut self) {
+        self.segments
+            .par_iter_mut()
+            .for_each(LockedEdgeSegment::finish_bulk_load);
     }
 
     pub fn ensure_layer(&mut self, layer_id: LayerId) {

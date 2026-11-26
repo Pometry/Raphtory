@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, pages::edge_page::writer::EdgeWriter,
-    segments::edge::segment::MemEdgeSegment,
+    properties::WriteMode, segments::edge::segment::MemEdgeSegment,
 };
 use raphtory_api::core::entities::{
     EID, LayerId, VID,
@@ -57,11 +57,15 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
             self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
         }
 
-        if self
-            .ew
-            .writer
-            .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props)
-            && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
+        if self.ew.writer.insert_edge_with(
+            t,
+            edge_pos,
+            src,
+            dst,
+            layer_id,
+            t_props,
+            WriteMode::Bulk,
+        ) && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
         {
             self.increment_layer_num_edges(layer_id);
         }

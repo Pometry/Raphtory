@@ -3,7 +3,7 @@ use crate::{
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
-    properties::PropMutEntry,
+    properties::{PropMutEntry, WriteMode},
     segments::{
         HasRow, SegmentContainer,
         edge::entry::{MemEdgeEntry, MemEdgeRef},
@@ -158,6 +158,13 @@ impl MemEdgeSegment {
         self.layers[0].max_page_len()
     }
 
+    /// Orders what a bulk load left unordered; cheap when nothing is.
+    pub fn sort_deferred(&mut self) {
+        for layer in &mut self.layers {
+            layer.properties_mut().sort_deferred();
+        }
+    }
+
     pub fn get_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<(VID, VID)> {
         self.layers
             .get(layer_id.0)?
@@ -177,6 +184,21 @@ impl MemEdgeSegment {
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) -> bool {
+        self.insert_edge_with(t, edge_pos, src, dst, layer_id, props, WriteMode::Online)
+    }
+
+    /// As [`Self::insert_edge_internal`], ordering the property times as `mode` says.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn insert_edge_with<T: AsTime, P: AsPropRef>(
+        &mut self,
+        t: T,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+        mode: WriteMode,
+    ) -> bool {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id.0].est_size();
@@ -190,7 +212,7 @@ impl MemEdgeSegment {
             .get_mut_entry(local_row);
 
         let ts = EventTime::new(t.t(), t.i());
-        prop_entry.append_t_props(ts, props);
+        prop_entry.append_t_props(ts, props, mode);
 
         let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);

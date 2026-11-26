@@ -117,7 +117,7 @@ impl MemGraphPropSegment {
 
         layer.reserve_local_row(Self::DEFAULT_ROW.into());
         let mut prop_mut_entry = layer.properties_mut().get_mut_entry(Self::DEFAULT_ROW);
-        prop_mut_entry.append_t_props(ts, props);
+        prop_mut_entry.append_t_props(ts, props, crate::properties::WriteMode::Online);
 
         let layer_est_size = layer.est_size();
         layer_est_size - est_size

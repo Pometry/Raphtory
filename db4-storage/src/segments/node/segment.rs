@@ -358,7 +358,7 @@ impl MemNodeSegment {
         let row = row.inner().row;
         let mut prop_mut_entry = layer.properties_mut().get_mut_entry(row);
         let ts = EventTime::new(t.t(), t.i());
-        prop_mut_entry.append_t_props(ts, props);
+        prop_mut_entry.append_t_props(ts, props, WriteMode::Online);
         let layer_est_size = layer.est_size();
         (is_new, layer_est_size - est_size)
     }

@@ -149,12 +149,18 @@ impl Properties {
         self.unsorted
     }
 
-    /// Orders the cells a bulk load appended to without ordering; a no-op otherwise.
+    /// Orders the cells a bulk load appended to without ordering, keeping the last value
+    /// for a repeated time as an online write would, and recounts the distinct temporal
+    /// updates; a no-op otherwise.
     pub fn sort_deferred(&mut self) {
         if std::mem::take(&mut self.unsorted) {
             for cell in &mut self.additions {
                 cell.sort_dedup();
             }
+            for cell in &mut self.times_from_props {
+                cell.sort_dedup();
+            }
+            self.t_additions_count = self.times_from_props.iter().map(|cell| cell.len()).sum();
         }
     }
 
@@ -365,6 +371,7 @@ impl<'a> PropMutEntry<'a> {
         &mut self,
         t: EventTime,
         props: impl IntoIterator<Item = (usize, P)>,
+        mode: WriteMode,
     ) {
         let t_prop_row = if let Some(t_prop_row) = self
             .properties
@@ -378,7 +385,13 @@ impl<'a> PropMutEntry<'a> {
         };
 
         self.ensure_times_from_props();
-        self.set_time(t, t_prop_row);
+        match mode {
+            WriteMode::Online => {
+                debug_assert!(!self.properties.unsorted, "online write during a bulk load");
+                self.set_time(t, t_prop_row);
+            }
+            WriteMode::Bulk => self.push_time_unsorted(t, t_prop_row),
+        }
 
         self.properties.has_properties = true;
         self.properties.update_earliest_latest(t);
@@ -390,6 +403,15 @@ impl<'a> PropMutEntry<'a> {
                 .times_from_props
                 .resize_with(self.row + 1, Default::default);
         }
+    }
+
+    /// As [`Self::set_time`], but appends without ordering the cell. A repeated time is only
+    /// found when the cell is sorted, which recounts the distinct updates.
+    fn push_time_unsorted(&mut self, t: EventTime, t_prop_row: usize) {
+        self.properties.unsorted = true;
+        self.properties.times_from_props[self.row].push_unsorted(t, Some(t_prop_row));
+        self.properties.t_additions_count += 1;
+        self.properties.time_rows[0].insert((t, self.row as u32));
     }
 
     pub(crate) fn set_time(&mut self, t: EventTime, t_prop_row: usize) {

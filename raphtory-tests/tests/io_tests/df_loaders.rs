@@ -1108,6 +1108,59 @@ mod io_tests {
         .unwrap()
     }
 
+    /// Bulk loads, then compares with the same edges added online and, on disk, after a
+    /// reload. Bulk writers append times unordered, so flushes during the load (on disk, run
+    /// with a small `RAPHTORY_MAX_MEMORY_BYTES` to flush often) and the end of the load must
+    /// order them. Few distinct edges with many updates each grow cells past the `BTreeMap`
+    /// cutoff.
+    fn check_bulk_load_ordered(edges: &[(u64, u64, i64, String, i64)], chunk_size: usize) {
+        let dir = tempfile::TempDir::new().unwrap();
+        let args = Args::default()
+            .with_max_node_page_len(2)
+            .with_max_edge_page_len(2);
+        let (g, on_disk) = match Graph::new_at_path_with_config(dir.path(), args) {
+            Ok(g) => (g, true),
+            Err(GraphError::DiskGraphNotEnabled) => (small_pages_graph(), false),
+            Err(err) => panic!("{err}"),
+        };
+        let props = ["str_prop", "int_prop"];
+        let column_names = ColumnNames::new("time", None, "src", "dst", None);
+        load_edges_from_df(
+            build_df(chunk_size, edges),
+            column_names,
+            true,
+            &props,
+            &[],
+            None,
+            None,
+            &g,
+            false,
+        )
+        .unwrap();
+        let expected = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edges {
+            let props = [
+                ("str_prop", str_prop.clone().into_prop()),
+                ("int_prop", int_prop.into_prop()),
+            ];
+            expected.add_edge(*time, *src, *dst, props, None).unwrap();
+        }
+        assert_graph_equal(&g, &expected);
+        if on_disk {
+            g.flush().unwrap();
+            drop(g);
+            let reloaded = Graph::load(dir.path()).unwrap();
+            assert_graph_equal(&reloaded, &expected);
+        }
+    }
+
+    #[test]
+    fn test_bulk_load_orders_deferred_times_proptest() {
+        proptest!(|(edges in build_edge_list(600, 4), chunk_size in 1usize..=600)| {
+            check_bulk_load_ordered(&edges, chunk_size);
+        })
+    }
+
     #[test]
     fn test_new_node_segments_are_locked_before_hand_over() {
         let g = small_pages_graph();
