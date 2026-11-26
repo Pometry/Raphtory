@@ -13,7 +13,7 @@ mod reddit_test {
 
     #[test]
     fn check_graph() {
-        let graph = reddit_graph(100, true);
+        let graph = reddit_graph(100, true).unwrap();
         assert_eq!(graph.count_nodes(), 16);
         assert_eq!(graph.count_edges(), 9);
     }

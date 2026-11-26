@@ -920,9 +920,12 @@ impl<
 {
     fn eq(&self, other: &TypedNodeState<'graph, V, G, T>) -> bool {
         self.len() == other.len()
-            && self
-                .par_iter()
-                .all(|(node, value)| other.get_by_node(node).map(|v| v == value).unwrap_or(false))
+            && self.par_iter().all(|(node, value)| {
+                other
+                    .get_by_node(node.id())
+                    .map(|v| v == value)
+                    .unwrap_or(false)
+            })
     }
 }
 

@@ -10,8 +10,22 @@ mod preferential_attachment_tests {
     fn blank_graph() {
         let graph = Graph::new();
         ba_preferential_attachment(&graph, 1000, 10, None);
-        assert_eq!(graph.count_edges(), 10009);
-        assert_eq!(graph.count_nodes(), 1010);
+        assert_eq!(graph.count_edges(), 10010);
+        assert_eq!(graph.count_nodes(), 1011);
+    }
+
+    #[test]
+    fn one_edge_per_step_from_an_empty_graph_or_a_single_node() {
+        let graph = Graph::new();
+        ba_preferential_attachment(&graph, 5, 1, None);
+        assert_eq!(graph.count_nodes(), 7);
+        assert_eq!(graph.count_edges(), 6);
+
+        let graph = Graph::new();
+        graph.add_node(0, 0u64, NO_PROPS, None, None).unwrap();
+        ba_preferential_attachment(&graph, 5, 1, None);
+        assert_eq!(graph.count_nodes(), 7);
+        assert_eq!(graph.count_edges(), 6);
     }
 
     #[test]

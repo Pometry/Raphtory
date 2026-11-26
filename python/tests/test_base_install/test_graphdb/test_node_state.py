@@ -52,3 +52,23 @@ def test_group_by():
         v2, nodes2 = groups_from_lazy[i]
         assert v == v2
         assert nodes.id == nodes2.id
+
+
+def test_node_states_of_two_graphs_compare_by_node_id():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    g.add_edge(1, "c", "d")
+    h = Graph()
+    h.add_edge(1, "d", "c")
+    h.add_edge(1, "b", "a")
+    i = Graph()
+    i.add_edge(1, "a", "b")
+    i.add_edge(1, "b", "c")
+    i.add_node(1, "d")
+
+    # same names, added in a different order
+    assert g.nodes.name == h.nodes.name
+    assert g.nodes.name.compute() == h.nodes.name.compute()
+    # different graphs over the same four nodes, never a panic
+    assert g.nodes.degree() != i.nodes.degree()
+    assert i.nodes.degree() != g.nodes.degree()
