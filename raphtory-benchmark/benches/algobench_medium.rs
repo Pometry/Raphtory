@@ -162,7 +162,7 @@ pub fn graphgen_louvain(c: &mut Criterion) {
         5,
         10,
         medium_random_attachment_graph,
-        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)),
+        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)).unwrap(),
     );
 }
 

@@ -322,9 +322,9 @@ impl GqlAlgorithms {
                     tol,
                     rng_seed,
                 )
-                .into()
             })
-            .await?)
+            .await??
+            .into())
     }
 
     /// Returns the community of every node (label propagation).

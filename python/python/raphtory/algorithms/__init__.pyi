@@ -775,12 +775,15 @@ def louvain(
     Arguments:
         graph (GraphView): the graph view
         resolution (float): the resolution parameter for modularity. Defaults to 1.0.
-        weight_prop (str | None): the edge property to use for weights (has to be float)
+        weight_prop (str | None): the numeric edge property to use for weights; an edge without it has weight 1.0
         tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
         rng_seed (int | None): seed for the rng used to shuffle nodes; if None, the rng is seeded from the OS (default: None)
 
     Returns:
         NodeStateUsize: Mapping of nodes to their community assignment
+
+    Raises:
+        Exception: If no edge has `weight_prop`, or it is not numeric.
     """
 
 def fruchterman_reingold(

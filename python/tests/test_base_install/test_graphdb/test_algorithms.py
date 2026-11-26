@@ -674,6 +674,21 @@ def test_label_propagation_algorithm():
     assert groups == expected
 
 
+def test_louvain_reads_an_integer_weight_and_defaults_a_missing_one():
+    g = Graph()
+    g.add_edge(1, "a", "b", properties={"w": 3})
+    g.add_edge(1, "b", "c")
+    result = algorithms.louvain(g, weight_prop="w", rng_seed=1)
+    assert sorted(node.name for node in result.nodes()) == ["a", "b", "c"]
+
+
+def test_louvain_raises_on_a_weight_no_edge_has():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    with pytest.raises(Exception, match="absent"):
+        algorithms.louvain(g, weight_prop="absent")
+
+
 def test_k_core():
     graph = Graph()
 
