@@ -155,43 +155,6 @@ where
             TimeIndexWindow::All(ts) => ts.len(),
         }
     }
-
-    pub fn with_range(&self, w: Range<T>) -> TimeIndexWindow<'a, T, TI> {
-        match self {
-            TimeIndexWindow::Empty => TimeIndexWindow::Empty,
-            TimeIndexWindow::Range { range, timeindex } => {
-                let start = range.start.max(w.start);
-                let end = range.start.min(w.end);
-                if end <= start {
-                    TimeIndexWindow::Empty
-                } else {
-                    TimeIndexWindow::Range {
-                        timeindex: *timeindex,
-                        range: start..end,
-                    }
-                }
-            }
-            TimeIndexWindow::All(ts) => {
-                if ts.len() == 0 {
-                    TimeIndexWindow::Empty
-                } else {
-                    ts.first()
-                        .zip(ts.last())
-                        .map(|(min_val, max_val)| {
-                            if min_val >= w.start && max_val < w.end {
-                                TimeIndexWindow::All(*ts)
-                            } else {
-                                TimeIndexWindow::Range {
-                                    timeindex: *ts,
-                                    range: w,
-                                }
-                            }
-                        })
-                        .unwrap_or(TimeIndexWindow::Empty)
-                }
-            }
-        }
-    }
 }
 
 impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {

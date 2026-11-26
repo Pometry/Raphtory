@@ -28,6 +28,8 @@ use crate::{
     GraphServer,
 };
 use clap::{Parser, Subcommand};
+#[cfg(feature = "python")]
+use pyo3::{prelude::PyAnyMethods, PyResult, Python};
 use raphtory::db::api::storage::storage::Args as GraphArgs;
 use serde::Serialize;
 use serde_json::json;
@@ -372,15 +374,16 @@ pub async fn cli() -> IoResult<()> {
     cli_with_args(std::env::args_os()).await
 }
 
-/// Run the Raphtory GraphQL CLI from Python. Uses `sys.argv` for arguments.
+/// Run the Raphtory GraphQL CLI from Python with the arguments in `sys.argv`.
 ///
 /// Returns:
 ///     None:
 #[cfg(feature = "python")]
 #[pyo3::pyfunction(name = "cli")]
-pub fn python_cli() -> pyo3::PyResult<()> {
+pub fn python_cli(py: Python<'_>) -> PyResult<()> {
+    let argv: Vec<String> = py.import("sys")?.getattr("argv")?.extract()?;
     // Replace argv[0] with "raphtory" so clap doesn't interpret the script path as a subcommand
-    let args = std::iter::once("raphtory".to_string()).chain(std::env::args().skip(2));
+    let args = std::iter::once("raphtory".to_string()).chain(argv.into_iter().skip(1));
 
     let runtime = tokio::runtime::Runtime::new()?;
     runtime

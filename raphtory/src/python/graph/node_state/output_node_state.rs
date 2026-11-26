@@ -205,12 +205,8 @@ impl PyOutputNodeState {
     fn sort_by(
         &self,
         sort_params: IndexMap<String, Option<String>>,
-    ) -> OutputTypedNodeState<'static, DynamicGraph> {
-        self.inner
-            .state
-            .sort_by(sort_params)
-            .unwrap()
-            .to_output_nodestate()
+    ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
+        Ok(self.inner.state.sort_by(sort_params)?.to_output_nodestate())
     }
 
     /// Get value for node
@@ -226,12 +222,12 @@ impl PyOutputNodeState {
         &self,
         sort_params: IndexMap<String, Option<String>>,
         k: usize,
-    ) -> OutputTypedNodeState<'static, DynamicGraph> {
-        self.inner
+    ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
+        Ok(self
+            .inner
             .state
-            .top_k(sort_params, k)
-            .unwrap()
-            .to_output_nodestate()
+            .top_k(sort_params, k)?
+            .to_output_nodestate())
     }
 
     /// Group by value

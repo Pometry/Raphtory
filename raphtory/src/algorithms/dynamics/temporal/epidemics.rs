@@ -253,10 +253,8 @@ where
         }
     }
     //let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
-    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
-        g.clone(),
-        states,
-        |value| value,
-        None,
-    )))
+    Ok(TypedNodeState::new(
+        GenericNodeState::new_from_map(g.clone(), states, |value| value, None)
+            .map_err(|err| SeedError::InvalidNode(err.to_string()))?,
+    ))
 }

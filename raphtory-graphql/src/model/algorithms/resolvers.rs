@@ -99,7 +99,7 @@ impl From<DynamicGraph> for GqlAlgorithms {
 }
 
 impl GqlAlgorithms {
-    /// Runs algorithm on the blocking thread pool.
+    /// Runs the algorithm on the server's compute pool, the pool the rest of the query work shares.
     pub async fn run<F: FnOnce(DynamicGraph) -> O + Send + 'static, O: Send + 'static>(
         &self,
         algo: F,
@@ -179,8 +179,9 @@ impl GqlAlgorithms {
         cutoff: Option<usize>,
     ) -> Result<GqlNodeState, GQLError> {
         Ok(self
-            .run(move |graph| single_source_shortest_path(&graph, source, cutoff).into())
-            .await?)
+            .run(move |graph| single_source_shortest_path(&graph, source, cutoff))
+            .await??
+            .into())
     }
 
     /// Returns the in component (all nodes that can reach it following out-edges) of every node.
@@ -423,8 +424,9 @@ impl GqlAlgorithms {
         #[graphql(desc = "Node ids to compute the coefficient for.")] nodes: Vec<GqlNodeId>,
     ) -> Result<GqlNodeState, GQLError> {
         Ok(self
-            .run(move |graph| local_clustering_coefficient_batch(&graph, nodes).into())
-            .await?)
+            .run(move |graph| local_clustering_coefficient_batch(&graph, nodes))
+            .await??
+            .into())
     }
 
     /// Returns the global clustering coefficient of the graph.

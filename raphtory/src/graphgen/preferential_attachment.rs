@@ -70,10 +70,16 @@ pub fn ba_preferential_attachment(
     let mut degrees: Vec<usize> = view.nodes().degree().iter_values().collect();
     let mut edge_count: usize = degrees.iter().sum();
 
-    let mut max_id = next_id(view, ids.iter().max().cloned());
+    let mut max_id = next_id(view, ids.iter().max().cloned(), &mut rng);
 
-    while ids.len() < edges_per_step {
-        max_id = next_id(view, Some(max_id));
+    // one more node than edges per step, so the chain below adds the edges to sample from
+    let initial_nodes = if edges_per_step > 0 {
+        edges_per_step + 1
+    } else {
+        0
+    };
+    while ids.len() < initial_nodes {
+        max_id = next_id(view, Some(max_id), &mut rng);
         graph
             .add_node(latest_time, &max_id, NO_PROPS, None, None)
             .map_err(|err| error!("{:?}", err))
@@ -94,7 +100,7 @@ pub fn ba_preferential_attachment(
     }
 
     for _ in 0..nodes_to_add {
-        max_id = next_id(view, Some(max_id));
+        max_id = next_id(view, Some(max_id), &mut rng);
         latest_time += 1;
         let mut normalisation = edge_count;
         let mut positions_to_skip: HashSet<usize> = HashSet::new();
