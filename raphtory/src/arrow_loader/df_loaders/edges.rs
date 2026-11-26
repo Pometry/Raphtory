@@ -437,38 +437,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .flatten()
             .collect();
 
-        write_locked_graph
-            .nodes
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(segment_id, shard)| {
-                let rows = &dst_rows_by_segment[segment_id];
-                if rows.is_empty() {
-                    // we still need the writer in case we need to flush
-                    if shard.segment().is_dirty() {
-                        let _writer = shard.writer();
-                    }
-                    return;
-                }
-
-                let zip = izip!(
-                    rows.iter().copied(),
-                    rows.iter().map(|&row| src_vids[row]),
-                    rows.iter().map(|&row| dst_vids[row]),
-                    rows.iter().map(|&row| eid_col_resolved[row]),
-                    rows.iter().map(|&row| time_col[row]),
-                    rows.iter()
-                        .map(|&row| secondary_index_at(&secondary_index_col, row)),
-                    rows.iter().map(|&row| layer_col_resolved[row]),
-                    rows.iter()
-                        .map(|&row| layer_eids_exist[row].load(Ordering::Relaxed)),
-                    rows.iter()
-                        .map(|&row| eids_exist[row].load(Ordering::Relaxed))
-                );
-                update_inbound_edges(shard, zip, delete);
-            });
-
-        // the node pass may have created new edge segments
+        // the outbound pass may have created new edge segments
         write_locked_graph.extend_edges(new_edge_segments);
         let edge_rows_by_segment = group_rows_by_eid_segment(
             &eid_col_resolved,
@@ -476,49 +445,86 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             write_locked_graph.edges.len(),
         );
 
-        write_locked_graph
-            .edges
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(segment_id, shard)| {
-                let rows = &edge_rows_by_segment[segment_id];
-                if rows.is_empty() {
-                    // we still need the writer in case we need to flush
-                    if shard.segment().is_dirty() {
-                        let _writer = shard.writer();
+        // inbound edges (node segments) and edge properties (edge segments) only depend on the
+        // outbound pass, so they run together: idle cores of one pass's slowest segment pick up
+        // work from the other
+        let WriteLockedGraph { nodes, edges, .. } = &mut write_locked_graph;
+        let inbound_pass = || {
+            nodes
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(segment_id, shard)| {
+                    let rows = &dst_rows_by_segment[segment_id];
+                    if rows.is_empty() {
+                        // we still need the writer in case we need to flush
+                        if shard.segment().is_dirty() {
+                            let _writer = shard.writer();
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                let zip = izip!(
-                    rows.iter().copied(),
-                    rows.iter().map(|&row| src_vids[row]),
-                    rows.iter().map(|&row| dst_vids[row]),
-                    rows.iter().map(|&row| time_col[row]),
-                    rows.iter()
-                        .map(|&row| secondary_index_at(&secondary_index_col, row)),
-                    rows.iter().map(|&row| eid_col_resolved[row]),
-                    rows.iter().map(|&row| layer_col_resolved[row]),
-                    rows.iter()
-                        .map(|&row| eids_exist[row].load(Ordering::Relaxed))
-                );
-                update_edge_properties(
-                    &shared_metadata,
-                    &prop_cols,
-                    &metadata_cols,
-                    shard,
-                    zip,
-                    delete,
-                );
-            });
+                    let zip = izip!(
+                        rows.iter().copied(),
+                        rows.iter().map(|&row| src_vids[row]),
+                        rows.iter().map(|&row| dst_vids[row]),
+                        rows.iter().map(|&row| eid_col_resolved[row]),
+                        rows.iter().map(|&row| time_col[row]),
+                        rows.iter()
+                            .map(|&row| secondary_index_at(&secondary_index_col, row)),
+                        rows.iter().map(|&row| layer_col_resolved[row]),
+                        rows.iter()
+                            .map(|&row| layer_eids_exist[row].load(Ordering::Relaxed)),
+                        rows.iter()
+                            .map(|&row| eids_exist[row].load(Ordering::Relaxed))
+                    );
+                    update_inbound_edges(shard, zip, delete);
+                });
+        };
+        let edge_props_pass = || {
+            edges
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(segment_id, shard)| {
+                    let rows = &edge_rows_by_segment[segment_id];
+                    if rows.is_empty() {
+                        // we still need the writer in case we need to flush
+                        if shard.segment().is_dirty() {
+                            let _writer = shard.writer();
+                        }
+                        return;
+                    }
+
+                    let zip = izip!(
+                        rows.iter().copied(),
+                        rows.iter().map(|&row| src_vids[row]),
+                        rows.iter().map(|&row| dst_vids[row]),
+                        rows.iter().map(|&row| time_col[row]),
+                        rows.iter()
+                            .map(|&row| secondary_index_at(&secondary_index_col, row)),
+                        rows.iter().map(|&row| eid_col_resolved[row]),
+                        rows.iter().map(|&row| layer_col_resolved[row]),
+                        rows.iter()
+                            .map(|&row| eids_exist[row].load(Ordering::Relaxed))
+                    );
+                    update_edge_properties(
+                        &shared_metadata,
+                        &prop_cols,
+                        &metadata_cols,
+                        shard,
+                        zip,
+                        delete,
+                    );
+                });
+        };
+        rayon::join(inbound_pass, edge_props_pass);
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
     // the bulk writers appended node additions and edge property times unordered; order them
     // once, in parallel
-    write_locked_graph.nodes.finish_bulk_load();
-    write_locked_graph.edges.finish_bulk_load();
+    let WriteLockedGraph { nodes, edges, .. } = &mut write_locked_graph;
+    rayon::join(|| nodes.finish_bulk_load(), || edges.finish_bulk_load());
     Ok::<_, GraphError>(())
 }
 
