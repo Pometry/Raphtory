@@ -274,23 +274,15 @@ impl<
     where
         O: NodeOp<Output = Result<T, E>>,
     {
-        if self.nodes.is_filtered() {
-            let (_, values): (IndexSet<_, ahash::RandomState>, Vec<T>) = self
-                .par_iter()
-                .filter_map(|(node, value)| value.ok().map(|value| (node.node, value)))
-                .unzip();
-            NodeState::new(
-                self.nodes.base_graph.clone(),
-                values.into(),
-                Index::for_graph(self.nodes.graph.clone()),
-            )
-        } else {
-            let values: Vec<T> = self
-                .par_iter_values()
-                .filter_map(|value| value.ok())
-                .collect();
-            NodeState::new_from_eval(self.nodes.base_graph.clone(), values)
-        }
+        let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<T>) = self
+            .par_iter()
+            .filter_map(|(node, value)| value.ok().map(|value| (node.node, value)))
+            .unzip();
+        NodeState::new(
+            self.nodes.base_graph.clone(),
+            values.into(),
+            Index::new(keys),
+        )
     }
 
     // TODO(wyatt): if value is node(s), construct node_cols accordingly

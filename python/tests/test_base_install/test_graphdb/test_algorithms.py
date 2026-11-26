@@ -948,3 +948,24 @@ def test_local_clustering_coefficient_batch_raises_on_a_missing_node():
     with pytest.raises(Exception) as excinfo:
         algorithms.local_clustering_coefficient_batch(g, ["a", "nope"])
     assert "Node nope does not exist" in str(excinfo.value)
+
+
+def test_sort_by_and_top_k_on_an_unknown_column_raise_a_regular_exception():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    result = algorithms.degree_centrality(g)
+
+    # a regular exception that names the valid columns, never a PanicException
+    with pytest.raises(Exception, match="degree_centrality"):
+        result.sort_by({"node": "asc"})
+    with pytest.raises(Exception, match="degree_centrality"):
+        result.top_k({"node": "asc"}, 1)
+
+
+def test_groups_with_no_columns_raises_a_regular_exception():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+
+    # a regular exception, never a PanicException
+    with pytest.raises(Exception, match="at least one column"):
+        algorithms.hits(g).groups([])

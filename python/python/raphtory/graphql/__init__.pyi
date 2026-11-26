@@ -5679,7 +5679,7 @@ def schema() -> str:
 
 def cli() -> None:
     """
-    Run the Raphtory GraphQL CLI from Python. Uses `sys.argv` for arguments.
+    Run the Raphtory GraphQL CLI from Python with the arguments in `sys.argv`.
 
     Returns:
         None:

@@ -104,7 +104,6 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let edge_query = self.edge_db.top_k(query, limit, view, None);
         let cloned = self.clone();
         VectorsQuery::new(Box::pin(async move {
-            println!("executing node similarity query");
             let nodes = node_query.execute().await?;
             let edges = edge_query.execute().await?;
             let docs = find_top_k(nodes.into_iter().chain(edges), limit).collect::<Vec<_>>();

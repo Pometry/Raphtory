@@ -232,8 +232,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     ///    not already selected) are marked as candidates.
     /// 2. Those candidates are added to the selection in ascending distance from `query`.
     ///
-    /// This loops goes on until the number of new entities reaches a total of `limit`
-    /// entities or until no more documents are available
+    /// This loop goes on until the number of new entities reaches a total of `limit`
+    /// entities or until no more documents are available.
     ///
     /// Args:
     ///   query (str | list): the text or the embedding to calculate the distance from
@@ -358,10 +358,6 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         self.selected.extend_with_limit(docs, limit);
 
         let increment = self.selected.len() - initial_size;
-        println!(
-            "limit {increment}, limit: {limit}, stop? {}",
-            increment > 0 && increment < limit
-        );
         if increment > 0 && increment < limit {
             Box::pin(self.expand_by_similarity(query, limit, window, path, executor)).await?
         }
