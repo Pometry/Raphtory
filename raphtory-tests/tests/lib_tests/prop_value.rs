@@ -92,3 +92,9 @@ fn cast_upper_bound_decimal_to_u64() {
 fn cast_upper_bound_float() {
     check_upper_bound_cast(Prop::F32(0.0), PropType::U64)
 }
+
+#[test]
+fn decimal_displays_its_value() {
+    let value: BigDecimal = "3.14".parse().unwrap();
+    assert_eq!(Prop::Decimal(value).to_string(), "3.14");
+}
