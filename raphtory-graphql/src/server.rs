@@ -696,6 +696,137 @@ mod server_tests {
         running.stop().await
     }
 
+    /// A reverse proxy that serves the server on `upstream_port` under `prefix` and nothing else.
+    /// Like the Databricks driver proxy, it strips the prefix before it forwards a request.
+    async fn start_prefix_proxy(
+        prefix: &'static str,
+        upstream_port: u16,
+    ) -> (u16, tokio::task::JoinHandle<()>) {
+        use poem::{
+            endpoint::make,
+            http::StatusCode,
+            listener::{Acceptor, Listener, TcpListener},
+            Request, Response, Route, Server,
+        };
+
+        let forward = make(move |mut req: Request| async move {
+            let path = req.uri().path_and_query().map_or("/", |path| path.as_str());
+            let url = format!("http://localhost:{upstream_port}{path}");
+            let method = reqwest::Method::from_bytes(req.method().as_str().as_bytes()).unwrap();
+            let body = req.take_body().into_bytes().await.unwrap();
+            let upstream = reqwest::Client::new()
+                .request(method, url)
+                .header("content-type", "application/json")
+                .body(body)
+                .send()
+                .await
+                .unwrap();
+            let status = StatusCode::from_u16(upstream.status().as_u16()).unwrap();
+            let content_type = upstream.headers()["content-type"]
+                .to_str()
+                .unwrap()
+                .to_owned();
+            Response::builder()
+                .status(status)
+                .content_type(content_type)
+                .body(upstream.bytes().await.unwrap())
+        });
+
+        let acceptor = TcpListener::bind("127.0.0.1:0")
+            .into_acceptor()
+            .await
+            .unwrap();
+        let port = acceptor.local_addr()[0].as_socket_addr().unwrap().port();
+        // `nest` strips the prefix; any path outside it is a 404
+        let app = Route::new().nest(prefix, forward);
+        let proxy = tokio::spawn(async move {
+            Server::new_with_acceptor(acceptor).run(app).await.unwrap();
+        });
+        (port, proxy)
+    }
+
+    #[tokio::test]
+    async fn test_graph_is_reachable_behind_a_path_prefix_proxy() {
+        use raphtory::prelude::*;
+
+        // Long, and with segments named like the UI's own routes (`graph`, `search`).
+        const PREFIX: &str =
+            "/driver-proxy/o/1234567890123456/graph/search/0401-123456-abc_def/1736";
+
+        let work_dir = tempdir().unwrap();
+        let graph = Graph::new();
+        graph
+            .add_edge(1, "hacker_0", "mule_a01", NO_PROPS, None)
+            .unwrap();
+        std::fs::create_dir(work_dir.path().join("traces")).unwrap();
+        graph
+            .encode(work_dir.path().join("traces").join("trace_1"))
+            .unwrap();
+
+        let app_config = AppConfigBuilder::new()
+            .with_base_path(Some(PREFIX.to_owned()))
+            .build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Args::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let (proxy_port, proxy) = start_prefix_proxy(PREFIX, running.port()).await;
+        let site = format!("http://localhost:{proxy_port}");
+        let client = reqwest::Client::new();
+
+        // Every page the UI can be loaded at tells it the prefix it is served under.
+        let tag = format!(r#"<meta name="raphtory-base-path" content="{PREFIX}" />"#);
+        for page in [
+            "/",
+            "/search",
+            "/graph/traces/trace_1",
+            "/saved-graphs/traces",
+        ] {
+            let resp = reqwest::get(format!("{site}{PREFIX}{page}")).await.unwrap();
+            assert_eq!(resp.status(), 200, "GET {page}");
+            let html = resp.text().await.unwrap();
+            assert_eq!(html.matches(&tag).count(), 1, "GET {page}");
+        }
+
+        // The graph comes back from the address the UI builds out of that prefix.
+        let query =
+            r#"{"query":"{ graph(path: \"traces/trace_1\") { nodes { list { name } } } }"}"#;
+        let resp = client
+            .post(format!("{site}{PREFIX}/graphql"))
+            .header("content-type", "application/json")
+            .body(query)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), 200);
+        let data: serde_json::Value = resp.json().await.unwrap();
+        assert_eq!(
+            data["data"]["graph"]["nodes"]["list"],
+            serde_json::json!([{ "name": "hacker_0" }, { "name": "mule_a01" }]),
+            "{data}"
+        );
+
+        // Outside the prefix there is no server: the address the UI used before this setting.
+        let get = reqwest::get(format!("{site}/graph/traces/trace_1"))
+            .await
+            .unwrap();
+        assert_eq!(get.status(), 404);
+        let post = client
+            .post(format!("{site}/graphql"))
+            .body(query)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(post.status(), 404);
+
+        proxy.abort();
+        running.stop().await
+    }
+
     // It reads /health, which fails while another test jams the process-global pools.
     #[allow(clippy::await_holding_lock)]
     #[tokio::test]
