@@ -4,14 +4,20 @@ use crate::{
             state::ops::{Const, IntoDynNodeOp, NodeOp},
             view::internal::{GraphView, NodeList},
         },
-        graph::create_node_type_filter,
+        graph::{create_node_type_filter, views::filter::model::edge_expr::EdgeOp},
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::{properties::meta::DEFAULT_NODE_TYPE_ID, VID};
+use raphtory_api::core::{
+    entities::{
+        properties::{meta::DEFAULT_NODE_TYPE_ID, prop::PropType},
+        LayerId, VID,
+    },
+    storage::timeindex::EventTime,
+};
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::sync::Arc;
-use storage::api::node_type_index::NodeTypeIndexOps;
+use storage::{api::node_type_index::NodeTypeIndexOps, EdgeEntryRef};
 
 #[derive(Clone, Debug)]
 pub struct Mask<Op> {
@@ -203,6 +209,46 @@ where
 }
 
 impl<L, R> IntoDynNodeOp for AndOp<L, R> where Self: NodeOp + 'static {}
+
+impl<L, R> EdgeOp for AndOp<L, R>
+where
+    L: EdgeOp<Output = bool>,
+    R: EdgeOp<Output = bool>,
+{
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Self::Output {
+        self.left.apply(storage, edge) && self.right.apply(storage, edge)
+    }
+
+    fn apply_layer(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+    ) -> Self::Output {
+        self.left.apply_layer(storage, edge, layer) && self.right.apply_layer(storage, edge, layer)
+    }
+
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> Self::Output {
+        self.left.apply_exploded(storage, edge, layer, t)
+            && self.right.apply_exploded(storage, edge, layer, t)
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        Some(self.left.const_value()? && self.right.const_value()?)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotOp<T>(pub(crate) T);
