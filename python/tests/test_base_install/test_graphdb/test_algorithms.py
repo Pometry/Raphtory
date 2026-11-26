@@ -921,3 +921,21 @@ def test_temporal_bipartite_graph_projection_untyped_node_works():
     assert not projected.has_edge("A", "1")
     assert not projected.has_edge("B", "1")
     assert not projected.has_node("1")
+
+
+def test_single_source_shortest_path_raises_on_a_missing_source():
+    g = Graph()
+    g.add_edge(0, "a", "b")
+
+    with pytest.raises(Exception) as excinfo:
+        algorithms.single_source_shortest_path(g, "nope")
+    assert "Node nope does not exist" in str(excinfo.value)
+
+
+def test_local_clustering_coefficient_batch_raises_on_a_missing_node():
+    g = Graph()
+    g.add_edge(0, "a", "b")
+
+    with pytest.raises(Exception) as excinfo:
+        algorithms.local_clustering_coefficient_batch(g, ["a", "nope"])
+    assert "Node nope does not exist" in str(excinfo.value)

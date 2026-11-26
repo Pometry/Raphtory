@@ -346,6 +346,9 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 ///
 /// Returns:
 ///     OutputNodeState: Mapping of vertices to lcc score
+///
+/// Raises:
+///     Exception: If a node of `v` is not in `graph`.
 #[pyfunction]
 #[pyo3(signature = (graph, v=None))]
 pub fn local_clustering_coefficient_batch(
@@ -357,7 +360,7 @@ pub fn local_clustering_coefficient_batch(
         Some(v) => process_node_param(v)?,
         None => Vec::new(),
     };
-    Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate())
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, v)?.to_output_nodestate())
 }
 
 /// Graph density - measures how dense or sparse a graph is.
@@ -727,14 +730,17 @@ pub fn min_degree(graph: &PyGraphView) -> usize {
 /// Returns:
 ///     NodeStateNodes: Mapping from end node to shortest path from the source node.
 ///
+/// Raises:
+///     Exception: If `source` is not in `graph`.
+///
 #[pyfunction]
 #[pyo3[signature = (graph, source, cutoff=None)]]
 pub fn single_source_shortest_path(
     graph: &PyGraphView,
     source: PyNodeRef,
     cutoff: Option<usize>,
-) -> OutputTypedNodeState<'static, DynamicGraph> {
-    single_source_shortest_path_rs(&graph.graph, source, cutoff).to_output_nodestate()
+) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
+    Ok(single_source_shortest_path_rs(&graph.graph, source, cutoff)?.to_output_nodestate())
 }
 
 /// Finds the shortest paths from a single source to multiple targets in a graph.

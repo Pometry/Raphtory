@@ -245,7 +245,7 @@ pub fn graphgen_single_source_shortest_path(c: &mut Criterion) {
         10,
         medium_random_attachment_graph,
         first_node_id,
-        |graph, source| single_source_shortest_path(graph, source.clone(), None),
+        |graph, source| single_source_shortest_path(graph, source.clone(), None).unwrap(),
     );
 }
 
