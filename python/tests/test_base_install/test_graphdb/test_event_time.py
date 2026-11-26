@@ -184,3 +184,18 @@ def test_optional_vs_optional():
     g4.add_node(1000, 1)
     t1000_2 = g4.earliest_time
     assert t1000 == t1000_2
+
+
+def test_event_time_hashes_like_its_timestamp():
+    t = EventTime(5, 1)
+    assert hash(t) == hash(5)
+    assert 5 in {t}
+    assert {t: "x"}.get(5) == "x"
+
+
+def test_optional_event_time_is_hashable():
+    g = Graph()
+    g.add_node(5, "a")
+    earliest = g.node("a").earliest_time
+    assert hash(earliest) == hash(5)
+    assert hash(Graph().earliest_time) == hash(None)
