@@ -17,6 +17,7 @@ use crate::{
         PyEdgeAddition, PyNodeAddition,
     },
 };
+use indexmap::IndexMap;
 use pyo3::{pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
@@ -26,7 +27,7 @@ use raphtory_api::{
     },
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Clone)]
 #[pyclass(name = "RemoteGraph", module = "raphtory.graphql", from_py_object)]
@@ -750,7 +751,7 @@ impl PyRemoteGraph {
         &self,
         timestamp: EventTimeComponent,
         id: GID,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
         layer: Option<&str>,
@@ -792,7 +793,7 @@ impl PyRemoteGraph {
         &self,
         timestamp: EventTimeComponent,
         id: GID,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
         layer: Option<&str>,
@@ -831,7 +832,7 @@ impl PyRemoteGraph {
     pub fn add_properties(
         &self,
         timestamp: EventTimeComponent,
-        properties: HashMap<String, Prop>,
+        properties: IndexMap<String, Prop>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -849,7 +850,7 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn add_metadata(&self, metadata: IndexMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.add_metadata(metadata).await })
     }
@@ -861,7 +862,7 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn update_metadata(&self, metadata: IndexMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.update_metadata(metadata).await })
     }
@@ -885,7 +886,7 @@ impl PyRemoteGraph {
         timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         layer: Option<&str>,
         event_id: Option<usize>,
     ) -> Result<PyRemoteEdge, ClientError> {

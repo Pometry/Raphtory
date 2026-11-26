@@ -35,6 +35,7 @@ use crate::{
     },
     serialise::StableEncode,
 };
+use indexmap::IndexMap;
 use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, Borrowed};
 use raphtory_api::{
     core::{
@@ -316,7 +317,7 @@ impl PyPersistentGraph {
         &self,
         timestamp: EventTimeComponent,
         id: GID,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
         layer: Option<&str>,
@@ -359,7 +360,7 @@ impl PyPersistentGraph {
         &self,
         timestamp: EventTimeComponent,
         id: GID,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
         layer: Option<&str>,
@@ -398,7 +399,7 @@ impl PyPersistentGraph {
     pub fn add_properties(
         &self,
         timestamp: EventTimeComponent,
-        properties: HashMap<String, Prop>,
+        properties: IndexMap<String, Prop>,
         event_id: Option<usize>,
     ) -> Result<(), GraphError> {
         match event_id {
@@ -417,7 +418,7 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+    pub fn add_metadata(&self, metadata: IndexMap<String, Prop>) -> Result<(), GraphError> {
         self.graph.add_metadata(metadata)
     }
 
@@ -431,7 +432,7 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+    pub fn update_metadata(&self, metadata: IndexMap<String, Prop>) -> Result<(), GraphError> {
         self.graph.update_metadata(metadata)
     }
 
@@ -456,7 +457,7 @@ impl PyPersistentGraph {
         timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         layer: Option<&str>,
         event_id: Option<usize>,
     ) -> Result<EdgeView<PersistentGraph>, GraphError> {

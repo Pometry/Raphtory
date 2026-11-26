@@ -8,6 +8,7 @@ use crate::{
         remote_node::PyRemoteNode,
     },
 };
+use indexmap::IndexMap;
 use pyo3::{pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
@@ -17,7 +18,7 @@ use raphtory_api::{
     },
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 /// A remote edge reference
 ///
@@ -76,7 +77,7 @@ impl PyRemoteEdge {
     fn add_updates(
         &self,
         t: EventTimeComponent,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         layer: Option<&str>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {
@@ -141,7 +142,7 @@ impl PyRemoteEdge {
     #[pyo3(signature = (metadata, layer=None))]
     fn add_metadata(
         &self,
-        metadata: HashMap<String, Prop>,
+        metadata: IndexMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
         let edge = Arc::clone(&self.edge);
@@ -166,7 +167,7 @@ impl PyRemoteEdge {
     #[pyo3(signature = (metadata, layer=None))]
     pub fn update_metadata(
         &self,
-        metadata: HashMap<String, Prop>,
+        metadata: IndexMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
         let edge = Arc::clone(&self.edge);

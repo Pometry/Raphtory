@@ -5,6 +5,7 @@ use crate::{
     },
     python::pymodule::RemotePermissionError,
 };
+use indexmap::IndexMap;
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory::{
     db::graph::views::filter::model::expr::FilterExpr, errors::GraphError,
@@ -18,7 +19,6 @@ use raphtory_api::{
     },
     python::{error::adapt_err_value, timeindex::PyEventTime},
 };
-use std::collections::HashMap;
 
 pub mod remote_client;
 pub mod remote_collection_metadata;
@@ -61,14 +61,14 @@ pub(crate) fn node_subscript(filter: PyFilterExpr) -> Result<FilterExpr, GraphEr
 #[pyclass(name = "RemoteUpdate", module = "raphtory.graphql", from_py_object)]
 pub struct PyUpdate {
     time: PyEventTime,
-    properties: Option<HashMap<String, Prop>>,
+    properties: Option<IndexMap<String, Prop>>,
 }
 
 #[pymethods]
 impl PyUpdate {
     #[new]
     #[pyo3(signature = (time, properties=None))]
-    pub(crate) fn new(time: EventTime, properties: Option<HashMap<String, Prop>>) -> Self {
+    pub(crate) fn new(time: EventTime, properties: Option<IndexMap<String, Prop>>) -> Self {
         Self {
             time: PyEventTime::new(time),
             properties,
@@ -92,7 +92,7 @@ impl PyUpdate {
 pub struct PyNodeAddition {
     name: GID,
     node_type: Option<String>,
-    metadata: Option<HashMap<String, Prop>>,
+    metadata: Option<IndexMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
 }
 
@@ -103,7 +103,7 @@ impl PyNodeAddition {
     pub(crate) fn new(
         name: GID,
         node_type: Option<String>,
-        metadata: Option<HashMap<String, Prop>>,
+        metadata: Option<IndexMap<String, Prop>>,
         updates: Option<Vec<PyUpdate>>,
     ) -> Self {
         Self {
@@ -133,7 +133,7 @@ pub struct PyEdgeAddition {
     src: GID,
     dst: GID,
     layer: Option<String>,
-    metadata: Option<HashMap<String, Prop>>,
+    metadata: Option<IndexMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
 }
 
@@ -145,7 +145,7 @@ impl PyEdgeAddition {
         src: GID,
         dst: GID,
         layer: Option<String>,
-        metadata: Option<HashMap<String, Prop>>,
+        metadata: Option<IndexMap<String, Prop>>,
         updates: Option<Vec<PyUpdate>>,
     ) -> Self {
         Self {
