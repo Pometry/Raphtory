@@ -27,19 +27,11 @@ struct Visitor {
 ///
 /// # Returns
 /// Projected (unipartite) temporal graph.
-///
-/// # Errors
-/// [GraphError::InvalidValue] if `delta` is negative.
 pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     graph: &G,
-    delta: i64,
+    delta: u64,
     pivot_type: &str,
 ) -> Result<Graph, GraphError> {
-    if delta < 0 {
-        return Err(GraphError::InvalidValue {
-            reason: format!("delta must not be negative, got {delta}"),
-        });
-    }
     let new_graph = Graph::new();
     let nodes = graph.nodes();
     let pivot_type_id = graph
@@ -58,7 +50,7 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(
     g: &G,
     new_graph: &Graph,
     v: V,
-    delta: i64,
+    delta: u64,
 ) -> Result<(), GraphError> {
     if let Some(vertex) = g.node(v) {
         // get vector of vertices which need connecting up
@@ -76,7 +68,7 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(
         let mut start = 0;
         let mut to_process: Vec<Visitor> = vec![];
         for nb in visitors.iter() {
-            while visitors[start].time.saturating_add(delta) < nb.time {
+            while visitors[start].time.saturating_add_unsigned(delta) < nb.time {
                 to_process.remove(0);
                 start += 1
             }

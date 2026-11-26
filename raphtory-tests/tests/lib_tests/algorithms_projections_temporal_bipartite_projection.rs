@@ -174,16 +174,9 @@ mod bipartite_graph_tests {
     }
 
     #[test]
-    fn negative_delta_is_refused() {
-        let g = visits(&[(1, "alice", "cafe"), (2, "bob", "cafe")]);
-        let result = temporal_bipartite_projection(&g, -1, "Place");
-        assert!(matches!(result, Err(GraphError::InvalidValue { .. })));
-    }
-
-    #[test]
     fn largest_delta_connects_every_visit() {
         let g = visits(&[(1, "alice", "cafe"), (2, "bob", "cafe")]);
-        let projected = temporal_bipartite_projection(&g, i64::MAX, "Place").unwrap();
+        let projected = temporal_bipartite_projection(&g, u64::MAX, "Place").unwrap();
         assert!(projected.has_edge("alice", "bob"));
     }
 }

@@ -581,7 +581,7 @@ pub fn global_temporal_three_node_motif(
 #[pyo3(signature = (graph, delta, pivot_type))]
 pub fn temporal_bipartite_graph_projection(
     graph: &PyGraphView,
-    delta: i64,
+    delta: u64,
     pivot_type: &str,
 ) -> Result<Graph, GraphError> {
     temporal_bipartite_rs(&graph.graph, delta, pivot_type)

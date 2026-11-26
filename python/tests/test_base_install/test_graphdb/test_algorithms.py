@@ -909,6 +909,15 @@ def test_temporal_bipartite_graph_projection():
     assert "Node type 'Item' does not exist" in str(e.value)
 
 
+def test_temporal_bipartite_graph_projection_refuses_negative_delta():
+    g = Graph()
+    g.add_node(1, "A", node_type="Left")
+    g.add_node(1, "1", node_type="Right")
+    g.add_edge(1, "A", "1")
+    with pytest.raises(OverflowError):
+        algorithms.temporal_bipartite_graph_projection(g, -1, "Right")
+
+
 def test_temporal_bipartite_graph_projection_untyped_node_works():
     # one untyped node among typed ones is still an error
     g = Graph()
