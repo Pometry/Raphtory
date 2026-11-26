@@ -308,6 +308,18 @@ impl<'a> MetadataMutationOps for AtomicAddNode<'a> {
 }
 
 impl<'a> AtomicAddNode<'a> {
+    pub fn new(
+        vid: MaybeNew<VID>,
+        type_index_writer: NodeTypeIndexWriterT<'a>,
+        node_writer: NodeWriterT<'a>,
+    ) -> Self {
+        Self {
+            vid,
+            type_index_writer,
+            node_writer,
+        }
+    }
+
     pub fn can_set_type(&self) -> bool {
         self.vid.is_new() || self.get_type() == DEFAULT_NODE_TYPE_ID
     }
@@ -717,11 +729,8 @@ impl GraphMutationOps for TemporalGraph {
 
                     init.init(vid)?;
 
-                    let mut atomic = AtomicAddNode {
-                        vid: MaybeNew::New(vid),
-                        type_index_writer,
-                        node_writer,
-                    };
+                    let mut atomic =
+                        AtomicAddNode::new(MaybeNew::New(vid), type_index_writer, node_writer);
 
                     atomic.store_node_id(gid.to_owned());
 
@@ -742,11 +751,8 @@ impl GraphMutationOps for TemporalGraph {
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
         let node_writer = self.storage().node_writer(segment_id);
 
-        let mut atomic = AtomicAddNode {
-            vid: MaybeNew::Existing(node_vid),
-            type_index_writer,
-            node_writer,
-        };
+        let mut atomic =
+            AtomicAddNode::new(MaybeNew::Existing(node_vid), type_index_writer, node_writer);
 
         // The node already exists, set or validate the given node type.
         if let Some(node_type) = node_type {
