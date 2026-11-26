@@ -19,5 +19,5 @@ _Avoid_: End of batch, finalise
 ## Time structures
 
 **Reverse time index**:
-A per-layer index from update time to the rows updated at that time, kept separately for property updates and for edge events. One time can map to several rows.
+A per-layer index from update time to the rows updated at that time, in two parts. For a node, one part holds its property updates and the other holds the events of its edges (additions and deletions). For an edge, one part holds its additions and the other holds its deletions. One time can map to several rows.
 _Avoid_: Time rows, time index (that is the on-disk structure built at flush)

@@ -160,8 +160,11 @@ impl MemNodeSegment {
     /// Replaces this segment with an empty instance, returning the old segment
     /// with its data.
     ///
-    /// The new segment will have the same number of layers as the original.
+    /// The new segment will have the same number of layers as the original. The old one is
+    /// ordered first ([`Self::sort_deferred`]): a bulk load may hand its head over mid-load, and
+    /// outside a bulk load nothing is unordered.
     pub fn take(&mut self) -> Self {
+        self.sort_deferred();
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
         let est_size = std::mem::take(&mut self.est_size);
 
