@@ -18,7 +18,7 @@ use crate::{
             properties::internal::{EdgePropertySchemaOps, NodePropertySchemaOps},
             state::{
                 ops::{
-                    filter::NodeExistsOp,
+                    filter::{NodeExistsOp, NO_FILTER},
                     node::{Name, Type},
                     Const, Degree, HistoryOp,
                 },
@@ -76,7 +76,6 @@ use crate::{
         },
     },
     errors::GraphError,
-    python::graph::node_state::ops::filter::NO_FILTER,
 };
 use raphtory_api::core::entities::{
     properties::{

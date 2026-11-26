@@ -1,13 +1,15 @@
 use crate::{
     db::{
-        api::state::ops::{filter::NodeExistsOp, Const, GraphView},
+        api::state::ops::{
+            filter::{NodeExistsOp, NO_FILTER},
+            Const, GraphView,
+        },
         graph::views::filter::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph, model::edge_expr::ops::EdgeExistsOp,
             CreateFilter,
         },
     },
     errors::GraphError,
-    python::graph::node_state::ops::filter::NO_FILTER,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
