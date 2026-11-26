@@ -4,7 +4,7 @@ use raphtory_api::{
         entities::{
             self,
             properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
-            GidType,
+            GidType, LayerId, Multiple,
         },
         input::input_node::InputNode,
         storage::timeindex::TimeIndexOps,
@@ -350,7 +350,7 @@ where
                 )),
             },
             entities::Layer::Multiple(ids) => {
-                let mut new_layers = ids
+                let new_layers = ids
                     .iter()
                     .map(|id| {
                         self.edge_meta().get_layer_id(id).ok_or_else(|| {
@@ -358,19 +358,7 @@ where
                         })
                     })
                     .collect::<Result<Vec<_>, InvalidLayer>>()?;
-                let num_layers = self.num_layers();
-                let num_new_layers = new_layers.len();
-                if num_new_layers == 0 {
-                    Ok(LayerIds::None)
-                } else if num_new_layers == 1 {
-                    Ok(LayerIds::One(new_layers[0]))
-                } else if num_new_layers == num_layers {
-                    Ok(LayerIds::All)
-                } else {
-                    new_layers.sort_unstable();
-                    new_layers.dedup();
-                    Ok(LayerIds::Multiple(new_layers.into()))
-                }
+                Ok(self.layer_ids_from_ids(new_layers))
             }
         }
     }
@@ -397,24 +385,22 @@ where
                 None => LayerIds::None,
             },
             entities::Layer::Multiple(ids) => {
-                let mut new_layers = ids
+                let new_layers = ids
                     .iter()
                     .flat_map(|id| self.edge_meta().get_layer_id(id))
                     .collect::<Vec<_>>();
-                let num_layers = self.num_layers();
-                let num_new_layers = new_layers.len();
-                if num_new_layers == 0 {
-                    LayerIds::None
-                } else if num_new_layers == 1 {
-                    LayerIds::One(new_layers[0])
-                } else if num_new_layers == num_layers {
-                    LayerIds::All
-                } else {
-                    new_layers.sort_unstable();
-                    new_layers.dedup();
-                    LayerIds::Multiple(new_layers.into())
-                }
+                self.layer_ids_from_ids(new_layers)
             }
+        }
+    }
+
+    fn layer_ids_from_ids(&self, ids: Vec<LayerId>) -> LayerIds {
+        let ids = Multiple::from(ids);
+        match ids.len() {
+            0 => LayerIds::None,
+            1 => LayerIds::One(ids.0[0]),
+            n if n == self.num_layers() => LayerIds::All,
+            _ => LayerIds::Multiple(ids),
         }
     }
 
