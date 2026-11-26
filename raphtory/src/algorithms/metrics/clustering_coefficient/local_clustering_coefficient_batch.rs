@@ -6,6 +6,7 @@ use crate::{
         state::{GenericNodeState, TypedNodeState},
         view::*,
     },
+    errors::GraphError,
 };
 use itertools::Itertools;
 use raphtory_api::core::entities::VID;
@@ -17,16 +18,18 @@ pub struct LCCState {
     pub lcc: f64,
 }
 
-/// `v` must name nodes of `graph`: one that does not resolve is silently left out of the
-/// result, so callers must never synthesise node ids (VIDs are not the dense range `0..n`).
+/// Errors with `NodeMissingError` if a node of `v` is not in `graph`.
 fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
-) -> TypedNodeState<'static, LCCState, G> {
+) -> Result<TypedNodeState<'static, LCCState, G>, GraphError> {
     let state: std::collections::HashMap<VID, LCCState, RandomState> = v
         .par_iter()
-        .filter_map(|n| {
-            let s = (&graph).node(n)?;
+        .map(|n| {
+            let node = n.as_node_ref();
+            let s = (&graph)
+                .node(node)
+                .ok_or_else(|| GraphError::node_missing(graph, node))?;
             let triangle_count = s
                 .neighbours()
                 .iter()
@@ -38,7 +41,7 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
             if graph.has_edge(s.node, s.node) {
                 degree -= 1.0;
             }
-            Some((
+            Ok((
                 s.node,
                 if degree <= 1.0 {
                     LCCState { lcc: 0.0 }
@@ -49,14 +52,14 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
                 },
             ))
         })
-        .collect();
+        .collect::<Result<_, GraphError>>()?;
 
-    TypedNodeState::new(GenericNodeState::new_from_map(
+    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
         graph.clone(),
         state,
         |value| value,
         None,
-    ))
+    )?))
 }
 /// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
 /// Uses path-counting for its triangle-counting step.
@@ -66,11 +69,12 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
 /// - `v`: vec of node ids, if empty, will return results for every node in the graph (the view's nodes, so a filter is respected)
 ///
 /// # Returns
-/// the local clustering coefficient of node v in g.
+/// the local clustering coefficient of node v in g, or `NodeMissingError` if a node of `v` is
+/// not in `graph`.
 pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
-) -> TypedNodeState<'static, LCCState, G> {
+) -> Result<TypedNodeState<'static, LCCState, G>, GraphError> {
     if v.is_empty() {
         // VIDs are handed out across storage segments and are not the dense range
         // 0..count_nodes(), so enumerate the nodes the view actually has

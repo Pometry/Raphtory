@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             state::{GenericNodeState, Index, TypedNodeState},
@@ -96,13 +96,7 @@ impl<V: AsNodeRef> IntoInitState for HashMap<V, usize> {
                 Some(n) => {
                     resolved.insert(n.node, label);
                 }
-                None => {
-                    let gid = match node_ref {
-                        NodeRef::Internal(vid) => graph.node_id(vid),
-                        NodeRef::External(gid) => gid.to_owned(),
-                    };
-                    return Err(GraphError::NodeMissingError(gid));
-                }
+                None => return Err(GraphError::node_missing(graph, node_ref)),
             }
         }
         Ok(Some(resolved))

@@ -344,6 +344,9 @@ def single_source_shortest_path(
     Returns:
         NodeStateNodes: Mapping from end node to shortest path from the source node.
 
+    Raises:
+        Exception: If `source` is not in `graph`.
+
     """
 
 def global_clustering_coefficient(graph: GraphView) -> float:
@@ -439,6 +442,9 @@ def local_clustering_coefficient_batch(
 
     Returns:
         OutputNodeState: Mapping of vertices to lcc score
+
+    Raises:
+        Exception: If a node of `v` is not in `graph`.
     """
 
 def weakly_connected_components(graph: GraphView) -> OutputNodeState:

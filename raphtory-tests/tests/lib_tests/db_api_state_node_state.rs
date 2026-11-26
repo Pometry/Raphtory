@@ -1,9 +1,27 @@
 #[cfg(test)]
 mod test {
     use raphtory::{
-        db::api::state::{AsOrderedNodeStateOps, NodeState, OrderedNodeStateOps},
+        algorithms::metrics::clustering_coefficient::local_clustering_coefficient_batch::LCCState,
+        db::api::state::{AsOrderedNodeStateOps, GenericNodeState, NodeState, OrderedNodeStateOps},
+        errors::GraphError,
         prelude::*,
     };
+
+    #[test]
+    fn generic_new_from_map_refuses_a_key_outside_the_view() {
+        let g = Graph::new();
+        g.add_node(0, "a", NO_PROPS, None, None).unwrap();
+        let b = g.add_node(5, "b", NO_PROPS, None, None).unwrap().node;
+
+        let result = GenericNodeState::new_from_map(
+            g.window(0, 1),
+            [(b, LCCState { lcc: 1.0 })],
+            |value| value,
+            None,
+        );
+
+        assert!(matches!(result, Err(GraphError::NodeMissingError(gid)) if gid == GID::from("b")));
+    }
 
     #[test]
     fn float_state() {
