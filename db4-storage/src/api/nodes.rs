@@ -59,6 +59,7 @@ pub enum PropPredicate<'a> {
     StartsWith(&'a str),
     EndsWith(&'a str),
     Contains(&'a str),
+    ContainsCaseInsensitive(&'a str),
 }
 
 /// Which value(s) of a property a [`PropPredicate`] is asked about. A
