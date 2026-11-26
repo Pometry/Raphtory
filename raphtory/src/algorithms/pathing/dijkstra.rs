@@ -1,7 +1,7 @@
 /// Dijkstra's algorithm
 use crate::db::api::view::internal::NodeList;
 use crate::{
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             state::{
@@ -257,13 +257,7 @@ pub fn dijkstra_single_source_shortest_paths<'a, G: StaticGraphViewOps, T: AsNod
     let source_ref = source.as_node_ref();
     let source_node = match (&g).node(source_ref) {
         Some(src) => src.node,
-        None => {
-            let gid = match source_ref {
-                NodeRef::Internal(vid) => g.node_id(vid),
-                NodeRef::External(gid) => gid.to_owned(),
-            };
-            return Err(GraphError::NodeMissingError(gid));
-        }
+        None => return Err(GraphError::node_missing(g, source_ref)),
     };
 
     let target_nodes: TreeMapIndex = targets

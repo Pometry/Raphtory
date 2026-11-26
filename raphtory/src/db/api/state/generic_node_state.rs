@@ -1,5 +1,8 @@
 use crate::{
-    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    core::entities::{
+        nodes::node_ref::{AsNodeRef, NodeRef},
+        VID,
+    },
     db::{
         api::{
             state::{
@@ -1254,37 +1257,45 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     }
 
     /// create a new NodeState from a HashMap of values
+    ///
+    /// Errors with `NodeMissingError` if a key is not a node of `graph`.
     pub fn new_from_map<R: NodeStateValue, V: NodeStateValue>(
         graph: G,
         values: impl IntoIterator<Item = (VID, R)>,
         map: impl Fn(R) -> V,
         node_cols: Option<NodeCols<'graph>>,
-    ) -> Self {
+    ) -> Result<Self, GraphError> {
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         Self::new_from_map_with_schema(graph, values, map, node_cols, fields)
     }
 
     /// create a new NodeState from a HashMap of values
+    ///
+    /// Errors with `NodeMissingError` if a key is not a node of `graph`.
     pub fn new_from_map_with_schema<R: NodeStateValue, V: NodeStateValue>(
         graph: G,
         values: impl IntoIterator<Item = (VID, R)>,
         map: impl Fn(R) -> V,
         node_cols: Option<NodeCols<'graph>>,
         fields: Vec<FieldRef>,
-    ) -> Self {
-        let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = values
-            .into_iter()
-            .filter_map(|(node, value)| {
-                if graph.has_node(node) {
-                    Some((node, map(value)))
-                } else {
-                    None
-                }
-            })
-            .unzip();
+    ) -> Result<Self, GraphError> {
+        let mut index = IndexSet::<VID, ahash::RandomState>::default();
+        let mut mapped = Vec::new();
+        for (node, value) in values {
+            if !graph.has_node(node) {
+                return Err(GraphError::node_missing(&graph, NodeRef::Internal(node)));
+            }
+            index.insert(node);
+            mapped.push(map(value));
+        }
 
-        let values = to_record_batch(&fields, &values).unwrap();
-        Self::new(graph.clone(), values, Index::new(index), node_cols)
+        let values = to_record_batch(&fields, &mapped).unwrap();
+        Ok(Self::new(
+            graph.clone(),
+            values,
+            Index::new(index),
+            node_cols,
+        ))
     }
 
     #[cfg(feature = "datafusion")]

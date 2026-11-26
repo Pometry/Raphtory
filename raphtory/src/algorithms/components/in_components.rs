@@ -221,5 +221,5 @@ where
         in_components,
         |distance| InComponentState { distance },
         None,
-    )))
+    )?))
 }
