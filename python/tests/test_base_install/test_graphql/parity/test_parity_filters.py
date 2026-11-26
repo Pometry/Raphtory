@@ -1172,17 +1172,6 @@ def test_expression_rhs_agrees_on_both_sides(filter_pair, site):
     assert_parity(filter_pair, lambda g: read(g, expr))
 
 
-# Node collections that take a `[expr]` subscript. Each must refuse an
-# edge-testing expression identically, so the check runs at every site rather
-# than only at `graph.nodes`.
-NODE_SUBSCRIPT_SITES = {
-    "nodes": lambda g: g.nodes,
-}
-
-
-@pytest.mark.parametrize(
-    "site", sorted(NODE_SUBSCRIPT_SITES), ids=sorted(NODE_SUBSCRIPT_SITES)
-)
 @pytest.mark.parametrize(
     "kind,build",
     [
@@ -1192,7 +1181,7 @@ NODE_SUBSCRIPT_SITES = {
     ids=["edge", "exploded"],
 )
 def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
-        filter_pair, site, kind, build
+        filter_pair, kind, build
 ):
     """An edge test in `nodes[expr]` raises the same exception on both sides.
 
@@ -1201,8 +1190,8 @@ def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
     refuse it as the *same* exception with the same reason, or a caller cannot
     write one `except` clause that works against either graph.
     """
-    reach = NODE_SUBSCRIPT_SITES[site]
-    read = lambda g: [n.name for n in reach(g)[build()]]
+
+    read = lambda g: [n.name for n in g.nodes[build()]]
     assert_parity(filter_pair, read)
 
     with pytest.raises(Exception) as local_exc:
