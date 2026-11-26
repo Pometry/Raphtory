@@ -247,7 +247,9 @@ impl NodeTypeFilterOp {
         // cannot be served from the index.
         let selects_default = mask.get(DEFAULT_NODE_TYPE_ID).copied().unwrap_or(false);
         let node_type_index = view.core_graph().node_type_index();
-        let index_backed = !selects_default && node_type_index.is_queryable();
+        let is_queryable = node_type_index.is_enabled() && !node_type_index.is_empty();
+        let index_backed = !selects_default && is_queryable;
+
         Self { mask, index_backed }
     }
 }

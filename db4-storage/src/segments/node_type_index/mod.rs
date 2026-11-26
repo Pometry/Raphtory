@@ -27,6 +27,7 @@ pub struct NodeTypeIndexView<P: PersistenceStrategy> {
     /// Used to get memory usage without acquiring the `head` lock.
     est_size_cached: AtomicUsize,
     is_dirty: AtomicBool,
+    is_enabled: AtomicBool,
     _persistence: P,
 }
 
@@ -44,6 +45,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
             ))),
             est_size_cached: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
+            is_enabled: AtomicBool::new(true),
             _persistence: ext,
         })
     }
@@ -78,8 +80,12 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         0
     }
 
-    fn is_queryable(&self) -> bool {
-        !self.is_empty()
+    fn is_enabled(&self) -> bool {
+        self.is_enabled.load(Ordering::Acquire)
+    }
+
+    fn set_enabled(&self, enabled: bool) {
+        self.is_enabled.store(enabled, Ordering::Release);
     }
 
     fn est_size_cached(&self) -> usize {

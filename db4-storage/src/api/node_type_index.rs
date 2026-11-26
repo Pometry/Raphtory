@@ -35,8 +35,9 @@ where
     /// LSN of the last entry persisted to disk.
     fn immut_lsn(&self) -> u64;
 
-    /// Returns `true` if queries can be served from the index.
-    fn is_queryable(&self) -> bool;
+    fn is_enabled(&self) -> bool;
+
+    fn set_enabled(&self, enabled: bool);
 
     /// The size of `head` in bytes, cached so it can be read without locking.
     fn est_size_cached(&self) -> usize;

@@ -15,7 +15,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use storage::Args;
+use storage::{api::node_type_index::NodeTypeIndexOps, Args};
 
 #[test]
 fn type_filter_domain_uses_index() {
@@ -90,7 +90,12 @@ fn build_graphs() -> (Graph, Graph) {
         g
     };
 
-    (build(), build())
+    let indexed = build();
+    let scanned = build();
+
+    scanned.core_graph().node_type_index().set_enabled(false);
+
+    (indexed, scanned)
 }
 
 fn sorted_names<'graph, G: GraphViewOps<'graph>>(g: &G) -> Vec<String> {
@@ -121,10 +126,19 @@ fn type_index_subgraph_matches_scan() {
     ] {
         let i = indexed.subgraph_node_types(types.clone());
         let s = scanned.subgraph_node_types(types.clone());
+
         assert!(
             matches!(i.node_list(), NodeList::NodeTypeIdx { .. }),
             "expected the indexed subgraph to use the node type index"
         );
+
+        if !types.is_empty() {
+            assert!(
+                matches!(s.node_list(), NodeList::All),
+                "expected scan path when index disabled: {types:?}"
+            );
+        }
+
         assert_eq!(sorted_names(&i), sorted_names(&s), "{types:?}");
         assert_eq!(i.count_nodes(), s.count_nodes(), "{types:?}");
         assert_eq!(i.count_edges(), s.count_edges(), "{types:?}");
@@ -173,10 +187,19 @@ fn type_index_nodes_type_filter_matches_scan() {
     for types in [vec!["Person"], vec!["Company", "City"], vec![]] {
         let i = indexed.nodes().type_filter(types.clone());
         let s = scanned.nodes().type_filter(types.clone());
+
         assert!(
             matches!(i.node_list(), NodeList::NodeTypeIdx { .. }),
             "{types:?}: type filter on nodes should stay lazy"
         );
+
+        if !types.is_empty() {
+            assert!(
+                matches!(s.node_list(), NodeList::All),
+                "{types:?}: expected scan path when index disabled"
+            );
+        }
+
         let mut i_names = i.name().collect::<Vec<_>>();
         let mut s_names = s.name().collect::<Vec<_>>();
         i_names.sort();
