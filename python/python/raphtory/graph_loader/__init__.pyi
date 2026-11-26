@@ -119,6 +119,9 @@ def reddit_hyperlink_graph(timeout_seconds: int = 600) -> Graph:
 
     Returns:
         Graph: A Graph containing the Reddit hyperlinks dataset
+
+    Raises:
+        GraphError: If the dataset cannot be downloaded or read.
     """
 
 def reddit_hyperlink_graph_local(file_path: str) -> Graph:
@@ -130,6 +133,9 @@ def reddit_hyperlink_graph_local(file_path: str) -> Graph:
 
     Returns:
         Graph:
+
+    Raises:
+        GraphError: If the file cannot be read.
     """
 
 def karate_club_graph() -> Graph:

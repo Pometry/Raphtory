@@ -35,7 +35,7 @@ mod random_graph_test {
         let graph = Graph::new();
         ba_preferential_attachment(&graph, 300, 7, None);
         random_attachment(&graph, 4000, 12, None);
-        assert_eq!(graph.count_edges(), 50106);
-        assert_eq!(graph.count_nodes(), 4307);
+        assert_eq!(graph.count_edges(), 50107);
+        assert_eq!(graph.count_nodes(), 4308);
     }
 }

@@ -100,7 +100,7 @@ where
         self.len() == other.len()
             && self.par_iter().all(|(node, value)| {
                 other
-                    .get_by_node(node)
+                    .get_by_node(node.id())
                     .map(|v| v.to_owned_value() == value)
                     .unwrap_or(false)
             })
@@ -121,7 +121,7 @@ where
         self.len() == other.len()
             && self.par_iter().all(|(node, value)| {
                 other
-                    .get_by_node(node)
+                    .get_by_node(node.id())
                     .map(|v| *v == value)
                     .unwrap_or(false)
             })
@@ -142,7 +142,7 @@ where
         self.len() == other.len()
             && self.par_iter().all(|(node, value)| {
                 other
-                    .get_by_node(node)
+                    .get_by_node(node.id())
                     .map(|v| v == *value)
                     .unwrap_or(false)
             })

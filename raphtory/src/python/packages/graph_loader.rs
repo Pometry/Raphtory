@@ -68,13 +68,16 @@ pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
 ///
 /// Returns:
 ///     Graph: A Graph containing the Reddit hyperlinks dataset
+///
+/// Raises:
+///     GraphError: If the dataset cannot be downloaded or read.
 #[pyfunction]
 #[pyo3(signature = (timeout_seconds=600))]
 pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(crate::graph_loader::reddit_hyperlinks::reddit_graph(
         timeout_seconds,
         false,
-    ))
+    )?)
 }
 
 #[pyfunction]
@@ -86,10 +89,13 @@ pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
 ///
 /// Returns:
 ///     Graph:
+///
+/// Raises:
+///     GraphError: If the file cannot be read.
 pub fn reddit_hyperlink_graph_local(file_path: &str) -> PyResult<Py<PyGraph>> {
     let file_path_buf = PathBuf::from(file_path);
     PyGraph::py_from_db_graph(
-        crate::graph_loader::reddit_hyperlinks::generate_reddit_graph(file_path_buf),
+        crate::graph_loader::reddit_hyperlinks::generate_reddit_graph(file_path_buf)?,
     )
 }
 

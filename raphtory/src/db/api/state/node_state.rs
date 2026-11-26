@@ -967,7 +967,7 @@ impl<'graph, V: Clone + Send + Sync + PartialEq + 'graph, G: GraphViewOps<'graph
         self.len() == other.len()
             && self.par_iter().all(|(node, value)| {
                 other
-                    .get_by_node(node)
+                    .get_by_node(node.id())
                     .map(|v| <&V as ToOwnedValue<V>>::to_owned_value(v) == value.clone())
                     .unwrap_or(false)
             })

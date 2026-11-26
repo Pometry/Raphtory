@@ -72,7 +72,13 @@ pub fn ba_preferential_attachment(
 
     let mut max_id = next_id(view, ids.iter().max().cloned());
 
-    while ids.len() < edges_per_step {
+    // one more node than edges per step, so the chain below adds the edges to sample from
+    let initial_nodes = if edges_per_step > 0 {
+        edges_per_step + 1
+    } else {
+        0
+    };
+    while ids.len() < initial_nodes {
         max_id = next_id(view, Some(max_id));
         graph
             .add_node(latest_time, &max_id, NO_PROPS, None, None)
