@@ -132,6 +132,12 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
         graph: DynGraphArc<'g>,
     ) -> Result<DynGraphArc<'g>, GraphError>;
 
+    fn path_filter<'g>(
+        expr: &Expr<Self>,
+        graph: DynGraphArc<'g>,
+        select: DynGraphArc<'g>,
+    ) -> Result<DynGraphArc<'g>, GraphError>;
+
     /// The latest value of a property, or its history when `temporal`, seen
     /// through `views`.
     fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self;
@@ -535,6 +541,23 @@ impl Leaf for NodeLeaf {
         Ok(Arc::new(NodeFilteredGraph::new(graph, test)))
     }
 
+    fn path_filter<'g>(
+        expr: &Expr<Self>,
+        graph: DynGraphArc<'g>,
+        select: DynGraphArc<'g>,
+    ) -> Result<DynGraphArc<'g>, GraphError> {
+        let node_filter = Arc::new(Self::node_filter(expr, graph)?.map(|v| Some(Prop::Bool(v))));
+        let filtered = EdgeExprFilteredGraph::new(
+            select,
+            EdgeEndpointNodeOp {
+                node_op: node_filter,
+                endpoint: Endpoint::Nbr,
+            }
+            .map(|v| truthy(&v)),
+        );
+        Ok(filtered.into_dyn_graph_arc())
+    }
+
     fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
         NodeLeaf::Property {
             views,
@@ -793,6 +816,7 @@ impl EdgeLeaf {
             EdgeLeaf::IsSelfLoop { .. } => EdgeTerm::IsSelfLoop,
             EdgeLeaf::Src(inner) => EdgeTerm::Endpoint(inner, Endpoint::Src),
             EdgeLeaf::Dst(inner) => EdgeTerm::Endpoint(inner, Endpoint::Dst),
+            EdgeLeaf::Nbr(inner) => EdgeTerm::Endpoint(inner, Endpoint::Nbr),
         }
     }
 }
@@ -842,6 +866,15 @@ impl Leaf for EdgeLeaf {
     ) -> Result<DynGraphArc<'g>, GraphError> {
         let test = expr.edge_test(graph.clone())?;
         Ok(Arc::new(EdgeExprFilteredGraph::new(graph, test)))
+    }
+
+    fn path_filter<'g>(
+        expr: &Expr<Self>,
+        graph: DynGraphArc<'g>,
+        select: DynGraphArc<'g>,
+    ) -> Result<DynGraphArc<'g>, GraphError> {
+        let edge_filter = Self::edge_filter(expr, graph)?;
+        Ok(EdgeExprFilteredGraph::new(select, edge_filter).into_dyn_graph_arc())
     }
 
     fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
@@ -907,6 +940,15 @@ impl Leaf for ExplodedEdgeLeaf {
     ) -> Result<DynGraphArc<'g>, GraphError> {
         let test = expr.edge_test(graph.clone())?;
         Ok(Arc::new(ExplodedEdgeExprFilteredGraph::new(graph, test)))
+    }
+
+    fn path_filter<'g>(
+        expr: &Expr<Self>,
+        graph: DynGraphArc<'g>,
+        select: DynGraphArc<'g>,
+    ) -> Result<DynGraphArc<'g>, GraphError> {
+        let edge_filter = Self::edge_filter(expr, graph)?;
+        Ok(ExplodedEdgeExprFilteredGraph::new(select, edge_filter).into_dyn_graph_arc())
     }
 
     fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
@@ -1435,6 +1477,12 @@ impl CreateFilter for FilterExpr {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type PathFilter<'graph, G, S>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
 
     /// The graph that keeps what the filter keeps. A leaf keeps what its
     /// tree keeps; a view is the graph seen through it. An `and`, `or` or `not`
@@ -1453,9 +1501,9 @@ impl CreateFilter for FilterExpr {
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         let graph = graph.into_dyn_graph_arc();
         match self {
-            FilterExpr::Node(expr) => NodeLeaf::graph_filter(&expr, graph),
-            FilterExpr::Edge(expr) => EdgeLeaf::graph_filter(&expr, graph),
-            FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::graph_filter(&expr, graph),
+            FilterExpr::Node(expr) => expr.create_graph_filter(graph),
+            FilterExpr::Edge(expr) => expr.create_graph_filter(graph),
+            FilterExpr::ExplodedEdge(expr) => expr.create_graph_filter(graph),
             FilterExpr::View(views) => view_expr(graph, &views),
             FilterExpr::And(expressions) => {
                 if expressions.iter().all(FilterExpr::resolves_to_one_view) {
@@ -1533,32 +1581,185 @@ impl CreateFilter for FilterExpr {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        if self.tests_edges() {
-            return Err(GraphError::NotNodeFilter);
-        }
-        self.node_test(graph.into_dyn_graph_arc())
+        Ok(Arc::new(
+            self.node_value(graph.into_dyn_graph_arc())?
+                .map(|value| truthy(&value)),
+        ))
     }
 
     fn create_edge_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        self.edge_test(graph.into_dyn_graph_arc())
+        Ok(Arc::new(
+            self.edge_value(graph.into_dyn_graph_arc())?
+                .map(|value| truthy(&value)),
+        ))
+    }
+
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        graph: G,
+        select: S,
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
+        fn split_node_and_edge_filters<'graph>(
+            graph: DynGraphArc<'graph>,
+            exprs: Vec<FilterExpr>,
+        ) -> Result<
+            (
+                Vec<Arc<dyn NodeOp<Output = Option<Prop>> + 'graph>>,
+                Vec<Arc<dyn EdgeOp<Output = Option<Prop>> + 'graph>>,
+            ),
+            GraphError,
+        > {
+            let mut node_filters = Vec::new();
+            let mut edge_filters = Vec::new();
+            for expr in exprs {
+                if expr.tests_edges() {
+                    edge_filters.push(expr.edge_value(graph.clone())?);
+                } else {
+                    node_filters.push(expr.node_value(graph.clone())?);
+                }
+            }
+            Ok((node_filters, edge_filters))
+        }
+
+        match self {
+            FilterExpr::Node(filter) => filter.create_path_filter(graph, select),
+            FilterExpr::Edge(filter) => filter.create_path_filter(graph, select),
+            FilterExpr::ExplodedEdge(filter) => filter.create_path_filter(graph, select),
+            FilterExpr::View(views) => {
+                let select =
+                    views
+                        .into_iter()
+                        .try_fold(select.into_dyn_graph_arc(), |select, view| {
+                            let select = match view {
+                                ViewOp::Window { start, end } => {
+                                    select.window(start, end).into_dyn_graph_arc()
+                                }
+                                ViewOp::At(t) => select.at(t).into_dyn_graph_arc(),
+                                ViewOp::After(t) => select.after(t).into_dyn_graph_arc(),
+                                ViewOp::Before(t) => select.before(t).into_dyn_graph_arc(),
+                                ViewOp::Latest => {
+                                    let latest_view = graph.latest();
+                                    WindowedGraph::from_ranges(select, latest_view.view_ranges())
+                                        .into_dyn_graph_arc()
+                                }
+                                ViewOp::SnapshotAt(t) => select.snapshot_at(t).into_dyn_graph_arc(),
+                                ViewOp::SnapshotLatest => {
+                                    let latest_view = graph.snapshot_latest();
+                                    WindowedGraph::from_ranges(select, latest_view.view_ranges())
+                                        .into_dyn_graph_arc()
+                                }
+                                ViewOp::Layers(layers) => {
+                                    let layered = graph.layers(layers)?;
+                                    let layer_ids =
+                                        select.layer_ids().intersect(layered.layer_ids());
+                                    if &layer_ids != select.layer_ids() {
+                                        LayeredGraph::new(select, layer_ids).into_dyn_graph_arc()
+                                    } else {
+                                        select
+                                    }
+                                }
+                                ViewOp::DefaultLayer => select.default_layer().into_dyn_graph_arc(),
+                                ViewOp::ExcludeLayers(layers) => {
+                                    let layered = graph.exclude_layers(layers)?;
+                                    let layer_ids =
+                                        select.layer_ids().intersect(layered.layer_ids());
+                                    if &layer_ids != select.layer_ids() {
+                                        LayeredGraph::new(select, layer_ids).into_dyn_graph_arc()
+                                    } else {
+                                        select
+                                    }
+                                }
+                                ViewOp::ValidLayers(layers) => {
+                                    select.valid_layers(layers).into_dyn_graph_arc()
+                                }
+                                ViewOp::ExcludeValidLayers(layers) => {
+                                    select.exclude_valid_layers(layers).into_dyn_graph_arc()
+                                }
+                                ViewOp::ShrinkStart(t) => {
+                                    select.shrink_start(t).into_dyn_graph_arc()
+                                }
+                                ViewOp::ShrinkEnd(t) => select.shrink_end(t).into_dyn_graph_arc(),
+                                ViewOp::ExcludeNodes(nodes) => {
+                                    select.exclude_nodes(nodes).into_dyn_graph_arc()
+                                }
+                                ViewOp::Subgraph(nodes) => {
+                                    select.subgraph(nodes).into_dyn_graph_arc()
+                                }
+                                ViewOp::SubgraphNodeTypes(node_types) => {
+                                    select.subgraph_node_types(node_types).into_dyn_graph_arc()
+                                }
+                                ViewOp::Valid => {
+                                    let valid_edges = EdgeExistsOp::new(graph.valid());
+                                    EdgeExprFilteredGraph::new(select, valid_edges)
+                                        .into_dyn_graph_arc()
+                                }
+                            };
+                            Ok::<_, GraphError>(select)
+                        })?;
+                Ok(select)
+            }
+            FilterExpr::And(exprs) => {
+                let (node_filters, mut edge_filters) =
+                    split_node_and_edge_filters(graph.into_dyn_graph_arc(), exprs)?;
+                if !node_filters.is_empty() {
+                    let node_op = NodeOps::all_of(node_filters);
+                    edge_filters.push(Arc::new(EdgeEndpointNodeOp {
+                        node_op,
+                        endpoint: Endpoint::Nbr,
+                    }));
+                }
+                let select = if edge_filters.is_empty() {
+                    select.into_dyn_graph_arc()
+                } else {
+                    EdgeExprFilteredGraph::new(
+                        select,
+                        EdgeOps::all_of(edge_filters).map(|v| truthy(&v)),
+                    )
+                    .into_dyn_graph_arc()
+                };
+                Ok(select)
+            }
+            FilterExpr::Or(exprs) => {
+                let (node_filters, mut edge_filters) =
+                    split_node_and_edge_filters(graph.into_dyn_graph_arc(), exprs)?;
+                if !node_filters.is_empty() {
+                    let node_op = NodeOps::any_of(node_filters);
+                    edge_filters.push(Arc::new(EdgeEndpointNodeOp {
+                        node_op,
+                        endpoint: Endpoint::Nbr,
+                    }));
+                }
+                let select = if edge_filters.is_empty() {
+                    select.into_dyn_graph_arc()
+                } else {
+                    EdgeExprFilteredGraph::new(
+                        select,
+                        EdgeOps::any_of(edge_filters).map(|v| truthy(&v)),
+                    )
+                    .into_dyn_graph_arc()
+                };
+                Ok(select)
+            }
+            expr @ FilterExpr::Not(_) => {
+                let edge_filter = if expr.tests_edges() {
+                    expr.create_edge_filter(graph)?
+                } else {
+                    let node_op = expr.create_node_filter(graph)?;
+                    Arc::new(EdgeEndpointNodeOp {
+                        node_op,
+                        endpoint: Endpoint::Nbr,
+                    })
+                };
+                Ok(EdgeExprFilteredGraph::new(select, edge_filter).into_dyn_graph_arc())
+            }
+        }
     }
 }
 
 impl FilterExpr {
-    /// The test of each node of a collection: the boolean value
-    /// [`Self::node_value`] gives, holding when it is true.
-    fn node_test<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'g>, GraphError> {
-        Ok(Arc::new(
-            self.node_value(graph)?.map(|value| truthy(&value)),
-        ))
-    }
-
     /// The boolean value of each node of a collection: a node predicate is
     /// its value on the node, a view asks that the node exist in the view (its
     /// `exists()` test), `not` of an expression with a view asks that the node
@@ -1600,15 +1801,6 @@ impl FilterExpr {
                 NodeList::All,
             ),
         })
-    }
-
-    /// The test of each edge of a collection, or of each update on an
-    /// exploded one: the boolean value [`Self::edge_value`] gives, holding
-    /// when it is true.
-    fn edge_test<'g>(&self, graph: DynGraphArc<'g>) -> Result<DynEdgeFilter<'g>, GraphError> {
-        Ok(Arc::new(
-            self.edge_value(graph)?.map(|value| truthy(&value)),
-        ))
     }
 
     /// The boolean value of each edge of a collection, or of each update on
@@ -1947,6 +2139,12 @@ impl<L: Leaf> CreateFilter for Expr<L> {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type PathFilter<'graph, G, S>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
 
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
@@ -1967,6 +2165,18 @@ impl<L: Leaf> CreateFilter for Expr<L> {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         L::edge_filter(&self, graph.into_dyn_graph_arc())
+    }
+
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        graph: G,
+        select: S,
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
+        L::path_filter(
+            &self,
+            graph.into_dyn_graph_arc(),
+            select.into_dyn_graph_arc(),
+        )
     }
 }
 
@@ -1989,6 +2199,12 @@ impl CreateFilter for Chain<GraphLeaf> {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type PathFilter<'graph, G, S>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
 
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
@@ -2009,5 +2225,13 @@ impl CreateFilter for Chain<GraphLeaf> {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         FilterExpr::from(self).create_edge_filter(graph)
+    }
+
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        graph: G,
+        select: S,
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
+        FilterExpr::from(self).create_path_filter(graph, select)
     }
 }

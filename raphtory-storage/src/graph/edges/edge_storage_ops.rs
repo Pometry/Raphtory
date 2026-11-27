@@ -79,11 +79,7 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
 }
 
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
-    fn edge_ref(self, dir: Dir) -> EdgeRef;
-    #[inline]
-    fn out_ref(self) -> EdgeRef {
-        self.edge_ref(Dir::Out)
-    }
+    fn edge_ref(self) -> EdgeRef;
 
     /// Check if the edge was added in any of the layers during the time interval
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
@@ -99,6 +95,15 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn src(self) -> VID;
 
     fn dst(self) -> VID;
+
+    fn dir(self) -> Dir;
+
+    fn nbr(self) -> VID {
+        match self.dir() {
+            Dir::Into => self.src(),
+            Dir::Out => self.dst(),
+        }
+    }
 
     fn eid(self) -> EID;
 
@@ -166,8 +171,8 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
 impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     #[inline]
-    fn edge_ref(self, dir: Dir) -> EdgeRef {
-        EdgeRefOps::edge_ref(self, dir).expect("valid edge entry should have edge ref info")
+    fn edge_ref(self) -> EdgeRef {
+        EdgeRefOps::edge_ref(self).expect("valid edge entry should have edge ref info")
     }
 
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
@@ -198,6 +203,10 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
 
     fn dst(self) -> VID {
         EdgeRefOps::dst(&self).expect("valid edge entry should have dst")
+    }
+
+    fn dir(self) -> Dir {
+        EdgeRefOps::dir(&self)
     }
 
     fn eid(self) -> EID {

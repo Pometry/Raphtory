@@ -8,6 +8,7 @@ use either::Either;
 use raphtory_api::{
     core::{
         entities::{
+            edges::edge_ref::Dir,
             properties::{
                 meta::{Meta, STATIC_GRAPH_LAYER_ID},
                 prop::Prop,
@@ -73,8 +74,8 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     #[inline]
-    fn core_edge(&self, eid: Either<EID, EdgeRef>) -> EdgeStorageEntry<'_> {
-        self.core_graph().edge_entry(eid)
+    fn core_edge(&self, eid: Either<EID, EdgeRef>, dir: Dir) -> EdgeStorageEntry<'_> {
+        self.core_graph().edge_entry(eid, dir)
     }
 
     #[inline]

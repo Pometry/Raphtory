@@ -12,4 +12,5 @@ impl Static for EdgeFilter {}
 pub enum Endpoint {
     Src,
     Dst,
+    Nbr,
 }

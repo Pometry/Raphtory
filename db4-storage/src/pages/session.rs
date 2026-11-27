@@ -14,18 +14,16 @@ use raphtory_api::{
     core::{
         entities::{
             LayerId,
+            edges::edge_ref::Dir,
             properties::{
                 meta::STATIC_GRAPH_LAYER_ID,
                 prop::{AsPropEntry, Prop},
             },
         },
-        storage::dict_mapper::MaybeNew,
+        storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
-use raphtory_core::{
-    entities::{EID, ELID, VID},
-    storage::timeindex::AsTime,
-};
+use raphtory_core::entities::{EID, VID};
 
 pub struct EdgeWriteSession<
     'a,
@@ -63,18 +61,18 @@ impl<
         self.edge_writer.resolve_pos(eid)
     }
 
-    pub fn add_edge_into_layer<T: AsTime>(
+    pub fn add_edge_into_layer(
         &mut self,
-        t: T,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-        edge: MaybeNew<ELID>,
+        t: EventTime,
+        src: VID,
+        dst: VID,
+        edge: MaybeNew<EID>,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let src = src.into();
         let dst = dst.into();
         let e_id = edge.inner();
-        let layer = e_id.layer();
 
         // assert!(layer > 0, "Edge must be in a layer greater than 0");
 
@@ -86,47 +84,49 @@ impl<
             .writer
             .get_or_create_layer(layer)
             .max_page_len();
-        let (_, edge_pos) = resolve_pos(e_id.eid(), edge_max_page_len);
+        let (_, edge_pos) = resolve_pos(e_id, edge_max_page_len);
 
         self.edge_writer
             .add_edge(t, edge_pos, src, dst, props, layer);
 
         let edge_id = edge.inner();
+        let out_edge_lid = edge_id.into_layer_addition(layer, Dir::Out);
+        let inb_edge_lid = edge_id.into_layer_addition(layer, Dir::Into);
 
         if edge.is_new()
             || self
                 .node_writers
                 .get_mut_src()
-                .get_out_edge(src_pos, dst, edge_id.layer())
+                .get_out_edge(src_pos, dst, layer)
                 .is_none()
         {
             self.node_writers
                 .get_mut_src()
-                .add_outbound_edge(Some(t), src_pos, dst, edge_id);
+                .add_outbound_edge(Some(t), src_pos, dst, out_edge_lid);
             self.node_writers
                 .get_mut_dst()
-                .add_inbound_edge(Some(t), dst_pos, src, edge_id);
+                .add_inbound_edge(Some(t), dst_pos, src, inb_edge_lid);
         }
 
         self.node_writers
             .get_mut_src()
-            .update_timestamp(t, src_pos, e_id);
+            .update_timestamp(t, src_pos, out_edge_lid);
         self.node_writers
             .get_mut_dst()
-            .update_timestamp(t, dst_pos, e_id);
+            .update_timestamp(t, dst_pos, inb_edge_lid);
     }
 
-    pub fn delete_edge_from_layer<T: AsTime>(
+    pub fn delete_edge_from_layer(
         &mut self,
-        t: T,
+        t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        edge: MaybeNew<ELID>,
+        edge: MaybeNew<EID>,
+        layer: LayerId,
     ) {
         let src = src.into();
         let dst = dst.into();
         let e_id = edge.inner();
-        let layer = e_id.layer();
 
         // assert!(layer > 0, "Edge must be in a layer greater than 0");
 
@@ -138,36 +138,45 @@ impl<
             .writer
             .get_or_create_layer(layer)
             .max_page_len();
-        let (_, edge_pos) = resolve_pos(e_id.eid(), edge_max_page_len);
+        let (_, edge_pos) = resolve_pos(e_id, edge_max_page_len);
 
         self.edge_writer.delete_edge(t, edge_pos, src, dst, layer);
 
         let edge_id = edge.inner();
 
-        if edge_id.layer() > STATIC_GRAPH_LAYER_ID {
+        if layer > STATIC_GRAPH_LAYER_ID {
+            let outbound_elid = edge_id.into_layer_deletion(layer, Dir::Out);
+            let inbound_elid = edge_id.into_layer_deletion(layer, Dir::Into);
+
             if edge.is_new()
                 || self
                     .node_writers
                     .get_mut_src()
-                    .get_out_edge(src_pos, dst, edge_id.layer())
+                    .get_out_edge(src_pos, dst, layer)
                     .is_none()
             {
-                self.node_writers
-                    .get_mut_src()
-                    .add_outbound_edge(Some(t), src_pos, dst, edge_id);
+                self.node_writers.get_mut_src().add_outbound_edge(
+                    Some(t),
+                    src_pos,
+                    dst,
+                    outbound_elid,
+                );
 
-                self.node_writers
-                    .get_mut_dst()
-                    .add_inbound_edge(Some(t), dst_pos, src, edge_id);
+                self.node_writers.get_mut_dst().add_inbound_edge(
+                    Some(t),
+                    dst_pos,
+                    src,
+                    inbound_elid,
+                );
             }
 
             self.node_writers
                 .get_mut_src()
-                .update_deletion_time(t, src_pos, e_id);
+                .update_deletion_time(t, src_pos, outbound_elid);
 
             self.node_writers
                 .get_mut_dst()
-                .update_deletion_time(t, dst_pos, e_id);
+                .update_deletion_time(t, dst_pos, inbound_elid);
         }
     }
 

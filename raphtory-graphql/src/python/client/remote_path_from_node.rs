@@ -2,7 +2,6 @@ use super::view_ops::py_remote_view_ops;
 use crate::{
     client::{remote_path_from_node::RemotePathFromNode, ClientError},
     python::client::{
-        node_subscript,
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_edges::PyRemoteEdges,
         remote_history::PyRemoteHistory,
@@ -82,9 +81,7 @@ impl PyRemotePathFromNode {
     ///     ValueError: if the filter has no server-side form because it reads
     ///         in-process state (`by_state_column`).
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
-        Ok(PyRemotePathFromNode::new(
-            self.path.select(node_subscript(filter)?)?,
-        ))
+        Ok(PyRemotePathFromNode::new(self.path.select(filter.0)?))
     }
 
     /// Restrict this collection to members whose node type is in the given

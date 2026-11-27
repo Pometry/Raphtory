@@ -20,14 +20,16 @@ use std::marker::PhantomData;
 pub struct MemEdgeEntry<'a, MES> {
     pos: LocalPOS,
     es: MES,
+    dir: Dir,
     __marker: PhantomData<&'a ()>,
 }
 
 impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment>> MemEdgeEntry<'a, MES> {
-    pub fn new(pos: LocalPOS, es: MES, _edge_ref: Option<EdgeRef>) -> Self {
+    pub fn new(pos: LocalPOS, es: MES, dir: Dir) -> Self {
         Self {
             pos,
             es,
+            dir,
             __marker: PhantomData,
         }
     }
@@ -50,6 +52,7 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
         MemEdgeRef {
             pos: self.pos,
             es: &self.es,
+            dir: self.dir,
         }
     }
 }
@@ -58,12 +61,13 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
 pub struct MemEdgeRef<'a> {
     pos: LocalPOS,
     es: &'a MemEdgeSegment,
+    dir: Dir,
 }
 
 impl<'a> MemEdgeRef<'a> {
     #[inline]
-    pub fn new(pos: LocalPOS, es: &'a MemEdgeSegment, _edge_ref: Option<EdgeRef>) -> Self {
-        Self { pos, es }
+    pub fn new(pos: LocalPOS, es: &'a MemEdgeSegment, dir: Dir) -> Self {
+        Self { pos, es, dir }
     }
 
     pub fn has_layers(&self, layer_ids: &Multiple) -> bool {
@@ -155,7 +159,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type TProps = EdgeTProps<'a>;
 
     #[inline]
-    fn edge_ref(self, dir: Dir) -> Option<EdgeRef> {
+    fn edge_ref(self) -> Option<EdgeRef> {
         let es = &self.es.as_ref().first()?;
         let entry = es.get(self.pos)?;
         let segment_id = es.segment_id();
@@ -163,7 +167,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         let eid = self.pos.as_eid(segment_id, max_page_len);
         let src = entry.src;
         let dst = entry.dst;
-        Some(EdgeRef::new(eid, src, dst, dir))
+        Some(EdgeRef::new(eid, src, dst, self.dir))
     }
 
     #[inline]
@@ -208,6 +212,11 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
             .as_ref()
             .first()
             .and_then(|layer| layer.get(self.pos).map(|entry| entry.dst))
+    }
+
+    #[inline]
+    fn dir(&self) -> Dir {
+        self.dir
     }
 
     #[inline]

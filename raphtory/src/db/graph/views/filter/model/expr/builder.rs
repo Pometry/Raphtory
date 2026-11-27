@@ -216,6 +216,7 @@ impl Endpoint {
         match self {
             Endpoint::Src => EdgeLeaf::Src(inner),
             Endpoint::Dst => EdgeLeaf::Dst(inner),
+            Endpoint::Nbr => EdgeLeaf::Nbr(inner),
         }
     }
 }
@@ -228,6 +229,10 @@ fn src_property(views: Vec<ViewOp>, name: String, temporal: bool) -> EdgeLeaf {
 /// An edge reads the property of its destination node.
 fn dst_property(views: Vec<ViewOp>, name: String, temporal: bool) -> EdgeLeaf {
     Endpoint::Dst.edge_leaf(Expr::Term(NodeLeaf::property(views, name, temporal)))
+}
+
+fn nbr_property(views: Vec<ViewOp>, name: String, temporal: bool) -> EdgeLeaf {
+    Endpoint::Nbr.edge_leaf(Expr::Term(NodeLeaf::property(views, name, temporal)))
 }
 
 /// A property term: its latest value, or its history after `temporal()`. It
@@ -494,6 +499,7 @@ impl EdgeEndpoint {
             build: match self.endpoint {
                 Endpoint::Src => src_property,
                 Endpoint::Dst => dst_property,
+                Endpoint::Nbr => nbr_property,
             },
         }
     }

@@ -5,7 +5,14 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
-            model::edge_expr::{ops::EdgeExistsOp, EdgeOp},
+            edge_expr_filtered_graph::EdgeExprFilteredGraph,
+            model::{
+                edge_expr::{
+                    ops::{EdgeEndpointNodeOp, EdgeExistsOp},
+                    EdgeOp,
+                },
+                edge_filter::Endpoint,
+            },
             node_filtered_graph::NodeFilteredGraph,
         },
     },
@@ -41,6 +48,12 @@ impl CreateFilter for Exists {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type PathFilter<'graph, G, S>
+        = S
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
 
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
@@ -61,6 +74,14 @@ impl CreateFilter for Exists {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         Ok(EdgeExistsOp::new(graph))
+    }
+
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        _graph: G,
+        select: S,
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
+        Ok(select)
     }
 }
 
@@ -86,6 +107,12 @@ pub trait CreateFilter: Sized {
         Self: 'graph,
         G: GraphView + 'graph;
 
+    type PathFilter<'graph, G, S>: GraphView + 'graph
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
+
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
@@ -100,6 +127,18 @@ pub trait CreateFilter: Sized {
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError>;
+
+    /// Create the filtered graph used for the edge filtering in a path
+    ///
+    /// `graph` is the base graph that should be used for constructing the filter and `select` is the
+    /// current edge filter
+    ///
+    /// Returns a graph view for edge filtering and an additional node filter for filtering the neighbours
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        graph: G,
+        select: S,
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError>;
 }
 
 /// An erased per-edge predicate, the edge filter of every erased or entity-agnostic
@@ -124,6 +163,13 @@ impl<T: NodeFilterOp> CreateFilter for T {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+
+    type PathFilter<'graph, G, S>
+        = EdgeExprFilteredGraph<S, EdgeEndpointNodeOp<'graph, bool>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
 
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
@@ -153,5 +199,20 @@ impl<T: NodeFilterOp> CreateFilter for T {
         Self: 'graph,
     {
         Ok(EdgeExistsOp::new(NodeFilteredGraph::new(graph, self)))
+    }
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        _graph: G,
+        select: S,
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError>
+    where
+        Self: 'graph,
+    {
+        let filter = EdgeEndpointNodeOp {
+            node_op: Arc::new(self),
+            endpoint: Endpoint::Nbr,
+        };
+        let select = EdgeExprFilteredGraph::new(select, filter);
+        Ok(select)
     }
 }

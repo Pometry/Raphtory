@@ -21,7 +21,7 @@ import pyarrow as pa
 import pytest
 from numpy.testing import assert_equal as check_arr
 from pytest import fixture
-from raphtory import Graph, PersistentGraph, algorithms, graph_loader
+from raphtory import Graph, PersistentGraph, algorithms, graph_loader, filter
 
 base_dir = Path(__file__).parent
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
@@ -2277,7 +2277,6 @@ def test_snapshot():
     assert g.latest() == g.snapshot_latest()
 
 
-@pytest.mark.skip(reason="Ignoring this test temporarily")
 def test_one_hop_filter_reset():
     g = Graph()
     g.add_edge(0, 1, 2, {"layer": 1}, "1")
@@ -2288,18 +2287,27 @@ def test_one_hop_filter_reset():
 
     v = g.node(1)
 
-    out_out = v.at(0).layer("1").out_neighbours.layer("2").out_neighbours.id
+    at_0_layer_1 = filter.Graph.at(0).layer("1")
+    layer_2 = filter.Graph.layer("2")
+    out_out = v.out_neighbours[at_0_layer_1].out_neighbours[layer_2].id
     assert out_out == [3]
 
-    out_out = (
-        v.at(0).layer("1").out_neighbours.layer("2").out_edges.properties.get("layer")
-    )
+    out_out = v.out_neighbours[at_0_layer_1].out_edges[layer_2].properties.get("layer")
     assert out_out == [2]
 
-    out_out = v.at(0).out_neighbours.after(1).out_neighbours.id
+    out = v.out_neighbours[filter.Graph.at(0)].id
+    assert out == [2, 3]
+
+    out_out = (
+        v.out_neighbours[filter.Graph.at(0)].out_neighbours[filter.Graph.after(1)].id
+    )
     assert out_out == [4]
 
-    earliest_time = v.at(0).out_neighbours.after(1).out_edges.earliest_time.min()
+    earliest_time = (
+        v.out_neighbours[filter.Graph.at(0)]
+        .out_edges[filter.Graph.after(1)]
+        .earliest_time.min()
+    )
     assert earliest_time == 2
 
     # filter applies to edges
@@ -2307,11 +2315,17 @@ def test_one_hop_filter_reset():
     assert layers == {"1"}
 
     # dst and src on edge reset the filter
-    degrees = v.at(0).layer("1").edges.dst.out_degree()
+    degrees = v.edges[at_0_layer_1].dst.out_degree()
     assert degrees == [1]
 
     # graph level filter is preserved
-    out_out_2 = g.at(0).node(1).layer("1").out_neighbours.layer("2").out_neighbours.id
+    out_out_2 = (
+        g.at(0)
+        .node(1)
+        .out_neighbours[filter.Graph.layer("1")]
+        .out_neighbours[filter.Graph.layer("2")]
+        .id
+    )
     assert len(out_out_2) == 0
 
 

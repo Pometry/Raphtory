@@ -74,7 +74,8 @@ where
             t,
             self.src.inner(),
             self.dst.inner(),
-            self.eid.map(|eid| eid.with_layer(layer)),
+            self.eid,
+            layer,
             props,
         );
     }
@@ -133,7 +134,8 @@ where
             t,
             self.src.inner(),
             self.dst.inner(),
-            self.eid.map(|eid| eid.with_layer_deletion(layer)),
+            self.eid,
+            layer,
         );
     }
 

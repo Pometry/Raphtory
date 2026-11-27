@@ -8,7 +8,9 @@ use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
-        edges::edge_ref::EdgeRef, layers::Multiple, properties::meta::STATIC_GRAPH_LAYER_ID,
+        edges::edge_ref::{Dir, EdgeRef},
+        layers::Multiple,
+        properties::meta::STATIC_GRAPH_LAYER_ID,
         LayerIds, ELID, VID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
@@ -292,7 +294,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
                 let gs = view.core_graph();
-                view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
+                view.filter_edge(gs.core_edge(Either::Right(*e), e.dir()).as_ref())
                     && view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
             FilterState::Nodes => FilterVariants::Nodes(iter.filter(move |e| {
@@ -302,7 +304,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             FilterState::Edges | FilterState::BothIndependent | FilterState::Window => {
                 FilterVariants::Edges(iter.filter(move |e| {
                     let gs = view.core_graph();
-                    view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
+                    view.filter_edge(gs.core_edge(Either::Right(*e), e.dir()).as_ref())
                 }))
             }
         }

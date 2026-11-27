@@ -35,8 +35,8 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
     }
 
     #[inline]
-    fn edge_ref(self, dir: Dir) -> EdgeRef {
-        self.as_ref().edge_ref(dir)
+    fn edge_ref(self) -> EdgeRef {
+        self.as_ref().edge_ref()
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool {
@@ -49,6 +49,10 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn dst(self) -> VID {
         self.as_ref().dst()
+    }
+
+    fn dir(self) -> Dir {
+        self.as_ref().dir()
     }
 
     fn eid(self) -> EID {

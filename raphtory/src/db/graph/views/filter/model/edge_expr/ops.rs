@@ -28,7 +28,6 @@ use crate::db::{
     },
 };
 use std::sync::Arc;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Arc<dyn EdgeOp> — blanket impl so Arc-boxed ops satisfy EdgeOp
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,23 +254,24 @@ impl<G: GraphView> EdgeOp for TemporalEdgePropOp<G> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
-pub(crate) struct EdgeEndpointNodeOp<'g> {
-    pub(crate) node_op: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+pub struct EdgeEndpointNodeOp<'g, V> {
+    pub(crate) node_op: Arc<dyn NodeOp<Output = V> + 'g>,
     pub(crate) endpoint: Endpoint,
 }
 
-impl<'g> EdgeEndpointNodeOp<'g> {
-    fn at_endpoint(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
+impl<'g, V: Clone + Send + Sync> EdgeEndpointNodeOp<'g, V> {
+    fn at_endpoint(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> V {
         let vid = match self.endpoint {
             Endpoint::Src => edge.src(),
             Endpoint::Dst => edge.dst(),
+            Endpoint::Nbr => edge.nbr(),
         };
         self.node_op.apply(storage, vid)
     }
 }
 
-impl<'g> EdgeOp for EdgeEndpointNodeOp<'g> {
-    type Output = Option<Prop>;
+impl<'g, V: Clone + Send + Sync> EdgeOp for EdgeEndpointNodeOp<'g, V> {
+    type Output = V;
 
     fn prop_type(&self) -> PropType {
         self.node_op.prop_type()
@@ -281,16 +281,11 @@ impl<'g> EdgeOp for EdgeEndpointNodeOp<'g> {
         self.node_op.const_value()
     }
 
-    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> V {
         self.at_endpoint(storage, edge)
     }
 
-    fn apply_layer(
-        &self,
-        storage: &GraphStorage,
-        edge: EdgeEntryRef,
-        _layer: LayerId,
-    ) -> Option<Prop> {
+    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, _layer: LayerId) -> V {
         self.at_endpoint(storage, edge)
     }
 
@@ -300,7 +295,7 @@ impl<'g> EdgeOp for EdgeEndpointNodeOp<'g> {
         edge: EdgeEntryRef,
         _layer: LayerId,
         _t: EventTime,
-    ) -> Option<Prop> {
+    ) -> V {
         self.at_endpoint(storage, edge)
     }
 }
@@ -516,7 +511,7 @@ impl<G: GraphView> EdgeOp for EdgeExistsOp<G> {
         t: EventTime,
     ) -> bool {
         self.graph
-            .filter_exploded_edge(ELID::new(edge.eid(), layer), t)
+            .filter_exploded_edge(ELID::new_addition(edge.eid(), layer, edge.dir()), t)
     }
 
     fn prop_type(&self) -> PropType {

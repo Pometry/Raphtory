@@ -1,18 +1,22 @@
-use std::ops::DerefMut;
-
-use raphtory_api::core::entities::properties::{
-    meta::{NODE_ID_PROP_ID, STATIC_GRAPH_LAYER_ID},
-    prop::Prop,
+use crate::{
+    LocalPOS, api::nodes::NodeSegmentOps, pages::node_page::writer::NodeWriter,
+    segments::node::segment::MemNodeSegment,
+};
+use raphtory_api::core::{
+    entities::{
+        edges::edge_ref::Dir,
+        properties::{
+            meta::{NODE_ID_PROP_ID, STATIC_GRAPH_LAYER_ID},
+            prop::Prop,
+        },
+    },
+    storage::timeindex::EventTime,
 };
 use raphtory_core::{
     entities::{EID, ELID, GID, LayerId, VID},
     storage::timeindex::AsTime,
 };
-
-use crate::{
-    LocalPOS, api::nodes::NodeSegmentOps, pages::node_page::writer::NodeWriter,
-    segments::node::segment::MemNodeSegment,
-};
+use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct BulkNodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> {
@@ -45,36 +49,24 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
     }
 
     #[inline(always)]
-    pub fn add_static_outbound_edge(
-        &mut self,
-        src_pos: LocalPOS,
-        dst: impl Into<VID>,
-        e_id: impl Into<EID>,
-    ) {
-        let e_id = e_id.into();
-        self.nw.add_outbound_edge_inner::<i64>(
+    pub fn add_static_outbound_edge(&mut self, src_pos: LocalPOS, dst: VID, e_id: EID) {
+        self.nw.add_outbound_edge_inner(
             None,
             src_pos,
             dst,
-            e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            e_id.into_layer_addition(STATIC_GRAPH_LAYER_ID, Dir::Out),
             |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             },
         );
     }
 
-    pub fn add_static_inbound_edge(
-        &mut self,
-        dst_pos: LocalPOS,
-        src: impl Into<VID>,
-        e_id: impl Into<EID>,
-    ) {
-        let e_id = e_id.into();
-        self.nw.add_inbound_edge_inner::<i64>(
+    pub fn add_static_inbound_edge(&mut self, dst_pos: LocalPOS, src: VID, e_id: EID) {
+        self.nw.add_inbound_edge_inner(
             None,
             dst_pos,
             src,
-            e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            e_id.into_layer_addition(STATIC_GRAPH_LAYER_ID, Dir::Into),
             |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             },
@@ -82,12 +74,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
     }
 
     #[inline(always)]
-    pub fn add_outbound_edge<T: AsTime>(
+    pub fn add_outbound_edge(
         &mut self,
-        t: Option<T>,
-        src_pos: impl Into<LocalPOS>,
-        dst: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        t: Option<EventTime>,
+        src_pos: LocalPOS,
+        dst: VID,
+        e_id: ELID,
     ) {
         self.nw
             .add_outbound_edge_inner(t, src_pos, dst, e_id, |layer_id| {
@@ -95,12 +87,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
             });
     }
 
-    pub fn add_inbound_edge<T: AsTime>(
+    pub fn add_inbound_edge(
         &mut self,
-        t: Option<T>,
-        dst_pos: impl Into<LocalPOS>,
-        src: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        t: Option<EventTime>,
+        dst_pos: LocalPOS,
+        src: VID,
+        e_id: ELID,
     ) {
         self.nw
             .add_inbound_edge_inner(t, dst_pos, src, e_id, |layer_id| {

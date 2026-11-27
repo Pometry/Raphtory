@@ -31,7 +31,7 @@ use crate::db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps};
 
 use either::Either;
 use hashbrown::HashMap;
-use raphtory_api::core::entities::{EID, VID};
+use raphtory_api::core::entities::{edges::edge_ref::Dir, EID, VID};
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{
     cmp::max,
@@ -1463,9 +1463,12 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         'graph: 'a,
     {
         let storage = self.graph.core_edges();
-        self.forward_map
-            .values()
-            .map(move |(_, eid)| EdgeView::new(&self.graph, storage.as_ref().edge(*eid).out_ref()))
+        self.forward_map.values().map(move |(_, eid)| {
+            EdgeView::new(
+                &self.graph,
+                storage.as_ref().edge(*eid, Dir::Out).edge_ref(),
+            )
+        })
     }
 
     pub fn edges(&self) -> Edges<'graph, G> {
@@ -1477,7 +1480,9 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
             GenLockedIter::from(forward_map, move |forward_map| {
                 forward_map
                     .values()
-                    .map(move |(_, eid)| storage.edge_entry(Either::Left(*eid)).out_ref())
+                    .map(move |(_, eid)| {
+                        storage.edge_entry(Either::Left(*eid), Dir::Out).edge_ref()
+                    })
                     .into_dyn_boxed()
             })
             .into_dyn_boxed()
@@ -1513,7 +1518,9 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         let (_, eid) = self.forward_map.get(&src)?;
         Some(EdgeView::new(
             &self.graph,
-            self.graph.core_edge(Either::Left(*eid)).out_ref(),
+            self.graph
+                .core_edge(Either::Left(*eid), Dir::Out)
+                .edge_ref(),
         ))
     }
     pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<'a, &'a G>>
@@ -1533,7 +1540,9 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         let (_, eid) = self.reverse_map.get(&dst)?;
         Some(EdgeView::new(
             &self.graph,
-            self.graph.core_edge(Either::Left(*eid)).out_ref(),
+            self.graph
+                .core_edge(Either::Left(*eid), Dir::Out)
+                .edge_ref(),
         ))
     }
 }

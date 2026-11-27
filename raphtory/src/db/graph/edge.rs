@@ -121,7 +121,7 @@ impl<G: GraphView> EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(Either::Right(e));
+            let edge = g.core_edge(Either::Right(e), e.dir());
             match e.time() {
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");
@@ -336,7 +336,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
 
         if self
             .graph
-            .core_edge(Either::Right(self.edge))
+            .core_edge(Either::Right(self.edge), self.edge.dir())
             .has_layer(&LayerIds::One(layer_id))
         {
             Ok(layer_id)
@@ -522,7 +522,9 @@ impl<'graph, G: GraphViewOps<'graph> + EdgePropertySchemaOps> InternalMetadataOp
         if !self.graph.edge_shows_metadata(id) {
             return None;
         }
-        let edge = self.graph.core_edge(Either::Right(self.edge));
+        let edge = self
+            .graph
+            .core_edge(Either::Right(self.edge), self.edge.dir());
         edge_reads::metadata(&self.graph, edge.as_ref(), EdgeAt::of(self.edge), id)
     }
 }
@@ -540,7 +542,9 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
         if !self.graph.edge_shows_temporal_prop(id) {
             return None;
         }
-        let edge = self.graph.core_edge(Either::Right(self.edge));
+        let edge = self
+            .graph
+            .core_edge(Either::Right(self.edge), self.edge.dir());
         edge_reads::temporal_value(&self.graph, edge.as_ref(), EdgeAt::of(self.edge), id)
     }
 
@@ -548,7 +552,9 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
         if !self.graph.edge_shows_temporal_prop(id) {
             return iter::empty().into_dyn_boxed();
         }
-        let edge = self.graph.core_edge(Either::Right(self.edge));
+        let edge = self
+            .graph
+            .core_edge(Either::Right(self.edge), self.edge.dir());
         let graph = &self.graph;
         let at = EdgeAt::of(self.edge);
         GenLockedIter::from(edge, move |edge| {
@@ -560,7 +566,9 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if self.graph.edge_shows_temporal_prop(id) && edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
-            let edge = self.graph.core_edge(Either::Right(self.edge));
+            let edge = self
+                .graph
+                .core_edge(Either::Right(self.edge), self.edge.dir());
             let graph = &self.graph;
             match self.edge.time() {
                 None => match self.edge.layer() {
@@ -604,7 +612,9 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         if self.graph.edge_shows_temporal_prop(id) && edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
-            let edge = self.graph.core_edge(Either::Right(self.edge));
+            let edge = self
+                .graph
+                .core_edge(Either::Right(self.edge), self.edge.dir());
 
             match self.edge.time() {
                 None => match self.edge.layer() {

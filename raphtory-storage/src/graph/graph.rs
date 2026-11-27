@@ -11,6 +11,7 @@ use db4_graph::TemporalGraph;
 use itertools::Either;
 use raphtory_api::core::{
     entities::{
+        edges::edge_ref::Dir,
         properties::meta::{LayerPresenceRef, Meta},
         LayerId, LayerIds, LayerVariants, EID, VID,
     },
@@ -21,6 +22,10 @@ use raphtory_api::core::{
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
+pub use storage::api::nodes::{
+    GlobalPropCandidates as NodeGlobalPropCandidates, PropPredicate as NodePropPredicate,
+    PropSemantics as NodePropSemantics,
+};
 use storage::{
     api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
     error::StorageError,
@@ -31,11 +36,6 @@ use storage::{
     Extension, GraphPropEntry, NTI,
 };
 use thiserror::Error;
-
-pub use storage::api::nodes::{
-    GlobalPropCandidates as NodeGlobalPropCandidates, PropPredicate as NodePropPredicate,
-    PropSemantics as NodePropSemantics,
-};
 
 #[derive(Clone, Debug)]
 pub enum GraphStorage {
@@ -362,11 +362,13 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn edge_entry(&self, eid: Either<EID, EdgeRef>) -> EdgeStorageEntry<'_> {
+    pub fn edge_entry(&self, eid: Either<EID, EdgeRef>, dir: Dir) -> EdgeStorageEntry<'_> {
         match self {
-            GraphStorage::Locked(storage) => EdgeStorageEntry::Mem(storage.edges.edge_ref(eid)),
+            GraphStorage::Locked(storage) => {
+                EdgeStorageEntry::Mem(storage.edges.edge_ref(eid, dir))
+            }
             GraphStorage::Unlocked(storage) => {
-                EdgeStorageEntry::Unlocked(storage.storage().edges().edge(eid))
+                EdgeStorageEntry::Unlocked(storage.storage().edges().edge(eid, dir))
             }
         }
     }

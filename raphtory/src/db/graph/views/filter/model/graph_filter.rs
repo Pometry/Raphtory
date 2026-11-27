@@ -1,7 +1,10 @@
 use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
-        graph::views::filter::{model::edge_expr::ops::EdgeExistsOp, CreateFilter},
+        graph::views::filter::{
+            edge_expr_filtered_graph::EdgeExprFilteredGraph, model::edge_expr::ops::EdgeExistsOp,
+            CreateFilter,
+        },
     },
     errors::GraphError,
 };
@@ -33,6 +36,12 @@ impl CreateFilter for GraphFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type PathFilter<'graph, G, S>
+        = EdgeExprFilteredGraph<S, EdgeExistsOp<G>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
 
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
@@ -53,5 +62,14 @@ impl CreateFilter for GraphFilter {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         Ok(EdgeExistsOp::new(graph))
+    }
+
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        graph: G,
+        select: S,
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
+        // this is not a no-op, filters might have been applied to the path
+        Ok(EdgeExprFilteredGraph::new(select, EdgeExistsOp::new(graph)))
     }
 }

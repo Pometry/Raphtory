@@ -9,14 +9,18 @@ use crate::{
 use drop_logging::drop_error;
 use raphtory_api::{
     ArcRwLockWriteGuard,
-    core::entities::{
-        EID, GID, LayerId, VID,
-        properties::{
-            meta::{
-                DEFAULT_NODE_TYPE_ID, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID,
+    core::{
+        entities::{
+            EID, GID, LayerId, VID,
+            edges::edge_ref::Dir,
+            properties::{
+                meta::{
+                    DEFAULT_NODE_TYPE_ID, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID,
+                },
+                prop::{AsPropEntry, AsPropRef, Prop},
             },
-            prop::{AsPropEntry, AsPropRef, Prop},
         },
+        storage::timeindex::EventTime,
     },
 };
 use raphtory_core::{
@@ -45,42 +49,36 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
     }
 
-    pub fn add_outbound_edge<T: AsTime>(
+    pub fn add_outbound_edge(
         &mut self,
-        t: Option<T>,
-        src_pos: impl Into<LocalPOS>,
-        dst: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        t: Option<EventTime>,
+        src_pos: LocalPOS,
+        dst: VID,
+        e_id: ELID,
     ) {
         self.add_outbound_edge_inner(t, src_pos, dst, e_id, |layer_id| {
             self.graph_stats.increment(layer_id);
         });
     }
 
-    pub fn add_static_outbound_edge(
-        &mut self,
-        src_pos: LocalPOS,
-        dst: impl Into<VID>,
-        e_id: impl Into<EID>,
-    ) {
-        let e_id = e_id.into();
-        self.add_outbound_edge_inner::<i64>(
+    pub fn add_static_outbound_edge(&mut self, src_pos: LocalPOS, dst: VID, e_id: EID) {
+        self.add_outbound_edge_inner(
             None,
             src_pos,
             dst,
-            e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            e_id.into_layer_addition(STATIC_GRAPH_LAYER_ID, Dir::Out),
             |layer_id| {
                 self.graph_stats.increment(layer_id);
             },
         );
     }
 
-    pub(crate) fn add_outbound_edge_inner<T: AsTime>(
+    pub(crate) fn add_outbound_edge_inner(
         &mut self,
-        t: Option<T>,
-        src_pos: impl Into<LocalPOS>,
-        dst: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        t: Option<EventTime>,
+        src_pos: LocalPOS,
+        dst: VID,
+        e_id: ELID,
         mut layer_counter: impl FnMut(LayerId),
     ) {
         let src_pos = src_pos.into();
@@ -88,8 +86,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         if let Some(t) = t {
             self.graph_stats.update_time(t.t());
         }
-
-        let e_id = e_id.into();
         let layer_id = e_id.layer();
         let (is_new_node, add) = self.writer.add_outbound_edge(t, src_pos, dst, e_id);
         self.writer.increment_est_size(add);
@@ -99,47 +95,38 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
     }
 
-    pub fn add_inbound_edge<T: AsTime>(
+    pub fn add_inbound_edge(
         &mut self,
-        t: Option<T>,
-        dst_pos: impl Into<LocalPOS>,
-        src: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        t: Option<EventTime>,
+        dst_pos: LocalPOS,
+        src: VID,
+        e_id: ELID,
     ) {
         self.add_inbound_edge_inner(t, dst_pos, src, e_id, |layer| {
             self.graph_stats.increment(layer);
         });
     }
 
-    pub fn add_static_inbound_edge(
-        &mut self,
-        dst_pos: LocalPOS,
-        src: impl Into<VID>,
-        e_id: impl Into<EID>,
-    ) {
-        let e_id = e_id.into();
-        self.add_inbound_edge_inner::<i64>(
+    pub fn add_static_inbound_edge(&mut self, dst_pos: LocalPOS, src: VID, e_id: EID) {
+        self.add_inbound_edge_inner(
             None,
             dst_pos,
             src,
-            e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            e_id.into_layer_addition(STATIC_GRAPH_LAYER_ID, Dir::Into),
             |layer| {
                 self.graph_stats.increment(layer);
             },
         );
     }
 
-    pub(crate) fn add_inbound_edge_inner<T: AsTime>(
+    pub(crate) fn add_inbound_edge_inner(
         &mut self,
-        t: Option<T>,
-        dst_pos: impl Into<LocalPOS>,
-        src: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        t: Option<EventTime>,
+        dst_pos: LocalPOS,
+        src: VID,
+        e_id: ELID,
         mut layer_counter: impl FnMut(LayerId),
     ) {
-        let e_id = e_id.into();
-        let src = src.into();
-
         if let Some(t) = t {
             self.graph_stats.update_time(t.t());
         }
@@ -155,9 +142,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
     }
 
-    pub fn add_props<T: AsTime, P: AsPropRef>(
+    pub fn add_props<P: AsPropRef>(
         &mut self,
-        t: T,
+        t: EventTime,
         pos: LocalPOS,
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,

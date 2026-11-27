@@ -94,7 +94,9 @@ impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
         //     `w.start` for edges that persist into the window) — fall back to
         //     the view's persistent semantics via `latest` to emit the
         //     persisted prop values.
-        let core = edge.graph.core_edge(Either::Right(edge.edge));
+        let core = edge
+            .graph
+            .core_edge(Either::Right(edge.edge), edge.edge.dir());
         let core_ref = core.as_ref();
         let layer = LayerId(layer_id);
         let t_next = EventTime::start(t.0.saturating_add(1));

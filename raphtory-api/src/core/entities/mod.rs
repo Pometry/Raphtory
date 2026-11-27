@@ -14,7 +14,10 @@ pub mod edges;
 pub mod layers;
 pub mod properties;
 
-use crate::core::entities::properties::prop::{Prop, PropType};
+use crate::core::entities::{
+    edges::edge_ref::Dir,
+    properties::prop::{Prop, PropType},
+};
 pub use layers::*;
 
 // The only reason this is public is because the physical IDs of the nodes don’t move.
@@ -105,12 +108,12 @@ impl EID {
         self.0 as u64
     }
 
-    pub fn with_layer(self, layer: LayerId) -> ELID {
-        ELID::new(self, layer)
+    pub fn into_layer_addition(self, layer: LayerId, dir: Dir) -> ELID {
+        ELID::new_addition(self, layer, dir)
     }
 
-    pub fn with_layer_deletion(self, layer: LayerId) -> ELID {
-        ELID::new_deletion(self, layer)
+    pub fn into_layer_deletion(self, layer: LayerId, dir: Dir) -> ELID {
+        ELID::new_deletion(self, layer, dir)
     }
 }
 
@@ -172,24 +175,49 @@ impl Debug for EDID {
 }
 
 impl EDID {
-    pub fn new(edge: EID) -> Self {
-        EDID(edge.0)
+    pub fn new_addition(edge: EID, dir: Dir) -> Self {
+        match dir {
+            Dir::Into => EDID(edge.0 | DIRECTION_FLAG),
+            Dir::Out => EDID(edge.0),
+        }
     }
 
-    pub fn new_deletion(edge: EID) -> Self {
-        EDID(edge.0 | DELETION_FLAG)
+    pub fn new_deletion(edge: EID, dir: Dir) -> Self {
+        let edid = edge.0 | DELETION_FLAG;
+        match dir {
+            Dir::Into => EDID(edid | DIRECTION_FLAG),
+            Dir::Out => EDID(edid),
+        }
     }
 
     pub fn eid(&self) -> EID {
-        EID(self.0 & !DELETION_FLAG)
+        EID(self.0 & !(DELETION_FLAG | DIRECTION_FLAG))
     }
 
     pub fn is_deletion(&self) -> bool {
         self.0 & DELETION_FLAG != 0
     }
 
+    pub fn dir(&self) -> Dir {
+        if self.0 & DIRECTION_FLAG != 0 {
+            Dir::Into
+        } else {
+            Dir::Out
+        }
+    }
+
     pub fn into_deletion(mut self) -> Self {
         self.0 |= DELETION_FLAG;
+        self
+    }
+
+    pub fn into_inbound(mut self) -> Self {
+        self.0 |= DIRECTION_FLAG;
+        self
+    }
+
+    pub fn into_outbound(mut self) -> Self {
+        self.0 &= !DIRECTION_FLAG;
         self
     }
 }
@@ -200,17 +228,19 @@ impl Debug for ELID {
             .field("edge", &self.edge_and_deletion)
             .field("layer", &self.layer())
             .field("deletion", &self.is_deletion())
+            .field("dir", &self.dir())
             .finish()
     }
 }
 
 const DELETION_FLAG: usize = 1usize.reverse_bits();
-pub const MAX_EID: usize = usize::MAX & !DELETION_FLAG;
+const DIRECTION_FLAG: usize = 2usize.reverse_bits();
+pub const MAX_EID: usize = usize::MAX & !(DELETION_FLAG | DIRECTION_FLAG);
 
 impl ELID {
-    pub fn new(edge: EID, layer: LayerId) -> Self {
+    pub fn new_addition(edge: EID, layer: LayerId, dir: Dir) -> Self {
         ELID {
-            edge_and_deletion: EDID::new(edge),
+            edge_and_deletion: EDID::new_addition(edge, dir),
             layer,
         }
     }
@@ -222,11 +252,21 @@ impl ELID {
         }
     }
 
-    pub fn new_deletion(edge: EID, layer: LayerId) -> Self {
+    pub fn new_deletion(edge: EID, layer: LayerId, dir: Dir) -> Self {
         ELID {
-            edge_and_deletion: EDID::new_deletion(edge),
+            edge_and_deletion: EDID::new_deletion(edge, dir),
             layer,
         }
+    }
+
+    pub fn into_inbound(mut self) -> Self {
+        self.edge_and_deletion = self.edge_and_deletion.into_inbound();
+        self
+    }
+
+    pub fn into_outbound(mut self) -> Self {
+        self.edge_and_deletion = self.edge_and_deletion.into_outbound();
+        self
     }
 
     pub fn layer(&self) -> LayerId {
@@ -235,6 +275,10 @@ impl ELID {
 
     pub fn eid(&self) -> EID {
         self.edge_and_deletion.eid()
+    }
+
+    pub fn dir(&self) -> Dir {
+        self.edge_and_deletion.dir()
     }
 
     pub fn eid_and_flag(&self) -> EDID {
@@ -743,25 +787,67 @@ mod tests {
     #[test]
     fn test_elid_layer_proptest() {
         proptest!(|(eid in 0..=MAX_EID, layer in 0..=usize::MAX)| {
-            let elid = EID(eid).with_layer(LayerId(layer));
+            let elid = EID(eid).into_layer_addition(LayerId(layer), Dir::Out);
             prop_assert_eq!(elid.layer(), LayerId(layer));
             prop_assert!(!elid.is_deletion());
+            prop_assert_eq!(elid.dir(), Dir::Out);
+
+            let elid_inbound = elid.into_inbound();
+            prop_assert_eq!(elid_inbound.layer(), LayerId(layer));
+            prop_assert!(!elid_inbound.is_deletion());
+            prop_assert_eq!(elid_inbound.dir(), Dir::Into);
 
             let elid_deleted = elid.into_deletion();
             prop_assert_eq!(elid_deleted.layer(), LayerId(layer));
             prop_assert_eq!(elid_deleted.eid(), EID(eid));
-            prop_assert!(elid_deleted.is_deletion())
+            prop_assert!(elid_deleted.is_deletion());
+            prop_assert_eq!(elid_deleted.dir(), Dir::Out);
+
+            let elid_deleted_inbound = elid_deleted.into_inbound();
+            prop_assert_eq!(elid_deleted_inbound.layer(), LayerId(layer));
+            prop_assert!(elid_deleted_inbound.is_deletion());
+            prop_assert_eq!(elid_deleted_inbound.dir(), Dir::Into);
+
+            let elid = EID(eid).into_layer_addition(LayerId(layer), Dir::Into);
+            prop_assert_eq!(elid.layer(), LayerId(layer));
+            prop_assert!(!elid.is_deletion());
+            prop_assert_eq!(elid.dir(), Dir::Into);
+
+            let elid_deleted = elid.into_deletion();
+            prop_assert_eq!(elid_deleted.layer(), LayerId(layer));
+            prop_assert_eq!(elid_deleted.eid(), EID(eid));
+            prop_assert!(elid_deleted.is_deletion());
+            prop_assert_eq!(elid_deleted.dir(), Dir::Into);
+
+            let elid_outbound = elid.into_outbound();
+            prop_assert_eq!(elid_outbound.layer(), LayerId(layer));
+            prop_assert!(!elid_outbound.is_deletion());
+            prop_assert_eq!(elid_outbound.dir(), Dir::Out);
+
+            let elid_deleted_outbound = elid_deleted.into_outbound();
+            prop_assert_eq!(elid_deleted_outbound.layer(), LayerId(layer));
+            prop_assert_eq!(elid_deleted_outbound.eid(), EID(eid));
+            prop_assert!(elid_deleted_outbound.is_deletion());
+            prop_assert_eq!(elid_deleted_outbound.dir(), Dir::Out);
         })
     }
 
     #[test]
     fn test_elid_deletion_proptest() {
         proptest!(|(eid in 0..=MAX_EID, layer in 0..=usize::MAX)| {
-            let elid = EID(eid).with_layer_deletion(LayerId(layer));
+            let elid = EID(eid).into_layer_deletion(LayerId(layer), Dir::Out);
             prop_assert_eq!(elid.layer(), LayerId(layer));
             prop_assert!(elid.is_deletion());
             prop_assert_eq!(elid, elid.into_deletion());
             prop_assert_eq!(elid.eid().0, eid);
+            prop_assert_eq!(elid.dir(), Dir::Out);
+
+            let elid = EID(eid).into_layer_deletion(LayerId(layer), Dir::Into);
+            prop_assert_eq!(elid.layer(), LayerId(layer));
+            prop_assert!(elid.is_deletion());
+            prop_assert_eq!(elid, elid.into_deletion());
+            prop_assert_eq!(elid.eid().0, eid);
+            prop_assert_eq!(elid.dir(), Dir::Into);
         })
     }
 

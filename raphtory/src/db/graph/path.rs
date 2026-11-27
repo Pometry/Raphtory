@@ -6,7 +6,7 @@ use crate::{
             view::{
                 filter_ops::Select,
                 history::History,
-                internal::{DynGraphArc, GraphView, InternalFilter, Static},
+                internal::{DynGraphArc, GraphView, InternalFilter, IntoDynGraphArc, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -301,20 +301,11 @@ where
         &self,
         filter: F,
     ) -> Result<PathFromGraph<'graph, G>, GraphError> {
-        let filter = filter.create_node_filter(self.base_graph.clone())?;
-        let select = self.select.clone();
-
+        let select = filter.create_path_filter(self.base_graph.clone(), self.select.clone())?;
         let op = self.op.clone();
-        let op = Arc::new(move |graph: DynGraphArc<'graph>, node| {
-            let filter = filter.clone();
-            let storage = graph.core_graph().clone();
-            op(graph, node)
-                .filter(move |node| filter.apply(&storage, *node))
-                .into_dyn_boxed()
-        });
         Ok(PathFromGraph::new_filtered(
             self.base_graph.clone(),
-            select,
+            select.into_dyn_graph_arc(),
             self.nodes.clone(),
             op,
         ))
@@ -546,17 +537,11 @@ where
         &self,
         filter: F,
     ) -> Result<PathFromNode<'graph, G>, GraphError> {
-        let op = self.op.clone();
-        let select = self.select.clone();
-        let filter_op = filter.create_node_filter(self.base_graph.clone())?;
+        let select = filter.create_path_filter(self.base_graph.clone(), self.select.clone())?;
         Ok(PathFromNode {
             base_graph: self.base_graph.clone(),
-            select,
-            op: Arc::new(move |graph| {
-                let filter_op = filter_op.clone();
-                let storage = graph.core_graph().clone();
-                Box::new(op(graph).filter(move |node| filter_op.apply(&storage, *node)))
-            }),
+            select: select.into_dyn_graph_arc(),
+            op: self.op.clone(),
         })
     }
 }

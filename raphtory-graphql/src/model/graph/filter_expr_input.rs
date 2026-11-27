@@ -647,6 +647,8 @@ pub enum EdgeRead {
     Src(EndpointRead),
     /// A node expression evaluated on the edge's destination node.
     Dst(EndpointRead),
+    /// A node expression evaluated at the neighbour node of the edge (Same as `dst` for an out-edge and `src` for an in-edge
+    Nbr(EndpointRead),
 }
 
 impl Term for EdgeRead {
@@ -660,6 +662,7 @@ impl Term for EdgeRead {
             EdgeRead::Field(r) => r.name.leaf(view_ops(r.views)),
             EdgeRead::Src(r) => EdgeLeaf::Src(Box::new(r.expr.into_inner().into_tree()?)),
             EdgeRead::Dst(r) => EdgeLeaf::Dst(Box::new(r.expr.into_inner().into_tree()?)),
+            EdgeRead::Nbr(r) => EdgeLeaf::Nbr(Box::new(r.expr.into_inner().into_tree()?)),
         })
     }
 
@@ -709,6 +712,9 @@ impl Term for EdgeRead {
                 expr: Wrapped::from(NodeExpr::from_tree(inner)?),
             }),
             EdgeLeaf::Dst(inner) => EdgeRead::Dst(EndpointRead {
+                expr: Wrapped::from(NodeExpr::from_tree(inner)?),
+            }),
+            EdgeLeaf::Nbr(inner) => EdgeRead::Nbr(EndpointRead {
                 expr: Wrapped::from(NodeExpr::from_tree(inner)?),
             }),
         })
@@ -1593,6 +1599,12 @@ impl CreateFilter for GqlFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type PathFilter<'graph, G, S>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        S: GraphView + 'graph;
 
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
@@ -1613,5 +1625,13 @@ impl CreateFilter for GqlFilter {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         expr::FilterExpr::try_from(self)?.create_edge_filter(graph)
+    }
+
+    fn create_path_filter<'graph, G: GraphView + 'graph, S: GraphView + 'graph>(
+        self,
+        graph: G,
+        select: S,
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
+        expr::FilterExpr::try_from(self)?.create_path_filter(graph, select)
     }
 }
