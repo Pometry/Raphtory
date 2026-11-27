@@ -22,13 +22,7 @@ use std::sync::Arc;
 /// node test keeps the nodes that fail it and the edges between them, and a
 /// combination is negated test by test, node tests on nodes and edge tests on
 /// edges. A view combines with `&` only.
-#[pyclass(
-    frozen,
-    name = "FilterExpr",
-    module = "raphtory.filter",
-    subclass,
-    skip_from_py_object
-)]
+#[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter", subclass)]
 #[derive(Clone)]
 pub struct PyFilterExpr(pub FilterExpr);
 
