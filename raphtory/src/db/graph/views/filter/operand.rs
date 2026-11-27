@@ -107,7 +107,11 @@ pub(super) fn keeps_edge_layer_and_ends<L: GraphView>(
 /// too.
 pub(super) fn keeps_exploded_edge<L: GraphView>(operand: &L, eid: ELID, t: EventTime) -> bool {
     (!restricts_edges(operand)
-        || operand.filter_edge(operand.core_edge(Either::Left(eid.eid())).as_ref()))
+        || operand.filter_edge(
+            operand
+                .core_edge(Either::Left(eid.eid()), eid.dir())
+                .as_ref(),
+        ))
         && keeps_update(operand, eid, t)
 }
 
@@ -118,6 +122,10 @@ pub(super) fn keeps_exploded_edge_and_ends<L: GraphView>(
     t: EventTime,
 ) -> bool {
     (!restricts_edges_or_ends(operand)
-        || operand.filter_edge(operand.core_edge(Either::Left(eid.eid())).as_ref()))
+        || operand.filter_edge(
+            operand
+                .core_edge(Either::Left(eid.eid()), eid.dir())
+                .as_ref(),
+        ))
         && keeps_update(operand, eid, t)
 }

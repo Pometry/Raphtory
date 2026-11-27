@@ -148,7 +148,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                 nodes
                     .node_entry(vid)
                     .edges_iter(layer_ids, Direction::OUT)
-                    .map(|edge| edges.edge(Either::Right(edge)))
+                    .map(|edge| edges.edge(Either::Right(edge), edge.dir()))
             });
 
         // Endpoints are checked against the node masks rather than the node filter for efficiency.

@@ -43,7 +43,11 @@ fn filter_edge_impl<G: GraphView>(view: &G, edge: EdgeEntryRef, layer_ids: &Laye
                 let eid = edge.edge_id();
                 edge.additions_iter(layer_ids).any(|(layer_id, additions)| {
                     additions.iter().any(|t| {
-                        view.internal_filter_exploded_edge(eid.with_layer(layer_id), t, layer_ids)
+                        view.internal_filter_exploded_edge(
+                            eid.into_layer_addition(layer_id, edge.dir()),
+                            t,
+                            layer_ids,
+                        )
                     })
                 })
             })
@@ -62,7 +66,7 @@ fn node_has_valid_edges<'a, G: GraphView + 'a>(
             let nodes = view.core_nodes();
             iter.any(|e| {
                 view.internal_filter_node(nodes.node_entry(e.remote()), layer_ids)
-                    && filter_edge_impl(view, edges.edge(Either::Right(e)), layer_ids)
+                    && filter_edge_impl(view, edges.edge(Either::Right(e), e.dir()), layer_ids)
             })
         }
         FilterState::Nodes | FilterState::BothIndependent | FilterState::Window => {
@@ -71,7 +75,7 @@ fn node_has_valid_edges<'a, G: GraphView + 'a>(
         }
         FilterState::Edges => {
             let edges = view.core_edges();
-            iter.any(|e| filter_edge_impl(view, edges.edge(Either::Right(e)), layer_ids))
+            iter.any(|e| filter_edge_impl(view, edges.edge(Either::Right(e), e.dir()), layer_ids))
         }
     }
 }
@@ -390,7 +394,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view.layer_ids().contains(&eid.layer())
             && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
             && (view.exploded_filter_independent() || {
-                let edge = view.core_edge(Either::Left(eid.eid()));
+                let edge = view.core_edge(Either::Left(eid.eid()), eid.dir());
                 (view.exploded_edge_filter_includes_edge_layer_filter()
                     || view.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
                     && (view.exploded_edge_filter_includes_edge_filter()
@@ -483,8 +487,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         t: EventTime,
         layer: LayerId,
     ) -> Option<EventTime> {
-        view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
-            .then_some(t)
+        view.internal_filter_exploded_edge(
+            e.eid().into_layer_addition(layer, e.dir()),
+            t,
+            view.layer_ids(),
+        )
+        .then_some(t)
     }
 
     fn edge_latest_time<'graph, G: GraphView + 'graph>(
@@ -569,7 +577,11 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         t: EventTime,
         layer: LayerId,
     ) -> bool {
-        view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
+        view.internal_filter_exploded_edge(
+            e.eid().into_layer_addition(layer, e.dir()),
+            t,
+            view.layer_ids(),
+        )
     }
 
     /// An exploded edge is valid with event semantics if it is active
@@ -603,7 +615,11 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         layer_id: LayerId,
     ) -> Option<Prop> {
         let eid = e.eid();
-        if view.internal_filter_exploded_edge(eid.with_layer(layer_id), t, view.layer_ids()) {
+        if view.internal_filter_exploded_edge(
+            eid.into_layer_addition(layer_id, e.dir()),
+            t,
+            view.layer_ids(),
+        ) {
             e.temporal_prop_layer(layer_id, prop_id).at(&t)
         } else {
             None
@@ -913,7 +929,11 @@ impl EdgeTimeSemanticsWindowOps for EventSemantics {
         w: Range<EventTime>,
     ) -> bool {
         w.contains(&t)
-            && view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
+            && view.internal_filter_exploded_edge(
+                e.eid().into_layer_addition(layer, e.dir()),
+                t,
+                view.layer_ids(),
+            )
     }
 
     /// An exploded edge is valid with event semantics if it is active

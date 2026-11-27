@@ -13,7 +13,7 @@ use crate::{
 use arrow::datatypes::{DataType, Field};
 use either::Either;
 use model::ParquetCEdge;
-use raphtory_api::core::entities::{LayerId, LayerIds};
+use raphtory_api::core::entities::{edges::edge_ref::Dir, LayerId, LayerIds};
 use raphtory_core::entities::VID;
 use raphtory_storage::graph::{
     edges::{edge_storage_ops::EdgeStorageOps, edges::EdgesStorageRef},
@@ -39,12 +39,12 @@ fn get_edges_par_iter<'a, G: GraphView>(
                 (
                     chunk,
                     Either::Left(eids.filter_map(move |eid| {
-                        let edge = g.core_edge(Either::Left(eid));
+                        let edge = g.core_edge(Either::Left(eid), Dir::Out);
                         if !edge.as_ref().has_layer(layer_filter) {
                             return None;
                         }
                         if !filtered || g.filter_edge(edge.as_ref()) {
-                            let edge_ref = edge.out_ref();
+                            let edge_ref = edge.edge_ref();
                             Some(EdgeView::new(g, edge_ref))
                         } else {
                             None

@@ -117,7 +117,7 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
         if eid.is_deletion() {
             return true;
         }
-        let edge = self.core_edge(Either::Left(eid.eid()));
+        let edge = self.core_edge(Either::Left(eid.eid()), eid.dir());
         self.filter
             .apply_exploded(self.graph.core_graph(), edge.as_ref(), eid.layer(), t)
     }

@@ -245,11 +245,10 @@ impl MemNodeSegment {
         &mut self,
         t: Option<T>,
         src_pos: LocalPOS,
-        dst: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        dst: VID,
+        e_id: ELID,
     ) -> (bool, usize) {
         let dst = dst.into();
-        let e_id = e_id.into();
         let layer_id = e_id.layer();
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
@@ -264,7 +263,7 @@ impl MemNodeSegment {
         };
         layer.inc_out_count(is_new_edge as usize);
         if let Some(t) = t {
-            self.update_timestamp_inner(t, row, e_id);
+            self.update_timestamp_inner(t, row, e_id.into_outbound());
         }
         let layer_est_size = self.layers[layer_id.0].est_size();
         let added_size =
@@ -275,12 +274,10 @@ impl MemNodeSegment {
     pub fn add_inbound_edge(
         &mut self,
         t: Option<impl AsTime>,
-        dst_pos: impl Into<LocalPOS>,
-        src: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        dst_pos: LocalPOS,
+        src: VID,
+        e_id: ELID,
     ) -> (bool, usize) {
-        let src = src.into();
-        let e_id = e_id.into();
         let layer_id = e_id.layer();
         let dst_pos = dst_pos.into();
 
@@ -299,7 +296,7 @@ impl MemNodeSegment {
         layer.inc_inb_count(is_new_edge as usize);
 
         if let Some(t) = t {
-            self.update_timestamp_inner(t, row, e_id);
+            self.update_timestamp_inner(t, row, e_id.into_inbound());
         }
         let layer_est_size = self.layers[layer_id.0].est_size();
         let added_size =
@@ -329,9 +326,9 @@ impl MemNodeSegment {
         layer_est_size - est_size
     }
 
-    pub fn add_props<T: AsTime, P: AsPropRef>(
+    pub fn add_props<P: AsPropRef>(
         &mut self,
-        t: T,
+        t: EventTime,
         node_pos: LocalPOS,
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
@@ -342,8 +339,7 @@ impl MemNodeSegment {
         let is_new = row.is_new();
         let row = row.inner().row;
         let mut prop_mut_entry = layer.properties_mut().get_mut_entry(row);
-        let ts = EventTime::new(t.t(), t.i());
-        prop_mut_entry.append_t_props(ts, props);
+        prop_mut_entry.append_t_props(t, props);
         let layer_est_size = layer.est_size();
         (is_new, layer_est_size - est_size)
     }
@@ -658,9 +654,15 @@ mod test {
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
     };
-    use raphtory_api::core::entities::properties::{
-        meta::{Meta, STATIC_GRAPH_LAYER_ID},
-        prop::{Prop, PropType},
+    use raphtory_api::core::{
+        entities::{
+            edges::edge_ref::Dir,
+            properties::{
+                meta::{Meta, STATIC_GRAPH_LAYER_ID},
+                prop::{Prop, PropType},
+            },
+        },
+        storage::timeindex::EventTime,
     };
     use raphtory_core::entities::{EID, ELID, VID};
     use std::sync::Arc;
@@ -689,10 +691,10 @@ mod test {
         assert_eq!(est_size1, 0);
 
         writer.add_outbound_edge(
-            Some(1),
+            Some(EventTime::start(1)),
             LocalPOS(1),
             VID(3),
-            EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
+            EID(7).into_layer_addition(STATIC_GRAPH_LAYER_ID, Dir::Out),
         );
 
         let est_size2 = writer.writer.est_size();
@@ -702,10 +704,10 @@ mod test {
         );
 
         writer.add_inbound_edge(
-            Some(1),
+            Some(EventTime::start(1)),
             LocalPOS(2),
             VID(4),
-            EID(8).with_layer(STATIC_GRAPH_LAYER_ID),
+            EID(8).into_layer_addition(STATIC_GRAPH_LAYER_ID, Dir::Into),
         );
 
         let est_size3 = writer.writer.est_size();
@@ -716,11 +718,11 @@ mod test {
 
         // no change when adding the same edge again
 
-        writer.add_outbound_edge::<i64>(
+        writer.add_outbound_edge(
             None,
             LocalPOS(1),
             VID(3),
-            EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
+            EID(7).into_layer_addition(STATIC_GRAPH_LAYER_ID, Dir::Out),
         );
 
         let est_size4 = writer.writer.est_size();
@@ -749,7 +751,11 @@ mod test {
             "Estimated size should increase after adding constant properties"
         );
 
-        writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), STATIC_GRAPH_LAYER_ID));
+        writer.update_timestamp(
+            17,
+            LocalPOS(1),
+            ELID::new_addition(EID(0), STATIC_GRAPH_LAYER_ID, Dir::Out),
+        );
 
         let est_size6 = writer.writer.est_size();
         assert!(
@@ -765,7 +771,7 @@ mod test {
             .inner();
 
         writer.add_props(
-            42,
+            EventTime::start(42),
             LocalPOS(1),
             STATIC_GRAPH_LAYER_ID,
             [(prop_id, Prop::F64(4.13))],
@@ -778,7 +784,7 @@ mod test {
         );
 
         writer.add_props(
-            72,
+            EventTime::start(72),
             LocalPOS(1),
             STATIC_GRAPH_LAYER_ID,
             [(prop_id, Prop::F64(5.41))],

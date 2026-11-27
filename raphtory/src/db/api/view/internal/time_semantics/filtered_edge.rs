@@ -13,7 +13,7 @@ use raphtory_api::core::{
 use raphtory_storage::graph::edges::{edge_storage_ops::EdgeStorageOps, edges::EdgesStorage};
 use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, ops::Range};
-use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
+use storage::{api::edges::EdgeRefOps, EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 #[derive(Clone)]
 pub struct FilteredEdgeTimeIndex<'graph, G, TS> {
@@ -381,7 +381,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         view: G,
     ) -> FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>> {
         FilteredEdgeTimeIndex {
-            eid: self.eid().with_layer(layer_id),
+            eid: self.eid().into_layer_addition(layer_id, self.dir()),
             time_index: self.additions(layer_id),
             view,
             _marker: PhantomData,
@@ -394,7 +394,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         view: G,
     ) -> FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>> {
         FilteredEdgeTimeIndex {
-            eid: self.eid().with_layer_deletion(layer_id),
+            eid: self.eid().into_layer_deletion(layer_id, self.dir()),
             time_index: self.deletions(layer_id),
             view,
             _marker: PhantomData,
@@ -408,7 +408,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         view: G,
     ) -> impl TPropOps<'a> + 'a {
         FilteredEdgeTProp {
-            eid: self.eid().with_layer(layer_id),
+            eid: self.eid().into_layer_addition(layer_id, self.dir()),
             view,
             props: self.temporal_prop_layer(layer_id, prop_id),
         }

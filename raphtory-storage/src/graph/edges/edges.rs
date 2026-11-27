@@ -1,6 +1,8 @@
 use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
 use either::Either;
-use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerIds, EID};
+use raphtory_api::core::entities::{
+    edges::edge_ref::Dir, properties::meta::STATIC_GRAPH_LAYER_ID, LayerIds, EID,
+};
 use raphtory_core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
@@ -20,8 +22,8 @@ impl EdgesStorage {
         EdgesStorageRef::Mem(self.storage.as_ref())
     }
 
-    pub fn edge(&self, eid: Either<EID, EdgeRef>) -> EdgeEntryRef<'_> {
-        self.storage.edge_ref(eid)
+    pub fn edge(&self, eid: Either<EID, EdgeRef>, dir: Dir) -> EdgeEntryRef<'_> {
+        self.storage.edge_ref(eid, dir)
     }
 
     pub fn iter<'a>(
@@ -129,12 +131,12 @@ impl<'a> EdgesStorageRef<'a> {
     }
 
     #[inline]
-    pub fn edge(self, edge: EID) -> EdgeStorageEntry<'a> {
+    pub fn edge(self, edge: EID, dir: Dir) -> EdgeStorageEntry<'a> {
         match self {
             EdgesStorageRef::Mem(storage) => {
-                EdgeStorageEntry::Mem(storage.edge_ref(Either::Left(edge)))
+                EdgeStorageEntry::Mem(storage.edge_ref(Either::Left(edge), dir))
             }
-            EdgesStorageRef::Unlocked(storage) => storage.edge(edge),
+            EdgesStorageRef::Unlocked(storage) => storage.edge(edge, dir),
         }
     }
 

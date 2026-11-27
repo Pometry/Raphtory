@@ -12,6 +12,7 @@ use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
+use storage::api::edges::EdgeRefOps;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FilterState {
@@ -127,7 +128,7 @@ impl<G: GraphView> InnerFilterOps for G {
         self.layer_ids().contains(&eid.layer())
             && self.internal_filter_exploded_edge(eid, t, self.layer_ids())
             && (self.exploded_filter_independent() || {
-                let edge = self.core_edge(Either::Left(eid.eid()));
+                let edge = self.core_edge(Either::Left(eid.eid()), eid.dir());
                 (self.exploded_edge_filter_includes_edge_layer_filter()
                     || self.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
                     && (self.exploded_edge_filter_includes_edge_filter()
@@ -326,7 +327,7 @@ fn filter_edge_from_exploded_filter<G: GraphView>(view: &G, edge: EdgeEntryRef) 
             let eid = edge.eid();
             edge.additions_iter(view.layer_ids())
                 .any(|(layer, additions)| {
-                    let elid = eid.with_layer(layer);
+                    let elid = eid.into_layer_addition(layer, edge.dir());
                     additions.iter().any(|t| {
                         time_semantics
                             .handle_edge_update_filter(t, elid, view)
@@ -336,7 +337,7 @@ fn filter_edge_from_exploded_filter<G: GraphView>(view: &G, edge: EdgeEntryRef) 
                 || edge
                     .deletions_iter(view.layer_ids())
                     .any(|(layer, deletions)| {
-                        let elid = eid.with_layer_deletion(layer);
+                        let elid = eid.into_layer_deletion(layer, edge.dir());
                         deletions.iter().any(|t| {
                             time_semantics
                                 .handle_edge_update_filter(t, elid, view)

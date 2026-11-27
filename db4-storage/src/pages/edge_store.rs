@@ -21,6 +21,7 @@ use raphtory_api::{
     ArcRwLockWriteGuard,
     core::entities::{
         EID, LayerId, VID,
+        edges::edge_ref::Dir,
         properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
     },
 };
@@ -67,11 +68,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     pub fn edge_ref(
         &self,
         e_id_ref: Either<EID, EdgeRef>,
+        dir: Dir,
     ) -> <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'_> {
         let e_id = e_id_ref.either(|eid| eid, |eref| eref.pid());
         let (segment_id, pos) = self.storage.resolve_pos(e_id);
         let segment = &self.segments[segment_id];
-        segment.entry_ref(pos, e_id_ref.right())
+        segment.entry_ref(pos, e_id_ref.right(), dir)
     }
 
     pub fn iter<'a, 'b: 'a>(
@@ -135,7 +137,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             (
                 row_group_id,
                 iter.filter(|eid| {
-                    self.edge_ref(Either::Left(*eid))
+                    self.edge_ref(Either::Left(*eid), Dir::Out)
                         .has_layer_inner(STATIC_GRAPH_LAYER_ID)
                 }),
             )
@@ -504,7 +506,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         segment.get_edge(local_edge, layer, segment.head())
     }
 
-    pub fn edge(&self, e_id_ref: Either<EID, EdgeRef>) -> ES::Entry<'_> {
+    pub fn edge(&self, e_id_ref: Either<EID, EdgeRef>, dir: Dir) -> ES::Entry<'_> {
         let e_id = e_id_ref.either(|eid| eid, |eref| eref.pid());
         let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len());
         let segment = self.segments.get(segment_id).unwrap_or_else(|| {
@@ -513,7 +515,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                 self.segments.count()
             )
         });
-        segment.entry(local_edge, e_id_ref.right())
+        segment.entry(local_edge, e_id_ref.right(), dir)
     }
 
     pub fn num_edges(&self) -> usize {
@@ -653,7 +655,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             (0..segment.num_edges())
                 .into_par_iter()
                 .map(LocalPOS)
-                .filter_map(move |local_edge| segment.layer_entry(local_edge, layer))
+                .filter_map(move |local_edge| segment.layer_entry(local_edge, layer, Dir::Out))
         })
     }
 
@@ -671,6 +673,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                     .map(move |pos| SegmentLockedEdgeEntry {
                         locked: locked.clone(),
                         pos,
+                        dir: Dir::Out,
                     })
                     .filter(move |edge| {
                         let edge_ref: <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'_> = edge.as_ref();
@@ -733,6 +736,7 @@ pub struct SegmentLockedEdgeEntry<
 > {
     pos: LocalPOS,
     locked: Arc<ES::ArcLockedSegment>,
+    dir: Dir,
 }
 
 impl<'a, ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>> EdgeEntryOps<'a>
@@ -748,6 +752,6 @@ impl<'a, ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     where
         'a: 'b,
     {
-        self.locked.entry_ref(self.pos, None)
+        self.locked.entry_ref(self.pos, None, self.dir)
     }
 }

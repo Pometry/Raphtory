@@ -531,7 +531,7 @@ impl<G: GraphView> InternalHistoryOps for EdgeView<G> {
                 Some(t) => iter::once(t).into_dyn_boxed(),
                 None => {
                     let time_semantics = g.edge_time_semantics();
-                    let edge = g.core_edge(either::Either::Right(e));
+                    let edge = g.core_edge(Either::Right(e), e.dir());
                     match e.layer() {
                         None => GenLockedIter::from(edge, move |edge| {
                             time_semantics
@@ -566,7 +566,7 @@ impl<G: GraphView> InternalHistoryOps for EdgeView<G> {
                 Some(t) => iter::once(t).into_dyn_boxed(),
                 None => {
                     let time_semantics = g.edge_time_semantics();
-                    let edge = g.core_edge(Either::Right(e));
+                    let edge = g.core_edge(Either::Right(e), e.dir());
                     match e.layer() {
                         None => GenLockedIter::from(edge, move |edge| {
                             time_semantics
@@ -610,9 +610,9 @@ impl<G: GraphView> InternalHistoryOps for EdgeView<G> {
                 None => match e.layer() {
                     None => g
                         .edge_time_semantics()
-                        .edge_exploded_count(g.core_edge(Either::Right(e)).as_ref(), g),
+                        .edge_exploded_count(g.core_edge(Either::Right(e), e.dir()).as_ref(), g),
                     Some(layer) => g.edge_time_semantics().edge_exploded_count(
-                        g.core_edge(Either::Right(e)).as_ref(),
+                        g.core_edge(Either::Right(e), e.dir()).as_ref(),
                         LayeredGraph::new(g, LayerIds::One(layer)),
                     ),
                 },
@@ -1122,7 +1122,7 @@ impl<G: GraphView> InternalDeletionOps for EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(Either::Right(e));
+            let edge = g.core_edge(Either::Right(e), e.dir());
             match e.time() {
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");
@@ -1165,7 +1165,7 @@ impl<G: GraphView> InternalDeletionOps for EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(Either::Right(e));
+            let edge = g.core_edge(Either::Right(e), e.dir());
             match e.time() {
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");

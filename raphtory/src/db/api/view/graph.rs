@@ -207,10 +207,10 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
                 let edges = gs.edges();
                 let iter = edges.iter(layer_ids);
                 if graph.filtered_excluding_layers() {
-                    iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
+                    iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.edge_ref()))
                         .into_dyn_boxed()
                 } else {
-                    iter.map(|e| e.out_ref()).into_dyn_boxed()
+                    iter.map(|e| e.edge_ref()).into_dyn_boxed()
                 }
             })
             .into_dyn_boxed()
@@ -935,7 +935,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             | FilterState::BothIndependent
             | FilterState::Edges
             | FilterState::Window => {
-                let edge = self.core_edge(Either::Right(edge_ref));
+                let edge = self.core_edge(Either::Right(edge_ref), edge_ref.dir());
                 if !self.filter_edge(edge.as_ref()) {
                     return None;
                 }

@@ -16,6 +16,7 @@ use raphtory_api::{
     core::{
         entities::{
             LayerId, VID,
+            edges::edge_ref::Dir,
             properties::{
                 meta::{Meta, STATIC_GRAPH_LAYER_ID},
                 prop::{AsPropRef, PropRef},
@@ -381,7 +382,7 @@ impl ArcLockedSegmentView {
             .get(layer_id.0)
             .into_iter()
             .flat_map(|layer| layer.filled_positions())
-            .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner, Dir::Out))
     }
 }
 
@@ -391,13 +392,14 @@ impl LockedESegment for ArcLockedSegmentView {
     fn entry_ref<'a>(
         &'a self,
         edge_pos: impl Into<LocalPOS>,
-        edge_ref: Option<EdgeRef>,
+        _edge_ref: Option<EdgeRef>,
+        dir: Dir,
     ) -> Self::EntryRef<'a>
     where
         Self: 'a,
     {
         let edge_pos = edge_pos.into();
-        MemEdgeRef::new(edge_pos, &self.inner, edge_ref)
+        MemEdgeRef::new(edge_pos, &self.inner, dir)
     }
 
     #[box_on_debug_lifetime]
@@ -432,7 +434,7 @@ impl LockedESegment for ArcLockedSegmentView {
             .and_then(|layer_id| self.inner.layers.get(layer_id.0))
             .into_par_iter()
             .flat_map(|layer| layer.filled_positions_par())
-            .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner, Dir::Out))
             .filter(move |pos| multiple.is_none_or(|multiple| pos.has_layers(multiple)))
     }
 
@@ -585,17 +587,27 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         head.get_edge(edge_pos, layer_id)
     }
 
-    fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a> {
-        MemEdgeEntry::new(edge_pos, self.head(), edge_ref)
+    fn entry<'a>(
+        &'a self,
+        edge_pos: LocalPOS,
+        _edge_ref: Option<EdgeRef>,
+        dir: Dir,
+    ) -> Self::Entry<'a> {
+        MemEdgeEntry::new(edge_pos, self.head(), dir)
     }
 
-    fn layer_entry<'a>(&'a self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<Self::Entry<'a>> {
+    fn layer_entry<'a>(
+        &'a self,
+        edge_pos: LocalPOS,
+        layer_id: LayerId,
+        dir: Dir,
+    ) -> Option<Self::Entry<'a>> {
         let head = self.head();
         let layer = head.as_ref().get(layer_id.0)?;
 
         layer
             .has_item(edge_pos)
-            .then(|| MemEdgeEntry::new(edge_pos, head, None))
+            .then(|| MemEdgeEntry::new(edge_pos, head, dir))
     }
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {

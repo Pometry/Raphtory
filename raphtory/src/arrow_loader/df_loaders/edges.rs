@@ -26,7 +26,7 @@ use itertools::{izip, Itertools};
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
-        entities::{properties::prop::AsPropRef, LayerId, EID},
+        entities::{edges::edge_ref::Dir, properties::prop::AsPropRef, LayerId, EID},
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
@@ -751,9 +751,9 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
                 writer.add_static_inbound_edge(dst_pos, src, eid);
             }
             let elid = if delete {
-                eid.with_layer_deletion(LayerId(layer))
+                eid.into_layer_deletion(LayerId(layer), Dir::Into)
             } else {
-                eid.with_layer(LayerId(layer))
+                eid.into_layer_addition(LayerId(layer), Dir::Into)
             };
 
             if src != dst {
@@ -765,7 +765,7 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
             } else {
                 // self-loop edge, only add once
                 if !edge_exists_in_layer {
-                    writer.add_inbound_edge::<i64>(None, dst_pos, src, elid);
+                    writer.add_inbound_edge(None, dst_pos, src, elid);
                 }
             }
         }
@@ -809,9 +809,9 @@ fn add_and_resolve_outbound_edges<
 
             let edge_id = edge_id.map(|eid| {
                 if delete {
-                    eid.with_layer_deletion(LayerId(layer))
+                    eid.into_layer_deletion(LayerId(layer), Dir::Out)
                 } else {
-                    eid.with_layer(LayerId(layer))
+                    eid.into_layer_addition(LayerId(layer), Dir::Out)
                 }
             });
 

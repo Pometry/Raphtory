@@ -28,7 +28,7 @@ use crate::db::{
     },
 };
 use std::sync::Arc;
-
+use storage::api::edges::EdgeRefOps;
 // ─────────────────────────────────────────────────────────────────────────────
 // Arc<dyn EdgeOp> — blanket impl so Arc-boxed ops satisfy EdgeOp
 // ─────────────────────────────────────────────────────────────────────────────
@@ -516,7 +516,7 @@ impl<G: GraphView> EdgeOp for EdgeExistsOp<G> {
         t: EventTime,
     ) -> bool {
         self.graph
-            .filter_exploded_edge(ELID::new(edge.eid(), layer), t)
+            .filter_exploded_edge(ELID::new_addition(edge.eid(), layer, edge.dir()), t)
     }
 
     fn prop_type(&self) -> PropType {

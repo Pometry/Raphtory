@@ -114,9 +114,19 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
         head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
-    fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a>;
+    fn entry<'a>(
+        &'a self,
+        edge_pos: LocalPOS,
+        edge_ref: Option<EdgeRef>,
+        dir: Dir,
+    ) -> Self::Entry<'a>;
 
-    fn layer_entry<'a>(&'a self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<Self::Entry<'a>>;
+    fn layer_entry<'a>(
+        &'a self,
+        edge_pos: LocalPOS,
+        layer_id: LayerId,
+        dir: Dir,
+    ) -> Option<Self::Entry<'a>>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 
@@ -155,6 +165,7 @@ pub trait LockedESegment: Send + Sync + std::fmt::Debug {
         &'a self,
         edge_pos: impl Into<LocalPOS>,
         edge_ref: Option<EdgeRef>,
+        dir: Dir,
     ) -> Self::EntryRef<'a>
     where
         Self: 'a;
@@ -203,6 +214,15 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn dst(&self) -> Option<VID>;
 
+    fn dir(&self) -> Dir;
+
+    fn nbr(&self) -> Option<VID> {
+        match self.dir() {
+            Dir::Into => self.src(),
+            Dir::Out => self.dst(),
+        }
+    }
+
     fn edge_id(&self) -> EID;
-    fn edge_ref(self, dir: Dir) -> Option<EdgeRef>;
+    fn edge_ref(self) -> Option<EdgeRef>;
 }

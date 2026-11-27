@@ -1732,16 +1732,25 @@ impl CreateFilter for FilterExpr {
                 Ok((edge_filter, node_filter))
             }
             FilterExpr::Or(exprs) => {
-                let mut node_filters = Vec::new();
                 let mut edge_filters = Vec::new();
                 let graph: DynGraphArc<'graph> = graph.into_dyn_graph_arc();
                 for expr in exprs {
                     if expr.tests_edges() {
                         edge_filters.push(expr.edge_value(graph.clone())?);
                     } else {
-                        node_filters.push(expr.node_value(graph.clone())?);
+                        // make sure the node filters keep the edges
+                        let node_op = expr.node_value(graph.clone())?;
+                        edge_filters.push(Arc::new(EdgeEndpointNodeOp {
+                            node_op: node_op.clone(),
+                            endpoint: Endpoint::Src,
+                        }));
+                        edge_filters.push(Arc::new(EdgeEndpointNodeOp {
+                            node_op: node_op.clone(),
+                            endpoint: Endpoint::Dst,
+                        }));
                     }
                 }
+
                 let edge_filter = if edge_filters.is_empty() {
                     select.into_dyn_graph_arc()
                 } else {
@@ -1751,12 +1760,7 @@ impl CreateFilter for FilterExpr {
                     )
                     .into_dyn_graph_arc()
                 };
-                let node_filter: Arc<dyn NodeOp<Output = bool> + 'graph> =
-                    if node_filters.is_empty() {
-                        Arc::new(NO_FILTER)
-                    } else {
-                        Arc::new(NodeOps::any_of(node_filters).map(|v| truthy(&v)))
-                    };
+                let node_filter = Arc::new(NO_FILTER);
                 Ok((edge_filter, node_filter))
             }
             expr @ FilterExpr::Not(_) => {

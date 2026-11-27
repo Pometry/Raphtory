@@ -44,6 +44,24 @@ fn test_path_from_node_mixed_and() {
 }
 
 #[test]
+fn test_path_from_node_mixed_or() {
+    let g = test_graph();
+    let n = g.node(0).unwrap();
+    let ids: Vec<_> = n
+        .out_neighbours()
+        .select(
+            NodeFilter
+                .property("p1")
+                .eq(100)
+                .or(EdgeFilter.property("p2").lt(100)),
+        )
+        .unwrap()
+        .id()
+        .collect();
+    assert_eq!(ids, [1, 100]);
+}
+
+#[test]
 fn test_path_from_node_window() {
     let g = test_graph();
     let n = g.node(0).unwrap();
