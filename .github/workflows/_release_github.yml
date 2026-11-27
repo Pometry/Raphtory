@@ -25,6 +25,8 @@ jobs:
           - os: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.base }}
       - run: |
           git config --global user.email "ben.steer@pometry.com"
           git config --global user.name "Pometry-Team"
