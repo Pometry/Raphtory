@@ -134,6 +134,7 @@ impl Display for EdgeLeaf {
             EdgeLeaf::IsSelfLoop { views: v } => views(f, v, &"IS_SELF_LOOP"),
             EdgeLeaf::Src(inner) => write!(f, "SRC({inner})"),
             EdgeLeaf::Dst(inner) => write!(f, "DST({inner})"),
+            EdgeLeaf::Nbr(inner) => write!(f, "NBR({inner})"),
         }
     }
 }

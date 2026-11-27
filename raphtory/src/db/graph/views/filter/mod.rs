@@ -1,14 +1,18 @@
 use crate::{
     db::{
         api::{
-            state::ops::{
-                filter::{NodeExistsOp, NO_FILTER},
-                Const, NodeFilterOp,
-            },
+            state::ops::{filter::NodeExistsOp, NodeFilterOp},
             view::internal::GraphView,
         },
         graph::views::filter::{
-            model::edge_expr::{ops::EdgeExistsOp, EdgeOp},
+            edge_expr_filtered_graph::EdgeExprFilteredGraph,
+            model::{
+                edge_expr::{
+                    ops::{EdgeEndpointNodeOp, EdgeExistsOp},
+                    EdgeOp,
+                },
+                edge_filter::Endpoint,
+            },
             node_filtered_graph::NodeFilteredGraph,
         },
     },
@@ -44,14 +48,8 @@ impl CreateFilter for Exists {
     where
         Self: 'graph,
         G: GraphView + 'graph;
-    type PathEdgeFilter<'graph, G, S>
+    type PathFilter<'graph, G, S>
         = S
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        S: GraphView + 'graph;
-    type PathNodeFilter<'graph, G, S>
-        = Const<bool>
     where
         Self: 'graph,
         G: GraphView + 'graph,
@@ -82,14 +80,8 @@ impl CreateFilter for Exists {
         self,
         _graph: G,
         select: S,
-    ) -> Result<
-        (
-            Self::PathEdgeFilter<'graph, G, S>,
-            Self::PathNodeFilter<'graph, G, S>,
-        ),
-        GraphError,
-    > {
-        Ok((select, NO_FILTER))
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
+        Ok(select)
     }
 }
 
@@ -115,13 +107,7 @@ pub trait CreateFilter: Sized {
         Self: 'graph,
         G: GraphView + 'graph;
 
-    type PathEdgeFilter<'graph, G, S>: GraphView + 'graph
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        S: GraphView + 'graph;
-
-    type PathNodeFilter<'graph, G, S>: NodeFilterOp + 'graph
+    type PathFilter<'graph, G, S>: GraphView + 'graph
     where
         Self: 'graph,
         G: GraphView + 'graph,
@@ -152,13 +138,7 @@ pub trait CreateFilter: Sized {
         self,
         graph: G,
         select: S,
-    ) -> Result<
-        (
-            Self::PathEdgeFilter<'graph, G, S>,
-            Self::PathNodeFilter<'graph, G, S>,
-        ),
-        GraphError,
-    >;
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError>;
 }
 
 /// An erased per-edge predicate, the edge filter of every erased or entity-agnostic
@@ -184,15 +164,8 @@ impl<T: NodeFilterOp> CreateFilter for T {
         Self: 'graph,
         G: GraphView + 'graph;
 
-    type PathEdgeFilter<'graph, G, S>
-        = S
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        S: GraphView + 'graph;
-
-    type PathNodeFilter<'graph, G, S>
-        = T
+    type PathFilter<'graph, G, S>
+        = EdgeExprFilteredGraph<S, EdgeEndpointNodeOp<'graph, bool>>
     where
         Self: 'graph,
         G: GraphView + 'graph,
@@ -231,16 +204,15 @@ impl<T: NodeFilterOp> CreateFilter for T {
         self,
         _graph: G,
         select: S,
-    ) -> Result<
-        (
-            Self::PathEdgeFilter<'graph, G, S>,
-            Self::PathNodeFilter<'graph, G, S>,
-        ),
-        GraphError,
-    >
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError>
     where
         Self: 'graph,
     {
-        Ok((select, self))
+        let filter = EdgeEndpointNodeOp {
+            node_op: Arc::new(self),
+            endpoint: Endpoint::Nbr,
+        };
+        let select = EdgeExprFilteredGraph::new(select, filter);
+        Ok(select)
     }
 }

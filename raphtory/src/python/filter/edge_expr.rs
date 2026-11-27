@@ -34,6 +34,7 @@ impl PyEdgeEndpoint {
         let end = match self.0.endpoint() {
             Endpoint::Src => "src",
             Endpoint::Dst => "dst",
+            Endpoint::Nbr => "nbr",
         };
         format!("{}.{end}()", repr::factory("Edge", self.0.views()))
     }

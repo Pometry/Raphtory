@@ -303,6 +303,8 @@ pub enum EdgeLeaf {
     Src(Box<NodeExpr>),
     /// A node expression evaluated on the edge's destination node.
     Dst(Box<NodeExpr>),
+    /// A node expression evaluated on either src or dst based on the edge's direction
+    Nbr(Box<NodeExpr>),
 }
 
 /// What an exploded edge offers: the surface of `ExplodedEdgeFilter`.
