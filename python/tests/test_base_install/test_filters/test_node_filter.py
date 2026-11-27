@@ -586,7 +586,8 @@ def test_filter_nodes_for_node_type_ne():
     def check(graph):
         filter_expr = filter.Node.node_type() != "fire_nation"
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["2", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
+        # 4 and the three named nodes have no node type, so a value comparison does not match them.
+        expected_ids = ["2"]
         assert result_ids == expected_ids
 
     return check
@@ -613,7 +614,8 @@ def test_filter_nodes_for_node_type_not_in():
     def check(graph):
         filter_expr = filter.Node.node_type().is_not_in(["fire_nation"])
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["2", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
+        # 4 and the three named nodes have no node type, so a value comparison does not match them.
+        expected_ids = ["2"]
         assert result_ids == expected_ids
 
     return check
@@ -667,7 +669,8 @@ def test_filter_nodes_for_node_type_not_contains():
     def check(graph):
         filter_expr = filter.Node.node_type().not_contains("fire")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["2", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
+        # 4 and the three named nodes have no node type, so a value comparison does not match them.
+        expected_ids = ["2"]
         assert result_ids == expected_ids
 
     return check
@@ -699,7 +702,8 @@ def test_filter_nodes_for_not_node_type():
     def check(graph):
         filter_expr = filter.Node.node_type().is_not_in(["fire_nation"])
         result_ids = sorted(graph.filter(~filter_expr).nodes.id)
-        expected_ids = ["1", "3"]
+        # The untyped nodes fail `is_not_in`, so its negation keeps them.
+        expected_ids = ["1", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
         assert result_ids == expected_ids
 
     return check
@@ -863,7 +867,7 @@ def init_early_and_late(graph):
 def test_views_do_not_affect_field_terms():
     # A name, id or node type has no time axis, so a view written on the term
     # is kept for display and ignored when the filter runs: "late" is found
-    # through a window it is not active in, and "early" reads the default type.
+    # through a window it is not active in, and "early" has no type.
     def check(graph):
         window = filter.Node.window(0, 5)
         cases = [
@@ -871,7 +875,7 @@ def test_views_do_not_affect_field_terms():
             (window.name() == "early", ["early"]),
             (window.id() == "late", ["late"]),
             (window.node_type() == "kind", ["late"]),
-            (window.node_type() == "_default", ["early"]),
+            (window.node_type().is_none(), ["early"]),
             (filter.Node.name() == "late", ["late"]),
         ]
         for filter_expr, expected_ids in cases:
