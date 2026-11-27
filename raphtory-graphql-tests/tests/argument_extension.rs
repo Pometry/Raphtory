@@ -56,6 +56,7 @@ impl ServerExtension for TestArgs {
     }
 }
 
+#[derive(Clone)]
 struct TestValue(String);
 
 #[derive(ExpandObject)]

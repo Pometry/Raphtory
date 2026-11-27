@@ -42,6 +42,8 @@ use poem::{
 use raphtory::db::api::storage::storage::Args;
 use serde_json::json;
 use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
     error::Error,
     fs::{create_dir_all, File, TryLockError},
     future::Future,
@@ -51,7 +53,7 @@ use std::{
     pin::Pin,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc,
     },
     task::{Context, Poll},
     time::Duration,
@@ -151,6 +153,7 @@ pub struct GraphServer {
     data: Data,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
+    schema_data_by_type: HashMap<TypeId, Box<dyn Any + Send + Sync>>,
     key_resolver: Option<Arc<dyn KeyResolver>>,
     schema_plugins: Vec<Box<dyn RegisterPlugin>>,
 }
@@ -181,6 +184,7 @@ impl GraphServer {
             data,
             config,
             schema_data: Vec::new(),
+            schema_data_by_type: HashMap::new(),
             key_resolver: None,
             schema_plugins: Vec::new(),
         };
@@ -246,17 +250,19 @@ impl GraphServer {
     }
 
     /// Inject arbitrary typed data into the GQL schema (accessible via `ctx.data::<T>()`).
-    pub fn with_schema_data<T: std::any::Any + Send + Sync + 'static>(mut self, data: T) -> Self {
-        let data = Arc::new(Mutex::new(Some(data)));
-        self.schema_data.push(Arc::new(move |sb| {
-            let data = data
-                .lock()
-                .unwrap()
-                .take()
-                .expect("schema data injector called more than once");
-            sb.data(data)
-        }));
+    pub fn with_schema_data<T: Any + Send + Sync + Clone>(mut self, data: T) -> Self {
+        self.schema_data_by_type
+            .insert(TypeId::of::<T>(), Box::new(data.clone()));
+        self.schema_data
+            .push(Arc::new(move |sb| sb.data(data.clone())));
         self
+    }
+
+    /// Returns the data of type `T` injected with `with_schema_data`.
+    pub fn schema_data<T: Any>(&self) -> Option<&T> {
+        self.schema_data_by_type
+            .get(&TypeId::of::<T>())?
+            .downcast_ref()
     }
 
     /// Inject resolver plugins into hte GQL schema
@@ -865,6 +871,18 @@ mod server_tests {
         assert_eq!(api.status(), 200);
 
         running.stop().await
+    }
+
+    #[tokio::test]
+    async fn test_schema_data_is_returned_by_type() {
+        let work_dir = tempdir().unwrap();
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Args::default())
+            .await
+            .unwrap()
+            .with_schema_data(7usize);
+
+        assert_eq!(server.schema_data::<usize>(), Some(&7));
+        assert_eq!(server.schema_data::<String>(), None);
     }
 
     #[tokio::test]
