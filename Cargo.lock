@@ -7731,7 +7731,6 @@ dependencies = [
 name = "raphtory-vectors"
 version = "0.18.0"
 dependencies = [
- "ahash",
  "arrow-array 59.3.3",
  "arrow-buffer 59.3.3",
  "async-openai",
@@ -7764,6 +7763,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "twox-hash",
 ]
 
 [[package]]

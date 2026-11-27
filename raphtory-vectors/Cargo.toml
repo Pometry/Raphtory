@@ -19,7 +19,6 @@ raphtory = { workspace = true, features = ["vectors"], optional = true }
 raphtory-api = { workspace = true, features = ["template"], optional = true }
 raphtory-core = { workspace = true, optional = true }
 raphtory-storage = { workspace = true, optional = true }
-ahash = { workspace = true, optional = true }
 arrow-array = { workspace = true, optional = true }
 arrow-buffer = { workspace = true, optional = true }
 async-openai = { workspace = true, optional = true }
@@ -42,6 +41,7 @@ tempfile = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
+twox-hash = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -60,7 +60,6 @@ vectors = [
     "dep:raphtory-api",
     "dep:raphtory-core",
     "dep:raphtory-storage",
-    "dep:ahash",
     "dep:arrow-array",
     "dep:arrow-buffer",
     "dep:async-openai",
@@ -83,6 +82,7 @@ vectors = [
     "dep:thiserror",
     "dep:tokio",
     "dep:tracing",
+    "dep:twox-hash",
 ]
 python = [
     "vectors",
