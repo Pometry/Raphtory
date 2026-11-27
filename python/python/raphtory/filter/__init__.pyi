@@ -531,7 +531,7 @@ class Node(object):
     @staticmethod
     def exists() -> filter.Expr:
         """
-        Matches nodes that exist in the views written before it.
+        Matches nodes that exist in the graph the filter is applied to.
 
         Returns:
             filter.Expr:
@@ -1232,7 +1232,7 @@ class Edge(object):
     @staticmethod
     def exists() -> filter.Expr:
         """
-        Matches edges that exist in the views written before it.
+        Matches edges that exist in the graph the filter is applied to.
 
         Returns:
             filter.Expr:
@@ -1943,7 +1943,7 @@ class ExplodedEdge(object):
     @staticmethod
     def exists() -> filter.Expr:
         """
-        Matches exploded edges that exist in the views written before it.
+        Matches exploded edges that exist in the graph the filter is applied to.
 
         Returns:
             filter.Expr:

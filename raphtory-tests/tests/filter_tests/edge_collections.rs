@@ -13,7 +13,7 @@ use raphtory::{
                     exploded_edge_filter::ExplodedEdgeFilter,
                     graph_filter::GraphFilter,
                     node_filter::{NodeFilter, NodeFilterFactory},
-                    EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
+                    ComposableFilter, EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
                 },
             },
         },
@@ -179,26 +179,47 @@ fn a_view_on_a_collection_is_its_exists_test() {
     assert_eq!(exploded(&exists), exploded(&view));
 }
 
-/// `exists()` asks about the views written before it, so with no view it is
-/// refused as an empty view is: on nodes, edges and exploded edges.
+/// `exists()` asks about the views written before it; with none, it asks
+/// about the graph the filter is applied to, so on a collection of that graph
+/// it keeps every item and its negation keeps none: on nodes, edges and
+/// exploded edges.
 #[test]
-fn exists_without_a_view_is_refused() {
+fn exists_without_a_view_is_existence_in_the_graph_it_is_applied_to() {
     let g = graph();
-    let errors = [
-        g.nodes().select(NodeFilter.exists()).err(),
-        g.edges().select(EdgeFilter.exists()).err(),
-        g.edges()
-            .explode()
-            .select(ExplodedEdgeFilter.exists())
-            .err(),
-    ];
-    for (entity, error) in ["node", "edge", "exploded edge"].into_iter().zip(errors) {
-        let error = error.map(|e| e.to_string());
-        assert!(
-            error.as_deref().is_some_and(|e| e.contains("view")),
-            "{entity}: {error:?}"
-        );
-    }
+    let windowed = g.window(0, 5);
+    let mut names: Vec<String> = windowed
+        .nodes()
+        .select(NodeFilter.exists())
+        .unwrap()
+        .name()
+        .collect();
+    names.sort();
+    assert_eq!(names, ["a", "b", "c"]);
+    assert_eq!(
+        windowed
+            .nodes()
+            .select(NodeFilter.exists().not())
+            .unwrap()
+            .len(),
+        0
+    );
+    let edges = windowed.edges();
+    let exists = windowed.edges().select(EdgeFilter.exists()).unwrap();
+    assert_eq!(exploded(&exists), exploded(&edges));
+    let exists = windowed
+        .edges()
+        .explode()
+        .select(ExplodedEdgeFilter.exists())
+        .unwrap();
+    assert_eq!(exploded(&exists), exploded(&edges));
+    assert_eq!(
+        windowed
+            .edges()
+            .select(EdgeFilter.exists().not())
+            .unwrap()
+            .len(),
+        0
+    );
 }
 
 fn check_scoped_exploded_activity<G: StaticGraphViewOps + AdditionOps>(g: G) {

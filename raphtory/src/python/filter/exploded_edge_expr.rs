@@ -629,7 +629,7 @@ impl PyExplodedEdge {
         PyExplodedEdgeFilter::root().is_active()
     }
 
-    /// Matches exploded edges that exist in the views written before it.
+    /// Matches exploded edges that exist in the graph the filter is applied to.
     ///
     /// Returns:
     ///     filter.Expr:

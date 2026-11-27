@@ -504,7 +504,7 @@ impl Leaf for NodeLeaf {
                 })
             }
             NodeLeaf::Exists { views } => {
-                Arc::new(NodeExistsOp::new(view_expr(graph, views)?).map(exists_value))
+                Arc::new(NodeExistsOp::new(apply_views(graph, views)?).map(exists_value))
             }
             NodeLeaf::Opaque(value) => value.op.clone(),
         })
@@ -722,7 +722,7 @@ impl EdgeTerm<'_> {
                 graph: apply_views(graph, views)?,
             }),
             EdgeTerm::Exists(views) => {
-                Arc::new(EdgeExistsOp::new(view_expr(graph, views)?).map(exists_value))
+                Arc::new(EdgeExistsOp::new(apply_views(graph, views)?).map(exists_value))
             }
             EdgeTerm::IsValid(views) => Arc::new(IsValidEdgePropOp {
                 graph: apply_views(graph, views)?,
