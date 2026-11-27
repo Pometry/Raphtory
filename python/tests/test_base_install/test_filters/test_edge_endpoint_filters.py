@@ -242,3 +242,50 @@ def test_edges_src_node_type_eq_compose_with_edge_prop():
         assert result == expected
 
     return check
+
+
+@with_variants(create_test_graph)
+def test_an_endpoint_takes_every_node_term():
+    """An edge passes `src().term` when its source passes `term` on nodes, and
+    `dst().term` when its destination does, inside the same views."""
+
+    def check(graph):
+        Node, Edge = filter.Node, filter.Edge
+        cases = {
+            "degree": (
+                Node.degree() > 1,
+                Edge.src().degree() > 1,
+                Edge.dst().degree() > 1,
+            ),
+            "in_degree": (
+                Node.in_degree() >= 1,
+                Edge.src().in_degree() >= 1,
+                Edge.dst().in_degree() >= 1,
+            ),
+            "out_degree": (
+                Node.out_degree() >= 2,
+                Edge.src().out_degree() >= 2,
+                Edge.dst().out_degree() >= 2,
+            ),
+            "is_active": (
+                Node.window(1, 3).is_active(),
+                Edge.window(1, 3).src().is_active(),
+                Edge.window(1, 3).dst().is_active(),
+            ),
+            "exists": (
+                Node.window(1, 3).exists(),
+                Edge.window(1, 3).src().exists(),
+                Edge.window(1, 3).dst().exists(),
+            ),
+        }
+        every = sorted(graph.edges.id)
+        for term, (node, src, dst) in cases.items():
+            passing = set(graph.nodes[node].id)
+            assert sorted(graph.edges[src].id) == [
+                e for e in every if e[0] in passing
+            ], f"src {term}"
+            assert sorted(graph.edges[dst].id) == [
+                e for e in every if e[1] in passing
+            ], f"dst {term}"
+
+    return check

@@ -8179,8 +8179,8 @@ mod test_edge_filter {
         init_edges_graph_with_str_ids_del, init_nodes_graph, IdentityGraphTransformer,
     };
     use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter, ComposableFilter, EdgeViewFilterOps, EntityAggOps,
-        EntityExprFilterOps, ViewWrapOps,
+        edge_filter::EdgeFilter, node_filter::NodeFilterFactory, ComposableFilter,
+        EdgeViewFilterOps, EntityAggOps, EntityExprFilterOps, ViewWrapOps,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
@@ -10484,7 +10484,8 @@ mod test_edge_property_filter {
 mod composite_edge_filter_tests {
     use raphtory::{
         db::graph::views::filter::model::{
-            edge_filter::EdgeFilter, ComposableFilter, PropertyExprFactory,
+            edge_filter::EdgeFilter, node_filter::NodeFilterFactory, ComposableFilter,
+            PropertyExprFactory,
         },
         prelude::EntityExprFilterOps,
     };

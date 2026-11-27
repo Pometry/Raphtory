@@ -393,6 +393,9 @@ EDGE_ENDPOINT_EXPRS = {
     "edge.src.property.gt": lambda: f.Edge.src().property("score") > 15,
     "edge.dst.property.is_none": lambda: f.Edge.dst().property("level").is_none(),
     "edge.src.metadata.eq": lambda: f.Edge.src().metadata("region") == "eu",
+    "edge.src.degree.gt": lambda: f.Edge.src().degree() > 1,
+    "edge.dst.in_degree.ge": lambda: f.Edge.dst().in_degree() >= 2,
+    "edge.dst.is_active": lambda: f.Edge.window(2, 5).dst().is_active(),
     "edge.src.metadata.is_none": lambda: f.Edge.src().metadata("region").is_none(),
     "edge.dst.metadata.is_in": lambda: f.Edge.dst().metadata("region").is_in(["eu"]),
 }

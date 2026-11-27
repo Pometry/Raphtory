@@ -1383,7 +1383,8 @@ mod test_edges_filters_window_graph {
         db::{
             api::view::{filter_ops::Filter, StaticGraphViewOps},
             graph::views::filter::model::{
-                edge_filter::EdgeFilter, ComposableFilter, EntityExprFilterOps, PropertyExprFactory,
+                edge_filter::EdgeFilter, node_filter::NodeFilterFactory, ComposableFilter,
+                EntityExprFilterOps, PropertyExprFactory,
             },
         },
         errors::GraphError,

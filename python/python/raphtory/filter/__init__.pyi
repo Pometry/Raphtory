@@ -1776,22 +1776,55 @@ class EdgeEndpoint(object):
     """
     Entry point for filtering an edge endpoint (source or destination).
 
-    An `EdgeEndpoint` is obtained from `Edge.src()` or `Edge.dst()` and allows
-    you to filter on endpoint fields (id, name, type) as well as endpoint
-    properties and metadata.
+    An `EdgeEndpoint` is obtained from `Edge.src()` or `Edge.dst()` and offers
+    the node terms of `Node`, read on the node at that end of the edge: fields
+    (id, name, type), degrees, activity, existence, properties and metadata.
 
     Examples:
         Edge.src().id() == 1
         Edge.dst().name().starts_with("user:")
         Edge.src().property("country") == "UK"
+        Edge.src().degree() > 1
     """
 
     def __repr__(self):
         """Return repr(self)."""
 
+    def degree(self) -> filter.Expr:
+        """
+        Selects the endpoint node's total degree for filtering.
+
+        Returns:
+            filter.Expr:
+        """
+
+    def exists(self) -> filter.Expr:
+        """
+        Matches edges whose endpoint node exists in the views written before it.
+
+        Returns:
+            filter.Expr:
+        """
+
     def id(self) -> filter.Expr:
         """
         Selects the endpoint node ID field for filtering.
+
+        Returns:
+            filter.Expr:
+        """
+
+    def in_degree(self) -> filter.Expr:
+        """
+        Selects the endpoint node's incoming degree for filtering.
+
+        Returns:
+            filter.Expr:
+        """
+
+    def is_active(self) -> filter.Expr:
+        """
+        Matches edges whose endpoint node has at least one event in the current view.
 
         Returns:
             filter.Expr:
@@ -1819,6 +1852,14 @@ class EdgeEndpoint(object):
     def node_type(self) -> filter.Expr:
         """
         Selects the endpoint node type field for filtering.
+
+        Returns:
+            filter.Expr:
+        """
+
+    def out_degree(self) -> filter.Expr:
+        """
+        Selects the endpoint node's outgoing degree for filtering.
 
         Returns:
             filter.Expr:
