@@ -1,5 +1,3 @@
-RUST_READTHEDOCS_DOCS_TARGET=docs/source/_rustdoc
-
 ###########
 # General #
 ###########
@@ -189,12 +187,6 @@ build-python-rtd:
 # Docs #
 ########
 
-install-mkdocs:
-	pip install mkdocs
-
-install-doc-deps:
-	pip install -r docs/requirements.txt
-
 install-stub-gen:
 	python -mpip install -e stub_gen
 
@@ -202,27 +194,6 @@ stubs: install-stub-gen
 	cd python && ./scripts/gen-stubs.py && mypy -m raphtory
 
 debug-stubs: debug-python stubs
-
-gen-py-doc-pages: install-doc-deps
-	python docs/scripts/gen_docs_pages.py
-
-gen-graphql-doc-pages: install-node-tools gen-graphql-schema
-	python docs/scripts/gen_docs_graphql_pages.py
-
-clean-doc-pages:
-	rm -rf docs/reference && rm -rf docs/tmp/saved_graph
-
-python-docs-serve: install-doc-deps
-	mkdocs serve
-
-python-docs-build: install-doc-deps
-	mkdocs build
-
-# Testing
-
-run-docs-tests: install-doc-deps clean-doc-pages
-	cd docs/user-guide && \
-	pytest --markdown-docs -m markdown-docs --markdown-docs-syntax=superfences
 
 ##########
 # Docker #
