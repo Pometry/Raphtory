@@ -1339,6 +1339,42 @@ fn empty_expressions_are_refused() {
     );
 }
 
+/// A node type is optional, as `node_type` reads on the node: an untyped node
+/// has none, so `is_none()` selects it and a value comparison, `!=` included,
+/// does not match it. Negating a comparison does.
+#[test]
+fn an_untyped_node_has_no_node_type() {
+    let g = Graph::new();
+    g.add_node(1, "person", NO_PROPS, Some("person"), None)
+        .unwrap();
+    g.add_node(1, "bot", NO_PROPS, Some("bot"), None).unwrap();
+    g.add_node(1, "plain", NO_PROPS, None, None).unwrap();
+    assert_eq!(g.node("plain").unwrap().node_type(), None);
+    let selected = |filter: FilterExpr| {
+        let mut names: Vec<String> = g.nodes().select(filter).unwrap().name().collect();
+        names.sort();
+        names
+    };
+    assert_eq!(selected(NodeFilter.node_type().is_none().into()), ["plain"]);
+    assert_eq!(
+        selected(NodeFilter.node_type().is_some().into()),
+        ["bot", "person"]
+    );
+    assert!(selected(NodeFilter.node_type().eq("_default").into()).is_empty());
+    assert_eq!(
+        selected(NodeFilter.node_type().ne("person").into()),
+        ["bot"]
+    );
+    assert_eq!(
+        selected(NodeFilter.node_type().is_not_in(["person"]).into()),
+        ["bot"]
+    );
+    assert_eq!(
+        selected(NodeFilter.node_type().eq("person").not()),
+        ["bot", "plain"]
+    );
+}
+
 /// A name, id or type has no time axis and does not depend on the node set,
 /// so a view written on a field term is kept for display and ignored when the
 /// filter runs: the term reads the field whether or not the view holds the node.
@@ -1384,8 +1420,8 @@ fn a_view_on_a_field_term_is_ignored() {
             &["late"],
         ),
         (
-            "window node_type == _default",
-            Box::new(move || FilterExpr::from(win().node_type().eq("_default"))),
+            "window node_type is none",
+            Box::new(move || FilterExpr::from(win().node_type().is_none())),
             &["early"],
         ),
         (

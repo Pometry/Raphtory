@@ -674,7 +674,7 @@ impl PyNodeFilter {
     }
 
     /// Selects the node type field for filtering. A node created without a
-    /// type is matched as the type `_default`.
+    /// type has none: `is_none()` matches it, and a value comparison does not.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -1024,7 +1024,7 @@ impl PyNode {
     }
 
     /// Selects the node type field for filtering. A node created without a
-    /// type is matched as the type `_default`.
+    /// type has none: `is_none()` matches it, and a value comparison does not.
     ///
     /// Returns:
     ///     filter.Expr:

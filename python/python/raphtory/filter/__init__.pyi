@@ -626,7 +626,7 @@ class Node(object):
     def node_type() -> filter.Expr:
         """
         Selects the node type field for filtering. A node created without a
-        type is matched as the type `_default`.
+        type has none: `is_none()` matches it, and a value comparison does not.
 
         Returns:
             filter.Expr:
@@ -980,7 +980,7 @@ class NodeFilter(object):
     def node_type(self) -> filter.Expr:
         """
         Selects the node type field for filtering. A node created without a
-        type is matched as the type `_default`.
+        type has none: `is_none()` matches it, and a value comparison does not.
 
         Returns:
             filter.Expr:

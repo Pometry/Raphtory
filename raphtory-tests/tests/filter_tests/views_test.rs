@@ -383,9 +383,8 @@ mod test_nodes_filters_window_graph {
     #[test]
     fn test_nodes_filters_pg_for_node_type_ne() {
         let filter = NodeFilter.node_type().ne("fire_nation");
-        let expected_results = vec![
-            "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
-        ];
+        // N9 to N15 have no node_type, so a value comparison does not match them.
+        let expected_results = vec!["N1", "N2", "N3", "N5", "N7"];
         assert_filter_nodes_results(
             init_graph,
             WindowGraphTransformer(6..9),
@@ -462,9 +461,8 @@ mod test_nodes_filters_window_graph {
     #[test]
     fn test_nodes_filters_pg_for_node_type_not_in() {
         let filter = NodeFilter.node_type().is_not_in(vec!["fire_nation"]);
-        let expected_results = vec![
-            "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
-        ];
+        // N9 to N15 have no node_type, so a value comparison does not match them.
+        let expected_results = vec!["N1", "N2", "N3", "N5", "N7"];
         assert_filter_nodes_results(
             init_graph,
             WindowGraphTransformer(6..9),

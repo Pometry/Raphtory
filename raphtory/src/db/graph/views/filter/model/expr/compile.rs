@@ -89,11 +89,7 @@ use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::{NodePropPredicate, NodePropSemantics},
 };
-use std::{
-    collections::HashSet,
-    fmt::Debug,
-    sync::{Arc, LazyLock},
-};
+use std::{collections::HashSet, fmt::Debug, sync::Arc};
 // ── leaves ───────────────────────────────────────────────────────────────────
 
 /// The terms an entity offers. Implemented by the leaf enum of each entity.
@@ -445,9 +441,6 @@ fn edge_metadata_op<'g>(
     Ok(Arc::new(EdgeMetaOp { graph, prop_id }))
 }
 
-/// The type key an untyped node carries, built once rather than per node.
-static UNTYPED: LazyLock<Prop> = LazyLock::new(|| Prop::str("_default"));
-
 impl Leaf for NodeLeaf {
     type Ops = NodeOps;
 
@@ -464,11 +457,8 @@ impl Leaf for NodeLeaf {
                     id_type: graph.id_type(),
                 }),
                 Field::Name => Arc::new(Name.map(|a| Some(a.into_prop()))),
-                // Untyped nodes carry the storage's default type key, so a type
-                // test sees the same key the node-type mask is built over.
-                Field::NodeType => Arc::new(
-                    Type.map(|a| Some(a.map_or_else(|| UNTYPED.clone(), |b| b.into_prop()))),
-                ),
+                // An untyped node has no type, as `node_type` reads on the node.
+                Field::NodeType => Arc::new(Type.map(|a| a.map(|b| b.into_prop()))),
             },
             // A degree read through a view that can hide the node is 0 there.
             NodeLeaf::Degree { views, direction } => {
@@ -576,17 +566,11 @@ impl Leaf for NodeLeaf {
         }
     }
 
-    /// Every node has a type (an unset one reads as `"_default"`), a degree
-    /// and an answer to whether it is active and whether it exists.
+    /// Every node has a degree and an answer to whether it is active and
+    /// whether it exists; a node type, like a property, can be missing.
     fn nullable(&self) -> bool {
         match self {
-            NodeLeaf::Field {
-                field: Field::NodeType,
-                ..
-            }
-            | NodeLeaf::Degree { .. }
-            | NodeLeaf::IsActive { .. }
-            | NodeLeaf::Exists { .. } => false,
+            NodeLeaf::Degree { .. } | NodeLeaf::IsActive { .. } | NodeLeaf::Exists { .. } => false,
             NodeLeaf::Opaque(value) => value.nullable,
             NodeLeaf::Field { .. } | NodeLeaf::Property { .. } | NodeLeaf::Metadata { .. } => true,
         }
