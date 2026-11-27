@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795782516568,
+  "lastUpdate": 1795791277873,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -380059,6 +380059,1812 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph/encode",
             "value": 9823062,
             "range": "± 435837",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ben.steer@pometry.com",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2103458f5a3df5230f7d5a911e478f6c92389d70",
+          "message": "Remove the old mkdocs documentation and its tests (#2936)",
+          "timestamp": "2026-11-27T13:57:31Z",
+          "tree_id": "2871195492cf9b62c7aca218139282df7de0f9f4",
+          "url": "https://github.com/Pometry/Raphtory/commit/2103458f5a3df5230f7d5a911e478f6c92389d70"
+        },
+        "date": 1795791273397,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 30487,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 31189,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_directed_density/graphgen_directed_density",
+            "value": 10,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_directed_density_subgraph/graphgen_directed_density_subgraph",
+            "value": 231456,
+            "range": "± 1107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_directed_density_layered/graphgen_directed_density_layered",
+            "value": 362368,
+            "range": "± 8354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_directed_density_graph_filtered/graphgen_directed_density_graph_filtered",
+            "value": 7513897,
+            "range": "± 57986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_degree_centrality/graphgen_degree_centrality",
+            "value": 678457,
+            "range": "± 2921",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_concomp/graphgen_concomp",
+            "value": 1080129,
+            "range": "± 6025",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_max_degree/graphgen_max_degree",
+            "value": 254115,
+            "range": "± 1617",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_min_degree/graphgen_min_degree",
+            "value": 257871,
+            "range": "± 1049",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_max_out_degree/graphgen_max_out_degree",
+            "value": 62283,
+            "range": "± 508",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_max_in_degree/graphgen_max_in_degree",
+            "value": 64025,
+            "range": "± 639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_min_out_degree/graphgen_min_out_degree",
+            "value": 62656,
+            "range": "± 488",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_min_in_degree/graphgen_min_in_degree",
+            "value": 63895,
+            "range": "± 287",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_average_degree/graphgen_average_degree",
+            "value": 257315,
+            "range": "± 1052",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_local_clustering_coefficient_batch/graphgen_local_clustering_coefficient_batch",
+            "value": 36654,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_temporally_reachable_nodes/graphgen_temporally_reachable_nodes",
+            "value": 542693,
+            "range": "± 1787",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_out_component/graphgen_out_component",
+            "value": 1391,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_out_component_filtered/graphgen_out_component_filtered",
+            "value": 1377,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_temporal_seir/graphgen_temporal_seir",
+            "value": 33425,
+            "range": "± 79",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_clustering_coeff/graphgen_clustering_coeff",
+            "value": 8155724,
+            "range": "± 398741",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_pagerank/graphgen_pagerank",
+            "value": 8730676,
+            "range": "± 16151",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_pagerank_subgraph/graphgen_pagerank_subgraph",
+            "value": 13235827,
+            "range": "± 40586",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_pagerank_layered/graphgen_pagerank_layered",
+            "value": 8972975,
+            "range": "± 14669",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_pagerank_graph_filtered/graphgen_pagerank_graph_filtered",
+            "value": 57143685,
+            "range": "± 148536",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_hits/graphgen_hits",
+            "value": 2647292,
+            "range": "± 9222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_triangle_count/graphgen_triangle_count",
+            "value": 6104509,
+            "range": "± 14917",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_triplet_count/graphgen_triplet_count",
+            "value": 1972102,
+            "range": "± 2666",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_reciprocity/graphgen_reciprocity",
+            "value": 522893,
+            "range": "± 5037",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_scc/graphgen_scc",
+            "value": 934407,
+            "range": "± 962",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_label_propagation/graphgen_label_propagation",
+            "value": 4431713,
+            "range": "± 22720",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_louvain/graphgen_louvain",
+            "value": 12597259,
+            "range": "± 21318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_all_local_reciprocity/graphgen_all_local_reciprocity",
+            "value": 609519,
+            "range": "± 2032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_balance/graphgen_balance",
+            "value": 1550660,
+            "range": "± 19646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_temporal_motif_multi/graphgen_temporal_motif_multi",
+            "value": 31474797,
+            "range": "± 53212",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_local_temporal_motif/graphgen_local_temporal_motif",
+            "value": 33041638,
+            "range": "± 257032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_dijkstra/graphgen_dijkstra",
+            "value": 347770199,
+            "range": "± 7519957",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_single_source_shortest_path/graphgen_single_source_shortest_path",
+            "value": 1272471,
+            "range": "± 7717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_in_component/graphgen_in_component",
+            "value": 472587,
+            "range": "± 1673",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_in_component_filtered/graphgen_in_component_filtered",
+            "value": 472083,
+            "range": "± 809",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_internal_global_triangle_motifs/graphgen_internal_global_triangle_motifs",
+            "value": 10037026,
+            "range": "± 29825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_internal_local_triangle_motifs/graphgen_internal_local_triangle_motifs",
+            "value": 10114389,
+            "range": "± 32068",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_k_core_set/graphgen_k_core_set",
+            "value": 1327484,
+            "range": "± 5402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_k_core/graphgen_k_core",
+            "value": 1800978,
+            "range": "± 5076",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_fast_rp/graphgen_fast_rp",
+            "value": 7062204,
+            "range": "± 63317",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_temporal_bipartite_projection/graphgen_temporal_bipartite_projection",
+            "value": 17891227,
+            "range": "± 200993",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 31851482,
+            "range": "± 108710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_betweenness/graphgen_betweenness",
+            "value": 3329216,
+            "range": "± 14314",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_betweenness_subgraph/graphgen_betweenness_subgraph",
+            "value": 4186966,
+            "range": "± 5252",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_betweenness_layered/graphgen_betweenness_layered",
+            "value": 4888362,
+            "range": "± 57878",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_betweenness_graph_filtered/graphgen_betweenness_graph_filtered",
+            "value": 20465919,
+            "range": "± 74448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_in_components/graphgen_in_components",
+            "value": 945739,
+            "range": "± 10084",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_out_components/graphgen_out_components",
+            "value": 1022961,
+            "range": "± 6413",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_in_components_filtered/graphgen_in_components_filtered",
+            "value": 934382,
+            "range": "± 4912",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_out_components_filtered/graphgen_out_components_filtered",
+            "value": 1024952,
+            "range": "± 4003",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_temporal_rich_club/graphgen_temporal_rich_club",
+            "value": 3197311,
+            "range": "± 133804",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_fruchterman_reingold/graphgen_fruchterman_reingold",
+            "value": 1164027,
+            "range": "± 2668",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_cohesive_fruchterman_reingold/graphgen_cohesive_fruchterman_reingold",
+            "value": 2770552,
+            "range": "± 10402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_max_weight_matching/graphgen_max_weight_matching",
+            "value": 154298,
+            "range": "± 206",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 435952,
+            "range": "± 1744",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 442940,
+            "range": "± 1700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 492241,
+            "range": "± 5061",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 878473,
+            "range": "± 106894",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1125538,
+            "range": "± 121207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges_cached",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges_temporal",
+            "value": 115,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges_temporal_cached",
+            "value": 115,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing",
+            "value": 52,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing_cached",
+            "value": 53,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting",
+            "value": 46,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting_cached",
+            "value": 46,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/active edge",
+            "value": 214,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/active edge_cached",
+            "value": 252,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/edge has layer",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/edge has layer_cached",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_nodes",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_nodes_cached",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_node_existing",
+            "value": 13,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_node_existing_cached",
+            "value": 13,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_node_nonexisting",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_node_nonexisting_cached",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id",
+            "value": 20830,
+            "range": "± 249",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id_cached",
+            "value": 26243,
+            "range": "± 359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree",
+            "value": 23121,
+            "range": "± 344",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree_cached",
+            "value": 28783,
+            "range": "± 304",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/iterate_nodes",
+            "value": 1389,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/iterate_nodes_cached",
+            "value": 4911,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/iterate_edges",
+            "value": 26098,
+            "range": "± 497",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/iterate_edges_cached",
+            "value": 50046,
+            "range": "± 825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/iterate_exploded_edges",
+            "value": 320687,
+            "range": "± 2725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/iterate_exploded_edges_cached",
+            "value": 403472,
+            "range": "± 5330",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_neighbour_degree",
+            "value": 8281,
+            "range": "± 56",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_neighbour_degree_cached",
+            "value": 8303,
+            "range": "± 78",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/graph_latest",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/graph_latest_cached",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_materialise/materialize",
+            "value": 6302177,
+            "range": "± 57008",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges",
+            "value": 19,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges_cached",
+            "value": 21,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges_temporal",
+            "value": 135,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges_temporal_cached",
+            "value": 138,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing",
+            "value": 77,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing_cached",
+            "value": 81,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting",
+            "value": 48,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting_cached",
+            "value": 48,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/active edge",
+            "value": 271,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/active edge_cached",
+            "value": 278,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/edge has layer",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/edge has layer_cached",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_nodes",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_nodes_cached",
+            "value": 11,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_node_existing",
+            "value": 28,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_node_existing_cached",
+            "value": 28,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_node_nonexisting",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_node_nonexisting_cached",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id",
+            "value": 23390,
+            "range": "± 299",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id_cached",
+            "value": 27933,
+            "range": "± 489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree",
+            "value": 27162,
+            "range": "± 589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree_cached",
+            "value": 32440,
+            "range": "± 966",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/iterate_nodes",
+            "value": 6028,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/iterate_nodes_cached",
+            "value": 6973,
+            "range": "± 365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/iterate_edges",
+            "value": 27861,
+            "range": "± 189",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/iterate_edges_cached",
+            "value": 55436,
+            "range": "± 340",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/iterate_exploded_edges",
+            "value": 371136,
+            "range": "± 3391",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/iterate_exploded_edges_cached",
+            "value": 449184,
+            "range": "± 6631",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_neighbour_degree",
+            "value": 9774,
+            "range": "± 54",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_neighbour_degree_cached",
+            "value": 9639,
+            "range": "± 152",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/graph_latest",
+            "value": 35,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/graph_latest_cached",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100_materialise/materialize",
+            "value": 6130190,
+            "range": "± 15643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges",
+            "value": 41190,
+            "range": "± 2404",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges_cached",
+            "value": 20002,
+            "range": "± 358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges_temporal",
+            "value": 51715,
+            "range": "± 900",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges_temporal_cached",
+            "value": 31559,
+            "range": "± 526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing",
+            "value": 164,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing_cached",
+            "value": 117,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting",
+            "value": 49,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting_cached",
+            "value": 50,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/active edge",
+            "value": 275,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/active edge_cached",
+            "value": 297,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/edge has layer",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/edge has layer_cached",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_nodes",
+            "value": 20587,
+            "range": "± 2342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_nodes_cached",
+            "value": 14,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_node_existing",
+            "value": 135,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_node_existing_cached",
+            "value": 51,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_node_nonexisting",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_node_nonexisting_cached",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id",
+            "value": 31089,
+            "range": "± 477",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id_cached",
+            "value": 22468,
+            "range": "± 323",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree",
+            "value": 102500,
+            "range": "± 2582",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree_cached",
+            "value": 56541,
+            "range": "± 777",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/iterate_nodes",
+            "value": 26886,
+            "range": "± 169",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/iterate_nodes_cached",
+            "value": 3637,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/iterate_edges",
+            "value": 99309,
+            "range": "± 1683",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/iterate_edges_cached",
+            "value": 53559,
+            "range": "± 497",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/iterate_exploded_edges",
+            "value": 233711,
+            "range": "± 1828",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/iterate_exploded_edges_cached",
+            "value": 205560,
+            "range": "± 1626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_neighbour_degree",
+            "value": 95127,
+            "range": "± 525",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_neighbour_degree_cached",
+            "value": 41158,
+            "range": "± 642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/graph_latest",
+            "value": 40554,
+            "range": "± 690",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/graph_latest_cached",
+            "value": 34226,
+            "range": "± 994",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10_materialise/materialize",
+            "value": 2735318,
+            "range": "± 16638",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/num_edges",
+            "value": 17141,
+            "range": "± 324",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/num_edges_cached",
+            "value": 17523,
+            "range": "± 583",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/num_edges_temporal",
+            "value": 17910,
+            "range": "± 737",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/num_edges_temporal_cached",
+            "value": 18570,
+            "range": "± 190",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/has_edge_existing",
+            "value": 97,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/has_edge_existing_cached",
+            "value": 98,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/has_edge_nonexisting",
+            "value": 51,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/has_edge_nonexisting_cached",
+            "value": 55,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/active edge",
+            "value": 231,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/active edge_cached",
+            "value": 279,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/edge has layer",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/edge has layer_cached",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/num_nodes",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/num_nodes_cached",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/has_node_existing",
+            "value": 26,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/has_node_existing_cached",
+            "value": 32,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/has_node_nonexisting",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/has_node_nonexisting_cached",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/max_id",
+            "value": 12217,
+            "range": "± 181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/max_id_cached",
+            "value": 13867,
+            "range": "± 521",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/max_degree",
+            "value": 18902,
+            "range": "± 629",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/max_degree_cached",
+            "value": 19716,
+            "range": "± 317",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/iterate_nodes",
+            "value": 1277,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/iterate_nodes_cached",
+            "value": 1296,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/iterate_edges",
+            "value": 8456,
+            "range": "± 84",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/iterate_edges_cached",
+            "value": 8554,
+            "range": "± 183",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/iterate_exploded_edges",
+            "value": 20517,
+            "range": "± 162",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/iterate_exploded_edges_cached",
+            "value": 22264,
+            "range": "± 172",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/max_neighbour_degree",
+            "value": 5016,
+            "range": "± 73",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/max_neighbour_degree_cached",
+            "value": 10219,
+            "range": "± 83",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/graph_latest",
+            "value": 15864,
+            "range": "± 369",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc/graph_latest_cached",
+            "value": 16960,
+            "range": "± 593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_materialise/materialize",
+            "value": 1741257,
+            "range": "± 29047",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/num_edges",
+            "value": 19416,
+            "range": "± 591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/num_edges_cached",
+            "value": 17253,
+            "range": "± 379",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/num_edges_temporal",
+            "value": 19926,
+            "range": "± 1155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/num_edges_temporal_cached",
+            "value": 17868,
+            "range": "± 314",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/has_edge_existing",
+            "value": 209,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/has_edge_existing_cached",
+            "value": 110,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/has_edge_nonexisting",
+            "value": 55,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/has_edge_nonexisting_cached",
+            "value": 57,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/active edge",
+            "value": 278,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/active edge_cached",
+            "value": 313,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/edge has layer",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/edge has layer_cached",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/num_nodes",
+            "value": 12421,
+            "range": "± 148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/num_nodes_cached",
+            "value": 6,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/has_node_existing",
+            "value": 127,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/has_node_existing_cached",
+            "value": 38,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/has_node_nonexisting",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/has_node_nonexisting_cached",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/max_id",
+            "value": 14425,
+            "range": "± 181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/max_id_cached",
+            "value": 12256,
+            "range": "± 579",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/max_degree",
+            "value": 22369,
+            "range": "± 329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/max_degree_cached",
+            "value": 18370,
+            "range": "± 296",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/iterate_nodes",
+            "value": 5011,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/iterate_nodes_cached",
+            "value": 1189,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/iterate_edges",
+            "value": 11952,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/iterate_edges_cached",
+            "value": 5964,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/iterate_exploded_edges",
+            "value": 18077,
+            "range": "± 203",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/iterate_exploded_edges_cached",
+            "value": 11932,
+            "range": "± 147",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/max_neighbour_degree",
+            "value": 4695,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/max_neighbour_degree_cached",
+            "value": 10037,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/graph_latest",
+            "value": 16685,
+            "range": "± 228",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed/graph_latest_cached",
+            "value": 14742,
+            "range": "± 211",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_subgraph_10pc_windowed_materialise/materialize",
+            "value": 1143056,
+            "range": "± 8314",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/num_edges",
+            "value": 66496,
+            "range": "± 1571",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/num_edges_cached",
+            "value": 26339,
+            "range": "± 441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/num_edges_temporal",
+            "value": 136273,
+            "range": "± 3387",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/num_edges_temporal_cached",
+            "value": 115368,
+            "range": "± 7181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/has_edge_existing",
+            "value": 162,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/has_edge_existing_cached",
+            "value": 119,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/has_edge_nonexisting",
+            "value": 71,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/has_edge_nonexisting_cached",
+            "value": 72,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/active edge",
+            "value": 588,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/active edge_cached",
+            "value": 715,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/edge has layer",
+            "value": 86,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/edge has layer_cached",
+            "value": 86,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/num_nodes",
+            "value": 34225,
+            "range": "± 1008",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/num_nodes_cached",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/has_node_existing",
+            "value": 382,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/has_node_existing_cached",
+            "value": 111,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/has_node_nonexisting",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/has_node_nonexisting_cached",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/max_id",
+            "value": 45896,
+            "range": "± 695",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/max_id_cached",
+            "value": 27591,
+            "range": "± 385",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/max_degree",
+            "value": 429215,
+            "range": "± 26064",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/max_degree_cached",
+            "value": 288266,
+            "range": "± 7241",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/iterate_nodes",
+            "value": 61360,
+            "range": "± 462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/iterate_nodes_cached",
+            "value": 11581,
+            "range": "± 221",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/iterate_edges",
+            "value": 170689,
+            "range": "± 2982",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/iterate_edges_cached",
+            "value": 293604,
+            "range": "± 2009",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/iterate_exploded_edges",
+            "value": 1430915,
+            "range": "± 16546",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/iterate_exploded_edges_cached",
+            "value": 1958017,
+            "range": "± 136637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/max_neighbour_degree",
+            "value": 670443,
+            "range": "± 5793",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/max_neighbour_degree_cached",
+            "value": 447865,
+            "range": "± 3741",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/graph_latest",
+            "value": 77807,
+            "range": "± 2138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered/graph_latest_cached",
+            "value": 61853,
+            "range": "± 1002",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_50_layered_materialise/materialize",
+            "value": 26158058,
+            "range": "± 77976",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/num_edges",
+            "value": 56463,
+            "range": "± 1987",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/num_edges_cached",
+            "value": 21485,
+            "range": "± 1487",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/num_edges_temporal",
+            "value": 530820,
+            "range": "± 24061",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/num_edges_temporal_cached",
+            "value": 517433,
+            "range": "± 13215",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/has_edge_existing",
+            "value": 178,
+            "range": "± 102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/has_edge_existing_cached",
+            "value": 116,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/has_edge_nonexisting",
+            "value": 69,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/has_edge_nonexisting_cached",
+            "value": 70,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/active edge",
+            "value": 619,
+            "range": "± 465",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/active edge_cached",
+            "value": 673,
+            "range": "± 455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/edge has layer",
+            "value": 86,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/edge has layer_cached",
+            "value": 86,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/num_nodes",
+            "value": 45511,
+            "range": "± 865",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/num_nodes_cached",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/has_node_existing",
+            "value": 405,
+            "range": "± 376",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/has_node_existing_cached",
+            "value": 107,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/has_node_nonexisting",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/has_node_nonexisting_cached",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/max_id",
+            "value": 59344,
+            "range": "± 928",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/max_id_cached",
+            "value": 32317,
+            "range": "± 637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/max_degree",
+            "value": 480446,
+            "range": "± 10500",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/max_degree_cached",
+            "value": 314624,
+            "range": "± 6913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/iterate_nodes",
+            "value": 93466,
+            "range": "± 1076",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/iterate_nodes_cached",
+            "value": 15950,
+            "range": "± 207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/iterate_edges",
+            "value": 153678,
+            "range": "± 7910",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/iterate_edges_cached",
+            "value": 348246,
+            "range": "± 2955",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/iterate_exploded_edges",
+            "value": 3097406,
+            "range": "± 21108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/iterate_exploded_edges_cached",
+            "value": 3702116,
+            "range": "± 126717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/max_neighbour_degree",
+            "value": 708670,
+            "range": "± 2940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/max_neighbour_degree_cached",
+            "value": 449174,
+            "range": "± 3751",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/graph_latest",
+            "value": 116045,
+            "range": "± 1563",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered/graph_latest_cached",
+            "value": 93267,
+            "range": "± 1164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_persistent_window_50_layered_materialise/materialize",
+            "value": 43453078,
+            "range": "± 74074",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/decode",
+            "value": 2712318,
+            "range": "± 20841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/encode",
+            "value": 7979675,
+            "range": "± 2323919",
             "unit": "ns/iter"
           }
         ]
