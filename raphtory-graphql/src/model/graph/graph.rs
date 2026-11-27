@@ -740,7 +740,8 @@ impl GqlGraph {
                     intersected. A `view` expression keeps what exists in the view; to filter \
                     inside a window use `graph.window(..).filter(expr)`. Views alone combine under \
                     `or` and `not` into one view; a `view` beside a predicate cannot appear under \
-                    `or` or `not`. If omitted, applies the identity filter."
+                    `or`, and `not` distributes first, so `not(or(expr, view))` is accepted where \
+                    `not(and(expr, view))` is not. If omitted, applies the identity filter."
         )]
         expr: Option<GqlFilter>,
     ) -> Result<Self, GQLError> {

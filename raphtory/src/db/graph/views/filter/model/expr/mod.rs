@@ -501,16 +501,17 @@ impl FilterExpr {
         })
     }
 
-    /// Refuses a view in this expression of an `or` or `not` that also tests
-    /// nodes or edges: the union of a view with a predicate, or the complement
-    /// of their conjunction, keeps different times for different entities, which
-    /// no one view can. An `or` or `not` of views alone never reaches this check.
+    /// Refuses a view in this expression of an `or` that also tests nodes or
+    /// edges: the union of a view with a predicate keeps different times for
+    /// different entities, which no one view can. A `not` distributes first, so
+    /// the complement of their conjunction reaches this check as that union. An
+    /// `or` of views alone never reaches it.
     pub(crate) fn no_view_below_top_level(&self) -> Result<(), GraphError> {
         if self.has_view() {
             return Err(GraphError::invalid_filter(
-                "a view under `or` or `not` combines only with other views: use it alone, beside \
-                 views only, or as an expression of the top-level `and`; to test that an entity \
-                 does not exist in a view, negate `.exists()`",
+                "a view under `or`, or under `not` of an `and`, combines only with other views: \
+                 use it alone, beside views only, or as an expression of the top-level `and`; to \
+                 test that an entity does not exist in a view, negate `.exists()`",
             ));
         }
         Ok(())

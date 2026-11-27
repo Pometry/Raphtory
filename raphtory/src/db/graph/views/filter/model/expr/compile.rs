@@ -1446,7 +1446,9 @@ impl CreateFilter for FilterExpr {
     /// `or(not(x), not(y))`, `not(or(x, y))` is `and(not(x), not(y))` and
     /// `not(not(x))` is `x`. An `and`, `or` or `not` of time and layer views
     /// alone is the one view it resolves to (see [`ResolvedView`]); a view
-    /// under `or` or `not` beside a predicate is refused.
+    /// under `or` beside a predicate is refused, so `not(and(x, view))` is
+    /// refused as the `or` it distributes to, where `not(or(x, view))` is
+    /// `and(not(x), not(view))` and keeps what both keep.
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
@@ -1493,7 +1495,6 @@ impl CreateFilter for FilterExpr {
                 if let Some(node) = inner.node_only()? {
                     return NodeLeaf::graph_filter(&Expr::Not(Box::new(node)), graph);
                 }
-                inner.no_view_below_top_level()?;
                 // Every arm recurses only into a smaller expression than this
                 // `not`, so the recursion ends.
                 let not_each = |expressions: Vec<FilterExpr>| {

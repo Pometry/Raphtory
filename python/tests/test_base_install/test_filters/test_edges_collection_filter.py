@@ -632,8 +632,10 @@ def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
     """On `edges[]` a view expression is an existence test, so `|` on it has its plain set
     meaning. On `filter()` there is no graph that is "layered or heavy", so the same filters
     are refused there, when applied. `~` of an expression with a view is "exists in the graph
-    `~` keeps": for a view alone, the other layers, on both; beside a predicate there is no
-    such graph, so it is refused on both. "Not in the layer" is `~` of the `.exists()` test.
+    `~` keeps": for a view alone, the other layers, on both. `~` distributes first, so
+    `~(edge_prop | layer)` is the graph `~edge_prop & ~layer` keeps, on both, where
+    `~(edge_prop & layer)` is the `|` that has no graph, so it is refused on both. "Not in the
+    layer" is `~` of the `.exists()` test.
     """
 
     def check(graph):
@@ -665,6 +667,14 @@ def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
             graph.edges[mixed]
         with pytest.raises(Exception, match="view"):
             graph.filter(mixed)
+        complement = ~(atoms["edge_prop"] | atoms["layer"])
+        want = (every - single["edge_prop"]) & other_layers
+        assert _ids(graph.edges[complement]) == want
+        assert _ids(graph.filter(complement).edges) == want
+        # the same on nodes: a and d fail `score > 15` and exist outside "work"
+        complement = ~(atoms["node_prop"] | atoms["layer"])
+        assert sorted(graph.nodes[complement].name) == ["a", "d"]
+        assert sorted(graph.filter(complement).nodes.name) == ["a", "d"]
 
     return check
 

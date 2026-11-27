@@ -248,6 +248,36 @@ fn shapes_that_are_not_one_view_are_still_refused() {
     );
 }
 
+/// `not` distributes before the view check: `not(or(predicate, view))` is
+/// `and(not(predicate), not(view))`, a predicate beside a view under the
+/// top-level `and`, where `not(and(predicate, view))` stays the refused `or`.
+#[test]
+fn not_of_an_or_of_a_predicate_and_a_view_is_the_and_of_their_negations() {
+    let g = graph().into_dynamic();
+    let heavy = EdgeFilter.property("w").gt(5i64);
+    // w > 5 keeps a→b (latest 8) and e→f (7); c→d alone fails it, and its
+    // update at 3 is inside [3, 6).
+    let want = expected(&[("c→d", &[6])]);
+    assert_eq!(
+        filtered(&g, heavy.clone().or(GraphFilter.window(3, 6)).not()),
+        want
+    );
+    assert_eq!(
+        filtered(&g, heavy.clone().not().and(GraphFilter.window(3, 6).not())),
+        want
+    );
+    // The `or` of views under it is still one view: c→d outside [0,2) and [7,9).
+    assert_eq!(
+        filtered(
+            &g,
+            heavy
+                .or(GraphFilter.window(0, 2).or(GraphFilter.window(7, 9)))
+                .not()
+        ),
+        expected(&[("c→d", &[3, 6])])
+    );
+}
+
 /// A view's times are resolved when it is built, from the bounds the views
 /// state, not from which events they happen to cut, so a filtered graph keeps
 /// the same times as the graph grows.
