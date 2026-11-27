@@ -85,10 +85,8 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NO_PROPS,
                     None,
                     None,
-                )
-                .expect("Failed to add node")
-                .add_metadata([("type", "owner")])
-                .expect("Failed to add node static property");
+                )?
+                .add_metadata([("type", "owner")])?;
 
                 g.add_node(
                     DateTime::from_timestamp(ts, 0).unwrap(),
@@ -96,8 +94,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NO_PROPS,
                     None,
                     None,
-                )
-                .expect("Failed to add node")
+                )?
                 .add_metadata([
                     ("type", "company".into_prop()),
                     (
@@ -108,8 +105,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                             .unwrap_or("None".into())
                             .into_prop(),
                     ),
-                ])
-                .expect("Failed to add node static property");
+                ])?;
 
                 g.add_node(
                     DateTime::from_timestamp(ts, 0).unwrap(),
@@ -117,8 +113,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NO_PROPS,
                     None,
                     None,
-                )
-                .expect("Failed to add node")
+                )?
                 .add_metadata([
                     ("type", "address".into_prop()),
                     (
@@ -129,8 +124,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                             .unwrap_or("None".into())
                             .into_prop(),
                     ),
-                ])
-                .expect("Failed to add node static property");
+                ])?;
 
                 g.add_edge(
                     DateTime::from_timestamp(ts, 0).unwrap(),
@@ -138,10 +132,8 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     company.clone(),
                     NO_PROPS,
                     Some(pincode),
-                )
-                .expect("Failed to add edge")
-                .add_metadata([("rel", "owns")], Some(pincode))
-                .expect("Failed to add edge static property");
+                )?
+                .add_metadata([("rel", "owns")], Some(pincode))?;
 
                 g.add_edge(
                     DateTime::from_timestamp(ts, 0).unwrap(),
@@ -149,10 +141,9 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     address.clone(),
                     NO_PROPS,
                     None,
-                )
-                .expect("Failed to add edge")
-                .add_metadata([("rel", "owns")], None)
-                .expect("Failed to add edge static property");
+                )?
+                .add_metadata([("rel", "owns")], None)?;
+                Ok(())
             })
             .expect("Failed to load graph from CSV data files");
 

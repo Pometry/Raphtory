@@ -45,6 +45,7 @@ use crate::{
     },
     *,
 };
+use indexmap::IndexMap;
 use pyo3::{
     exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, pyclass, pymethods, types::PyDict,
     Borrowed, IntoPyObjectExt, Py, PyAny, PyResult, Python,
@@ -378,7 +379,7 @@ impl PyMutableNode {
     pub fn add_updates(
         &self,
         t: EventTimeComponent,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         event_id: Option<usize>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -402,7 +403,7 @@ impl PyMutableNode {
     ///
     /// Returns:
     ///     None:
-    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+    pub fn add_metadata(&self, metadata: IndexMap<String, Prop>) -> Result<(), GraphError> {
         self.node.add_metadata(metadata)
     }
 
@@ -415,7 +416,7 @@ impl PyMutableNode {
     ///
     /// Returns:
     ///     None:
-    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+    pub fn update_metadata(&self, metadata: IndexMap<String, Prop>) -> Result<(), GraphError> {
         self.node.update_metadata(metadata)
     }
 

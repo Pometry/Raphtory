@@ -23,7 +23,7 @@
 //! ```
 use crate::{graph_loader::fetch_file, io::csv_loader::CsvLoader, prelude::*};
 use serde::Deserialize;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 use tracing::error;
 
 #[derive(Deserialize, std::fmt::Debug)]
@@ -91,8 +91,8 @@ pub fn lotr_graph() -> Graph {
             g.add_node(time, dst_id.clone(), NO_PROPS, None, None)
                 .map_err(|err| error!("{:?}", err))
                 .ok();
-            g.add_edge(time, src_id.clone(), dst_id.clone(), NO_PROPS, None)
-                .expect("Error: Unable to add edge");
+            g.add_edge(time, src_id.clone(), dst_id.clone(), NO_PROPS, None)?;
+            Ok(())
         })
         .expect("Failed to load graph from CSV data files");
     g
@@ -112,11 +112,9 @@ pub fn lotr_graph_with_props() -> Graph {
     CsvLoader::new(lotr_properties_file().unwrap())
         .load_into_graph(&g, |char: Character, g: &Graph| {
             if let Some(node) = g.node(char.name) {
-                let _ = node.add_metadata(HashMap::from([
-                    ("race", char.race),
-                    ("gender", char.gender),
-                ]));
+                let _ = node.add_metadata([("race", char.race), ("gender", char.gender)]);
             }
+            Ok(())
         })
         .expect("Failed to load graph from CSV data files");
     g

@@ -24,6 +24,7 @@ use crate::{
     },
 };
 use async_graphql::{async_trait, Value as GqlValue};
+use indexmap::IndexMap;
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropArray, PropMap, PropType},
     GID,
@@ -69,14 +70,14 @@ fn to_var<T: Serialize>(value: &T) -> Result<JsonValue, ClientError> {
 }
 
 /// Build a `[PropertyInput!]` variable value from a property map.
-fn properties_var(properties: &HashMap<String, Prop>) -> Result<JsonValue, ClientError> {
+fn properties_var(properties: &IndexMap<String, Prop>) -> Result<JsonValue, ClientError> {
     to_var(&properties_to_input(properties)?)
 }
 
 /// Build an optional `[PropertyInput!]` variable — JSON `null` when absent,
 /// which GraphQL treats the same as an omitted optional argument.
 fn opt_properties_var(
-    properties: &Option<HashMap<String, Prop>>,
+    properties: &Option<IndexMap<String, Prop>>,
 ) -> Result<JsonValue, ClientError> {
     match properties {
         Some(p) => properties_var(p),
@@ -3490,7 +3491,7 @@ mod tests {
     fn non_finite_write_property_rides_the_special_variant() {
         // NaN has no JSON number form — the write path must ship it in the
         // tagged `f64Special` variant rather than erroring or emitting `null`.
-        let props: HashMap<String, Prop> = [("v".to_string(), Prop::F64(f64::NAN))].into();
+        let props: IndexMap<String, Prop> = [("v".to_string(), Prop::F64(f64::NAN))].into();
         let var = properties_var(&props).unwrap();
         assert_eq!(
             serde_json::to_value(&var).unwrap(),
@@ -3666,7 +3667,7 @@ mod tests {
 
         for (name, score) in [("a", 10i64), ("b", 20), ("c", 30)] {
             // Local-style property argument: a literal of (&str, i64) pairs,
-            // no HashMap<String, Prop> to assemble first.
+            // no IndexMap<String, Prop> to assemble first.
             rg.add_node(1i64, name, [("score", score)], None, None)
                 .await
                 .unwrap();

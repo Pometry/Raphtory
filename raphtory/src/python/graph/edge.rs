@@ -19,6 +19,7 @@ use crate::{
     prelude::*,
     python::{graph::history::PyHistory, types::repr::Repr},
 };
+use indexmap::IndexMap;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use raphtory_api::{
@@ -29,7 +30,7 @@ use raphtory_api::{
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     ops::Deref,
 };
@@ -373,7 +374,7 @@ impl PyMutableEdge {
     fn add_updates(
         &self,
         t: EventTimeComponent,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         layer: Option<&str>,
         event_id: Option<usize>,
     ) -> Result<(), GraphError> {
@@ -426,7 +427,7 @@ impl PyMutableEdge {
     #[pyo3(signature = (metadata, layer=None))]
     fn add_metadata(
         &self,
-        metadata: HashMap<String, Prop>,
+        metadata: IndexMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         self.edge.add_metadata(metadata, layer)
@@ -445,7 +446,7 @@ impl PyMutableEdge {
     #[pyo3(signature = (metadata, layer=None))]
     pub fn update_metadata(
         &self,
-        metadata: HashMap<String, Prop>,
+        metadata: IndexMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         self.edge.update_metadata(metadata, layer)

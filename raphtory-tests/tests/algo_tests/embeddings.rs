@@ -298,8 +298,9 @@ mod fast_rp_test {
 
         loader
             .load_into_graph(&graph, |e: CsvEdge, g| {
-                g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
-                g.add_edge(1, e.dst, e.src, NO_PROPS, None).unwrap();
+                g.add_edge(1, e.src, e.dst, NO_PROPS, None)?;
+                g.add_edge(1, e.dst, e.src, NO_PROPS, None)?;
+                Ok(())
             })
             .unwrap();
 

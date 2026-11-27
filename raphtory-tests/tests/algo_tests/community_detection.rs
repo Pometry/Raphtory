@@ -1,10 +1,11 @@
 use raphtory::{
     algorithms::community_detection::{
         label_propagation::label_propagation,
-        louvain::louvain,
+        louvain::{louvain, LouvainState},
         modularity::{ComID, ModularityFunction, ModularityUnDir, Partition},
     },
     core::entities::VID,
+    errors::GraphError,
     graphgen::random_attachment::random_attachment,
     logging::global_info_logger,
     prelude::*,
@@ -214,7 +215,8 @@ fn test_all_nodes_assigned_inner(edges: Vec<(u64, u64, f64)>) {
     }
 
     test_storage!(&graph, |graph| {
-        let result = louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None, Some(42));
+        let result =
+            louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None, Some(42)).unwrap();
         assert!(graph
             .nodes()
             .iter()
@@ -230,7 +232,7 @@ fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) {
     }
 
     test_storage!(&graph, |graph| {
-        let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42));
+        let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)).unwrap();
         assert!(graph
             .nodes()
             .iter()
@@ -240,7 +242,7 @@ fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) {
 
 proptest! {
     #[test]
-    fn test_all_nodes_in_communities_proptest(edges in any::<Vec<(u64, u64, f64)>>().prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
+    fn test_all_nodes_in_communities_proptest(edges in prop::collection::vec(any::<(u64, u64, f64)>(), 1..100).prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
         test_all_nodes_assigned_inner(edges)
     }
 
@@ -248,6 +250,54 @@ proptest! {
     fn test_all_nodes_assigned_unweighted_proptest(edges in any::<Vec<(u8, u8)>>().prop_map(|v| v.into_iter().map(|(s, d)|  (s as u64, d as u64)).collect::<Vec<_>>())) {
         test_all_nodes_assigned_inner_unweighted(edges)
     }
+}
+
+fn louvain_weighted_graph(weights: &[(u64, u64, Option<Prop>)]) -> Graph {
+    let graph = Graph::new();
+    for (src, dst, weight) in weights {
+        let props: Vec<_> = weight.iter().map(|w| ("weight", w.clone())).collect();
+        graph.add_edge(1, *src, *dst, props.clone(), None).unwrap();
+        graph.add_edge(1, *dst, *src, props, None).unwrap();
+    }
+    graph
+}
+
+fn louvain_communities(graph: &Graph) -> Vec<Option<LouvainState>> {
+    let result = louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None, Some(42)).unwrap();
+    (1..=4).map(|node| result.get_by_node(node)).collect()
+}
+
+#[test]
+fn louvain_reads_an_integer_weight_like_the_same_float() {
+    let edges = [(1, 2, 5), (2, 3, 1), (3, 4, 7), (4, 1, 1), (2, 4, 2)];
+    let ints = louvain_weighted_graph(&edges.map(|(s, d, w)| (s, d, Some(Prop::I64(w)))));
+    let floats = louvain_weighted_graph(&edges.map(|(s, d, w)| (s, d, Some(Prop::F64(w as f64)))));
+
+    assert_eq!(louvain_communities(&ints), louvain_communities(&floats));
+}
+
+#[test]
+fn louvain_gives_an_edge_without_the_weight_weight_one() {
+    let edges = [(1, 2, 5.0), (2, 3, 1.0), (3, 4, 7.0), (4, 1, 1.0)];
+    let partial =
+        louvain_weighted_graph(&edges.map(|(s, d, w)| (s, d, (w != 1.0).then_some(Prop::F64(w)))));
+    let full = louvain_weighted_graph(&edges.map(|(s, d, w)| (s, d, Some(Prop::F64(w)))));
+
+    assert_eq!(louvain_communities(&partial), louvain_communities(&full));
+}
+
+#[test]
+fn louvain_refuses_a_weight_no_edge_has() {
+    let graph = louvain_weighted_graph(&[(1, 2, None)]);
+    let result = louvain::<ModularityUnDir, _>(&graph, 1.0, Some("weight"), None, Some(42));
+    assert!(matches!(result, Err(GraphError::PropertyMissingError(name)) if name == "weight"));
+}
+
+#[test]
+fn louvain_refuses_a_weight_that_is_not_numeric() {
+    let graph = louvain_weighted_graph(&[(1, 2, Some(Prop::from("heavy")))]);
+    let result = louvain::<ModularityUnDir, _>(&graph, 1.0, Some("weight"), None, Some(42));
+    assert!(matches!(result, Err(GraphError::InvalidProperty { .. })));
 }
 
 #[test]
@@ -270,12 +320,13 @@ fn lfr_test() {
 
     loader
         .load_into_graph(&graph, |e: CsvEdge, g| {
-            g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
+            g.add_edge(1, e.src, e.dst, NO_PROPS, None)?;
+            Ok(())
         })
         .unwrap();
 
     test_storage!(&graph, |graph| {
-        let _ = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42));
+        louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)).unwrap();
         // TODO: Add assertions
     });
 }
@@ -287,10 +338,10 @@ fn test_louvain_deterministic() {
 
     test_storage!(&graph, |graph| {
         let seed = Some(42);
-        let first = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, seed);
+        let first = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, seed).unwrap();
 
         for _ in 0..100 {
-            let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, seed);
+            let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, seed).unwrap();
             assert!(
                 result == first,
                 "louvain produced different clusters across runs with the same seed"

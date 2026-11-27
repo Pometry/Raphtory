@@ -172,8 +172,8 @@ fn main() {
             if debug {
                 debug!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
             }
-            g.add_edge(edge_time, src_id, dst_id, NO_PROPS, None)
-                .expect("Failed to add edge");
+            g.add_edge(edge_time, src_id, dst_id, NO_PROPS, None)?;
+            Ok(())
         })
         .expect("Failed to load graph from CSV data files");
     info!("Setup took {} seconds", now.elapsed().as_secs_f64());

@@ -134,10 +134,11 @@ impl Partition {
 }
 
 pub trait ModularityFunction {
-    /// Construct new modularity function from graph
+    /// Construct new modularity function from graph, reading edge weights from the property
+    /// with id `weight_id` (an edge without it, or a graph with no `weight_id`, has weight 1.0)
     fn new<'graph, G: GraphViewOps<'graph>>(
         graph: G,
-        weight_prop: Option<&str>,
+        weight_id: Option<usize>,
         resolution: f64,
         partition: Partition,
         tol: f64,
@@ -181,7 +182,7 @@ pub struct ModularityUnDir {
 impl ModularityFunction for ModularityUnDir {
     fn new<'graph, G: GraphViewOps<'graph>>(
         graph: G,
-        weight_prop: Option<&str>,
+        weight_id: Option<usize>,
         resolution: f64,
         partition: Partition,
         tol: f64,
@@ -197,8 +198,8 @@ impl ModularityFunction for ModularityUnDir {
                     .iter()
                     .filter(|e| e.dst() != e.src())
                     .map(|e| {
-                        let w = weight_prop
-                            .map(|w| e.properties().get(w).unwrap_f64())
+                        let w = weight_id
+                            .and_then(|id| e.properties().get_by_id(id).as_f64())
                             .unwrap_or(1.0);
                         let dst_id = local_id_map[&e.nbr().cloned()];
                         (dst_id, w)
@@ -214,8 +215,8 @@ impl ModularityFunction for ModularityUnDir {
                 graph
                     .edge(node.node, node.node)
                     .map(|e| {
-                        weight_prop
-                            .map(|w| e.properties().get(w).unwrap_f64())
+                        weight_id
+                            .and_then(|id| e.properties().get_by_id(id).as_f64())
                             .unwrap_or(1.0)
                     })
                     .filter(|w| w >= &tol)

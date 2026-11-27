@@ -32,8 +32,8 @@ pub use remote_client::RemoteClient;
 pub use transport::Transport;
 
 use crate::model::graph::property::{ObjectEntry, Value};
+use indexmap::IndexMap;
 use raphtory_api::core::entities::properties::prop::Prop;
-use std::collections::HashMap;
 
 /// Check if a server at the given URL is online (responds with 200).
 pub fn is_online(url: &str) -> bool {
@@ -53,7 +53,7 @@ pub fn is_online(url: &str) -> bool {
 /// that argument becomes the concrete map an `Op` holds.
 pub(crate) fn collect_props<PN: AsRef<str>, P: Into<Prop>>(
     props: impl IntoIterator<Item = (PN, P)>,
-) -> HashMap<String, Prop> {
+) -> IndexMap<String, Prop> {
     props
         .into_iter()
         .map(|(k, v)| (k.as_ref().to_string(), v.into()))
@@ -66,7 +66,7 @@ pub(crate) fn collect_props<PN: AsRef<str>, P: Into<Prop>>(
 /// local-style iterator.
 pub(crate) fn collect_opt_props<PN: AsRef<str>, P: Into<Prop>>(
     props: impl IntoIterator<Item = (PN, P)>,
-) -> Option<HashMap<String, Prop>> {
+) -> Option<IndexMap<String, Prop>> {
     let props = collect_props(props);
     (!props.is_empty()).then_some(props)
 }
@@ -78,7 +78,7 @@ pub(crate) fn collect_opt_props<PN: AsRef<str>, P: Into<Prop>>(
 /// erroring or turning into a silent `null`. Shared by the write appliers (as
 /// a query variable) and the batch `NodeAddition`/`EdgeAddition` serializers.
 pub(crate) fn properties_to_input(
-    properties: &HashMap<String, Prop>,
+    properties: &IndexMap<String, Prop>,
 ) -> Result<Vec<ObjectEntry>, ClientError> {
     properties
         .iter()

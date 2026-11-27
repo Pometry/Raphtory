@@ -8,12 +8,13 @@ use crate::{
     client::properties_to_input,
     model::graph::{filter_expr_input::GqlFilter, GqlGraphType},
 };
+use indexmap::IndexMap;
 use raphtory_api::core::entities::{properties::prop::Prop, GID};
 // Re-exported so the client transport wrappers import the op tree's time type
 // from one place (`op::InputTime`), same as `ReadExpr`/`WriteOp`.
 pub use raphtory_api::core::utils::time::InputTime;
 use serde::{ser::SerializeStruct, Serialize, Serializer};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 // View-op and write times are `InputTime` (`Simple(t)` / `Indexed(t, id)`)
 // directly — the Python bindings extract that shape, preserving whether an
@@ -1140,7 +1141,7 @@ pub struct AddNode {
     pub path: String,
     pub time: InputTime,
     pub id: GID,
-    pub properties: Option<HashMap<String, Prop>>,
+    pub properties: Option<IndexMap<String, Prop>>,
     pub node_type: Option<String>,
     pub layer: Option<String>,
 }
@@ -1152,7 +1153,7 @@ pub struct CreateNode {
     pub path: String,
     pub time: InputTime,
     pub id: GID,
-    pub properties: Option<HashMap<String, Prop>>,
+    pub properties: Option<IndexMap<String, Prop>>,
     pub node_type: Option<String>,
     pub layer: Option<String>,
 }
@@ -1163,7 +1164,7 @@ pub struct AddEdge {
     pub time: InputTime,
     pub src: GID,
     pub dst: GID,
-    pub properties: Option<HashMap<String, Prop>>,
+    pub properties: Option<IndexMap<String, Prop>>,
     pub layer: Option<String>,
 }
 
@@ -1174,21 +1175,21 @@ pub struct AddEdge {
 pub struct AddGraphProperty {
     pub path: String,
     pub time: InputTime,
-    pub properties: HashMap<String, Prop>,
+    pub properties: IndexMap<String, Prop>,
 }
 
 /// Arguments for `RemoteGraph::add_metadata` — adds (non-temporal) metadata on
 /// the graph itself.
 pub struct AddGraphMetadata {
     pub path: String,
-    pub properties: HashMap<String, Prop>,
+    pub properties: IndexMap<String, Prop>,
 }
 
 /// Arguments for `RemoteGraph::update_metadata` — overwrites existing metadata
 /// on the graph.
 pub struct UpdateGraphMetadata {
     pub path: String,
-    pub properties: HashMap<String, Prop>,
+    pub properties: IndexMap<String, Prop>,
 }
 
 /// Arguments for `RemoteGraph::delete_edge`. Marks the edge as deleted at the
@@ -1215,7 +1216,7 @@ pub struct AddNodeUpdates {
     pub path: String,
     pub id: GID,
     pub time: InputTime,
-    pub properties: Option<HashMap<String, Prop>>,
+    pub properties: Option<IndexMap<String, Prop>>,
     /// Layer the update belongs to; the server uses the default layer when omitted.
     pub layer: Option<String>,
 }
@@ -1225,7 +1226,7 @@ pub struct AddNodeUpdates {
 pub struct AddNodeMetadata {
     pub path: String,
     pub id: GID,
-    pub properties: HashMap<String, Prop>,
+    pub properties: IndexMap<String, Prop>,
 }
 
 /// Arguments for `RemoteNode::update_metadata` — overwrites existing metadata
@@ -1233,7 +1234,7 @@ pub struct AddNodeMetadata {
 pub struct UpdateNodeMetadata {
     pub path: String,
     pub id: GID,
-    pub properties: HashMap<String, Prop>,
+    pub properties: IndexMap<String, Prop>,
 }
 
 /// Arguments for `RemoteEdge::add_updates` — adds temporal updates to an
@@ -1243,7 +1244,7 @@ pub struct AddEdgeUpdates {
     pub src: GID,
     pub dst: GID,
     pub time: InputTime,
-    pub properties: Option<HashMap<String, Prop>>,
+    pub properties: Option<IndexMap<String, Prop>>,
     pub layer: Option<String>,
 }
 
@@ -1264,7 +1265,7 @@ pub struct AddEdgeMetadata {
     pub path: String,
     pub src: GID,
     pub dst: GID,
-    pub properties: HashMap<String, Prop>,
+    pub properties: IndexMap<String, Prop>,
     pub layer: Option<String>,
 }
 
@@ -1274,7 +1275,7 @@ pub struct UpdateEdgeMetadata {
     pub path: String,
     pub src: GID,
     pub dst: GID,
-    pub properties: HashMap<String, Prop>,
+    pub properties: IndexMap<String, Prop>,
     pub layer: Option<String>,
 }
 
@@ -1297,7 +1298,7 @@ pub struct AddEdges {
 pub struct NodeAddition {
     pub name: GID,
     pub node_type: Option<String>,
-    pub metadata: Option<HashMap<String, Prop>>,
+    pub metadata: Option<IndexMap<String, Prop>>,
     pub updates: Option<Vec<TemporalUpdate>>,
 }
 
@@ -1306,7 +1307,7 @@ pub struct EdgeAddition {
     pub src: GID,
     pub dst: GID,
     pub layer: Option<String>,
-    pub metadata: Option<HashMap<String, Prop>>,
+    pub metadata: Option<IndexMap<String, Prop>>,
     pub updates: Option<Vec<TemporalUpdate>>,
 }
 
@@ -1314,7 +1315,7 @@ pub struct EdgeAddition {
 /// specific event time.
 pub struct TemporalUpdate {
     pub time: i64,
-    pub properties: Option<HashMap<String, Prop>>,
+    pub properties: Option<IndexMap<String, Prop>>,
 }
 
 // ============ Serialize impls for batch mutation types ============

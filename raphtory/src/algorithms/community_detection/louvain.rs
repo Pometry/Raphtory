@@ -2,6 +2,7 @@ use crate::{
     algorithms::community_detection::modularity::{ModularityFunction, Partition},
     core::entities::VID,
     db::api::state::{GenericNodeState, TypedNodeState},
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 use rand::{make_rng, prelude::SliceRandom, rngs::StdRng, SeedableRng};
@@ -18,20 +19,40 @@ pub struct LouvainState {
 ///
 /// - `g` (GraphView): the graph view
 /// - `resolution` (float): the resolution parameter for modularity
-/// - `weight_prop` (str | None): the edge property to use for weights (has to be float)
+/// - `weight_prop` (str | None): the numeric edge property to use for weights; an edge without it has weight 1.0
 /// - `tol` (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
 /// - `rng_seed` (None | u64): seed for the rng used to shuffle nodes; if `None`, the rng is seeded from the OS (default: None)
 ///
 /// # Returns
 ///
 ///  An [AlgorithmResult] containing a mapping of vertices to cluster ID.
+///
+/// # Errors
+///
+/// [GraphError::PropertyMissingError] if no edge in the view has `weight_prop`, and
+/// [GraphError::InvalidProperty] if it is not numeric.
 pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     g: &G,
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
     rng_seed: Option<u64>,
-) -> TypedNodeState<'graph, LouvainState, G> {
+) -> Result<TypedNodeState<'graph, LouvainState, G>, GraphError> {
+    // Resolved through the view so a property the view hides reads as missing.
+    let weight_id = weight_prop
+        .map(|name| {
+            let (id, dtype) = g
+                .edge_visible_temporal_prop_id_and_type(name)
+                .ok_or_else(|| GraphError::PropertyMissingError(name.to_string()))?;
+            if dtype.is_numeric() {
+                Ok(id)
+            } else {
+                Err(GraphError::InvalidProperty {
+                    reason: format!("Edge property {name} is not numeric"),
+                })
+            }
+        })
+        .transpose()?;
     let tol = tol.unwrap_or(1e-8);
     let mut rng = match rng_seed {
         Some(seed) => StdRng::seed_from_u64(seed),
@@ -39,7 +60,7 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     };
     let mut modularity_state = M::new(
         g,
-        weight_prop,
+        weight_id,
         resolution,
         Partition::new_singletons(g.count_nodes()),
         tol,
@@ -80,12 +101,12 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
             *c = partition.com(&VID(*c)).index();
         }
     }
-    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(
+    Ok(TypedNodeState::new(GenericNodeState::new_from_eval_mapped(
         g.clone(),
         global_partition,
         |value| LouvainState {
             community_id: value,
         },
         None,
-    ))
+    )))
 }

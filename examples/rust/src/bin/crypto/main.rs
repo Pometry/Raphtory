@@ -20,7 +20,7 @@ fn main() {
         Some(args.get(1).unwrap().to_string())
     };
 
-    let g = stable_coin_graph(data_dir, true);
+    let g = stable_coin_graph(data_dir, true).expect("Failed to load the stablecoin graph");
 
     assert_eq!(g.count_nodes(), 1523333);
     assert_eq!(g.count_edges(), 2814155);

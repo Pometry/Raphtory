@@ -9,6 +9,7 @@ use crate::{
         remote_path_from_node::PyRemotePathFromNode,
     },
 };
+use indexmap::IndexMap;
 use pyo3::{pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
@@ -18,7 +19,7 @@ use raphtory_api::{
     },
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Clone)]
 #[pyclass(name = "RemoteNode", module = "raphtory.graphql", from_py_object)]
@@ -98,7 +99,7 @@ impl PyRemoteNode {
     pub fn add_updates(
         &self,
         t: EventTimeComponent,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<IndexMap<String, Prop>>,
         event_id: Option<usize>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
@@ -126,7 +127,7 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn add_metadata(&self, metadata: IndexMap<String, Prop>) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
         let task = move || async move { node.add_metadata(metadata).await };
@@ -143,7 +144,7 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn update_metadata(&self, metadata: IndexMap<String, Prop>) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
         let task = move || async move { node.update_metadata(metadata).await };
