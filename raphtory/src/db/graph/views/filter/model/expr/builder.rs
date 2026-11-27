@@ -276,60 +276,79 @@ impl PropertyExprFactory<NodeLeaf> for NodeFilter {}
 impl PropertyExprFactory<EdgeLeaf> for EdgeFilter {}
 impl PropertyExprFactory<ExplodedEdgeLeaf> for ExplodedEdgeFilter {}
 
-/// The terms only a node offers. Implemented for `NodeFilter` and its chain.
-pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> {
-    fn id(self) -> Expr<NodeLeaf> {
+/// The terms only a node offers. Implemented for `NodeFilter` and its chain,
+/// which build a node filter, and for an edge's endpoint, which reads the same
+/// terms on the node at that end and builds an edge filter.
+pub trait NodeFilterFactory: Sized {
+    type Output;
+
+    /// The filter a node term built inside this factory's views makes.
+    fn node_term(self, term: impl FnOnce(Vec<ViewOp>) -> NodeLeaf) -> Self::Output;
+
+    fn id(self) -> Self::Output {
         self.field(Field::Id)
     }
 
-    fn name(self) -> Expr<NodeLeaf> {
+    fn name(self) -> Self::Output {
         self.field(Field::Name)
     }
 
-    fn node_type(self) -> Expr<NodeLeaf> {
+    fn node_type(self) -> Self::Output {
         self.field(Field::NodeType)
     }
 
-    fn field(self, field: Field) -> Expr<NodeLeaf> {
-        Expr::Term(NodeLeaf::Field {
-            views: self.into().views,
-            field,
-        })
+    fn field(self, field: Field) -> Self::Output {
+        self.node_term(|views| NodeLeaf::Field { views, field })
     }
 
-    fn degree(self) -> Expr<NodeLeaf> {
+    fn degree(self) -> Self::Output {
         self.degree_in(Direction::BOTH)
     }
 
-    fn in_degree(self) -> Expr<NodeLeaf> {
+    fn in_degree(self) -> Self::Output {
         self.degree_in(Direction::IN)
     }
 
-    fn out_degree(self) -> Expr<NodeLeaf> {
+    fn out_degree(self) -> Self::Output {
         self.degree_in(Direction::OUT)
     }
 
-    fn degree_in(self, direction: Direction) -> Expr<NodeLeaf> {
-        Expr::Term(NodeLeaf::Degree {
-            views: self.into().views,
-            direction,
-        })
+    fn degree_in(self, direction: Direction) -> Self::Output {
+        self.node_term(|views| NodeLeaf::Degree { views, direction })
     }
 
     /// Whether the node has an event inside the views.
     #[allow(clippy::wrong_self_convention)]
-    fn is_active(self) -> Expr<NodeLeaf> {
-        Expr::Term(NodeLeaf::is_active(self.into().views))
+    fn is_active(self) -> Self::Output {
+        self.node_term(NodeLeaf::is_active)
     }
 
     /// Matches nodes that exist in the views written before it.
-    fn exists(self) -> Expr<NodeLeaf> {
-        Expr::Term(NodeLeaf::exists(self.into().views))
+    fn exists(self) -> Self::Output {
+        self.node_term(NodeLeaf::exists)
     }
+}
 
+impl NodeFilterFactory for NodeFilter {
+    type Output = Expr<NodeLeaf>;
+
+    fn node_term(self, term: impl FnOnce(Vec<ViewOp>) -> NodeLeaf) -> Expr<NodeLeaf> {
+        Chain::from(self).node_term(term)
+    }
+}
+
+impl NodeFilterFactory for Chain<NodeLeaf> {
+    type Output = Expr<NodeLeaf>;
+
+    fn node_term(self, term: impl FnOnce(Vec<ViewOp>) -> NodeLeaf) -> Expr<NodeLeaf> {
+        Expr::Term(term(self.views))
+    }
+}
+
+impl NodeFilter {
     /// The nodes a boolean column of a node state marks. Built from
     /// in-process state, so it has no wire form and travels opaque.
-    fn by_column<'graph, V, G, T>(
+    pub fn by_column<'graph, V, G, T>(
         state: &TypedNodeState<'graph, V, G, T>,
         col: &str,
     ) -> Result<FilterExpr, GraphError>
@@ -341,9 +360,6 @@ pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> {
         Ok(OpaqueFilter::new(op, false).into_filter())
     }
 }
-
-impl NodeFilterFactory for NodeFilter {}
-impl NodeFilterFactory for Chain<NodeLeaf> {}
 
 /// The unit tests an edge offers, beyond `is_active` and `exists`. Implemented by the two
 /// edge leaf types.
@@ -469,24 +485,6 @@ impl EdgeEndpoint {
         self.endpoint
     }
 
-    /// A node term built inside the views, evaluated on the node at this end
-    /// of the edge.
-    fn through(self, term: impl FnOnce(Chain<NodeLeaf>) -> Expr<NodeLeaf>) -> Expr<EdgeLeaf> {
-        Expr::Term(self.endpoint.edge_leaf(term(Chain::new(self.views))))
-    }
-
-    pub fn id(self) -> Expr<EdgeLeaf> {
-        self.through(NodeFilterFactory::id)
-    }
-
-    pub fn name(self) -> Expr<EdgeLeaf> {
-        self.through(NodeFilterFactory::name)
-    }
-
-    pub fn node_type(self) -> Expr<EdgeLeaf> {
-        self.through(NodeFilterFactory::node_type)
-    }
-
     pub fn property(self, name: impl Into<String>) -> PropertyTerm<EdgeLeaf> {
         PropertyTerm {
             views: self.views,
@@ -499,7 +497,20 @@ impl EdgeEndpoint {
     }
 
     pub fn metadata(self, name: impl Into<String>) -> Expr<EdgeLeaf> {
-        self.through(|node| node.metadata(name))
+        Expr::Term(
+            self.endpoint
+                .edge_leaf(Chain::new(self.views).metadata(name)),
+        )
+    }
+}
+
+/// Node terms read on the node at this end of the edge, inside the views of
+/// the edge chain it was taken from.
+impl NodeFilterFactory for EdgeEndpoint {
+    type Output = Expr<EdgeLeaf>;
+
+    fn node_term(self, term: impl FnOnce(Vec<ViewOp>) -> NodeLeaf) -> Expr<EdgeLeaf> {
+        Expr::Term(self.endpoint.edge_leaf(Expr::Term(term(self.views))))
     }
 }
 

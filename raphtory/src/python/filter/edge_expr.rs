@@ -2,6 +2,7 @@ use crate::{
     db::graph::views::filter::model::{
         edge_filter::{EdgeFilter, Endpoint},
         expr::{Chain, EdgeEndpoint, EdgeLeaf},
+        node_filter::NodeFilterFactory,
         EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
     },
     python::{
@@ -17,14 +18,15 @@ use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 
 /// Entry point for filtering an edge endpoint (source or destination).
 ///
-/// An `EdgeEndpoint` is obtained from `Edge.src()` or `Edge.dst()` and allows
-/// you to filter on endpoint fields (id, name, type) as well as endpoint
-/// properties and metadata.
+/// An `EdgeEndpoint` is obtained from `Edge.src()` or `Edge.dst()` and offers
+/// the node terms of `Node`, read on the node at that end of the edge: fields
+/// (id, name, type), degrees, activity, existence, properties and metadata.
 ///
 /// Examples:
 ///     Edge.src().id() == 1
 ///     Edge.dst().name().starts_with("user:")
 ///     Edge.src().property("country") == "UK"
+///     Edge.src().degree() > 1
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 pub struct PyEdgeEndpoint(EdgeEndpoint);
 
@@ -60,6 +62,46 @@ impl PyEdgeEndpoint {
     ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
         PyExpr(self.0.clone().node_type().into())
+    }
+
+    /// Selects the endpoint node's total degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn degree(&self) -> PyExpr {
+        PyExpr(self.0.clone().degree().into())
+    }
+
+    /// Selects the endpoint node's incoming degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn in_degree(&self) -> PyExpr {
+        PyExpr(self.0.clone().in_degree().into())
+    }
+
+    /// Selects the endpoint node's outgoing degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn out_degree(&self) -> PyExpr {
+        PyExpr(self.0.clone().out_degree().into())
+    }
+
+    /// Matches edges whose endpoint node has at least one event in the current view.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn is_active(&self) -> PyExpr {
+        PyExpr(self.0.clone().is_active().into())
+    }
+
+    /// Matches edges whose endpoint node exists in the views written before it.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn exists(&self) -> PyExpr {
+        PyExpr(self.0.clone().exists().into())
     }
 
     /// Filters an endpoint node property by name.

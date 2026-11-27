@@ -2,7 +2,7 @@ use raphtory::{
     db::{
         api::view::{
             filter_ops::{Filter, Select},
-            StaticGraphViewOps,
+            DynamicGraph, IntoDynamic, StaticGraphViewOps,
         },
         graph::{
             edges::{EdgeItem, Edges},
@@ -11,6 +11,7 @@ use raphtory::{
                 filter::model::{
                     edge_filter::EdgeFilter,
                     exploded_edge_filter::ExplodedEdgeFilter,
+                    expr::{EdgeLeaf, Expr, NodeLeaf},
                     graph_filter::GraphFilter,
                     node_filter::{NodeFilter, NodeFilterFactory},
                     EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
@@ -306,4 +307,80 @@ fn exploded_is_valid_in_a_window_is_judged_per_exploded_edge() {
     assert_eq!(exploded(&filtered.edges()), ab7);
     let selected = g.edges().explode().select(filter).unwrap();
     assert_eq!(exploded(&selected), ab7);
+}
+
+/// Every node term reads the same on an edge's endpoint as on the node: an
+/// edge passes `src().term` when its source passes `term`, and `dst()` when
+/// its destination does, inside the same views, on both graph kinds.
+#[test]
+fn an_endpoint_takes_every_node_term() {
+    let cases: Vec<(&str, Expr<NodeLeaf>, Expr<EdgeLeaf>, Expr<EdgeLeaf>)> = vec![
+        (
+            "degree",
+            NodeFilter.degree().gt(1usize),
+            EdgeFilter::src().degree().gt(1usize),
+            EdgeFilter::dst().degree().gt(1usize),
+        ),
+        (
+            "in_degree",
+            NodeFilter.in_degree().ge(1usize),
+            EdgeFilter::src().in_degree().ge(1usize),
+            EdgeFilter::dst().in_degree().ge(1usize),
+        ),
+        (
+            "out_degree",
+            NodeFilter.out_degree().ge(1usize),
+            EdgeFilter::src().out_degree().ge(1usize),
+            EdgeFilter::dst().out_degree().ge(1usize),
+        ),
+        (
+            "is_active",
+            NodeFilter.window(5, 10).is_active(),
+            EdgeFilter.window(5, 10).src().is_active(),
+            EdgeFilter.window(5, 10).dst().is_active(),
+        ),
+        (
+            "exists",
+            NodeFilter.window(0, 2).exists(),
+            EdgeFilter.window(0, 2).src().exists(),
+            EdgeFilter.window(0, 2).dst().exists(),
+        ),
+    ];
+    for (kind, g) in [
+        ("event", graph().into_dynamic()),
+        ("persistent", graph().persistent_graph().into_dynamic()),
+    ] {
+        for (term, node, src, dst) in &cases {
+            let passing: Vec<String> = g.nodes().select(node.clone()).unwrap().name().collect();
+            let ends = |selected: Edges<'_, DynamicGraph>| -> Vec<(String, String)> {
+                let mut ends: Vec<_> = selected
+                    .iter()
+                    .map(|e| (e.src().name(), e.dst().name()))
+                    .collect();
+                ends.sort();
+                ends
+            };
+            let every = ends(g.edges());
+            let by_src: Vec<_> = every
+                .iter()
+                .filter(|(s, _)| passing.contains(s))
+                .cloned()
+                .collect();
+            let by_dst: Vec<_> = every
+                .iter()
+                .filter(|(_, d)| passing.contains(d))
+                .cloned()
+                .collect();
+            assert_eq!(
+                ends(g.edges().select(src.clone()).unwrap()),
+                by_src,
+                "{kind} src {term}"
+            );
+            assert_eq!(
+                ends(g.edges().select(dst.clone()).unwrap()),
+                by_dst,
+                "{kind} dst {term}"
+            );
+        }
+    }
 }
