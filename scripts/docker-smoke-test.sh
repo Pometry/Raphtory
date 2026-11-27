@@ -10,9 +10,11 @@
 #   5. a basic GraphQL query executes.
 #
 # Usage:
-#   docker-smoke-test.sh <image-ref>
+#   docker-smoke-test.sh <image-ref> [container-args...]
 #
-#   <image-ref>  e.g. "pometry/raphtory:0.18.0" or "pometry/raphtory@sha256:…"
+#   <image-ref>       e.g. "pometry/raphtory:0.18.0" or "pometry/raphtory@sha256:…"
+#   [container-args]  passed to the container, e.g. "server" for the Rust image
+#                     (the Python image's entrypoint already includes it)
 #
 # Environment:
 #   HOST_PORT  Host port to bind (default 1736).
@@ -20,7 +22,8 @@
 
 set -euo pipefail
 
-IMAGE_REF="${1:?usage: $0 <image-ref>}"
+IMAGE_REF="${1:?usage: $0 <image-ref> [container-args...]}"
+shift
 HOST_PORT="${HOST_PORT:-1736}"
 TIMEOUT="${TIMEOUT:-60}"
 CONTAINER_NAME="raphtory-smoke-$$"
@@ -41,7 +44,7 @@ log "starting container (host port $HOST_PORT)"
 docker run -d \
   --name "$CONTAINER_NAME" \
   -p "127.0.0.1:${HOST_PORT}:1736" \
-  "$IMAGE_REF" server
+  "$IMAGE_REF" "$@"
 
 healthy=0
 for _ in $(seq 1 "$TIMEOUT"); do

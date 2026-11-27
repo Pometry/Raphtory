@@ -102,7 +102,8 @@ jobs:
       - name: Smoke test the built image
         if: matrix.platform == 'linux/amd64'
         run: |
-          scripts/docker-smoke-test.sh "${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }}"
+          # the Python image's entrypoint already includes the `server` subcommand
+          scripts/docker-smoke-test.sh "${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }}" ${{ inputs.python == '' && 'server' || '' }}
 
       - name: Export digest
         run: |
