@@ -56,10 +56,23 @@ mod clustering_coefficient_tests {
             api::{mutation::AdditionOps, view::*},
             graph::graph::Graph,
         },
+        errors::GraphError,
         prelude::NO_PROPS,
     };
+    use raphtory_api::core::entities::GID;
     use raphtory_tests::test_storage;
     use std::collections::HashMap;
+
+    #[test]
+    fn lcc_batch_refuses_a_node_outside_the_view() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        g.add_edge(5, "c", "d", NO_PROPS, None).unwrap();
+
+        let result = local_clustering_coefficient_batch(&g.window(0, 2), vec!["a", "c"]);
+
+        assert!(matches!(result, Err(GraphError::NodeMissingError(gid)) if gid == GID::from("c")));
+    }
 
     fn lcc_by_name<G: StaticGraphViewOps>(
         state: &raphtory::db::api::state::TypedNodeState<'static, LCCState, G>,
@@ -85,8 +98,9 @@ mod clustering_coefficient_tests {
         g.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
         g.add_edge(3, "c", "a", NO_PROPS, None).unwrap();
 
-        let implicit = local_clustering_coefficient_batch(&g, Vec::<&str>::new());
-        let explicit = local_clustering_coefficient_batch(&g, vec!["a", "b", "c", "isolated"]);
+        let implicit = local_clustering_coefficient_batch(&g, Vec::<&str>::new()).unwrap();
+        let explicit =
+            local_clustering_coefficient_batch(&g, vec!["a", "b", "c", "isolated"]).unwrap();
         assert_eq!(lcc_by_name(&implicit), lcc_by_name(&explicit));
         assert_eq!(
             lcc_by_name(&implicit),
@@ -108,13 +122,11 @@ mod clustering_coefficient_tests {
         g.add_edge(4, "x", "y", NO_PROPS, None).unwrap();
 
         let view = g.subgraph(["a", "b", "c"]);
-        let names: Vec<String> = lcc_by_name(&local_clustering_coefficient_batch(
-            &view,
-            Vec::<&str>::new(),
-        ))
-        .into_iter()
-        .map(|(name, _)| name)
-        .collect();
+        let names: Vec<String> =
+            lcc_by_name(&local_clustering_coefficient_batch(&view, Vec::<&str>::new()).unwrap())
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect();
         assert_eq!(names, vec!["a", "b", "c"]);
     }
 
@@ -169,6 +181,7 @@ mod clustering_coefficient_tests {
                 (1..=5).map(|v| (v.to_string(), expected[v - 1])).collect();
             let windowed_graph = graph.window(0, 7);
             let actual = local_clustering_coefficient_batch(&windowed_graph, (1..=5).collect())
+                .unwrap()
                 .to_hashmap(|value| value.lcc);
             assert_eq!(expected, actual);
         });
@@ -252,6 +265,26 @@ mod sum_weight_test {
             ]);
             assert_eq!(res, expected);
         });
+    }
+
+    #[test]
+    fn errors_name_the_weight_property() {
+        let graph = Graph::new();
+        graph
+            .add_edge(1, "1", "2", [("label", Prop::str("heavy"))], None)
+            .unwrap();
+
+        let not_numeric = balance(&graph, "label".to_string(), Direction::BOTH)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(not_numeric.contains("Edge property 'label' is not numeric"));
+
+        let missing = balance(&graph, "weight".to_string(), Direction::BOTH)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(missing.contains("Edge property 'weight' does not exist"));
     }
 }
 

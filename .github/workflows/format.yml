@@ -54,10 +54,6 @@ jobs:
       - name: Validate graphQL schema
         run: |
           npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql || true
-      - name: Update docs from graphQL schema
-        run: |
-          python docs/scripts/gen_docs_graphql_pages.py
-
       - name: Run python linter
         run: |
           cd python && black .

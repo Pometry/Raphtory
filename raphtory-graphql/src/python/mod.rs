@@ -9,7 +9,7 @@ use crate::{
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
-    types::{PyDict, PyList, PyNone},
+    types::{PyDict, PyInt, PyList, PyNone},
     IntoPyObjectExt,
 };
 use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
@@ -28,8 +28,11 @@ pub(crate) fn translate_from_python(value: Bound<PyAny>) -> PyResult<JsonValue> 
     // first would turn a bool into 1/0 and it would reach the server as a number.
     if let Ok(value) = value.extract::<bool>() {
         Ok(JsonValue::Bool(value))
-    } else if let Ok(value) = value.extract::<i64>() {
-        Ok(JsonValue::Number(value.into()))
+    } else if value.is_instance_of::<PyInt>() {
+        match value.extract::<i64>() {
+            Ok(value) => Ok(JsonValue::Number(value.into())),
+            Err(_) => Ok(JsonValue::Number(value.extract::<u64>()?.into())),
+        }
     } else if let Ok(value) = value.extract::<f64>() {
         Ok(JsonValue::Number(Number::from_f64(value).unwrap()))
     } else if let Ok(value) = value.extract::<String>() {
@@ -67,10 +70,12 @@ pub(crate) fn translate_map_to_python(
 pub(crate) fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<Bound<PyAny>> {
     match value {
         JsonValue::Number(num) => {
-            if num.is_i64() {
-                num.as_i64().unwrap().into_bound_py_any(py)
-            } else if num.is_f64() {
-                num.as_f64().unwrap().into_bound_py_any(py)
+            if let Some(value) = num.as_i64() {
+                value.into_bound_py_any(py)
+            } else if let Some(value) = num.as_u64() {
+                value.into_bound_py_any(py)
+            } else if let Some(value) = num.as_f64() {
+                value.into_bound_py_any(py)
             } else {
                 Err(PyErr::new::<PyTypeError, _>("Unsupported number type"))
             }

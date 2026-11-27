@@ -87,4 +87,4 @@ name = "prop_access"
 harness = false
 
 [features]
-vectors = ["dep:raphtory-vectors"]
+vectors = ["dep:raphtory-vectors", "raphtory-vectors/vectors"]

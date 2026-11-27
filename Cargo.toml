@@ -88,10 +88,10 @@ boxcar = "0.2.14"
 iter-enum = { version = "1.2.1", features = ["rayon"] }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "1.0.149", features = ["float_roundtrip", "preserve_order"] }
-pyo3 = { version = "0.29.0", features = ["multiple-pymethods", "chrono"] }
-pyo3-build-config = "0.29.0"
-pyo3-arrow = { package = "raphtory-pyo3-arrow", version = "0.19.0" }
-numpy = "0.29.0"
+pyo3 = { version = "0.30.1", features = ["multiple-pymethods", "chrono"] }
+pyo3-build-config = "0.30.1"
+pyo3-arrow = { version = "0.20.0" }
+numpy = "0.30.0"
 itertools = "0.15.0"
 rand = "0.10.3"
 quick_cache = "0.7.0"
@@ -162,6 +162,7 @@ clap = { version = "4.6.0", features = ["derive", "env"] }
 memmap2 = { version = "0.9.11" }
 ahash = { version = "0.8.12", features = ["serde"] }
 bytemuck = { version = "1.25.0", features = ["derive"] }
+bytes = { version = "1.11.1" }
 ouroboros = "0.18.5"
 url = "2.5"
 lazy_static = "1.5.0"
@@ -173,23 +174,23 @@ lancedb = { version = "0.33.0", features = [] }
 heed = "0.23.1"
 sqlparser = "0.62.0"
 futures = "0.3"
-arrow = { version = "58.4.0" }
-parquet = { version = "58.4.0" }
-arrow-json = { version = "58.4.0" }
-arrow-buffer = { version = "58.4.0" }
-arrow-schema = { version = "58.4.0" }
-arrow-csv = { version = "58.4.0" }
-arrow-array = { version = "58.4.0", features = ["chrono-tz"] }
-arrow-cast = { version = "58.4.0" }
-arrow-ipc = { version = "58.4.0" }
-arrow-data = { version = "58.4.0" }
-arrow-select = { version = "58.4.0" }
-serde_arrow = { version = "0.14.2", features = ["arrow-58"] }
-datafusion = { version = "54.1.0" }
-datafusion-physical-expr-common = "54.1.0"
-datafusion-physical-expr = "54.1.0"
-datafusion-physical-plan = "54.1.0"
-datafusion-expr-common = "54.1.0"
+arrow = { version = "59.3.2" }
+parquet = { version = "59.3.2" }
+arrow-json = { version = "59.3.2" }
+arrow-buffer = { version = "59.3.2" }
+arrow-schema = { version = "59.3.2" }
+arrow-csv = { version = "59.3.2" }
+arrow-array = { version = "59.3.2", features = ["chrono-tz"] }
+arrow-cast = { version = "59.3.2" }
+arrow-ipc = { version = "59.3.2" }
+arrow-data = { version = "59.3.2" }
+arrow-select = { version = "59.3.2" }
+serde_arrow = { version = "0.15.1", features = ["arrow-59"] }
+datafusion = { version = "55.2.0" }
+datafusion-physical-expr-common = "55.2.0"
+datafusion-physical-expr = "55.2.0"
+datafusion-physical-plan = "55.2.0"
+datafusion-expr-common = "55.2.0"
 moka = { version = "0.12.15", features = ["future"] }
 indexmap = { version = "2.13.0", features = ["rayon"] }
 fake = { version = "5.1.0", features = ["chrono"] }
@@ -199,7 +200,7 @@ bitvec = "1.0.1"
 sysinfo = "0.40.1"
 strum = "0.28.0"
 strum_macros = "0.28.0"
-pythonize = { version = "0.29.0" }
+pythonize = { version = "0.30.0" }
 test-log = "0.2.19"
 axum = "0.8.9"
 serde-diff = "0.4.1"

@@ -34,6 +34,8 @@ pub struct AppConfig {
     pub schema: SchemaConfig,
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
+    /// The path prefix the server is reached under behind a reverse proxy, e.g. `/proxy/1736`.
+    pub base_path: Option<String>,
     // extensions are top-level and not prefixed with extensions, skip it
     #[serde(flatten)]
     #[field_name(skip)]
@@ -133,6 +135,9 @@ impl AppConfigBuilder {
         }
         if let Some(public_dir) = server_args.public_dir.clone() {
             builder.with_public_dir(Some(public_dir));
+        }
+        if let Some(base_path) = server_args.base_path.clone() {
+            builder.with_base_path(Some(base_path));
         }
         if let Some(require_auth_for_reads) = server_args.require_auth_for_reads {
             builder.with_require_auth_for_reads(require_auth_for_reads);
@@ -582,6 +587,11 @@ impl AppConfigBuilder {
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
                     );
                 }
+                AppConfigFieldName::BasePath => {
+                    self.with_base_path(
+                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
+                    );
+                }
             }
         }
 
@@ -858,6 +868,11 @@ impl AppConfigBuilder {
 
     pub fn with_public_dir(&mut self, public_dir: Option<PathBuf>) -> &mut Self {
         self.config.public_dir = public_dir;
+        self
+    }
+
+    pub fn with_base_path(&mut self, base_path: Option<String>) -> &mut Self {
+        self.config.base_path = base_path;
         self
     }
 

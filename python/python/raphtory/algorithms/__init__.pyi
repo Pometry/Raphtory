@@ -344,6 +344,9 @@ def single_source_shortest_path(
     Returns:
         NodeStateNodes: Mapping from end node to shortest path from the source node.
 
+    Raises:
+        Exception: If `source` is not in `graph`.
+
     """
 
 def global_clustering_coefficient(graph: GraphView) -> float:
@@ -393,12 +396,12 @@ def temporal_bipartite_graph_projection(
 ) -> Graph:
     """
     Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type.
-    Let `G` be a graph with some nodes of type `A`. Given `delta > 0`, the projection graph `G'` pivoting over type `A` nodes,
-    will make a connection between nodes `n1` and `n2` (not of type `A`) at time `(t1 + t2)/2`
-    if they respectively have an edge at time `t1`, `t2` with the same node of type `A` in `G`, and `|t2-t1| < delta`.
+    Let `G` be a graph with some nodes of type `A`. Given `delta >= 0`, the projection graph `G'` pivoting over type `A` nodes,
+    will make a connection between distinct nodes `n1` and `n2` (not of type `A`) at time `(t1 + t2)/2`
+    if they respectively have an edge at time `t1`, `t2` with the same node of type `A` in `G`, and `|t2-t1| <= delta`.
     Note that the projection does not contain any existing edges between pairs of nodes that are not of type `A`.
 
-    Raises an error if the pivot type is not a valid node type. However, it is possible for the pivot
+    Raises an error if `delta` is negative or the pivot type is not a valid node type. However, it is possible for the pivot
     set to be empty without an error if all nodes of the pivot type have been filtered out via view filtering.
 
     Arguments:
@@ -439,6 +442,9 @@ def local_clustering_coefficient_batch(
 
     Returns:
         OutputNodeState: Mapping of vertices to lcc score
+
+    Raises:
+        Exception: If a node of `v` is not in `graph`.
     """
 
 def weakly_connected_components(graph: GraphView) -> OutputNodeState:

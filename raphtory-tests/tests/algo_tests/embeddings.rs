@@ -206,6 +206,21 @@ mod fast_rp_test {
         });
     }
 
+    #[test]
+    fn isolated_node_gets_a_finite_vector() {
+        let graph = Graph::new();
+        graph.add_edge(0, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_node(0, "z", NO_PROPS, None, None).unwrap();
+        let embed = |strength| {
+            fast_rp(&graph, 8, strength, vec![1.0], Some(42), None)
+                .unwrap()
+                .to_hashmap(|value| value.embedding_state)
+        };
+        let weak = embed(0.5);
+        assert!(weak.values().flatten().all(|x| x.is_finite()));
+        assert_eq!(weak["z"], embed(1.0)["z"]);
+    }
+
     // NOTE(Wyatt): the simple fast_rp test is more of a validation of idempotency than correctness (although the results are expected)
     // This test-- in progress-- is going to validate that the algorithm preserves the pairwise topological distances
     /*

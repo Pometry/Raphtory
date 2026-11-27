@@ -82,6 +82,9 @@ use {
 ///                                parquet loading is restricted to
 ///                              * `public_dir` (str | PathLike): directory served as static
 ///                                files
+///                              * `base_path` (str): the path prefix the server is reached
+///                                under behind a reverse proxy, e.g. `/proxy/1736`; the UI
+///                                then builds its routes and requests under it
 ///
 ///                              A section naming none of the above is taken as a server
 ///                              extension's settings, so which further sections are accepted

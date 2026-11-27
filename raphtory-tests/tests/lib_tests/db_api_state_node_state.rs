@@ -1,9 +1,55 @@
 #[cfg(test)]
 mod test {
     use raphtory::{
-        db::api::state::{AsOrderedNodeStateOps, NodeState, OrderedNodeStateOps},
+        algorithms::metrics::clustering_coefficient::local_clustering_coefficient_batch::LCCState,
+        db::api::state::{
+            AsOrderedNodeStateOps, GenericNodeState, NodeState, NodeStateOps, OrderedNodeStateOps,
+        },
+        errors::GraphError,
         prelude::*,
     };
+    use std::collections::HashMap;
+
+    #[test]
+    fn new_empty_has_no_keys() {
+        let g = Graph::new();
+        g.add_node(0, "a", NO_PROPS, None, None).unwrap();
+
+        let state: NodeState<f64, _> = NodeState::new_empty(g.clone());
+
+        assert_eq!(state.len(), 0);
+        assert!(state.get_by_node("a").is_none());
+        assert_eq!(state.iter().count(), 0);
+    }
+
+    #[test]
+    fn new_from_map_refuses_a_key_outside_the_view() {
+        let g = Graph::new();
+        g.add_node(0, "a", NO_PROPS, None, None).unwrap();
+        let b = g.add_node(5, "b", NO_PROPS, None, None).unwrap().node;
+        let view = g.window(0, 1);
+
+        // one value, as many as the view has nodes, but for a node the view hides
+        let result = NodeState::new_from_map(view, HashMap::from([(b, 1.0f64)]), |v| v);
+
+        assert!(matches!(result, Err(GraphError::NodeMissingError(gid)) if gid == GID::from("b")));
+    }
+
+    #[test]
+    fn generic_new_from_map_refuses_a_key_outside_the_view() {
+        let g = Graph::new();
+        g.add_node(0, "a", NO_PROPS, None, None).unwrap();
+        let b = g.add_node(5, "b", NO_PROPS, None, None).unwrap().node;
+
+        let result = GenericNodeState::new_from_map(
+            g.window(0, 1),
+            [(b, LCCState { lcc: 1.0 })],
+            |value| value,
+            None,
+        );
+
+        assert!(matches!(result, Err(GraphError::NodeMissingError(gid)) if gid == GID::from("b")));
+    }
 
     #[test]
     fn float_state() {

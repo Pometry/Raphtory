@@ -26,7 +26,21 @@ mod cache_tests {
     #[test]
     fn stable_hash() {
         let hash_value = raphtory_vectors::cache::hash(&PLACEHOLDER_MODEL, CONTENT_SAMPLE);
-        assert_eq!(hash_value, 17143601129976616271);
+        assert_eq!(hash_value, 5732624107892916734);
+    }
+
+    #[test]
+    fn stable_hash_all_fields() {
+        let model = ModelConfig::OpenAI(OpenAIEmbeddings {
+            model: "text-embedding-3-small".to_owned(),
+            api_base: Some("http://localhost:8080".to_owned()),
+            api_key_env: Some("OPENAI_API_KEY".to_owned()),
+            org_id: Some("org".to_owned()),
+            project_id: Some("project".to_owned()),
+            dim: Some(1536),
+        });
+        let hash_value = raphtory_vectors::cache::hash(&model, CONTENT_SAMPLE);
+        assert_eq!(hash_value, 931793114509337511);
     }
 
     #[test]

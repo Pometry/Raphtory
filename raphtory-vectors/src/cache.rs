@@ -3,7 +3,6 @@ use crate::{
     errors::VectorResult,
     Embedding,
 };
-use ahash::RandomState;
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, CommitOrAbort, Database, Env, EnvOpenOptions};
 use moka::future::Cache;
@@ -11,11 +10,12 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, VecDeque},
-    hash::{BuildHasher, Hash, Hasher},
+    hash::Hasher,
     ops::Deref,
     path::Path,
     sync::Arc,
 };
+use twox_hash::XxHash3_64;
 
 pub const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
 
@@ -279,15 +279,42 @@ impl CachedEmbeddingModel {
     }
 }
 
+const HASH_SEED: u64 = 0x7261_7068_746f_7279; // "raphtory"
+
 pub fn hash(model: &ModelConfig, text: &str) -> u64 {
-    let hasher = RandomState::with_seeds(
-        2576675592427417589,
-        14681663747860293331,
-        5162080899205198708,
-        4782991468701587167,
-    );
-    let mut state = hasher.build_hasher();
-    model.hash(&mut state);
-    text.hash(&mut state);
+    let mut state = XxHash3_64::with_seed(HASH_SEED);
+    match model {
+        ModelConfig::OpenAI(config) => {
+            write_bytes(&mut state, b"openai");
+            write_bytes(&mut state, config.model.as_bytes());
+            write_opt_bytes(&mut state, config.api_base.as_deref().map(str::as_bytes));
+            write_opt_bytes(&mut state, config.api_key_env.as_deref().map(str::as_bytes));
+            write_opt_bytes(&mut state, config.org_id.as_deref().map(str::as_bytes));
+            write_opt_bytes(&mut state, config.project_id.as_deref().map(str::as_bytes));
+            match config.dim {
+                None => state.write(&[0]),
+                Some(dim) => {
+                    state.write(&[1]);
+                    state.write(&(dim as u64).to_le_bytes());
+                }
+            }
+        }
+    }
+    write_bytes(&mut state, text.as_bytes());
     state.finish()
+}
+
+fn write_bytes(state: &mut XxHash3_64, bytes: &[u8]) {
+    state.write(&(bytes.len() as u64).to_le_bytes());
+    state.write(bytes);
+}
+
+fn write_opt_bytes(state: &mut XxHash3_64, bytes: Option<&[u8]>) {
+    match bytes {
+        None => state.write(&[0]),
+        Some(bytes) => {
+            state.write(&[1]);
+            write_bytes(state, bytes);
+        }
+    }
 }

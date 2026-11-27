@@ -67,7 +67,13 @@ where
     let step1 = {
         let weights = Arc::clone(&weights);
         ATask::new(move |vv| {
-            let l = ((vv.degree() as f64) / (m * 2.0)).powf(beta);
+            let degree = vv.degree();
+            // 0 raised to a negative beta is infinite, so an isolated node keeps its raw vector
+            let l = if degree == 0 {
+                1.0
+            } else {
+                (degree as f64 / (m * 2.0)).powf(beta)
+            };
             let choices = [
                 (l * s.sqrt(), 1.0 / (s * 2.0)),
                 (0.0, 1.0 - (1.0 / s)),
