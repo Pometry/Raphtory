@@ -281,11 +281,6 @@ impl CachedEmbeddingModel {
 
 const HASH_SEED: u64 = 0x7261_7068_746f_7279; // "raphtory"
 
-/// Stable hash of `(model, text)` used as the on-disk cache key.
-///
-/// The input is encoded explicitly (length-prefixed, little-endian) rather than via derived
-/// `Hash` impls, so the result does not depend on the Rust version, std's `Hash` layout,
-/// or field order. Changing this encoding invalidates existing on-disk caches.
 pub fn hash(model: &ModelConfig, text: &str) -> u64 {
     let mut state = XxHash3_64::with_seed(HASH_SEED);
     match model {
