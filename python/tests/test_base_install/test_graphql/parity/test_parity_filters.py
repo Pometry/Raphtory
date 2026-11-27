@@ -36,6 +36,7 @@ import pytest
 from _parity import KNOWN_GAPS, assert_parity, canonical, graph_pair
 from raphtory import filter as f
 
+
 # --- fixture ----------------------------------------------------------------
 
 
@@ -401,33 +402,33 @@ COMBINATOR_EXPRS = {
     "comb.or": lambda: (f.Node.name() == "iso") | (f.Node.node_type() == "admin"),
     # a node OR an edge predicate: every node, and the edges either expression keeps
     "comb.mixed_or": lambda: (f.Node.name() == "iso")
-    | (f.Edge.property("weight") > 3.0),
+                             | (f.Edge.property("weight") > 3.0),
     "comb.not": lambda: ~(f.Node.node_type() == "admin"),
     "comb.not_and": lambda: ~(
-        (f.Node.property("score") > 5) & (f.Node.node_type() == "user")
+            (f.Node.property("score") > 5) & (f.Node.node_type() == "user")
     ),
     # Two levels of nesting, mixing all three combinators.
     "comb.nested_2": lambda: (
-        (f.Node.property("score") > 5) & (f.Node.node_type() == "user")
-    )
-    | (f.Node.name() == "leaf"),
+                                     (f.Node.property("score") > 5) & (f.Node.node_type() == "user")
+                             )
+                             | (f.Node.name() == "leaf"),
     "comb.nested_3": lambda: (
-        ((f.Node.property("score") >= 10) | (f.Node.node_type() == "bot"))
-        & ~((f.Node.name() == "iso") | (f.Node.name() == "spoke3"))
+            ((f.Node.property("score") >= 10) | (f.Node.node_type() == "bot"))
+            & ~((f.Node.name() == "iso") | (f.Node.name() == "spoke3"))
     ),
     "comb.edge_or": lambda: (f.Edge.property("weight") > 4.0)
-    | (f.Edge.metadata("kind") == "weak"),
+                            | (f.Edge.metadata("kind") == "weak"),
     "comb.edge_not": lambda: ~(f.Edge.property("note").starts_with("a")),
     # Node and edge predicates in one expression — the headline capability.
     "comb.mixed_and": lambda: (f.Node.property("score") > 5)
-    & (f.Edge.property("weight") > 2.0),
+                              & (f.Edge.property("weight") > 2.0),
     "comb.mixed_not": lambda: ~(
-        (f.Node.property("score") > 5) & (f.Edge.property("weight") > 2.0)
+            (f.Node.property("score") > 5) & (f.Edge.property("weight") > 2.0)
     ),
     "comb.mixed_nested": lambda: (
-        (f.Node.node_type() == "user") | (f.Node.node_type() == "admin")
-    )
-    & ((f.Edge.property("weight") > 2.0) | f.Edge.property("weight").is_none()),
+                                         (f.Node.node_type() == "user") | (f.Node.node_type() == "admin")
+                                 )
+                                 & ((f.Edge.property("weight") > 2.0) | f.Edge.property("weight").is_none()),
 }
 
 # Graph-level view filters: they move *when* and *where* the graph is
@@ -448,10 +449,10 @@ VIEW_EXPRS = {
     "view.and_view": lambda: f.Graph.window(2, 7) & f.Graph.layer("knows"),
     "view.and_node": lambda: f.Graph.window(2, 7) & (f.Node.property("score") > 15),
     "view.and_edge": lambda: f.Graph.layers(["knows", "works"])
-    & (f.Edge.property("weight") > 2.0),
+                             & (f.Edge.property("weight") > 2.0),
     "view.and_mixed": lambda: f.Graph.window(2, 8)
-    & (f.Node.node_type() != "bot")
-    & f.Edge.property("weight").is_some(),
+                              & (f.Node.node_type() != "bot")
+                              & f.Edge.property("weight").is_some(),
     # window+latest does not commute: these two must stay distinct on both
     # sides (the wire nests views in application order; a regression here
     # inverts the chain remotely while local stays correct).
@@ -481,7 +482,7 @@ VIEW_EXPRS = {
         ["spoke1"]
     ),
     "view.and_subgraph_node": lambda: f.Graph.subgraph(["hub", "spoke1", "spoke2"])
-    & (f.Node.property("score") > 15),
+                                      & (f.Node.property("score") > 15),
 }
 
 # View scopes attached to a node or edge predicate rather than to the graph:
@@ -498,7 +499,7 @@ SCOPED_EXPRS = {
     ),
     "scoped.node.layer": lambda: f.Node.layer("knows").property("score") > 15,
     "scoped.node.layers": lambda: f.Node.layers(["knows", "works"]).property("score")
-    > 15,
+                                  > 15,
     "scoped.node.metadata": lambda: f.Node.window(1, 6).metadata("region") == "eu",
     # Non-commuting view chains (see view.chain_window_latest above).
     "scoped.node.window_then_latest": (
@@ -514,7 +515,7 @@ SCOPED_EXPRS = {
     "scoped.node.shrink_end": lambda: f.Node.shrink_end(4).property("score") > 15,
     "scoped.node.exclude_nodes": lambda: f.Node.exclude_nodes(["hub"]).degree() >= 1,
     "scoped.node.subgraph": lambda: f.Node.subgraph(["hub", "spoke1"]).property("score")
-    > 15,
+                                    > 15,
     "scoped.node.subgraph_node_types": lambda: f.Node.subgraph_node_types(
         ["user"]
     ).is_active(),
@@ -526,21 +527,21 @@ SCOPED_EXPRS = {
     "scoped.edge.snapshot_at": lambda: f.Edge.snapshot_at(5).property("weight") > 2.0,
     "scoped.edge.layer": lambda: f.Edge.layer("knows").property("weight") > 2.0,
     "scoped.edge.layers": lambda: f.Edge.layers(["knows", "works"]).property("weight")
-    > 2.0,
+                                  > 2.0,
     "scoped.edge.metadata": lambda: f.Edge.layer("knows").metadata("kind") == "strong",
     "scoped.edge.exclude_layers": lambda: f.Edge.exclude_layers(["knows"]).property(
         "weight"
     )
-    > 2.0,
+                                          > 2.0,
     "scoped.edge.valid_layers": lambda: f.Edge.valid_layers(["knows", "nope"]).property(
         "weight"
     )
-    > 2.0,
+                                        > 2.0,
     "scoped.edge.shrink_end": lambda: f.Edge.shrink_end(5).property("weight") > 2.0,
     "scoped.edge.exclude_nodes": lambda: f.Edge.exclude_nodes(["leaf"]).property(
         "weight"
     )
-    > 2.0,
+                                         > 2.0,
     "scoped.edge.subgraph": lambda: f.Edge.subgraph(["hub", "spoke1"]).is_active(),
     "scoped.edge.exists": lambda: f.Edge.window(2, 5).exists(),
     "scoped.edge.is_valid": lambda: f.Edge.window(2, 4).is_valid(),
@@ -575,7 +576,7 @@ EXPLODED_EXPRS = {
     "exploded.prop.eq": lambda: f.ExplodedEdge.property("weight") == 3.5,
     "exploded.metadata.eq": lambda: f.ExplodedEdge.metadata("kind") == "strong",
     "exploded.comb.and": lambda: (f.ExplodedEdge.property("weight") > 2.0)
-    & (f.ExplodedEdge.property("note") != "zz"),
+                                 & (f.ExplodedEdge.property("note") != "zz"),
 }
 
 EXPRS = {
@@ -593,6 +594,13 @@ EXPRS = {
 
 
 # --- parity -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", sorted(EXPRS), ids=sorted(EXPRS))
+def test_expr_parity(filter_pair, name):
+    """Local and remote agree on what an expression selects, through `filter`."""
+    build = EXPRS[name]
+    assert_parity(filter_pair, lambda g: _probe_graph(g.filter(build())))
 
 
 @pytest.mark.parametrize("name", sorted(EXPRS), ids=sorted(EXPRS))
@@ -771,8 +779,8 @@ def test_expr_discriminates(filter_pair, name):
     baseline = _baseline(filter_pair, "graph", _probe_graph, lambda g: g)
 
     for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
+            ("local", filter_pair.local),
+            ("remote", filter_pair.remote),
     ):
         probed = canonical(_probe_graph(side.filter(build())))
         _assert_discriminates(
@@ -795,8 +803,8 @@ def test_universal_expr_selects_everything(filter_pair, name):
 
     baseline = _baseline(filter_pair, "graph", _probe_graph, lambda g: g)
     for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
+            ("local", filter_pair.local),
+            ("remote", filter_pair.remote),
     ):
         probed = canonical(_probe_graph(side.filter(build())))
         assert probed == baseline[side_name], (
@@ -833,8 +841,8 @@ def test_property_sources_are_distinct(filter_pair):
         assert_parity(filter_pair, read)
 
     for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
+            ("local", filter_pair.local),
+            ("remote", filter_pair.remote),
     ):
         assert metadata(side) != aggregated(side), (
             f"{side_name}: the metadata and property terms of `level` returned "
@@ -875,8 +883,8 @@ def test_unqualified_edge_metadata_equality_matches_nothing_on_both_sides(filter
         assert_parity(filter_pair, read)
 
     for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
+            ("local", filter_pair.local),
+            ("remote", filter_pair.remote),
     ):
         assert unqualified(side) == [], (
             f"{side_name}: unlayered edge metadata equality now matches "
@@ -895,6 +903,7 @@ def test_unqualified_edge_metadata_equality_matches_nothing_on_both_sides(filter
 FILTER_SITES = {
     "graph": (lambda g: g, lambda g, e: g.filter(e), _probe_graph),
     "nodes": (lambda g: g.nodes, lambda g, e: g.nodes.filter(e), _probe_nodes),
+    "nodes_select": (lambda g: g.nodes, lambda g, e: g.nodes[e], _probe_nodes),
     "node": (
         lambda g: g.node("hub"),
         lambda g, e: g.node("hub").filter(e),
@@ -905,12 +914,23 @@ FILTER_SITES = {
         lambda g, e: g.node("hub").neighbours.filter(e),
         _probe_path_from_node,
     ),
+    "path_from_node_select": (
+        lambda g: g.node("hub").neighbours,
+        lambda g, e: g.node("hub").neighbours[e],
+        _probe_path_from_node,
+    ),
     "path_from_graph": (
         lambda g: g.nodes.neighbours,
         lambda g, e: g.nodes.neighbours.filter(e),
         _probe_path_from_graph,
     ),
+    "path_from_graph_select": (
+        lambda g: g.nodes.neighbours,
+        lambda g, e: g.nodes.neighbours[e],
+        _probe_path_from_graph,
+    ),
     "edges": (lambda g: g.edges, lambda g, e: g.edges.filter(e), _probe_edges_view),
+    "edges_select": (lambda g: g.edges, lambda g, e: g.edges[e], _probe_edges_view),
     "edge": (
         lambda g: g.edge("hub", "spoke2"),
         lambda g, e: g.edge("hub", "spoke2").filter(e),
@@ -919,6 +939,11 @@ FILTER_SITES = {
     "nested_edges": (
         lambda g: g.nodes.edges,
         lambda g, e: g.nodes.edges.filter(e),
+        _probe_nested_edges,
+    ),
+    "nested_edges_select": (
+        lambda g: g.nodes.edges,
+        lambda g, e: g.nodes.edges[e],
         _probe_nested_edges,
     ),
 }
@@ -968,8 +993,8 @@ def test_site_matrix_discriminates(filter_pair, site, name):
     baseline = _baseline(filter_pair, site, probe, reach)
 
     for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
+            ("local", filter_pair.local),
+            ("remote", filter_pair.remote),
     ):
         probed = canonical(probe(apply(side, build())))
         _assert_discriminates(
@@ -1049,8 +1074,8 @@ def test_getitem_discriminates(filter_pair, site, name):
     baseline = _baseline(filter_pair, f"getitem.{site}", probe, reach)
 
     for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
+            ("local", filter_pair.local),
+            ("remote", filter_pair.remote),
     ):
         probed = canonical(probe(apply(side, build())))
         _assert_discriminates(
@@ -1072,8 +1097,8 @@ def test_getitem_narrows_membership_where_filter_rescopes(filter_pair):
     )
 
     for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
+            ("local", filter_pair.local),
+            ("remote", filter_pair.remote),
     ):
         selected = sorted(n.name for n in side.nodes[build()])
         filtered = sorted(n.name for n in side.nodes.filter(build()))
@@ -1180,7 +1205,7 @@ def test_expression_rhs_agrees_on_both_sides(filter_pair, site):
     ids=["edge", "exploded"],
 )
 def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
-    filter_pair, kind, build
+        filter_pair, kind, build
 ):
     """An edge test in `nodes[expr]` raises the same exception on both sides.
 
@@ -1243,7 +1268,7 @@ SUBSCRIPT_GENERAL_EXPRS = [
             (e.src.name, e.dst.name)
             for e in g.edges[
                 (f.Node.property("score") > 5) & (f.Edge.property("weight") > 2.0)
-            ]
+                ]
         ),
     ),
 ]
