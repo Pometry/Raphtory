@@ -191,7 +191,7 @@ impl EDID {
     }
 
     pub fn eid(&self) -> EID {
-        EID(self.0 & !DELETION_FLAG & !DIRECTION_FLAG)
+        EID(self.0 & !(DELETION_FLAG | DIRECTION_FLAG))
     }
 
     pub fn is_deletion(&self) -> bool {
@@ -235,7 +235,7 @@ impl Debug for ELID {
 
 const DELETION_FLAG: usize = 1usize.reverse_bits();
 const DIRECTION_FLAG: usize = 2usize.reverse_bits();
-pub const MAX_EID: usize = usize::MAX & !DELETION_FLAG;
+pub const MAX_EID: usize = usize::MAX & !(DELETION_FLAG | DIRECTION_FLAG);
 
 impl ELID {
     pub fn new_addition(edge: EID, layer: LayerId, dir: Dir) -> Self {
