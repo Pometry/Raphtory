@@ -19,6 +19,7 @@ rayon = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 fake = { workspace = true }
 csv = { workspace = true }
 chrono = { workspace = true }
@@ -79,6 +80,10 @@ required-features = ["vectors"]
 
 [[bench]]
 name = "temporal_props"
+harness = false
+
+[[bench]]
+name = "prop_access"
 harness = false
 
 [features]
