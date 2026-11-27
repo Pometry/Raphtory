@@ -273,6 +273,7 @@ impl Repr for EdgeLeaf {
             EdgeLeaf::IsSelfLoop { views } => (views, ".is_self_loop()".to_owned()),
             EdgeLeaf::Src(inner) => return endpoint("src", inner),
             EdgeLeaf::Dst(inner) => return endpoint("dst", inner),
+            EdgeLeaf::Nbr(inner) => return endpoint("nbr", inner),
         };
         format!("{}{tail}", factory("Edge", views))
     }

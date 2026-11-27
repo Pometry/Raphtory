@@ -647,6 +647,8 @@ pub enum EdgeRead {
     Src(EndpointRead),
     /// A node expression evaluated on the edge's destination node.
     Dst(EndpointRead),
+    /// A node expression evaluated at the neighbour node of the edge (Same as `dst` for an out-edge and `src` for an in-edge
+    Nbr(EndpointRead),
 }
 
 impl Term for EdgeRead {
@@ -660,6 +662,7 @@ impl Term for EdgeRead {
             EdgeRead::Field(r) => r.name.leaf(view_ops(r.views)),
             EdgeRead::Src(r) => EdgeLeaf::Src(Box::new(r.expr.into_inner().into_tree()?)),
             EdgeRead::Dst(r) => EdgeLeaf::Dst(Box::new(r.expr.into_inner().into_tree()?)),
+            EdgeRead::Nbr(r) => EdgeLeaf::Nbr(Box::new(r.expr.into_inner().into_tree()?)),
         })
     }
 
@@ -709,6 +712,9 @@ impl Term for EdgeRead {
                 expr: Wrapped::from(NodeExpr::from_tree(inner)?),
             }),
             EdgeLeaf::Dst(inner) => EdgeRead::Dst(EndpointRead {
+                expr: Wrapped::from(NodeExpr::from_tree(inner)?),
+            }),
+            EdgeLeaf::Nbr(inner) => EdgeRead::Nbr(EndpointRead {
                 expr: Wrapped::from(NodeExpr::from_tree(inner)?),
             }),
         })
@@ -1593,14 +1599,8 @@ impl CreateFilter for GqlFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
-    type PathEdgeFilter<'graph, G, S>
+    type PathFilter<'graph, G, S>
         = DynGraphArc<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        S: GraphView + 'graph;
-    type PathNodeFilter<'graph, G, S>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph,
@@ -1631,13 +1631,7 @@ impl CreateFilter for GqlFilter {
         self,
         graph: G,
         select: S,
-    ) -> Result<
-        (
-            Self::PathEdgeFilter<'graph, G, S>,
-            Self::PathNodeFilter<'graph, G, S>,
-        ),
-        GraphError,
-    > {
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
         expr::FilterExpr::try_from(self)?.create_path_filter(graph, select)
     }
 }

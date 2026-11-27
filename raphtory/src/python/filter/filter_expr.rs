@@ -111,14 +111,8 @@ impl CreateFilter for PyFilterExpr {
     where
         Self: 'graph,
         G: GraphView + 'graph;
-    type PathEdgeFilter<'graph, G, S>
+    type PathFilter<'graph, G, S>
         = DynGraphArc<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        S: GraphView + 'graph;
-    type PathNodeFilter<'graph, G, S>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph,
@@ -149,13 +143,7 @@ impl CreateFilter for PyFilterExpr {
         self,
         graph: G,
         select: S,
-    ) -> Result<
-        (
-            Self::PathEdgeFilter<'graph, G, S>,
-            Self::PathNodeFilter<'graph, G, S>,
-        ),
-        GraphError,
-    > {
+    ) -> Result<Self::PathFilter<'graph, G, S>, GraphError> {
         self.0.create_path_filter(graph, select)
     }
 }
