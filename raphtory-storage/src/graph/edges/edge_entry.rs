@@ -1,6 +1,6 @@
 use crate::graph::edges::edge_storage_ops::EdgeStorageOps;
 use raphtory_api::core::entities::{
-    edges::edge_ref::EdgeRef,
+    edges::edge_ref::{Dir, EdgeRef},
     properties::{prop::Prop, tprop::TPropOps},
     LayerId,
 };
@@ -49,6 +49,10 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn dst(self) -> VID {
         self.as_ref().dst()
+    }
+
+    fn dir(self) -> Dir {
+        self.as_ref().dir()
     }
 
     fn eid(self) -> EID {

@@ -1,7 +1,7 @@
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_api::core::{
     entities::{
-        edges::edge_ref::EdgeRef,
+        edges::edge_ref::{Dir, EdgeRef},
         properties::{prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, LayerVariants, EID, VID,
     },
@@ -95,6 +95,15 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn src(self) -> VID;
 
     fn dst(self) -> VID;
+
+    fn dir(self) -> Dir;
+
+    fn nbr(self) -> VID {
+        match self.dir() {
+            Dir::Into => self.src(),
+            Dir::Out => self.dst(),
+        }
+    }
 
     fn eid(self) -> EID;
 
@@ -194,6 +203,10 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
 
     fn dst(self) -> VID {
         EdgeRefOps::dst(&self).expect("valid edge entry should have dst")
+    }
+
+    fn dir(self) -> Dir {
+        EdgeRefOps::dir(&self)
     }
 
     fn eid(self) -> EID {
