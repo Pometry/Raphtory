@@ -52,4 +52,17 @@ mod preferential_attachment_tests {
         assert_eq!(graph.count_edges(), 5000);
         assert_eq!(graph.count_nodes(), 1503);
     }
+
+    #[test]
+    fn seed_fixes_the_new_string_ids() {
+        let run = || {
+            let graph = Graph::new();
+            graph.add_edge(0, "alice", "bob", NO_PROPS, None).unwrap();
+            ba_preferential_attachment(&graph, 10, 1, Some([7; 32]));
+            let mut ids = graph.nodes().id().collect::<Vec<_>>();
+            ids.sort();
+            ids
+        };
+        assert_eq!(run(), run());
+    }
 }
