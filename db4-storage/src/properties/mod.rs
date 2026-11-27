@@ -14,7 +14,7 @@ use raphtory_api::core::entities::properties::{
 };
 use raphtory_core::{
     entities::{
-        ELID,
+        EDID, ELID,
         properties::{props::MetadataError, tcell::TCell, tprop::TPropCell},
     },
     storage::{PropColumn, TColumns, timeindex::EventTime},
@@ -54,10 +54,12 @@ pub struct Properties {
     pub deletions_count: usize,
     /// Distinct `(timestamp, event_id)` temporal updates; see `t_additions_count()`.
     t_additions_count: usize,
-    /// Reverse time index of property updates: rows by the time a property was updated.
+    /// Reverse time index of property updates: rows by the time a property was updated. For
+    /// an edge, its additions.
     prop_update_rows: ReverseTIndex,
-    /// Reverse time index of edge events (additions and deletions): rows by event time.
-    event_rows: ReverseTIndex,
+    /// Reverse time index of events, with the edge and deletion flag: for a node, the
+    /// additions and deletions of its edges; for an edge, its deletions.
+    event_rows: ReverseTIndex<EDID>,
     /// a bulk load appended to some cells without ordering them (see [`Self::sort_deferred`])
     unsorted: bool,
 }
@@ -351,17 +353,35 @@ impl Properties {
         debug_assert!(!self.unsorted, "reverse time index read during a bulk load");
         let range =
             (EventTime::start(*window.start()), 0)..=(EventTime::end(*window.end()), u32::MAX);
-        let kinds = [(props, &self.prop_update_rows), (events, &self.event_rows)];
-        kinds
-            .into_iter()
-            .filter(move |(wanted, _)| *wanted && window.start() <= window.end())
-            .flat_map(move |(_, rows)| rows.range(range.clone()))
-            .map(|(t, row)| (*row as usize, t.0))
+        let open = window.start() <= window.end();
+        let props = (props && open).then(|| self.prop_update_rows.range(range.clone()));
+        let events = (events && open).then(|| self.event_rows.range(range));
+        let props = props.into_iter().flatten().map(|(entry, _)| entry);
+        let events = events.into_iter().flatten().map(|(entry, _)| entry);
+        props.chain(events).map(|(t, row)| (*row as usize, t.0))
     }
 
-    /// Entries of the row sets, for size estimates.
+    /// The reverse time index of property updates, `(time, row)` in order.
+    pub fn reverse_tindex_props(&self) -> impl Iterator<Item = (EventTime, u32)> + '_ {
+        assert!(!self.unsorted, "reverse time index read during a bulk load");
+        self.prop_update_rows.iter().map(|(&(t, row), ())| (t, row))
+    }
+
+    /// The reverse time index of events, `(time, row, edge and deletion flag)` in order.
+    pub fn reverse_tindex_events(&self) -> impl Iterator<Item = (EventTime, u32, EDID)> + '_ {
+        assert!(!self.unsorted, "reverse time index read during a bulk load");
+        self.event_rows.iter().map(|(&(t, row), &edge)| (t, row, edge))
+    }
+
+    /// Entries of both reverse time indexes.
     pub fn reverse_tindex_len(&self) -> usize {
         self.prop_update_rows.len() + self.event_rows.len()
+    }
+
+    /// Bytes held by the reverse time indexes, for size estimates.
+    pub fn reverse_tindex_bytes(&self) -> usize {
+        self.prop_update_rows.len() * std::mem::size_of::<reverse_tindex::Entry>()
+            + self.event_rows.len() * std::mem::size_of::<(reverse_tindex::Entry, EDID)>()
     }
 
     pub fn num_updates(&self) -> usize {
@@ -421,7 +441,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.t_additions_count += 1;
         self.properties
             .prop_update_rows
-            .push_unsorted(t, self.row as u32);
+            .push_unsorted(t, self.row as u32, ());
     }
 
     pub(crate) fn set_time(&mut self, t: EventTime, t_prop_row: usize) {
@@ -430,7 +450,9 @@ impl<'a> PropMutEntry<'a> {
         if prop_timestamps.set(t, Some(t_prop_row)) {
             self.properties.t_additions_count += 1;
         }
-        self.properties.prop_update_rows.insert(t, self.row as u32);
+        self.properties
+            .prop_update_rows
+            .insert(t, self.row as u32, ());
     }
 
     pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID, mode: WriteMode) {
@@ -446,12 +468,16 @@ impl<'a> PropMutEntry<'a> {
             WriteMode::Online => {
                 debug_assert!(!self.properties.unsorted, "online write during a bulk load");
                 prop_timestamps.set(t, edge_id);
-                self.properties.event_rows.insert(t, self.row as u32);
+                let edge = edge_id.eid_and_flag();
+                self.properties.event_rows.insert(t, self.row as u32, edge);
             }
             WriteMode::Bulk => {
                 self.properties.unsorted = true;
                 prop_timestamps.push_unsorted(t, edge_id);
-                self.properties.event_rows.push_unsorted(t, self.row as u32);
+                let edge = edge_id.eid_and_flag();
+                self.properties
+                    .event_rows
+                    .push_unsorted(t, self.row as u32, edge);
             }
         }
 
@@ -474,16 +500,18 @@ impl<'a> PropMutEntry<'a> {
         self.properties.deletions_count += 1;
 
         let prop_timestamps = &mut self.properties.deletions[self.row];
-        prop_timestamps.set(t, edge_id.unwrap_or_default());
+        let edge_id = edge_id.unwrap_or_default();
+        prop_timestamps.set(t, edge_id);
         let rows = &mut self.properties.event_rows;
+        let edge = edge_id.eid_and_flag();
         match mode {
             WriteMode::Online => {
                 debug_assert!(!self.properties.unsorted, "online write during a bulk load");
-                rows.insert(t, self.row as u32);
+                rows.insert(t, self.row as u32, edge);
             }
             WriteMode::Bulk => {
                 self.properties.unsorted = true;
-                rows.push_unsorted(t, self.row as u32);
+                rows.push_unsorted(t, self.row as u32, edge);
             }
         }
         self.properties.update_earliest_latest(t);

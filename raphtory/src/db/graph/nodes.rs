@@ -151,13 +151,26 @@ where
         }
     }
 
+    /// The nodes to visit: this collection's list narrowed by the view's own, so a view
+    /// that lists its nodes (a window answered by its time index) bounds a node type list.
     pub fn node_list(&self) -> NodeList {
-        match &self.nodes {
-            NodeList::All => self.base_graph.node_list(),
-            NodeList::List {
-                elems: Index::Full(_),
-            } => self.base_graph.node_list(),
-            nodes => nodes.clone(),
+        let view = self.base_graph.node_list();
+        match (&self.nodes, view) {
+            (
+                NodeList::All
+                | NodeList::List {
+                    elems: Index::Full(_),
+                },
+                view,
+            ) => view,
+            (
+                nodes,
+                NodeList::All
+                | NodeList::List {
+                    elems: Index::Full(_),
+                },
+            ) => nodes.clone(),
+            (nodes, view) => nodes.intersection(&view, self.base_graph.core_graph()),
         }
     }
 
@@ -285,7 +298,8 @@ where
             let g = self.locked_storage();
             self.par_iter_refs(g).count()
         } else {
-            match &self.nodes {
+            // a trusted view checks nothing per node, so its own list must bound the count
+            match self.node_list() {
                 NodeList::All
                 | NodeList::List {
                     elems: Index::Full(_),
@@ -294,7 +308,7 @@ where
                     .base_graph
                     .core_graph()
                     .node_type_index()
-                    .entry(types)
+                    .entry(&types)
                     .len(),
                 NodeList::List { elems } => elems.len(),
             }

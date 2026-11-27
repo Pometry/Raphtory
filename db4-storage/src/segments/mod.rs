@@ -283,7 +283,7 @@ impl<T: HasRow> SegmentContainer<T> {
             (self.data.num_filled() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
         let timestamp_size = std::mem::size_of::<EventTime>();
         (self.properties.additions_count * timestamp_size)
-            + self.properties.reverse_tindex_len() * std::mem::size_of::<(EventTime, u32)>()
+            + self.properties.reverse_tindex_bytes()
             + data_size
             + self.t_prop_est_size()
             + self.c_prop_est_size()
@@ -408,16 +408,23 @@ impl<T: HasRow> SegmentContainer<T> {
             .properties
             .rows_updated_in(props, events, window)
             .peekable();
-        let mut positions = Vec::new();
-        if updated.peek().is_some() {
-            for (pos, entry) in self.data.iter_filled() {
-                if positions.len() <= entry.row() {
-                    positions.resize(entry.row() + 1, pos);
-                }
-                positions[entry.row()] = pos;
-            }
-        }
+        let positions = match updated.peek() {
+            Some(_) => self.row_positions(),
+            None => Vec::new(),
+        };
         updated.map(move |(row, t)| (positions[row], t))
+    }
+
+    /// The position of each row, by row.
+    pub fn row_positions(&self) -> Vec<LocalPOS> {
+        let mut positions = Vec::new();
+        for (pos, entry) in self.data.iter_filled() {
+            if positions.len() <= entry.row() {
+                positions.resize(entry.row() + 1, pos);
+            }
+            positions[entry.row()] = pos;
+        }
+        positions
     }
 
     /// return filled entries ordered by index
