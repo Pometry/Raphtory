@@ -1,6 +1,6 @@
 use raphtory::{
     db::{
-        api::view::{Filter, IntoDynamic},
+        api::view::{Filter, IntoDynamic, Select},
         graph::views::filter::model::{
             edge_filter::EdgeFilter,
             expr::NodeExpr,
@@ -111,6 +111,17 @@ fn a_filter_needs_one_bool_and_says_when_to_add_a_qualifier() {
         "Invalid filter: a filter needs a boolean answer, but this expression has type \
          List<List<Str>>"
     );
+}
+
+/// On an edge collection a node predicate asks that both ends pass; it is
+/// refused as the filter it is, not as the `and` of the two ends.
+#[test]
+fn a_node_predicate_on_edges_is_refused_as_on_nodes() {
+    let g = graph();
+    g.add_edge(0, "n", "m", NO_PROPS, None).unwrap();
+    let expr = NodeFilter.property("ints").gt(1i64);
+    let on_edges = g.edges().select(expr.clone()).map(|_| ()).unwrap_err();
+    assert_eq!(on_edges.to_string(), refused(&g, expr));
 }
 
 /// A history is a list before any graph is at hand; the graph supplies its
