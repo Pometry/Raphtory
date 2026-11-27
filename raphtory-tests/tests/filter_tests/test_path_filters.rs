@@ -26,6 +26,21 @@ fn test_graph() -> Graph {
 }
 
 #[test]
+fn test_path_from_node() {
+    let g = test_graph();
+    let n = g.node(0).unwrap();
+    let ids: Vec<_> = n
+        .window(0, 5)
+        .neighbours()
+        .select(NodeFilter.property("p1").eq(0))
+        .unwrap()
+        .id()
+        .collect();
+    // make sure we actually look at the correct endpoint
+    assert_eq!(ids, [])
+}
+
+#[test]
 fn test_path_from_node_mixed_and() {
     let g = test_graph();
     let n = g.node(0).unwrap();
