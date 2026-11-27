@@ -1,8 +1,11 @@
 use crate::{
-    core::entities::{EID, VID},
-    db::api::{
-        state::{Index, IndexParIter},
-        view::Base,
+    core::entities::{LayerIds, EID, VID},
+    db::{
+        api::{
+            state::{Index, IndexParIter},
+            view::Base,
+        },
+        graph::views::window_graph::WindowMasks,
     },
 };
 use itertools::Itertools;
@@ -17,6 +20,21 @@ pub trait ListOps {
     fn node_list(&self) -> NodeList;
 
     fn edge_list(&self) -> EdgeList;
+
+    /// Count without listing; valid only for views filtered by time and layers alone.
+    fn node_count(&self) -> Option<usize> {
+        None
+    }
+
+    /// As `node_count`, for edges.
+    fn edge_count(&self) -> Option<usize> {
+        None
+    }
+
+    /// Time-index masks for this view over `layer_ids`.
+    fn window_masks(&self, _layer_ids: &LayerIds) -> Option<WindowMasks> {
+        None
+    }
 }
 
 pub trait InheritListOps: Base {}
@@ -31,6 +49,18 @@ where
 
     fn edge_list(&self) -> EdgeList {
         self.base().edge_list()
+    }
+
+    fn node_count(&self) -> Option<usize> {
+        self.base().node_count()
+    }
+
+    fn edge_count(&self) -> Option<usize> {
+        self.base().edge_count()
+    }
+
+    fn window_masks(&self, layer_ids: &LayerIds) -> Option<WindowMasks> {
+        self.base().window_masks(layer_ids)
     }
 }
 

@@ -3778,6 +3778,10 @@ type MutableGraph {
 	"""
 	buildPropertyIndex(props: [String!], indexGid: Boolean): Boolean!
 	"""
+	Add the time index that serves windowed views to stored data that has none.
+	"""
+	buildTimeIndex: Boolean!
+	"""
 	The node property names that index builds consider, or null when every
 	supported property is indexed.
 	"""

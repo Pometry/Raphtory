@@ -19,7 +19,7 @@ use raphtory_core::{
     },
     storage::{PropColumn, TColumns, timeindex::EventTime},
 };
-use std::sync::Arc;
+use std::{collections::BTreeSet, ops::RangeInclusive, sync::Arc};
 
 pub mod props_meta_writer;
 
@@ -42,6 +42,8 @@ pub struct Properties {
     pub deletions_count: usize,
     /// Distinct `(timestamp, event_id)` temporal updates; see `t_additions_count()`.
     t_additions_count: usize,
+    /// Rows by update time: property updates, then edge events.
+    time_rows: [BTreeSet<(EventTime, u32)>; 2],
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -301,6 +303,27 @@ impl Properties {
         self.deletions_count
     }
 
+    /// `(row, time)` of property updates and edge events at a time in `window`.
+    pub fn rows_updated_in(
+        &self,
+        props: bool,
+        events: bool,
+        window: RangeInclusive<i64>,
+    ) -> impl Iterator<Item = (usize, i64)> + '_ {
+        let range =
+            (EventTime::start(*window.start()), 0)..=(EventTime::end(*window.end()), u32::MAX);
+        let kinds = [props, events].into_iter().zip(&self.time_rows);
+        kinds
+            .filter(move |(wanted, _)| *wanted && window.start() <= window.end())
+            .flat_map(move |(_, rows)| rows.range(range.clone()))
+            .map(|(t, row)| (*row as usize, t.0))
+    }
+
+    /// Entries of the row sets, for size estimates.
+    pub fn time_rows_len(&self) -> usize {
+        self.time_rows.iter().map(|rows| rows.len()).sum()
+    }
+
     pub fn num_updates(&self) -> usize {
         self.t_properties.len()
             + self
@@ -349,6 +372,7 @@ impl<'a> PropMutEntry<'a> {
         if prop_timestamps.set(t, Some(t_prop_row)) {
             self.properties.t_additions_count += 1;
         }
+        self.properties.time_rows[0].insert((t, self.row as u32));
     }
 
     pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID) {
@@ -361,6 +385,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.has_additions = true;
         let prop_timestamps = &mut self.properties.additions[self.row];
         prop_timestamps.set(t, edge_id);
+        self.properties.time_rows[1].insert((t, self.row as u32));
 
         self.properties.update_earliest_latest(t);
     }
@@ -377,6 +402,7 @@ impl<'a> PropMutEntry<'a> {
 
         let prop_timestamps = &mut self.properties.deletions[self.row];
         prop_timestamps.set(t, edge_id.unwrap_or_default());
+        self.properties.time_rows[1].insert((t, self.row as u32));
         self.properties.update_earliest_latest(t);
     }
 

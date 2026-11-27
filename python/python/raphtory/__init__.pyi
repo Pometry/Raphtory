@@ -860,6 +860,14 @@ class Graph(GraphView):
             None: This function does not return a value, if the operation is successful.
         """
 
+    def build_time_index(self) -> None:
+        """
+        Add the time index for windowed views to stored data of a disk graph that has none.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+        """
+
     def create_node(
         self,
         timestamp: TimeInput,
@@ -1611,6 +1619,14 @@ class PersistentGraph(GraphView):
                 Filters over the id can then be served from the index instead
                 of a scan. The id has no property name, so it cannot be named
                 in `props`. Always takes effect and is saved with the graph.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+        """
+
+    def build_time_index(self) -> None:
+        """
+        Add the time index for windowed views to stored data of a disk graph that has none.
 
         Returns:
             None: This function does not return a value, if the operation is successful.

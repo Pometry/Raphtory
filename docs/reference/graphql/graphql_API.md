@@ -6425,6 +6425,15 @@ later builds reuse; omit it to keep the saved one.
 <td></td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="mutablegraph.buildtimeindex">buildTimeIndex</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Add the time index that serves windowed views to stored data that has none.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="mutablegraph.indexedproperties">indexedProperties</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
 <td>
