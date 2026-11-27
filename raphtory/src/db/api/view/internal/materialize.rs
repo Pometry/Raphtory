@@ -4,16 +4,17 @@ use crate::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::{iter::BoxedLIter, GraphType};
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use raphtory_storage::{
+    graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stageable,
+};
 use std::ops::Range;
 
 #[cfg(feature = "io")]
-use {
-    crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args,
-};
+use {raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args};
 
 #[derive(Clone)]
 pub enum MaterializedGraph {
@@ -268,5 +269,11 @@ where
     #[inline]
     fn graph_type(&self) -> GraphType {
         self.base().graph_type()
+    }
+}
+
+impl Stageable for MaterializedGraph {
+    fn from_storage(src: &Self, storage: GraphStorage) -> Self {
+        src.new_base_graph(storage)
     }
 }

@@ -6,7 +6,7 @@ use crate::{
     persist::strategy::PersistenceStrategy,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::ArcRwLockReadGuard;
+use raphtory_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard};
 use std::{
     ops::DerefMut,
     path::Path,
@@ -17,12 +17,17 @@ use std::{
 };
 
 pub use index::{FrozenNodeTypeEntry, MemNodeTypeEntry, MemNodeTypeIndex};
+
 /// Fully in-memory node type index.
 #[derive(Debug)]
 pub struct NodeTypeIndexView<P: PersistenceStrategy> {
     head: Arc<RwLock<MemNodeTypeIndex>>,
-    est_size: AtomicUsize,
+
+    /// Caches `head.est_size`.
+    /// Used to get memory usage without acquiring the `head` lock.
+    est_size_cached: AtomicUsize,
     is_dirty: AtomicBool,
+    is_enabled: AtomicBool,
     _persistence: P,
 }
 
@@ -31,10 +36,16 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     type Entry = MemNodeTypeEntry;
 
     fn new(_path: Option<&Path>, ext: Self::Extension) -> Result<Self, StorageError> {
+        let lsn = 0;
+
         Ok(Self {
-            head: Arc::new(RwLock::new(MemNodeTypeIndex::new())),
-            est_size: AtomicUsize::new(0),
+            head: Arc::new(RwLock::new(MemNodeTypeIndex::new(
+                lsn,
+                ext.memory_tracker().clone(),
+            ))),
+            est_size_cached: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
+            is_enabled: AtomicBool::new(true),
             _persistence: ext,
         })
     }
@@ -53,6 +64,10 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head.write()
     }
 
+    fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<MemNodeTypeIndex> {
+        self.head.write_arc()
+    }
+
     fn entry(&self, type_ids: &[usize]) -> Self::Entry {
         MemNodeTypeEntry::with_types(self.head_shared_arc(), type_ids)
     }
@@ -61,8 +76,24 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head_shared_arc().is_empty()
     }
 
-    fn est_size(&self) -> usize {
-        self.est_size.load(Ordering::Relaxed)
+    fn immut_lsn(&self) -> u64 {
+        0
+    }
+
+    fn is_enabled(&self) -> bool {
+        self.is_enabled.load(Ordering::Acquire)
+    }
+
+    fn set_enabled(&self, enabled: bool) {
+        self.is_enabled.store(enabled, Ordering::Release);
+    }
+
+    fn est_size_cached(&self) -> usize {
+        self.est_size_cached.load(Ordering::Relaxed)
+    }
+
+    fn increment_est_size_cached(&self, delta: usize) {
+        self.est_size_cached.fetch_add(delta, Ordering::Relaxed);
     }
 
     fn is_dirty(&self) -> bool {
@@ -73,26 +104,21 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.is_dirty.store(dirty, Ordering::Release);
     }
 
-    fn notify_write(&self) {
-        self.est_size
-            .store(self.head_shared_arc().est_size(), Ordering::Relaxed);
-    }
-
-    fn notify_write_with_head(&self, head: impl DerefMut<Target = MemNodeTypeIndex>) {
-        self.est_size.store(head.est_size(), Ordering::Relaxed);
+    fn notify_write(
+        &self,
+        _head: Option<impl DerefMut<Target = MemNodeTypeIndex>>,
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
-        let head = self.head.write_arc();
+        let head = self.head_exclusive_arc();
         let index = self.clone();
 
         WriteLockedNodeTypeIndex::new(head, index)
     }
 
-    fn flush_with_head(
-        &self,
-        _head: impl DerefMut<Target = MemNodeTypeIndex>,
-    ) -> Result<(), StorageError> {
+    fn flush(&self, _head: impl DerefMut<Target = MemNodeTypeIndex>) -> Result<(), StorageError> {
         Ok(())
     }
 

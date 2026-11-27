@@ -23,7 +23,7 @@ impl InternalStorageOps for GraphStorage {
 
     fn disk_storage_path(&self) -> Option<&Path> {
         match self {
-            GraphStorage::Locked(graph) => graph.graph.disk_storage_path(),
+            GraphStorage::Locked(graph) => graph.graph().disk_storage_path(),
             GraphStorage::Unlocked(graph) => graph.disk_storage_path(),
         }
     }

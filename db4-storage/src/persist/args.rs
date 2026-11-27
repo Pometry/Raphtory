@@ -1,8 +1,6 @@
 use crate::{
     error::StorageError,
-    persist::config::{
-        BaseConfig, ConfigOps, DEFAULT_MAX_PAGE_LEN_EDGES, DEFAULT_MAX_PAGE_LEN_NODES,
-    },
+    persist::config::{BaseConfig, ConfigOps},
 };
 use clap::{
     Args as ClapArgs, Command,
@@ -116,10 +114,20 @@ impl BaseArgs {
 
 impl From<BaseArgs> for BaseConfig {
     fn from(args: BaseArgs) -> Self {
-        Self::new(
-            args.max_node_page_len.unwrap_or(DEFAULT_MAX_PAGE_LEN_NODES),
-            args.max_edge_page_len.unwrap_or(DEFAULT_MAX_PAGE_LEN_EDGES),
-        )
+        let mut config = BaseConfig::default();
+        let BaseArgs {
+            max_node_page_len,
+            max_edge_page_len,
+        } = args;
+
+        if let Some(new_value) = max_node_page_len {
+            config = config.with_max_node_page_len(new_value);
+        }
+        if let Some(new_value) = max_edge_page_len {
+            config = config.with_max_edge_page_len(new_value);
+        }
+
+        config
     }
 }
 
@@ -136,16 +144,20 @@ impl ArgsOps for BaseArgs {
     type Config = BaseConfig;
 
     fn merge(&mut self, new_args: Self) -> Result<(), StorageError> {
-        let env = Self::default();
+        let default = Self::default();
+        let BaseArgs {
+            max_node_page_len,
+            max_edge_page_len,
+        } = new_args;
 
-        // page_len values set through the env should always be ignored.
-        let node_len_set = new_args.max_node_page_len.is_some()
-            && new_args.max_node_page_len != env.max_node_page_len;
+        // page_len values that match the default should just be ignored.
+        let is_node_len_set =
+            max_node_page_len.is_some() && max_node_page_len != default.max_node_page_len;
 
-        let edge_len_set = new_args.max_edge_page_len.is_some()
-            && new_args.max_edge_page_len != env.max_edge_page_len;
+        let is_edge_len_set =
+            max_edge_page_len.is_some() && max_edge_page_len != default.max_edge_page_len;
 
-        if node_len_set || edge_len_set {
+        if is_node_len_set || is_edge_len_set {
             return Err(StorageError::GenericFailure(
                 "Page sizes cannot be overridden after graph creation".to_string(),
             ));

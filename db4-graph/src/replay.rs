@@ -6,7 +6,7 @@ use crate::WriteLockedGraph;
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::{Meta, STATIC_GRAPH_LAYER_ID},
+            meta::{Meta, DEFAULT_NODE_TYPE_ID, STATIC_GRAPH_LAYER_ID},
             prop::Prop,
         },
         LayerId, EID, GID, VID,
@@ -291,8 +291,6 @@ where
             .layer_meta()
             .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
 
-        // One writer per node segment: a flush between the endpoint writes would mark the
-        // segment as holding this entry and skip the second write.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
         self.resize_segments_to_vid(src_id); // Create enough segments.
@@ -346,6 +344,9 @@ where
                 writer.update_deletion_time(t, src_pos, elid);
             }
 
+            // If the src and dst are in the same segment, apply the write immediately
+            // using the same writer and set the LSN. The `dst_segment` iteration will
+            // be skipped on the LSN check.
             if segment_id == dst_segment_id {
                 // Increment the node counter for this segment if this is a new node.
                 if !writer.has_node(dst_pos, STATIC_GRAPH_LAYER_ID) {
@@ -453,16 +454,27 @@ where
         self.resize_segments_to_vid(node_id);
 
         let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
+        let node_immut_lsn = segment.immut_lsn();
+        let type_index_immut_lsn = self.node_type_index.immut_lsn();
 
-        let immut_lsn = segment.immut_lsn();
+        if type_index_immut_lsn < lsn {
+            if let Some((_, node_type_id)) = node_type_and_id {
+                if node_type_id != DEFAULT_NODE_TYPE_ID {
+                    let mut index_writer = self.node_type_index.writer()?;
+                    index_writer.insert(node_type_id, node_id);
+                    index_writer.set_lsn(lsn);
+                }
+            }
+        }
 
         // Replay this entry only if it doesn't exist in immut.
-        if immut_lsn < lsn {
+        if node_immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
             unify_types(node_meta, &props, true)?;
-            // Replay marks presence while holding segment locks. This is only safe because it runs
-            // before any locked graph exists.
+
+            // Replay marks presence while holding segment locks. This is safe because
+            // it runs before any read-locked graph exists.
             node_meta
                 .temporal_prop_mapper()
                 .mark_props_in_layer(layer_id, props.iter().map(|(_, id, _)| *id));
@@ -521,15 +533,15 @@ where
         self.resize_segments_to_vid(vid);
 
         let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
-
         let immut_lsn = segment.immut_lsn();
 
         if immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
             unify_types(node_meta, &props, false)?;
-            // Replay marks presence while holding segment locks. This is only safe because it runs
-            // before any locked graph exists.
+
+            // Replay marks presence while holding segment locks. This is safe because
+            // it runs before any read-locked graph exists.
             node_meta
                 .metadata_mapper()
                 .mark_props_in_layer(STATIC_GRAPH_LAYER_ID, props.iter().map(|(_, id, _)| *id));
@@ -563,10 +575,16 @@ where
         self.resize_segments_to_vid(vid);
 
         let segment = self.graph().storage().nodes().wait_for_segment(segment_id);
+        let node_immut_lsn = segment.immut_lsn();
+        let type_index_immut_lsn = self.node_type_index.immut_lsn();
 
-        let immut_lsn = segment.immut_lsn();
+        if type_index_immut_lsn < lsn && node_type_id != DEFAULT_NODE_TYPE_ID {
+            let mut index_writer = self.node_type_index.writer()?;
+            index_writer.insert(node_type_id, vid);
+            index_writer.set_lsn(lsn);
+        }
 
-        if immut_lsn < lsn {
+        if node_immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
             node_meta
@@ -578,8 +596,8 @@ where
                     "Node segment {segment_id} not found during replay_set_node_type"
                 ))
             })?;
-            let mut node_writer = node_writer.writer();
 
+            let mut node_writer = node_writer.writer();
             node_writer.store_node_type(pos, node_type_id);
             node_writer.set_lsn(lsn);
         }

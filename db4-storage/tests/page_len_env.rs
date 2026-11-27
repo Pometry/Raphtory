@@ -7,7 +7,10 @@ use db4_storage::persist::{
 
 #[test]
 fn page_len_env_vars_are_ignored_on_load() {
-    let stored = BaseConfig::new(10, 20);
+    let config = BaseConfig::default()
+        .with_max_node_page_len(10)
+        .with_max_edge_page_len(20);
+    let stored = config.clone();
 
     // SAFETY: the only test in this binary, so nothing else reads the environment.
     unsafe {

@@ -97,11 +97,8 @@ impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InternalNodeFilterOps
     }
 
     fn internal_node_list_trusted(&self) -> bool {
-        self.graph.internal_node_list_trusted()
-            && self
-                .filter
-                .const_value_in_domain(self.graph.core_graph())
-                .is_some_and(|v| v)
+        // this can never be trusted as we do not take care of indirect filtering of nodes via edges
+        false
     }
 }
 
@@ -118,10 +115,11 @@ impl<G: GraphView, F: NodeFilterOp> ListOps for NodeFilteredGraph<G, F> {
     ///   on top of its list does not account for them.
     fn node_list(&self) -> NodeList {
         let inner = self.graph.node_list();
-        let combined = match self.filter.domain(self.graph.core_graph()) {
-            NodeList::All if self.filter.is_filtered() => inner.clone().into_inexact(),
-            domain => domain.intersection(&inner, self.graph.core_graph()),
-        };
+        let combined = self
+            .filter
+            .domain(self.graph.core_graph())
+            .intersection(&inner, self.graph.core_graph());
+
         if self.graph.internal_node_list_trusted() {
             combined
         } else {

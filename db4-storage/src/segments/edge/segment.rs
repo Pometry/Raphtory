@@ -95,12 +95,12 @@ impl MemEdgeSegment {
         self.layers[0].segment_id()
     }
 
-    pub fn increment_global_memory(&self, increment: usize) {
+    pub(crate) fn increment_global_memory_tracker(&self, increment: usize) {
         self.global_memory_tracker
             .fetch_add(increment, Ordering::Relaxed);
     }
 
-    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+    pub fn global_memory_tracker(&self) -> &Arc<AtomicUsize> {
         &self.global_memory_tracker
     }
 
@@ -539,13 +539,6 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.segment.try_write()
     }
 
-    fn try_head_mut_arc_for(
-        &self,
-        timeout: std::time::Duration,
-    ) -> Option<ArcRwLockWriteGuard<MemEdgeSegment>> {
-        self.segment.try_write_arc_for(timeout)
-    }
-
     fn set_dirty(&self, _dirty: bool) {}
 
     fn is_dirty(&self) -> bool {
@@ -747,8 +740,8 @@ mod test {
         let stats = GraphStats::new();
         let segment = EdgeSegmentView::new(1, meta.clone(), None, ext.clone());
         let head = segment.head_mut();
-        let mut writer = EdgeWriter::new(&stats, &segment, head);
-        assert_eq!(writer.writer.est_size(), 0);
+        let mut writer = EdgeWriter::new(head, &segment, &stats);
+        assert_eq!(writer.head.est_size(), 0);
         writer.add_edge(
             EventTime::new(1, 0),
             LocalPOS(0),
@@ -758,7 +751,7 @@ mod test {
             STATIC_GRAPH_LAYER_ID,
         );
 
-        let est_size1 = writer.writer.est_size();
+        let est_size1 = writer.head.est_size();
 
         assert!(est_size1 > 0);
         writer.delete_edge(
@@ -769,7 +762,7 @@ mod test {
             STATIC_GRAPH_LAYER_ID,
         );
 
-        let est_size2 = writer.writer.est_size();
+        let est_size2 = writer.head.est_size();
 
         assert!(
             est_size2 > est_size1,
@@ -786,7 +779,7 @@ mod test {
             STATIC_GRAPH_LAYER_ID,
         );
 
-        let est_size3 = writer.writer.est_size();
+        let est_size3 = writer.head.est_size();
         assert!(
             est_size3 > est_size2,
             "Expected size to increase after re-insertion, but it did not."
@@ -795,7 +788,7 @@ mod test {
         // Insert a static edge
         writer.add_static_edge(Some(LocalPOS(1)), 4, 6, false);
 
-        let est_size4 = writer.writer.est_size();
+        let est_size4 = writer.head.est_size();
         assert_eq!(
             est_size4, est_size3,
             "Expected size to remain the same after static edge insertion, but it changed."
@@ -815,7 +808,7 @@ mod test {
             [(prop_id, Prop::U8(2))],
         );
 
-        let est_size5 = writer.writer.est_size();
+        let est_size5 = writer.head.est_size();
         assert!(
             est_size5 > est_size4,
             "Expected size to increase after updating properties, but it did not."
@@ -832,9 +825,9 @@ mod test {
 
         drop(writer);
         // global size should be the last size of the writer after drop
-        assert_eq!(ext.estimated_size(), est_size5);
+        assert_eq!(ext.memory_usage(), est_size5);
         drop(segment);
         // global size should be 0 after the segment is dropped
-        assert_eq!(ext.estimated_size(), 0);
+        assert_eq!(ext.memory_usage(), 0);
     }
 }

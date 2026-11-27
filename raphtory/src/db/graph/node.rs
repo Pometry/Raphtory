@@ -43,9 +43,7 @@ use raphtory_storage::{
     durability_ops::DurabilityOps,
     graph::graph::GraphStorage,
     mutation::{
-        addition_ops::{
-            GraphMutationOps, MetadataMutationOps, NodeWriteLock, PropertyMutationOps, SetLsn,
-        },
+        addition_ops::{GraphMutationOps, MetadataMutationOps, PropertyMutationOps},
         MutationError,
     },
 };

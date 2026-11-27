@@ -11,12 +11,10 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use parking_lot::Mutex;
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
-    db::{
-        api::view::{internal::InternalStorageOps, MaterializedGraph},
-        graph::{graph::Graph, views::deletion_graph::PersistentGraph},
-    },
+    db::api::view::{internal::InternalStorageOps, MaterializedGraph},
     errors::GraphError,
     io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
+    prelude::StageOps,
 };
 use raphtory_storage::stage::Stage;
 use std::{
@@ -278,11 +276,7 @@ impl GqlStagedGraph {
         }
 
         let graph = blocking_write(move || -> Result<_, GqlStageError> {
-            let stage = match source.graph() {
-                MaterializedGraph::EventGraph(g) => MaterializedStage::Event(g.stage()?),
-                MaterializedGraph::PersistentGraph(g) => MaterializedStage::Persistent(g.stage()?),
-            };
-
+            let stage = source.graph().stage()?;
             let staged_graph = StagedGraph { source, stage };
 
             Ok(Arc::new(Mutex::new(Some(staged_graph))))
@@ -300,12 +294,7 @@ impl GqlStagedGraph {
 pub(crate) struct StagedGraph {
     /// Cache pin for the graph being staged.
     source: GraphWithVectors,
-    stage: MaterializedStage,
-}
-
-enum MaterializedStage {
-    Event(Stage<Graph>),
-    Persistent(Stage<PersistentGraph>),
+    stage: Stage<MaterializedGraph>,
 }
 
 impl StagedGraph {
@@ -314,10 +303,7 @@ impl StagedGraph {
     }
 
     pub(crate) fn version(&self) -> Result<u32, GraphError> {
-        match &self.stage {
-            MaterializedStage::Event(stage) => stage.graph().version(),
-            MaterializedStage::Persistent(stage) => stage.graph().version(),
-        }
+        self.stage.graph().version()
     }
 
     // Finalize the snapshot without promoting it to the active version.
@@ -329,14 +315,7 @@ impl StagedGraph {
             let Self { stage, .. } = self;
             let set_active = false; // Don't promote to active version.
 
-            match stage {
-                MaterializedStage::Event(stage) => {
-                    Ok(MaterializedGraph::EventGraph(stage.finish(set_active)?))
-                }
-                MaterializedStage::Persistent(stage) => Ok(MaterializedGraph::PersistentGraph(
-                    stage.finish(set_active)?,
-                )),
-            }
+            stage.finish(set_active).map_err(GraphError::from)
         })
         .await
     }
@@ -346,22 +325,12 @@ impl StagedGraph {
             // NOTE: We are dropping the source here and decrementing the pin count.
             let Self { stage, .. } = self;
 
-            match stage {
-                MaterializedStage::Event(stage) => stage.discard()?,
-                MaterializedStage::Persistent(stage) => stage.discard()?,
-            }
-
-            Ok(())
+            stage.discard().map_err(GraphError::from)
         })
         .await
     }
 
     fn materialized_graph(&self) -> MaterializedGraph {
-        match &self.stage {
-            MaterializedStage::Event(stage) => MaterializedGraph::EventGraph(stage.graph().clone()),
-            MaterializedStage::Persistent(stage) => {
-                MaterializedGraph::PersistentGraph(stage.graph().clone())
-            }
-        }
+        self.stage.graph().clone()
     }
 }

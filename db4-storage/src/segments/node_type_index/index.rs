@@ -5,9 +5,10 @@ use raphtory_api::{ArcRwLockReadGuard, core::storage::FxDashMap, iter::IntoDynBo
 use raphtory_core::{entities::VID, utils::iter::GenLockedIter};
 use std::{
     collections::BTreeSet,
+    ops::Deref,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
 };
 
@@ -22,38 +23,63 @@ pub struct MemNodeTypeIndex {
 
     /// Estimated memory size of the index in bytes.
     est_size: AtomicUsize,
+
+    /// Latest WAL LSN reflected in this in-memory index.
+    lsn: AtomicU64,
+
+    /// Counter that tracks the memory usage of the entire graph.
+    global_memory_tracker: Arc<AtomicUsize>,
 }
 
-impl Default for MemNodeTypeIndex {
-    fn default() -> Self {
-        Self::new()
+impl Drop for MemNodeTypeIndex {
+    fn drop(&mut self) {
+        self.global_memory_tracker
+            .fetch_sub(self.est_size.load(Ordering::Relaxed), Ordering::Relaxed);
     }
 }
 
 impl MemNodeTypeIndex {
-    pub fn new() -> Self {
+    pub(crate) const ESTIMATED_ENTRY_SIZE: usize =
+        std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
+
+    pub fn new(lsn: u64, global_memory_tracker: Arc<AtomicUsize>) -> Self {
         Self {
             map: FxDashMap::default(),
             entry_count: AtomicUsize::new(0),
             est_size: AtomicUsize::new(0),
+            lsn: AtomicU64::new(lsn),
+            global_memory_tracker,
         }
     }
 
+    pub fn lsn(&self) -> u64 {
+        self.lsn.load(Ordering::Relaxed)
+    }
+
+    pub fn set_lsn(&self, lsn: u64) {
+        self.lsn.fetch_max(lsn, Ordering::Relaxed);
+    }
+
     /// Associates `vid` with `type_id`. Idempotent for duplicate pairs.
-    pub fn insert(&self, type_id: usize, vid: VID) {
+    /// Returns the estimated bytes added.
+    pub fn insert(&self, type_id: usize, vid: VID) -> usize {
         let mut entry = self.map.entry(type_id).or_default();
 
         if entry.insert(vid) {
             self.entry_count.fetch_add(1, Ordering::Relaxed);
 
-            // TODO: Refine est_size calculation.
-            let entry_size = std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
-            self.est_size.fetch_add(entry_size, Ordering::Relaxed);
+            self.est_size
+                .fetch_add(Self::ESTIMATED_ENTRY_SIZE, Ordering::Relaxed);
+
+            Self::ESTIMATED_ENTRY_SIZE
+        } else {
+            0
         }
     }
 
     /// Bulk-inserts `vids` for a single `type_id`.
-    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
+    /// Returns the estimated bytes added.
+    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) -> usize {
         let mut entry = self.map.entry(type_id).or_default();
         let mut added = 0;
 
@@ -66,10 +92,12 @@ impl MemNodeTypeIndex {
         if added > 0 {
             self.entry_count.fetch_add(added, Ordering::Relaxed);
 
-            // TODO: Refine est_size calculation.
-            let entry_size = std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
-            self.est_size
-                .fetch_add(added * entry_size, Ordering::Relaxed);
+            let delta = added * Self::ESTIMATED_ENTRY_SIZE;
+            self.est_size.fetch_add(delta, Ordering::Relaxed);
+
+            delta
+        } else {
+            0
         }
     }
 
@@ -91,7 +119,13 @@ impl MemNodeTypeIndex {
 
     /// Drains `self` into a new instance, leaving this one empty.
     pub fn take(&mut self) -> Self {
-        std::mem::take(self)
+        Self {
+            map: std::mem::take(&mut self.map),
+            entry_count: AtomicUsize::new(self.entry_count.swap(0, Ordering::Relaxed)),
+            est_size: AtomicUsize::new(self.est_size.swap(0, Ordering::Relaxed)),
+            lsn: AtomicU64::new(self.lsn.load(Ordering::Relaxed)),
+            global_memory_tracker: self.global_memory_tracker.clone(),
+        }
     }
 
     /// Returns `(type_id, vids)` in ascending `type_id` order with ascending `VID`s per type.
@@ -103,6 +137,11 @@ impl MemNodeTypeIndex {
         entries
     }
 
+    pub(crate) fn increment_global_memory_tracker(&self, increment: usize) {
+        self.global_memory_tracker
+            .fetch_add(increment, Ordering::Relaxed);
+    }
+
     fn type_sets(&self, type_ids: &[usize]) -> Vec<Ref<'_, usize, BTreeSet<VID>>> {
         type_ids
             .iter()
@@ -112,15 +151,18 @@ impl MemNodeTypeIndex {
 }
 
 #[self_referencing]
-pub struct MemNodeTypeEntry {
-    head: ArcRwLockReadGuard<MemNodeTypeIndex>,
+pub struct GenericNodeTypeEntry<H: Deref<Target = MemNodeTypeIndex> + 'static> {
+    head: H,
     #[borrows(head)]
     #[covariant]
     sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
 }
 
-impl MemNodeTypeEntry {
-    pub fn with_types(head: ArcRwLockReadGuard<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
+pub type MemNodeTypeEntry = GenericNodeTypeEntry<ArcRwLockReadGuard<MemNodeTypeIndex>>;
+pub type FrozenNodeTypeEntry = GenericNodeTypeEntry<Arc<MemNodeTypeIndex>>;
+
+impl<H: Deref<Target = MemNodeTypeIndex> + 'static> GenericNodeTypeEntry<H> {
+    pub fn with_types(head: H, type_ids: &[usize]) -> Self {
         Self::new(head, |head| head.type_sets(type_ids))
     }
 
@@ -152,49 +194,14 @@ impl MemNodeTypeEntry {
     }
 }
 
-#[self_referencing]
-pub struct FrozenNodeTypeEntry {
-    frozen: Arc<MemNodeTypeIndex>,
-    #[borrows(frozen)]
-    #[covariant]
-    sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
-}
-
-impl FrozenNodeTypeEntry {
-    pub fn with_types(frozen: Arc<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
-        Self::new(frozen, |frozen| frozen.type_sets(type_ids))
-    }
-
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
-        self.borrow_sets().iter().map(|set| set.len()).sum()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
-        self.borrow_sets()
-            .iter()
-            .map(|set| set.iter().copied())
-            .kmerge()
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn into_iter(self) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |entry| {
-            entry
-                .borrow_sets()
-                .iter()
-                .map(|set| set.iter().copied())
-                .kmerge()
-                .into_dyn_boxed()
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use parking_lot::RwLock;
-    use std::{sync::Arc, thread};
+    use std::{
+        sync::{Arc, atomic::AtomicUsize},
+        thread,
+    };
 
     fn nodes_of_type(index: &Arc<RwLock<MemNodeTypeIndex>>, type_ids: &[usize]) -> Vec<VID> {
         MemNodeTypeEntry::with_types(index.read_arc(), type_ids)
@@ -202,27 +209,20 @@ mod tests {
             .collect()
     }
 
-    #[test]
-    fn frozen_into_iter_matches_iter() {
-        let index = Arc::new(MemNodeTypeIndex::new());
-        index.insert(1, VID(4));
-        index.insert(1, VID(1));
-        index.insert(2, VID(2));
+    fn test_index() -> Arc<MemNodeTypeIndex> {
+        Arc::new(MemNodeTypeIndex::new(0, Arc::new(AtomicUsize::new(0))))
+    }
 
-        let via_iter: Vec<_> = FrozenNodeTypeEntry::with_types(index.clone(), &[1, 2])
-            .iter()
-            .collect();
-        let via_into: Vec<_> = FrozenNodeTypeEntry::with_types(index, &[1, 2])
-            .into_iter()
-            .collect();
-
-        assert_eq!(via_iter, via_into);
-        assert_eq!(via_into, vec![VID(1), VID(2), VID(4)]);
+    fn test_index_rwlock() -> Arc<RwLock<MemNodeTypeIndex>> {
+        Arc::new(RwLock::new(MemNodeTypeIndex::new(
+            0,
+            Arc::new(AtomicUsize::new(0)),
+        )))
     }
 
     #[test]
     fn get_returns_sorted_unique_vids() {
-        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
+        let index = test_index_rwlock();
 
         index.read().insert(1, VID(4));
         index.read().insert(1, VID(1));
@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn len_sums_type_sets() {
-        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
+        let index = test_index_rwlock();
 
         index.read().insert(1, VID(4));
         index.read().insert(1, VID(1));
@@ -254,13 +254,13 @@ mod tests {
 
     #[test]
     fn get_missing_type_is_empty() {
-        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
+        let index = test_index_rwlock();
         assert!(nodes_of_type(&index, &[3]).is_empty());
     }
 
     #[test]
     fn get_merges_sorted_vids() {
-        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
+        let index = test_index_rwlock();
 
         index.read().insert(1, VID(4));
         index.read().insert(1, VID(1));
@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn max_type_id_returns_largest_type_id() {
-        let index = MemNodeTypeIndex::new();
+        let index = test_index();
         assert_eq!(index.max_type_id(), None);
 
         index.insert(0, VID(1));
@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn num_entries_counts_unique_pairs() {
-        let index = MemNodeTypeIndex::new();
+        let index = test_index();
         assert_eq!(index.num_entries(), 0);
 
         index.insert(1, VID(2));
@@ -305,7 +305,7 @@ mod tests {
 
     #[test]
     fn insert_batch_is_idempotent_and_counts_unique_pairs() {
-        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
+        let index = test_index_rwlock();
 
         index.read().insert_batch(1, [VID(2), VID(1), VID(1)]);
         index.read().insert_batch(1, [VID(1), VID(3)]);
@@ -318,7 +318,7 @@ mod tests {
 
     #[test]
     fn sorted_entries_returns_types_in_order_with_sorted_vids() {
-        let index = MemNodeTypeIndex::new();
+        let index = test_index();
         index.insert(2, VID(5));
         index.insert(0, VID(3));
         index.insert(2, VID(1));
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn take_drains_index() {
-        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
+        let index = test_index_rwlock();
         index.read().insert(1, VID(1));
         index.read().insert(1, VID(3));
         index.read().insert(2, VID(2));
@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn concurrent_same_type_inserts() {
-        let index = Arc::new(MemNodeTypeIndex::new());
+        let index = test_index();
 
         thread::scope(|scope| {
             for i in 0..100usize {
@@ -372,5 +372,23 @@ mod tests {
             Arc::try_unwrap(index).expect("threads have joined"),
         ));
         assert_eq!(nodes_of_type(&index, &[1]).len(), 100);
+    }
+
+    #[test]
+    fn frozen_into_iter_matches_iter() {
+        let index = test_index();
+        index.insert(1, VID(4));
+        index.insert(1, VID(1));
+        index.insert(2, VID(2));
+
+        let via_iter: Vec<_> = FrozenNodeTypeEntry::with_types(index.clone(), &[1, 2])
+            .iter()
+            .collect();
+        let via_into: Vec<_> = FrozenNodeTypeEntry::with_types(index, &[1, 2])
+            .into_iter()
+            .collect();
+
+        assert_eq!(via_iter, via_into);
+        assert_eq!(via_into, vec![VID(1), VID(2), VID(4)]);
     }
 }

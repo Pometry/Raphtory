@@ -501,6 +501,45 @@ mod test {
     }
 
     #[test]
+    fn add_node_after_load_includes_node_in_type_filter() {
+        let graph = Graph::new();
+        let names = ["id", "node_type", "time"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let chunks = vec![Ok(DFChunk {
+            chunk: vec![
+                Arc::new(StringArray::from(vec!["a", "b"])),
+                Arc::new(StringArray::from(vec!["Person", "Company"])),
+                Arc::new(Int64Array::from(vec![1i64, 2])),
+            ],
+        })]
+        .into_iter();
+
+        let df = DFView {
+            names,
+            chunks,
+            num_rows: Some(2),
+        };
+
+        load_nodes_with_type_col(&graph, df).expect("failed to load nodes");
+
+        graph
+            .add_node(3, "c", NO_PROPS, Some("Person"), None)
+            .expect("failed to add node");
+
+        assert_eq!(
+            graph.node("c").unwrap().node_type().as_deref(),
+            Some("Person")
+        );
+
+        let mut names: Vec<_> = graph.nodes().type_filter(["Person"]).name().collect();
+        names.sort();
+        assert_eq!(names, vec!["a", "c"]);
+    }
+
+    #[test]
     fn default_node_types_are_not_stored_or_indexed() {
         let graph = Graph::new();
         load_nodes_with_type_col(

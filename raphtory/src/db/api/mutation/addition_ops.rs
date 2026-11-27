@@ -18,10 +18,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     durability_ops::DurabilityOps,
-    mutation::addition_ops::{
-        EdgeWriteLock, GraphMutationOps, InternalAdditionOps, NodeWriteLock, PropertyMutationOps,
-        SetLsn,
-    },
+    mutation::addition_ops::{GraphMutationOps, InternalAdditionOps, PropertyMutationOps},
 };
 use storage::wal::{GraphWalOps, WalOps};
 
@@ -323,27 +320,28 @@ fn add_node_impl<
     let transaction_manager = mutable_graph.transaction_manager()?;
     let wal = mutable_graph.wal()?;
     let transaction_id = transaction_manager.begin_transaction();
+
     let node_ref = v.as_node_ref();
     let node_gid = node_ref.as_gid_ref();
     let ti = time_from_input_session(&mutable_graph, t)?;
     let validated_properties =
         mutable_graph.validate_props(false, mutable_graph.node_meta(), props)?;
-    let mut writer = mutable_graph
+    let mut atomic = mutable_graph
         .atomic_add_node(node_ref, node_type)
         .map_err(into_graph_err)?;
 
-    let node_exists = !writer.node().is_new();
-    let node_id = writer.node().inner();
+    let node_exists = !atomic.node().is_new();
+    let node_id = atomic.node().inner();
 
     if fail_if_exists && node_exists {
-        drop(writer);
+        drop(atomic);
         let node_id = graph.node(node_id).unwrap().id();
         return Err(GraphError::NodeExistsError(node_id));
     }
 
     let node_type_id = match node_type {
         None => DEFAULT_NODE_TYPE_ID,
-        Some(_) => writer.get_type(),
+        Some(_) => atomic.get_type(),
     };
 
     // We don't care about logging the default node type.
@@ -378,14 +376,14 @@ fn add_node_impl<
         layer_id,
     )?;
 
-    writer.update_properties(ti, layer_id, props);
+    atomic.update_properties(ti, layer_id, props);
     // Update node segment with the lsn of the wal entry.
-    writer.set_lsn(lsn);
+    atomic.set_lsn(lsn);
     transaction_manager.end_transaction(transaction_id);
 
-    // Segment lock can be released before flush to allow
+    // Segment locks can be released before flush to allow
     // other operations to proceed.
-    drop(writer);
+    drop(atomic);
 
     // Flush the wal entry to disk.
     // Any error here is fatal.

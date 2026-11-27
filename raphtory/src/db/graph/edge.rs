@@ -50,8 +50,7 @@ use raphtory_storage::{
     durability_ops::DurabilityOps,
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::addition_ops::{
-        EdgeWriteLock, GraphMutationOps, InternalAdditionOps, MetadataMutationOps,
-        PropertyMutationOps, SetLsn,
+        GraphMutationOps, InternalAdditionOps, MetadataMutationOps, PropertyMutationOps,
     },
 };
 use std::{

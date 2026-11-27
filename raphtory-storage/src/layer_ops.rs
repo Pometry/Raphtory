@@ -1,7 +1,4 @@
-use crate::{
-    core_ops::CoreGraphOps,
-    graph::{graph::GraphStorage, locked::ReadLockedGraph},
-};
+use crate::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use raphtory_api::{
     core::entities::{Layer, LayerIds},
     inherit::Base,
@@ -16,9 +13,8 @@ pub trait InternalLayerOps: CoreGraphOps {
     /// Get the layer id for the given layer name
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, InvalidLayer> {
         let layer_ids = match self.core_graph() {
-            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.layer_ids(key)
-            }
+            GraphStorage::Locked(locked) => locked.graph().layer_ids(key),
+            GraphStorage::Unlocked(graph) => graph.layer_ids(key),
         }?;
         Ok(layer_ids.intersect(self.layer_ids()))
     }
@@ -26,9 +22,8 @@ pub trait InternalLayerOps: CoreGraphOps {
     /// Get the valid layer ids for given layer names
     fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
         let layer_ids = match self.core_graph() {
-            GraphStorage::Unlocked(graph) | GraphStorage::Locked(ReadLockedGraph { graph, .. }) => {
-                graph.valid_layer_ids(key)
-            }
+            GraphStorage::Unlocked(graph) => graph.valid_layer_ids(key),
+            GraphStorage::Locked(locked) => locked.graph().valid_layer_ids(key),
         };
         layer_ids.intersect(self.layer_ids())
     }

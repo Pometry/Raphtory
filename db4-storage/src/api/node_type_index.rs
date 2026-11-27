@@ -3,7 +3,7 @@ use crate::{
     segments::node_type_index::MemNodeTypeIndex,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::ArcRwLockReadGuard;
+use raphtory_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard};
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 
 pub trait NodeTypeIndexOps: Send + Sync + Debug + 'static
@@ -18,36 +18,47 @@ where
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
+    /// **Deadlock safety:** node type index must be locked before node segments.
     fn head_shared_arc(&self) -> ArcRwLockReadGuard<MemNodeTypeIndex>;
 
+    /// **Deadlock safety:** node type index must be locked before node segments.
     fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
+
+    /// **Deadlock safety:** node type index must be locked before node segments.
+    fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<MemNodeTypeIndex>;
 
     fn entry(&self, type_ids: &[usize]) -> Self::Entry;
 
     /// Returns `true` if the index has no `(type_id, VID)` entries.
     fn is_empty(&self) -> bool;
 
-    fn est_size(&self) -> usize;
+    /// LSN of the last entry persisted to disk.
+    fn immut_lsn(&self) -> u64;
+
+    fn is_enabled(&self) -> bool;
+
+    fn set_enabled(&self, enabled: bool);
+
+    /// The size of `head` in bytes, cached so it can be read without locking.
+    fn est_size_cached(&self) -> usize;
+
+    /// Adds `delta` to the cached size of `head`.
+    fn increment_est_size_cached(&self, delta: usize);
 
     fn is_dirty(&self) -> bool;
 
     fn set_dirty(&self, dirty: bool);
 
-    fn notify_write(&self);
-
-    fn notify_write_with_head(&self, head: impl DerefMut<Target = MemNodeTypeIndex>);
+    /// Called to decide if the index should be flushed to disk.
+    /// If `head` is None, may try to acquire an exclusive lock on `head` to flush.
+    fn notify_write(
+        &self,
+        head: Option<impl DerefMut<Target = MemNodeTypeIndex>>,
+    ) -> Result<(), StorageError>;
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self>;
 
-    fn flush(&self) -> Result<(), StorageError> {
-        let head = self.head_exclusive();
-        self.flush_with_head(head)
-    }
-
-    fn flush_with_head(
-        &self,
-        head: impl DerefMut<Target = MemNodeTypeIndex>,
-    ) -> Result<(), StorageError>;
+    fn flush(&self, head: impl DerefMut<Target = MemNodeTypeIndex>) -> Result<(), StorageError>;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 }

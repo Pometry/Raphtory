@@ -156,6 +156,7 @@ pub mod prelude {
         node_filter::NodeFilterFactory, EntityAggOps, EntityExprFilterOps,
     };
 
+    pub use crate::db::api::stage_ops::StageOps;
     pub use storage::{
         persist::{args::ArgsOps, config::ConfigOps},
         Args,

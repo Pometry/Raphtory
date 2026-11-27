@@ -26,7 +26,7 @@ use crate::{
         node_type_index::MemNodeTypeEntry,
     },
 };
-use parking_lot::{RwLock, RwLockWriteGuard};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
     ArcRwLockWriteGuard,
     core::entities::{EID, VID},
@@ -72,8 +72,8 @@ pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NS<P>, P>;
 pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<ES<P>, P>;
 
-pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
-pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
+pub type NodeEntry<'a> = MemNodeEntry<'a, RwLockReadGuard<'a, MemNodeSegment>>;
+pub type EdgeEntry<'a> = MemEdgeEntry<'a, RwLockReadGuard<'a, MemEdgeSegment>>;
 pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;

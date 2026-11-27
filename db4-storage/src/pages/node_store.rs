@@ -9,7 +9,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::nodes::{MemNodeSegmentGuards, WriteLockedNodeSegment, WriteLockedNodeSegments},
+        locked::nodes::{WriteLockedNodeSegment, WriteLockedNodeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -378,7 +378,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     /// Create segments until there are `new_len`, returning them locked.
-    pub fn grow_locked(&self, new_len: usize) -> MemNodeSegmentGuards {
+    pub fn grow_locked(&self, new_len: usize) -> Vec<ArcRwLockWriteGuard<MemNodeSegment>> {
         let mut new_segments = Vec::new();
 
         while self.segments.count() < new_len {
@@ -436,7 +436,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     /// Find a free segment and reserve `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
     ///
-    /// # Deadlock Safety: do not hold any node segment locks when calling this function other than the `existing_full_segment` guard passed in!
+    /// **Deadlock safety:** do not hold any node segment locks when calling this function other
+    /// than the `existing_full_segment` guard passed in!
     pub fn reserve_and_lock_segment(
         &self,
         num_rows: u32,
@@ -460,6 +461,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 let (slot, mut writer_and_row) = existing_writer.unlocked(|| {
                     let slot = self.free_segments.slot().write();
                     let free_segment_id = *slot;
+
                     if existing_segment_id <= free_segment_id {
                         // node segment lock order: relock existing writer before acquiring segment!
                         (slot, None)
@@ -470,12 +472,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                         (slot, Some((writer, row)))
                     }
                 });
+
                 let free_segment_id = *slot;
                 if existing_segment_id < free_segment_id {
                     let writer = self.writer(free_segment_id);
                     let row = self.reserve_segment_rows(writer.segment, num_rows);
                     writer_and_row = Some((writer, row));
                 }
+
                 (slot, writer_and_row)
             }
             None => {
@@ -488,10 +492,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         match writer_and_row {
             None | Some((_, None)) => {
-                // The free segment is full, push a new locked free segment before releasing the slot lock
-
+                // The free segment is full, push a new locked free segment before
+                // releasing the slot lock.
                 let guard = self.push_new_segment();
+
                 *slot = guard.segment_id();
+
                 let writer = self.arc_writer(guard);
 
                 let local_pos = self
@@ -516,8 +522,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         increment_and_clamp(segment.nodes_counter(), rows, self.max_segment_len())
     }
 
-    /// Push a new segment; the segment is write-locked before it
-    /// is published and its guard is pushed into `new_guards`.
+    /// Push a new segment.
+    ///
+    /// Write-locks the segment before it is published and returns its guard.
     fn push_new_segment(&self) -> ArcRwLockWriteGuard<MemNodeSegment> {
         let mut guard = None;
 
@@ -562,7 +569,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         let segment = self.wait_for_segment(segment_id);
         let head = segment.head_mut_arc();
-        NodeWriter::new(segment, &self.stats, head)
+        NodeWriter::new(head, segment, &self.stats)
     }
 
     #[inline(always)]
@@ -571,7 +578,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         head: ArcRwLockWriteGuard<MemNodeSegment>,
     ) -> NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS> {
         let segment = self.wait_for_segment(head.segment_id());
-        NodeWriter::new(segment, &self.stats, head)
+        NodeWriter::new(head, segment, &self.stats)
     }
 
     /// try to get a writer for an existing segment (None if the segment is read-locked currently)
@@ -581,7 +588,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> Option<NodeWriter<'a, ArcRwLockWriteGuard<MemNodeSegment>, NS>> {
         let segment = self.wait_for_segment(segment_id);
         let head = segment.try_head_mut_arc()?;
-        Some(NodeWriter::new(segment, &self.stats, head))
+        Some(NodeWriter::new(head, segment, &self.stats))
     }
 
     pub fn id_type(&self) -> Option<GidType> {
@@ -790,7 +797,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.segments_par_iter()
             .try_for_each(|segment| segment.flush())?;
 
-        self.type_index.flush()
+        let head = self.type_index.head_exclusive();
+        self.type_index.flush(head)
     }
 
     /// Copy flushed data into `dst`.
@@ -841,7 +849,10 @@ mod test {
         let (sender_2_main, receiver_2_main) = mpsc::channel();
 
         thread::spawn(move || {
-            let ext = Extension::new(None, BaseConfig::new(2, 1)).unwrap();
+            let config = BaseConfig::default()
+                .with_max_node_page_len(2)
+                .with_max_edge_page_len(1);
+            let ext = Extension::new(None, config).unwrap();
             let graph = Layer::new(None, ext).unwrap();
 
             let nodes = graph.nodes();

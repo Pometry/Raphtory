@@ -12,7 +12,7 @@ use crate::{
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
 use raphtory_storage::{
     durability_ops::DurabilityOps,
-    mutation::addition_ops::{EdgeWriteLock, GraphMutationOps, InternalAdditionOps, SetLsn},
+    mutation::addition_ops::{GraphMutationOps, InternalAdditionOps},
 };
 use storage::wal::{GraphWalOps, WalOps};
 

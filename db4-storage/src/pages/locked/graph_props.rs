@@ -6,7 +6,7 @@ use drop_logging::drop_error;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::timeindex::AsTime;
-use std::{ops::DerefMut, path::Path};
+use std::ops::DerefMut;
 
 pub struct WriteLockedGraphPropSegment<'a, GS: GraphPropSegmentOps> {
     page: &'a GS,
@@ -54,11 +54,6 @@ impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropSegment<'a, GS> {
     pub fn flush(&mut self) -> Result<(), StorageError> {
         let head = self.lock.deref_mut();
         self.page.flush_with_head(head)
-    }
-
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-        self.page.copy_to(dst)
     }
 }
 

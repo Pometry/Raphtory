@@ -32,6 +32,7 @@ pub struct Stage<G> {
     /// Read locks need to be held to prevent concurrent writes while staging.
     _src_graph: ReadLockedGraph,
 
+    /// The directory of the graph this stage is based on.
     src_folder: GraphFolder,
 
     /// Version of the graph this stage is based on.
@@ -44,15 +45,20 @@ pub struct Stage<G> {
     _guard: ArcMutexGuard<RawMutex, ()>,
 }
 
-impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
+/// Graphs that can be turned into a [`Stage`].
+pub trait Stageable: CoreGraphOps + Sized {
+    fn from_storage(src: &Self, storage: GraphStorage) -> Self;
+}
+
+impl<G: Stageable> Stage<G> {
     pub fn new(src: &G) -> Result<Self, StageError> {
-        src.core_graph().stage()
+        src.core_graph().stage(src)
     }
 
     /// Get a reference to the staged graph.
     ///
     /// WARNING: Cloning this reference is not advised as the clone points to
-    /// volatile storage which may get discarded at any time.
+    /// a graph directory which may get discarded at any time.
     pub fn graph(&self) -> &G {
         &self.graph
     }
@@ -108,7 +114,7 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
 }
 
 impl GraphStorage {
-    pub(crate) fn stage<G: From<GraphStorage>>(&self) -> Result<Stage<G>, StageError> {
+    pub(crate) fn stage<G: Stageable>(self: &Self, src: &G) -> Result<Stage<G>, StageError> {
         let (src_graph, guard) = match self {
             GraphStorage::Unlocked(graph) => {
                 let guard = graph.try_stage_guard().ok_or(StageError::InProgress)?;
@@ -137,12 +143,12 @@ impl GraphStorage {
             }
             GraphStorage::Locked(locked_graph) => {
                 let guard = locked_graph
-                    .graph
+                    .graph()
                     .try_stage_guard()
                     .ok_or(StageError::InProgress)?;
 
                 // Callers need to call flush themselves before staging a locked graph.
-                if locked_graph.graph.is_dirty() {
+                if locked_graph.graph().is_dirty() {
                     return Err(StageError::DirtyGraph);
                 }
 
@@ -151,26 +157,26 @@ impl GraphStorage {
         };
 
         let src_path = src_graph
-            .graph
+            .graph()
             .graph_dir()
             .ok_or(StageError::MissingGraphDir)?;
 
         let src_folder = GraphFolder::from_graph_path(src_path)?;
         let src_version = version(src_path)?;
-        let src_event_id = src_graph.graph.read_event_id() as u64;
+        let src_event_id = src_graph.graph().read_event_id() as u64;
 
         let staged_folder = src_folder.clone().init_swap().map_err(StageError::Init)?;
         let staged_graph_path = staged_folder.graph_path().map_err(StageError::Init)?;
 
         // Copy existing flushed data to the staged graph to create a fork.
-        src_graph.graph.copy_to(&staged_graph_path)?;
+        src_graph.graph().copy_to(&staged_graph_path)?;
 
         // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
         let config = Config::load_from_dir(&staged_graph_path)?;
         let extension = Extension::load(&staged_graph_path, config)?;
 
         let temporal_graph = TemporalGraph::load(staged_graph_path, extension)?;
-        let graph = G::from(GraphStorage::from(temporal_graph));
+        let graph = G::from_storage(src, GraphStorage::from(temporal_graph));
 
         Ok(Stage {
             graph,

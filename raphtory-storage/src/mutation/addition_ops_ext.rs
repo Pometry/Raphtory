@@ -3,10 +3,10 @@ use crate::{
     graph::graph::Immutable,
     mutation::{
         addition_ops::{
-            EdgeWriteLock, GraphMutationOps, InternalAdditionOps, MetadataMutationOps,
-            NodeWriteLock, PropertyMutationOps, SetLsn,
+            GraphMutationOps, InternalAdditionOps, MetadataMutationOps, PropertyMutationOps,
         },
-        EdgeWriterT, GraphPropWriterT, MutationError, NodeWriterT,
+        EdgeWriterT, GraphPropWriterT, MutationError, NodeTypeIndexWriterT, NodeWriterT,
+        NodeWritersT,
     },
     recovery_ops::RecoveryOps,
 };
@@ -28,49 +28,39 @@ use raphtory_api::{
 use raphtory_core::{
     entities::{
         nodes::node_ref::{AsNodeRef, NodeRef},
-        GidRef, EID, VID,
+        GidRef, EID, ELID, GID, VID,
     },
-    storage::timeindex::EventTime,
+    storage::timeindex::{AsTime, EventTime},
 };
 use storage::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
+    api::nodes::NodeSegmentOps,
+    error::StorageError,
+    pages::resolve_pos,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
     segments::{graph_prop::segment::MemGraphPropSegment, node::segment::MemNodeSegment},
     transaction::TransactionGuard,
     wal::LSN,
-    ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
+    ControlFile, Extension, LocalPOS, Wal,
 };
 
-pub struct AtomicAddEdge<'a, EXT>
-where
-    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
-    NS<EXT>: NodeSegmentOps<Extension = EXT>,
-    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
-    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
-{
-    static_session: EdgeWriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
+pub struct AtomicAddEdge<'a> {
     src: MaybeNew<VID>,
     dst: MaybeNew<VID>,
     eid: MaybeNew<EID>,
+    edge_writer: EdgeWriterT<'a>,
+    node_writers: NodeWritersT<'a>,
 }
 
-impl<'a, EXT> PropertyMutationOps for AtomicAddEdge<'a, EXT>
-where
-    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
-    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
-    NS<EXT>: NodeSegmentOps<Extension = EXT>,
-{
+impl<'a> PropertyMutationOps for AtomicAddEdge<'a> {
     fn update_properties(
         &mut self,
         t: EventTime,
         layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        self.static_session.add_edge_into_layer(
+        self.add_edge_into_layer(
             t,
             self.src.inner(),
             self.dst.inner(),
@@ -80,56 +70,31 @@ where
     }
 }
 
-impl<'a, EXT> MetadataMutationOps for AtomicAddEdge<'a, EXT>
-where
-    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
-    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
-    NS<EXT>: NodeSegmentOps<Extension = EXT>,
-{
+impl<'a> MetadataMutationOps for AtomicAddEdge<'a> {
     fn check_metadata<P: AsPropEntry>(
         &self,
         layer: LayerId,
         props: impl Iterator<Item = P>,
     ) -> Result<(), MutationError> {
         let pos = self
-            .static_session
+            .edge_writer
             .resolve_pos(self.eid.inner())
             .expect("eid should match writer for AtomicAddEdge");
-        Ok(self.static_session.check_metadata(pos, layer, props)?)
+        Ok(self.check_metadata(pos, layer, props)?)
     }
 
     fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>) {
         let pos = self
-            .static_session
+            .edge_writer
             .resolve_pos(self.eid.inner())
             .expect("eid should match writer for AtomicAddEdge");
-        self.static_session
-            .update_metadata(pos, self.src.inner(), self.dst.inner(), layer, props)
+        self.update_metadata_at(pos, self.src.inner(), self.dst.inner(), layer, props)
     }
 }
 
-impl<'a, EXT> SetLsn for AtomicAddEdge<'a, EXT>
-where
-    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
-    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
-    NS<EXT>: NodeSegmentOps<Extension = EXT>,
-{
-    fn set_lsn(&mut self, lsn: LSN) {
-        self.static_session.set_lsn(lsn);
-    }
-}
-
-impl<'a, EXT> EdgeWriteLock for AtomicAddEdge<'a, EXT>
-where
-    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
-    NS<EXT>: NodeSegmentOps<Extension = EXT>,
-    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
-    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
-{
-    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
-        self.static_session.delete_edge_from_layer(
+impl<'a> AtomicAddEdge<'a> {
+    pub fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
+        self.delete_edge_from_layer(
             t,
             self.src.inner(),
             self.dst.inner(),
@@ -137,24 +102,153 @@ where
         );
     }
 
-    fn src(&self) -> MaybeNew<VID> {
+    pub fn src(&self) -> MaybeNew<VID> {
         self.src
     }
 
-    fn dst(&self) -> MaybeNew<VID> {
+    pub fn dst(&self) -> MaybeNew<VID> {
         self.dst
     }
 
-    fn eid(&self) -> MaybeNew<EID> {
+    pub fn eid(&self) -> MaybeNew<EID> {
         self.eid
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.node_writers.set_lsn(lsn);
+        self.edge_writer.set_lsn(lsn);
+    }
+
+    fn add_edge_into_layer<T: AsTime>(
+        &mut self,
+        t: T,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        edge: MaybeNew<ELID>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        let src = src.into();
+        let dst = dst.into();
+        let e_id = edge.inner();
+        let layer = e_id.layer();
+
+        let (_, src_pos) = resolve_pos(src, self.node_writers.get_mut_src().head.max_page_len());
+        let (_, dst_pos) = resolve_pos(dst, self.node_writers.get_mut_dst().head.max_page_len());
+
+        let edge_max_page_len = self
+            .edge_writer
+            .head
+            .get_or_create_layer(layer)
+            .max_page_len();
+        let (_, edge_pos) = resolve_pos(e_id.eid(), edge_max_page_len);
+
+        self.edge_writer
+            .add_edge(t, edge_pos, src, dst, props, layer);
+
+        let edge_id = edge.inner();
+
+        if edge.is_new()
+            || self
+                .node_writers
+                .get_mut_src()
+                .get_out_edge(src_pos, dst, edge_id.layer())
+                .is_none()
+        {
+            self.node_writers
+                .get_mut_src()
+                .add_outbound_edge(Some(t), src_pos, dst, edge_id);
+            self.node_writers
+                .get_mut_dst()
+                .add_inbound_edge(Some(t), dst_pos, src, edge_id);
+        }
+
+        self.node_writers
+            .get_mut_src()
+            .update_timestamp(t, src_pos, e_id);
+        self.node_writers
+            .get_mut_dst()
+            .update_timestamp(t, dst_pos, e_id);
+    }
+
+    fn delete_edge_from_layer<T: AsTime>(
+        &mut self,
+        t: T,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        edge: MaybeNew<ELID>,
+    ) {
+        let src = src.into();
+        let dst = dst.into();
+        let e_id = edge.inner();
+        let layer = e_id.layer();
+
+        let (_, src_pos) = resolve_pos(src, self.node_writers.get_mut_src().head.max_page_len());
+        let (_, dst_pos) = resolve_pos(dst, self.node_writers.get_mut_dst().head.max_page_len());
+
+        let edge_max_page_len = self
+            .edge_writer
+            .head
+            .get_or_create_layer(layer)
+            .max_page_len();
+        let (_, edge_pos) = resolve_pos(e_id.eid(), edge_max_page_len);
+
+        self.edge_writer.delete_edge(t, edge_pos, src, dst, layer);
+
+        let edge_id = edge.inner();
+
+        if edge_id.layer() > STATIC_GRAPH_LAYER_ID {
+            if edge.is_new()
+                || self
+                    .node_writers
+                    .get_mut_src()
+                    .get_out_edge(src_pos, dst, edge_id.layer())
+                    .is_none()
+            {
+                self.node_writers
+                    .get_mut_src()
+                    .add_outbound_edge(Some(t), src_pos, dst, edge_id);
+
+                self.node_writers
+                    .get_mut_dst()
+                    .add_inbound_edge(Some(t), dst_pos, src, edge_id);
+            }
+
+            self.node_writers
+                .get_mut_src()
+                .update_deletion_time(t, src_pos, e_id);
+
+            self.node_writers
+                .get_mut_dst()
+                .update_deletion_time(t, dst_pos, e_id);
+        }
+    }
+
+    fn check_metadata<P: AsPropEntry>(
+        &self,
+        pos: LocalPOS,
+        layer: LayerId,
+        props: impl Iterator<Item = P>,
+    ) -> Result<(), StorageError> {
+        self.edge_writer.check_metadata(pos, layer, props)
+    }
+
+    fn update_metadata_at(
+        &mut self,
+        pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        layer: LayerId,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        self.edge_writer.update_c_props(pos, src, dst, layer, props)
     }
 }
 
 pub struct AtomicUpdateEdge<'a> {
-    writer: EdgeWriterT<'a>,
     pos: LocalPOS,
     src: VID,
     dst: VID,
+    writer: EdgeWriterT<'a>,
 }
 
 impl<'a> MetadataMutationOps for AtomicUpdateEdge<'a> {
@@ -172,23 +266,17 @@ impl<'a> MetadataMutationOps for AtomicUpdateEdge<'a> {
     }
 }
 
-impl<'a> SetLsn for AtomicUpdateEdge<'a> {
-    fn set_lsn(&mut self, lsn: LSN) {
+impl<'a> AtomicUpdateEdge<'a> {
+    pub fn set_lsn(&mut self, lsn: LSN) {
         self.writer.set_lsn(lsn)
     }
 }
 
 #[derive(Debug)]
 pub struct AtomicAddNode<'a> {
-    writer: NodeWriterT<'a>,
     vid: MaybeNew<VID>,
-}
-
-impl<'a> AtomicAddNode<'a> {
-    fn local_pos(&self) -> LocalPOS {
-        let (_, pos) = resolve_pos(self.vid.inner(), self.writer.writer.max_page_len());
-        pos
-    }
+    type_index_writer: NodeTypeIndexWriterT<'a>,
+    node_writer: NodeWriterT<'a>,
 }
 
 impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
@@ -199,7 +287,7 @@ impl<'a> PropertyMutationOps for AtomicAddNode<'a> {
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let pos = self.local_pos();
-        self.writer.add_props(t, pos, layer, props)
+        self.node_writer.add_props(t, pos, layer, props)
     }
 }
 
@@ -210,42 +298,64 @@ impl<'a> MetadataMutationOps for AtomicAddNode<'a> {
         props: impl Iterator<Item = P>,
     ) -> Result<(), MutationError> {
         let pos = self.local_pos();
-        Ok(self.writer.check_metadata(pos, layer, props)?)
+        Ok(self.node_writer.check_metadata(pos, layer, props)?)
     }
 
     fn update_metadata(&mut self, layer: LayerId, props: impl IntoIterator<Item = (usize, Prop)>) {
         let pos = self.local_pos();
-        self.writer.update_c_props(pos, layer, props)
+        self.node_writer.update_c_props(pos, layer, props)
     }
 }
 
-impl<'a> SetLsn for AtomicAddNode<'a> {
-    fn set_lsn(&mut self, lsn: LSN) {
-        self.writer.writer.set_lsn(lsn)
+impl<'a> AtomicAddNode<'a> {
+    pub fn new(
+        vid: MaybeNew<VID>,
+        type_index_writer: NodeTypeIndexWriterT<'a>,
+        node_writer: NodeWriterT<'a>,
+    ) -> Self {
+        Self {
+            vid,
+            type_index_writer,
+            node_writer,
+        }
     }
-}
 
-impl<'a> NodeWriteLock for AtomicAddNode<'a> {
-    fn can_set_type(&self) -> bool {
+    pub fn can_set_type(&self) -> bool {
         self.vid.is_new() || self.get_type() == DEFAULT_NODE_TYPE_ID
     }
 
-    fn get_type(&self) -> usize {
-        self.writer
+    pub fn get_type(&self) -> usize {
+        self.node_writer
             .get_metadata(self.local_pos(), STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
             .into_u64()
             .map(|u| u as usize)
             .unwrap_or(DEFAULT_NODE_TYPE_ID)
     }
 
-    fn set_type(&mut self, node_type: usize) {
-        let pos = self.local_pos();
-
-        self.writer.store_node_type(pos, node_type)
+    pub fn store_node_id(&mut self, gid: GID) {
+        self.node_writer.store_node_id(self.local_pos(), gid);
     }
 
-    fn node(&self) -> MaybeNew<VID> {
+    pub fn set_type(&mut self, node_type: usize) {
+        let pos = self.local_pos();
+        self.node_writer.store_node_type(pos, node_type);
+
+        if node_type != DEFAULT_NODE_TYPE_ID {
+            self.type_index_writer.insert(node_type, self.vid.inner());
+        }
+    }
+
+    pub fn node(&self) -> MaybeNew<VID> {
         self.vid
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.node_writer.head.set_lsn(lsn)
+    }
+
+    fn local_pos(&self) -> LocalPOS {
+        let (_, pos) = resolve_pos(self.vid.inner(), self.node_writer.head.max_page_len());
+        pos
     }
 }
 
@@ -295,7 +405,7 @@ impl GraphMutationOps for TemporalGraph {
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-    ) -> Result<AtomicAddEdge<'_, Extension>, MutationError> {
+    ) -> Result<AtomicAddEdge<'_>, MutationError> {
         let nodes = self.storage().nodes();
 
         let (src_init, dst_init) = match (src, dst) {
@@ -338,8 +448,9 @@ impl GraphMutationOps for TemporalGraph {
                     MaybeInit::VID(vid) => {
                         let (src_chunk, _) = nodes.resolve_pos(vid);
                         let writer = nodes.writer(src_chunk);
+
                         (
-                            NodeWriters {
+                            NodeWritersT {
                                 src: writer,
                                 dst: None,
                             },
@@ -350,10 +461,12 @@ impl GraphMutationOps for TemporalGraph {
                     MaybeInit::Init(init) => {
                         let (pos, writer) = nodes.reserve_and_lock_segment(1, None);
                         let vid =
-                            pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
+                            pos.as_vid(writer.segment.segment_id(), writer.head.max_page_len());
+
                         init.init(vid)?;
+
                         (
-                            NodeWriters {
+                            NodeWritersT {
                                 src: writer,
                                 dst: None,
                             },
@@ -366,13 +479,15 @@ impl GraphMutationOps for TemporalGraph {
             (MaybeInit::Init(src_init), Some(MaybeInit::Init(dst_init))) => {
                 // both new, put them in the same segment
                 let (pos, writer) = nodes.reserve_and_lock_segment(2, None);
-                let src_id = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
+                let src_id = pos.as_vid(writer.segment.segment_id(), writer.head.max_page_len());
                 let dst_id = LocalPOS(pos.0 + 1)
-                    .as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
+                    .as_vid(writer.segment.segment_id(), writer.head.max_page_len());
+
                 src_init.init(src_id)?;
                 dst_init.init(dst_id)?;
+
                 (
-                    NodeWriters {
+                    NodeWritersT {
                         src: writer,
                         dst: None,
                     },
@@ -385,18 +500,20 @@ impl GraphMutationOps for TemporalGraph {
                 let mut dst_writer = nodes.writer(dst_chunk);
                 match nodes.reserve_segment_row(dst_writer.segment) {
                     None => {
-                        // existing segment is full, need to get a new one, pass in the existing writer reference so we don't end up trying to block
-                        // on it when potentially evicting it from free segments
+                        // existing segment is full, need to get a new one, pass in the existing
+                        // writer reference so we don't end up trying to block on it when
+                        // potentially evicting it from free segments
                         let (src_pos, src_writer) =
                             nodes.reserve_and_lock_segment(1, Some(&mut dst_writer));
                         let src_id = src_pos.as_vid(
                             src_writer.segment.segment_id(),
-                            src_writer.writer.max_page_len(),
+                            src_writer.head.max_page_len(),
                         );
+
                         src_init.init(src_id)?;
 
                         (
-                            NodeWriters {
+                            NodeWritersT {
                                 src: src_writer,
                                 dst: Some(dst_writer),
                             },
@@ -407,11 +524,13 @@ impl GraphMutationOps for TemporalGraph {
                     Some(src_pos) => {
                         let src_id = LocalPOS(src_pos).as_vid(
                             dst_writer.segment.segment_id(),
-                            dst_writer.writer.max_page_len(),
+                            dst_writer.head.max_page_len(),
                         );
+
                         src_init.init(src_id)?;
+
                         (
-                            NodeWriters {
+                            NodeWritersT {
                                 src: dst_writer,
                                 dst: None,
                             },
@@ -430,12 +549,13 @@ impl GraphMutationOps for TemporalGraph {
                             nodes.reserve_and_lock_segment(1, Some(&mut src_writer));
                         let dst_id = dst_pos.as_vid(
                             dst_writer.segment.segment_id(),
-                            dst_writer.writer.max_page_len(),
+                            dst_writer.head.max_page_len(),
                         );
+
                         dst_init.init(dst_id)?;
 
                         (
-                            NodeWriters {
+                            NodeWritersT {
                                 src: src_writer,
                                 dst: Some(dst_writer),
                             },
@@ -446,11 +566,11 @@ impl GraphMutationOps for TemporalGraph {
                     Some(dst_pos) => {
                         let dst_id = LocalPOS(dst_pos).as_vid(
                             src_writer.segment.segment_id(),
-                            src_writer.writer.max_page_len(),
+                            src_writer.head.max_page_len(),
                         );
                         dst_init.init(dst_id)?;
                         (
-                            NodeWriters {
+                            NodeWritersT {
                                 src: src_writer,
                                 dst: None,
                             },
@@ -466,7 +586,7 @@ impl GraphMutationOps for TemporalGraph {
                 if src_chunk == dst_chunk {
                     let writer = nodes.writer(src_chunk);
                     (
-                        NodeWriters {
+                        NodeWritersT {
                             src: writer,
                             dst: None,
                         },
@@ -478,7 +598,7 @@ impl GraphMutationOps for TemporalGraph {
                         loop {
                             if let Some(src_writer) = nodes.try_writer(src_chunk) {
                                 if let Some(dst_writer) = nodes.try_writer(dst_chunk) {
-                                    break NodeWriters {
+                                    break NodeWritersT {
                                         src: src_writer,
                                         dst: Some(dst_writer),
                                     };
@@ -489,7 +609,7 @@ impl GraphMutationOps for TemporalGraph {
                         loop {
                             if let Some(dst_writer) = nodes.try_writer(dst_chunk) {
                                 if let Some(src_writer) = nodes.try_writer(src_chunk) {
-                                    break NodeWriters {
+                                    break NodeWritersT {
                                         src: src_writer,
                                         dst: Some(dst_writer),
                                     };
@@ -546,7 +666,7 @@ impl GraphMutationOps for TemporalGraph {
                     already_counted,
                 );
                 let edge_id =
-                    edge_pos.as_eid(edge_writer.segment_id(), edge_writer.writer.max_page_len());
+                    edge_pos.as_eid(edge_writer.segment_id(), edge_writer.head.max_page_len());
 
                 node_writers.get_mut_src().add_static_outbound_edge(
                     src_pos,
@@ -563,10 +683,11 @@ impl GraphMutationOps for TemporalGraph {
         };
 
         Ok(AtomicAddEdge {
-            static_session: EdgeWriteSession::new(node_writers, edge_writer, self.storage()),
             src: src_id,
             dst: dst_id,
             eid: edge_id,
+            edge_writer,
+            node_writers,
         })
     }
 
@@ -575,11 +696,12 @@ impl GraphMutationOps for TemporalGraph {
         let pos = writer
             .resolve_pos(edge.pid())
             .expect("resolve should not fail for writer matching eid");
+
         AtomicUpdateEdge {
-            writer,
             pos,
             src: edge.src(),
             dst: edge.dst(),
+            writer,
         }
     }
 
@@ -588,58 +710,68 @@ impl GraphMutationOps for TemporalGraph {
         node: NodeRef,
         node_type: Option<&str>,
     ) -> Result<AtomicAddNode<'_>, MutationError> {
+        // Deadlock safety: node type index must be locked before node segments.
+        let type_index = self.storage().node_type_index();
+        let type_index_writer = NodeTypeIndexWriterT::new_shared(type_index.as_ref())?;
+
         let node_vid = match node {
             NodeRef::Internal(vid) => vid,
             NodeRef::External(gid) => match self.gid_resolver.get_or_init(gid)? {
                 MaybeInit::VID(vid) => vid,
                 MaybeInit::Init(init) => {
-                    let (pos, mut writer) =
+                    // This is a new node, reserve a pos and fill in node data.
+                    let (pos, node_writer) =
                         self.storage().nodes().reserve_and_lock_segment(1, None);
-                    match node_type {
-                        Some(node_type) => {
-                            let node_type = self
-                                .node_meta()
-                                .get_or_create_node_type_id(node_type)
-                                .inner();
-                            writer.store_node_id_and_node_type(pos, Some(gid), node_type);
-                        }
-                        None => {
-                            writer.store_node_id(pos, gid.to_owned());
-                        }
-                    }
+                    let vid = pos.as_vid(
+                        node_writer.segment.segment_id(),
+                        node_writer.head.max_page_len(),
+                    );
 
-                    let vid = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                     init.init(vid)?;
 
-                    return Ok(AtomicAddNode {
-                        writer,
-                        vid: MaybeNew::New(vid),
-                    });
+                    let mut atomic =
+                        AtomicAddNode::new(MaybeNew::New(vid), type_index_writer, node_writer);
+
+                    atomic.store_node_id(gid.to_owned());
+
+                    if let Some(node_type) = node_type {
+                        let node_type_id = self
+                            .node_meta()
+                            .get_or_create_node_type_id(node_type)
+                            .inner();
+
+                        atomic.set_type(node_type_id);
+                    }
+
+                    return Ok(atomic);
                 }
             },
         };
 
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
-        let mut writer = AtomicAddNode {
-            writer: self.storage().node_writer(segment_id),
-            vid: MaybeNew::Existing(node_vid),
-        };
-        // node already exists, save to check node type
+        let node_writer = self.storage().node_writer(segment_id);
+
+        let mut atomic =
+            AtomicAddNode::new(MaybeNew::Existing(node_vid), type_index_writer, node_writer);
+
+        // The node already exists, set or validate the given node type.
         if let Some(node_type) = node_type {
-            if writer.can_set_type() {
+            if atomic.can_set_type() {
                 let node_type_id = self
                     .node_meta()
                     .get_or_create_node_type_id(node_type)
                     .inner();
-                writer.set_type(node_type_id);
+
+                atomic.set_type(node_type_id);
             } else {
                 self.node_meta()
                     .get_node_type_id(node_type)
-                    .filter(|&node_type_id| writer.get_type() == node_type_id)
+                    .filter(|&node_type_id| atomic.get_type() == node_type_id)
                     .ok_or(MutationError::NodeTypeError)?;
             }
         }
-        Ok(writer)
+
+        Ok(atomic)
     }
 
     unsafe fn bulk_load_resolve_node(

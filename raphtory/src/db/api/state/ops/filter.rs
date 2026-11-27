@@ -227,7 +227,6 @@ where
 #[derive(Clone, Debug)]
 pub struct NodeTypeFilterOp {
     mask: Arc<[bool]>,
-
     /// `true` when the node type index is populated and can be used.
     index_backed: bool,
 }
@@ -247,7 +246,10 @@ impl NodeTypeFilterOp {
         // Nodes of the default type are not indexed, so a mask selecting it
         // cannot be served from the index.
         let selects_default = mask.get(DEFAULT_NODE_TYPE_ID).copied().unwrap_or(false);
-        let index_backed = !selects_default && !view.core_graph().node_type_index().is_empty();
+        let node_type_index = view.core_graph().node_type_index();
+        let is_queryable = node_type_index.is_enabled() && !node_type_index.is_empty();
+        let index_backed = !selects_default && is_queryable;
+
         Self { mask, index_backed }
     }
 }

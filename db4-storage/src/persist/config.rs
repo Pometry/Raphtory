@@ -61,18 +61,14 @@ pub struct BaseConfig {
 
 impl Default for BaseConfig {
     fn default() -> Self {
-        Self::new(DEFAULT_MAX_PAGE_LEN_NODES, DEFAULT_MAX_PAGE_LEN_EDGES)
+        Self {
+            max_node_page_len: DEFAULT_MAX_PAGE_LEN_NODES,
+            max_edge_page_len: DEFAULT_MAX_PAGE_LEN_EDGES,
+        }
     }
 }
 
 impl BaseConfig {
-    pub fn new(max_node_page_len: u32, max_edge_page_len: u32) -> Self {
-        Self {
-            max_node_page_len,
-            max_edge_page_len,
-        }
-    }
-
     pub fn with_max_node_page_len(mut self, page_len: u32) -> Self {
         self.max_node_page_len = page_len;
         self
