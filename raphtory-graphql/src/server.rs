@@ -53,7 +53,7 @@ use std::{
     pin::Pin,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc,
     },
     task::{Context, Poll},
     time::Duration,
@@ -253,15 +253,8 @@ impl GraphServer {
     pub fn with_schema_data<T: Any + Send + Sync + Clone>(mut self, data: T) -> Self {
         self.schema_data_by_type
             .insert(TypeId::of::<T>(), Box::new(data.clone()));
-        let data = Arc::new(Mutex::new(Some(data)));
-        self.schema_data.push(Arc::new(move |sb| {
-            let data = data
-                .lock()
-                .unwrap()
-                .take()
-                .expect("schema data injector called more than once");
-            sb.data(data)
-        }));
+        self.schema_data
+            .push(Arc::new(move |sb| sb.data(data.clone())));
         self
     }
 
