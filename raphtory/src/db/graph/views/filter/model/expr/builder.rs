@@ -322,7 +322,8 @@ pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> {
         Expr::Term(NodeLeaf::is_active(self.into().views))
     }
 
-    /// Matches nodes that exist in the views written before it.
+    /// Matches nodes that exist in the views written before it, or with no
+    /// view, in the graph the filter is applied to.
     fn exists(self) -> Expr<NodeLeaf> {
         Expr::Term(NodeLeaf::exists(self.into().views))
     }
@@ -389,7 +390,8 @@ pub trait EdgeViewFilterOps<L: EdgeKind>: Into<Chain<L>> {
         Expr::Term(L::is_active(self.into().views))
     }
 
-    /// Matches edges that exist in the views written before it.
+    /// Matches edges that exist in the views written before it, or with no
+    /// view, in the graph the filter is applied to.
     fn exists(self) -> Expr<L> {
         Expr::Term(L::exists(self.into().views))
     }

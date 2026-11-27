@@ -1345,7 +1345,7 @@ impl PyNode {
         PyNodeFilter::root().is_active()
     }
 
-    /// Matches nodes that exist in the views written before it.
+    /// Matches nodes that exist in the graph the filter is applied to.
     ///
     /// Returns:
     ///     filter.Expr:
