@@ -19,13 +19,6 @@ _autosummary
 examples/docker/lotr/lotr
 examples/python/enron/emails.csv
 examples/python/enron/lib/
-docs/source/_rustdoc/
-docs/logs/
-/docs/lib/
-/docs/build/
-docs/nx.html
-docs/graph.html
-docs/tmp/
 .env
 pometry-arrow/
 
