@@ -22,7 +22,7 @@ jobs:
 
       - name: Scan published images
         run: |
-          for tag in latest latest-python; do
+          for tag in latest latest-python nightly nightly-python; do
             docker scout quickview "pometry/raphtory:$tag" | sed "/^What's next/,\$d"
           done | tee report.txt
 
