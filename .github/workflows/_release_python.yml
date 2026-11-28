@@ -16,9 +16,6 @@ on:
 permissions:
   contents: read
 
-env:
-  RUST_VERSION: "1.91.1"
-
 jobs:
   python-linux:
     runs-on: ubuntu-latest
@@ -44,6 +41,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base }}
+      - name: Read rust version
+        shell: bash
+        run: echo "RUST_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> $GITHUB_ENV
       - uses: actions/setup-python@v7
         with:
           python-version: |
@@ -138,6 +138,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base }}
+      - name: Read rust version
+        shell: bash
+        run: echo "RUST_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> $GITHUB_ENV
       - uses: actions/setup-python@v7
         with:
           python-version: |
@@ -184,6 +187,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base }}
+      - name: Read rust version
+        shell: bash
+        run: echo "RUST_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> $GITHUB_ENV
       - uses: actions/setup-python@v7
         with:
           python-version: |
