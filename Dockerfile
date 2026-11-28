@@ -1,7 +1,7 @@
 ARG RUST_VERSION=1.89.0
 ARG RAPHTORY_PROFILE="release"
 
-FROM rust:${RUST_VERSION}-bookworm AS chef
+FROM rust:${RUST_VERSION}-trixie AS chef
 RUN cargo install cargo-chef --version 0.1.78 --locked && apt-get update && apt-get install -y --no-install-recommends protobuf-compiler libprotobuf-dev
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN cargo chef cook --profile=${RAPHTORY_PROFILE} --recipe-path recipe.json
 COPY . .
 RUN cargo build --profile=${RAPHTORY_PROFILE} -p raphtory-server
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 ARG RAPHTORY_PROFILE
 COPY --from=builder /app/target/${RAPHTORY_PROFILE}/raphtory-server /raphtory-graphql
 WORKDIR /var/lib/raphtory
