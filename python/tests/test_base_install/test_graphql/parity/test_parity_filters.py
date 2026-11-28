@@ -756,30 +756,6 @@ _UNIVERSAL_EXPRS = {
 }
 
 
-def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
-    """A set member of a type the property can never equal is absent, not an error.
-
-    Unlike a comparison against a mistyped value — which both sides reject —
-    set membership asks whether a value is present, and a member of an
-    unrelated type simply is not. That asymmetry has to be the *same* surprise
-    on both sides, since a caller cannot tell "no matches" from "bad query"
-    otherwise.
-    """
-    build = lambda: f.Node.property("score").is_in(["not", "numbers"])
-    assert_parity(
-        filter_pair, lambda g: sorted(n.name for n in g.filter(build()).nodes)
-    )
-
-    for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
-    ):
-        assert [n.name for n in side.filter(build()).nodes] == [], (
-            f"{side_name}: a mistyped is_in matched nodes; if this now raises "
-            f"or filters, move the case into REJECTED_EXPRS"
-        )
-
-
 @pytest.mark.parametrize(
     "name",
     sorted(EXPRS),
@@ -1125,6 +1101,12 @@ REJECTED_EXPRS = {
     "reject.unknown_property": lambda: f.Node.property("nope") > 1,
     "reject.unknown_metadata": lambda: f.Node.metadata("nope") > 1,
     "reject.degree_vs_str": lambda: f.Node.degree() > "x",
+    # A set member of a type the property can never equal is refused like a
+    # comparison: dropped, it would keep every node under `is_not_in` or `~is_in`.
+    "reject.is_in_mistyped": lambda: f.Node.property("score").is_in(["not", "numbers"]),
+    "reject.is_in_mixed": lambda: f.Node.property("score").is_in([1, "x"]),
+    "reject.is_not_in_mistyped": lambda: f.Node.property("score").is_not_in(["x"]),
+    "reject.not_is_in_mistyped": lambda: ~f.Node.property("score").is_in(["x"]),
     # `avg` is F64 and `len` is U64, so neither accepts a plain Python int here.
 }
 

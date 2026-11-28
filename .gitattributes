@@ -4,8 +4,5 @@
 # exclude .html from stats
 *.html linguist-documentation
 
-# exclude docs from stats
-docs/* linguist-documentation
-
 # exclude makefile from stats
 Makefile linguist-documentation

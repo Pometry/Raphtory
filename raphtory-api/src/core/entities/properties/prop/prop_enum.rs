@@ -18,7 +18,7 @@ use arrow_array::{
     Array, ArrayRef, LargeListArray, StructArray,
 };
 use arrow_schema::{DataType, Field, FieldRef, Fields, TimeUnit, DECIMAL128_MAX_PRECISION};
-use bigdecimal::{num_bigint::BigInt, BigDecimal};
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -637,13 +637,16 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
     }
 }
 
-pub fn validate_bd(bd: &BigDecimal) -> Result<(), InvalidBigDecimal> {
-    let (bint, scale) = bd.as_bigint_and_exponent();
-    if bint <= BigInt::from(DECIMAL_MAX) && scale <= 38 {
-        Ok(())
-    } else {
-        Err(InvalidBigDecimal(bd.clone()))
-    }
+/// The unscaled value and the scale of a decimal as it is stored, or an error for one that
+/// cannot be stored.
+pub(crate) fn decimal_parts(bd: &BigDecimal) -> Result<(i128, i8), InvalidBigDecimal> {
+    let (num, scale) = bd.as_bigint_and_exponent();
+    // storage is Arrow Decimal128(38, scale): fitting in an i128 is not enough, as that holds
+    // 39 digits. A negative scale is a positive exponent.
+    num.to_i128()
+        .filter(|num| num.unsigned_abs() <= DECIMAL_MAX as u128)
+        .zip(i8::try_from(scale).ok().filter(|scale| *scale <= 38))
+        .ok_or_else(|| InvalidBigDecimal(bd.clone()))
 }
 
 /// The result of upper/lower bound casting
@@ -1282,7 +1285,7 @@ impl Prop {
     }
 
     pub fn try_from_bd(bd: BigDecimal) -> Result<Prop, InvalidBigDecimal> {
-        validate_bd(&bd)?;
+        decimal_parts(&bd)?;
         Ok(Prop::Decimal(bd))
     }
 
@@ -1404,6 +1407,28 @@ impl Prop {
                 | Prop::F64(_)
                 | Prop::Decimal(_)
         )
+    }
+
+    /// [`PartialOrd`] with floats, also inside lists, in their total order (`f64::total_cmp`),
+    /// for sorting: NaN equal to everything is not an order, and `sort_by` panics on one.
+    pub fn total_cmp(&self, other: &Prop) -> Option<Ordering> {
+        match (self, other) {
+            (Prop::F32(a), Prop::F32(b)) => Some(a.total_cmp(b)),
+            (Prop::F64(a), Prop::F64(b)) => Some(a.total_cmp(b)),
+            (Prop::List(a), Prop::List(b)) => {
+                for (a, b) in a.iter_all().zip(b.iter_all()) {
+                    let ord = match (a, b) {
+                        (Some(a), Some(b)) => a.total_cmp(&b)?,
+                        (a, b) => a.is_some().cmp(&b.is_some()),
+                    };
+                    if ord.is_ne() {
+                        return Some(ord);
+                    }
+                }
+                Some(a.len().cmp(&b.len()))
+            }
+            _ => self.partial_cmp(other),
+        }
     }
 
     /// Order two props, widening across every numeric variant: two integers compare exactly (via
@@ -1766,7 +1791,7 @@ impl Display for Prop {
                         .join(", ")
                 )
             }
-            Prop::Decimal(d) => write!(f, "Decimal({})", d.as_bigint_and_scale().1),
+            Prop::Decimal(d) => write!(f, "{d}"),
         }
     }
 }
@@ -1880,7 +1905,7 @@ pub fn sort_comparable_props(props: Vec<&Prop>) -> Vec<&Prop> {
         .collect();
 
     // Sort the comparable props
-    comparable_props.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+    comparable_props.sort_by(|a, b| a.total_cmp(b).unwrap_or(Ordering::Equal));
 
     comparable_props
 }
@@ -1888,6 +1913,17 @@ pub fn sort_comparable_props(props: Vec<&Prop>) -> Vec<&Prop> {
 #[cfg(test)]
 mod agg_arith_tests {
     use super::*;
+
+    #[test]
+    fn total_cmp_orders_nan_inside_lists() {
+        let nan = Prop::list([1.0, f64::NAN]).unwrap();
+        let two = Prop::list([1.0, 2.0]).unwrap();
+        assert_eq!(nan.partial_cmp(&two), None);
+        assert_eq!(nan.total_cmp(&two), Some(Ordering::Greater));
+        assert_eq!(nan.total_cmp(&nan), Some(Ordering::Equal));
+        let short = Prop::list([1.0]).unwrap();
+        assert_eq!(short.total_cmp(&two), Some(Ordering::Less));
+    }
 
     #[test]
     fn add_keeps_type_without_overflow() {

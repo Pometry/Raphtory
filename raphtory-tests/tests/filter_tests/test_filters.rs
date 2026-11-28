@@ -2047,11 +2047,11 @@ mod test_node_filter {
     fn degree_never_compares_with_a_string() {
         let graph = degree_graph_with_add_node_and_add_edge();
         let degrees = [
-            (NodeFilter.degree(), Direction::BOTH),
-            (NodeFilter.in_degree(), Direction::IN),
-            (NodeFilter.out_degree(), Direction::OUT),
+            NodeFilter.degree(),
+            NodeFilter.in_degree(),
+            NodeFilter.out_degree(),
         ];
-        for (degree, dir) in degrees {
+        for degree in degrees {
             // A string constant is refused even when it spells a number.
             let refused = [
                 degree.clone().eq("3"),
@@ -2067,38 +2067,26 @@ mod test_node_filter {
                     "a string constant must not compare with a degree"
                 );
             }
-            // In a set, a string member can never be the degree, so it is simply
-            // not there; the numeric members still count.
+            // A string member of a set is refused the same way: `is_not_in` (or a negated
+            // `is_in`) that ignored it would keep every node.
             let strings_only = vec!["3".into_prop(), "4".into_prop()];
-            assert_filter(
-                &graph,
-                degree.clone().is_in(strings_only.clone()),
-                dir,
-                |_| false,
-                "is_in(strings)",
-            );
-            assert_filter(
-                &graph,
-                degree.clone().is_not_in(strings_only),
-                dir,
-                |_| true,
-                "is_not_in(strings)",
-            );
             let mixed = vec!["3".into_prop(), 4u64.into_prop()];
-            assert_filter(
-                &graph,
-                degree.clone().is_in(mixed.clone()),
-                dir,
-                |d| d == 4,
-                "is_in(string, number)",
-            );
-            assert_filter(
-                &graph,
-                degree.is_not_in(mixed),
-                dir,
-                |d| d != 4,
-                "is_not_in(string, number)",
-            );
+            for members in [strings_only, mixed] {
+                assert!(
+                    matches!(
+                        graph.filter(degree.clone().is_in(members.clone())),
+                        Err(GraphError::InvalidFilter(_))
+                    ),
+                    "is_in must refuse a string member"
+                );
+                assert!(
+                    matches!(
+                        graph.filter(degree.clone().is_not_in(members)),
+                        Err(GraphError::InvalidFilter(_))
+                    ),
+                    "is_not_in must refuse a string member"
+                );
+            }
         }
     }
 
@@ -2952,13 +2940,10 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        // Set members compare by value across numeric widths; a member of a
-        // type the property can never equal is simply absent.
-        let filter = NodeFilter.property("p40").is_in(vec![
-            Prop::Str("20".into()),
-            Prop::F64(15.0),
-            Prop::U64(20),
-        ]);
+        // Set members compare by value across numeric widths.
+        let filter = NodeFilter
+            .property("p40")
+            .is_in(vec![Prop::F64(15.0), Prop::U64(20)]);
         let expected_results = vec!["1", "2"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2968,9 +2953,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter
-            .property("p40")
-            .is_in(vec![Prop::Str("20".into()), Prop::F64(15.5)]);
+        let filter = NodeFilter.property("p40").is_in(vec![Prop::F64(15.5)]);
         let expected_results: Vec<&str> = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2979,6 +2962,48 @@ mod test_node_property_filter {
             &expected_results,
             TestVariants::All,
         );
+    }
+
+    /// A set with a member the property can never equal is refused, as `==` is: dropped, the
+    /// member would keep every row under `is_not_in` or `~is_in`. An empty exclusion keeps
+    /// every row that has a value.
+    #[test]
+    fn a_set_refuses_a_member_it_cannot_compare() {
+        use raphtory::{db::api::view::Filter, errors::GraphError, prelude::*};
+        let g = Graph::new();
+        g.add_node(0, 1, [("p", Prop::I64(1))], None, None).unwrap();
+        g.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        let p = || NodeFilter.property("p");
+        let is_in = |members: Vec<Prop>| g.filter(p().is_in(members));
+        let not_in = |members: Vec<Prop>| g.filter(p().is_not_in(members));
+        let mistyped = || vec![Prop::Str("x".into())];
+        let mixed = || vec![Prop::I64(1), Prop::Str("x".into())];
+        for refused in [
+            is_in(mistyped()),
+            is_in(mixed()),
+            not_in(mistyped()),
+            not_in(mixed()),
+        ] {
+            assert!(matches!(
+                refused,
+                Err(GraphError::InvalidFilter(msg))
+                    if msg == "value x of type Str cannot be compared with I64"
+            ));
+        }
+        // negating a mistyped `is_in` used to keep every row
+        assert!(matches!(
+            g.filter(p().is_in(mistyped()).not()),
+            Err(GraphError::InvalidFilter(_))
+        ));
+
+        // numeric widening stays allowed
+        assert_eq!(is_in(vec![Prop::U64(1)]).unwrap().count_nodes(), 1);
+        let widths = vec![Prop::F64(1.0), Prop::U8(7)];
+        assert_eq!(is_in(widths).unwrap().count_nodes(), 1);
+        assert_eq!(not_in(vec![Prop::U64(1)]).unwrap().count_nodes(), 0);
+        assert_eq!(not_in(vec![Prop::I64(2)]).unwrap().count_nodes(), 1);
+        assert_eq!(is_in(vec![]).unwrap().count_nodes(), 0);
+        assert_eq!(not_in(vec![]).unwrap().count_nodes(), 1);
     }
 
     #[test]

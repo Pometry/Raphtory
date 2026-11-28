@@ -6,7 +6,7 @@ use crate::{
         app_config::{AppConfig, AppConfigBuilder},
         auth_config::PublicKeyError,
     },
-    data::Data,
+    data::{Data, ReadOnlyGraphs},
     model::App,
     observability::open_telemetry::OpenTelemetry,
     plugin::schema::RegisterPlugin,
@@ -42,15 +42,21 @@ use poem::{
 use raphtory::db::api::storage::storage::Args;
 use serde_json::json;
 use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
     error::Error,
-    fs::create_dir_all,
+    fs::{create_dir_all, File, TryLockError},
     future::Future,
     io::ErrorKind,
     ops::Deref,
     path::{Path, PathBuf},
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     task::{Context, Poll},
+    time::Duration,
 };
 use thiserror::Error;
 use tokio::{
@@ -63,7 +69,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
@@ -83,6 +89,14 @@ pub use config::ConfigError;
 use poem::listener::TcpAcceptor;
 
 pub const DEFAULT_PORT: u16 = 1736;
+
+/// In the root of a working directory, locked while a server that can write to it is running.
+const WORK_DIR_LOCK_FILE: &str = ".raphtory-server.lock";
+
+/// How long a stopping server waits for the requests in flight. After it, their connections are
+/// closed, so that a request that never completes cannot keep the server from stopping, and the
+/// server reports that it timed out.
+const SHUTDOWN_GRACE: Duration = Duration::from_secs(if cfg!(test) { 1 } else { 30 });
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -112,6 +126,8 @@ pub enum ServerError {
     EndpointError(String),
     #[error(transparent)]
     CliPluginRegistrationError(#[from] PluginRegistrationError),
+    #[error("The working directory {0} is already in use by another Raphtory server")]
+    WorkDirInUse(PathBuf),
 }
 
 impl ServerError {
@@ -137,6 +153,7 @@ pub struct GraphServer {
     data: Data,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
+    schema_data_by_type: HashMap<TypeId, Box<dyn Any + Send + Sync>>,
     key_resolver: Option<Arc<dyn KeyResolver>>,
     schema_plugins: Vec<Box<dyn RegisterPlugin>>,
 }
@@ -167,6 +184,7 @@ impl GraphServer {
             data,
             config,
             schema_data: Vec::new(),
+            schema_data_by_type: HashMap::new(),
             key_resolver: None,
             schema_plugins: Vec::new(),
         };
@@ -199,6 +217,22 @@ impl GraphServer {
         self
     }
 
+    /// Takes the lock that keeps a second server from writing to the same working directory.
+    /// A server whose graphs are all read-only writes nothing, takes no lock and can share it.
+    fn lock_work_dir(&self) -> Result<Option<File>, ServerError> {
+        if matches!(self.data.inner.read_only, ReadOnlyGraphs::All) {
+            return Ok(None);
+        }
+        let file = File::create(self.work_dir().join(WORK_DIR_LOCK_FILE))?;
+        match file.try_lock() {
+            Ok(()) => Ok(Some(file)),
+            Err(TryLockError::WouldBlock) => {
+                Err(ServerError::WorkDirInUse(self.work_dir().to_path_buf()))
+            }
+            Err(TryLockError::Error(error)) => Err(error.into()),
+        }
+    }
+
     /// Returns the resolved application config.
     pub fn config(&self) -> &AppConfig {
         &self.config
@@ -216,17 +250,19 @@ impl GraphServer {
     }
 
     /// Inject arbitrary typed data into the GQL schema (accessible via `ctx.data::<T>()`).
-    pub fn with_schema_data<T: std::any::Any + Send + Sync + 'static>(mut self, data: T) -> Self {
-        let data = Arc::new(Mutex::new(Some(data)));
-        self.schema_data.push(Arc::new(move |sb| {
-            let data = data
-                .lock()
-                .unwrap()
-                .take()
-                .expect("schema data injector called more than once");
-            sb.data(data)
-        }));
+    pub fn with_schema_data<T: Any + Send + Sync + Clone>(mut self, data: T) -> Self {
+        self.schema_data_by_type
+            .insert(TypeId::of::<T>(), Box::new(data.clone()));
+        self.schema_data
+            .push(Arc::new(move |sb| sb.data(data.clone())));
         self
+    }
+
+    /// Returns the data of type `T` injected with `with_schema_data`.
+    pub fn schema_data<T: Any>(&self) -> Option<&T> {
+        self.schema_data_by_type
+            .get(&TypeId::of::<T>())?
+            .downcast_ref()
     }
 
     /// Inject resolver plugins into hte GQL schema
@@ -331,6 +367,7 @@ impl GraphServer {
         };
 
         let work_dir = self.work_dir().to_path_buf();
+        let work_dir_lock = self.lock_work_dir()?;
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
@@ -347,11 +384,44 @@ impl GraphServer {
             .as_socket_addr()
             .unwrap()
             .port();
-        let server_task = Server::new_with_acceptor(acceptor).run_with_graceful_shutdown(
-            app,
-            server_termination(signal_receiver, tp),
-            None,
-        );
+        let stopping = Arc::new(AtomicBool::new(false));
+        let cut_off = Arc::new(AtomicBool::new(false));
+        let app = app.around({
+            let (stopping, cut_off) = (stopping.clone(), cut_off.clone());
+            move |endpoint, request| {
+                let (stopping, cut_off) = (stopping.clone(), cut_off.clone());
+                async move {
+                    let mut in_flight = InFlight {
+                        stopping,
+                        cut_off,
+                        answered: false,
+                    };
+                    let response = endpoint.call(request).await;
+                    in_flight.answered = true;
+                    response
+                }
+            }
+        });
+        let server_task = async move {
+            let termination = async move {
+                server_termination(signal_receiver, tp).await;
+                stopping.store(true, Ordering::Release);
+            };
+            let result = Server::new_with_acceptor(acceptor)
+                .run_with_graceful_shutdown(app, termination, Some(SHUTDOWN_GRACE))
+                .await;
+            // released only now, after the server has dropped its graphs, which flushes them
+            drop(work_dir_lock);
+            if cut_off.load(Ordering::Acquire) {
+                let error = format!(
+                    "Requests were still running {}s after the server was told to stop, and were cut off",
+                    SHUTDOWN_GRACE.as_secs()
+                );
+                error!("{error}");
+                return Err(io::Error::new(ErrorKind::TimedOut, error));
+            }
+            result
+        };
         let server_result = AbortOnDrop(tokio::spawn(server_task));
 
         info!("UI listening on 0.0.0.0:{actual_port}, live at: http://localhost:{actual_port}");
@@ -430,7 +500,8 @@ impl GraphServer {
                     config.public_dir.clone(),
                     config.schema.disable_ui,
                     graphql.clone(),
-                ),
+                )
+                .with_base_path(config.base_path.clone()),
             )
             .at("/health", get(health))
             .at("/version", get(version))
@@ -460,6 +531,22 @@ impl GraphServer {
     /// Run the server on the given port until completion.
     pub async fn run_with_port(self, port: u16) -> IoResult<()> {
         self.start_with_port(port).await?.wait().await
+    }
+}
+
+/// A request being answered. Dropped unanswered while the server is stopping, it was cut off
+/// at the shutdown deadline, which poem does not report.
+struct InFlight {
+    stopping: Arc<AtomicBool>,
+    cut_off: Arc<AtomicBool>,
+    answered: bool,
+}
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        if !self.answered && self.stopping.load(Ordering::Acquire) {
+            self.cut_off.store(true, Ordering::Release);
+        }
     }
 }
 
@@ -615,8 +702,138 @@ mod server_tests {
         running.stop().await
     }
 
+    /// A reverse proxy that serves the server on `upstream_port` under `prefix` and nothing else.
+    /// It strips the prefix before it forwards a request, as such proxies commonly do.
+    async fn start_prefix_proxy(
+        prefix: &'static str,
+        upstream_port: u16,
+    ) -> (u16, tokio::task::JoinHandle<()>) {
+        use poem::{
+            endpoint::make,
+            http::StatusCode,
+            listener::{Acceptor, Listener, TcpListener},
+            Request, Response, Route, Server,
+        };
+
+        let forward = make(move |mut req: Request| async move {
+            let path = req.uri().path_and_query().map_or("/", |path| path.as_str());
+            let url = format!("http://localhost:{upstream_port}{path}");
+            let method = reqwest::Method::from_bytes(req.method().as_str().as_bytes()).unwrap();
+            let body = req.take_body().into_bytes().await.unwrap();
+            let upstream = reqwest::Client::new()
+                .request(method, url)
+                .header("content-type", "application/json")
+                .body(body)
+                .send()
+                .await
+                .unwrap();
+            let status = StatusCode::from_u16(upstream.status().as_u16()).unwrap();
+            let content_type = upstream.headers()["content-type"]
+                .to_str()
+                .unwrap()
+                .to_owned();
+            Response::builder()
+                .status(status)
+                .content_type(content_type)
+                .body(upstream.bytes().await.unwrap())
+        });
+
+        let acceptor = TcpListener::bind("127.0.0.1:0")
+            .into_acceptor()
+            .await
+            .unwrap();
+        let port = acceptor.local_addr()[0].as_socket_addr().unwrap().port();
+        // `nest` strips the prefix; any path outside it is a 404
+        let app = Route::new().nest(prefix, forward);
+        let proxy = tokio::spawn(async move {
+            Server::new_with_acceptor(acceptor).run(app).await.unwrap();
+        });
+        (port, proxy)
+    }
+
+    #[tokio::test]
+    async fn test_graph_is_reachable_behind_a_path_prefix_proxy() {
+        use raphtory::prelude::*;
+
+        // Long, and with segments named like the UI's own routes (`graph`, `search`).
+        const PREFIX: &str = "/proxy/org-1234567890/graph/search/app_01-ab/8080";
+
+        let work_dir = tempdir().unwrap();
+        let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        std::fs::create_dir(work_dir.path().join("folder")).unwrap();
+        graph
+            .encode(work_dir.path().join("folder").join("graph"))
+            .unwrap();
+
+        let app_config = AppConfigBuilder::new()
+            .with_base_path(Some(PREFIX.to_owned()))
+            .build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Args::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let (proxy_port, proxy) = start_prefix_proxy(PREFIX, running.port()).await;
+        let site = format!("http://localhost:{proxy_port}");
+        let client = reqwest::Client::new();
+
+        // Every page the UI can be loaded at tells it the prefix it is served under.
+        let tag = format!(r#"<meta name="raphtory-base-path" content="{PREFIX}" />"#);
+        for page in [
+            "/",
+            "/search",
+            "/graph/folder/graph",
+            "/saved-graphs/folder",
+        ] {
+            let resp = reqwest::get(format!("{site}{PREFIX}{page}")).await.unwrap();
+            assert_eq!(resp.status(), 200, "GET {page}");
+            let html = resp.text().await.unwrap();
+            assert_eq!(html.matches(&tag).count(), 1, "GET {page}");
+        }
+
+        // The graph comes back from the address the UI builds out of that prefix.
+        let query = r#"{"query":"{ graph(path: \"folder/graph\") { nodes { list { name } } } }"}"#;
+        let resp = client
+            .post(format!("{site}{PREFIX}/graphql"))
+            .header("content-type", "application/json")
+            .body(query)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), 200);
+        let data: serde_json::Value = resp.json().await.unwrap();
+        assert_eq!(
+            data["data"]["graph"]["nodes"]["list"],
+            serde_json::json!([{ "name": "a" }, { "name": "b" }]),
+            "{data}"
+        );
+
+        // Outside the prefix there is no server: the address the UI used before this setting.
+        let get = reqwest::get(format!("{site}/graph/folder/graph"))
+            .await
+            .unwrap();
+        assert_eq!(get.status(), 404);
+        let post = client
+            .post(format!("{site}/graphql"))
+            .body(query)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(post.status(), 404);
+
+        proxy.abort();
+        running.stop().await
+    }
+
+    // It reads /health, which fails while another test jams the process-global pools.
+    #[allow(clippy::await_holding_lock)]
     #[tokio::test]
     async fn test_disable_ui_serves_api_not_ui() {
+        let _serial = crate::rayon::TEST_SERIAL.lock();
         let work_dir = tempdir().unwrap();
         let app_config = AppConfigBuilder::new().with_disable_ui(true).build();
         let server = GraphServer::new(
@@ -654,6 +871,81 @@ mod server_tests {
         assert_eq!(api.status(), 200);
 
         running.stop().await
+    }
+
+    #[tokio::test]
+    async fn test_schema_data_is_returned_by_type() {
+        let work_dir = tempdir().unwrap();
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Args::default())
+            .await
+            .unwrap()
+            .with_schema_data(7usize);
+
+        assert_eq!(server.schema_data::<usize>(), Some(&7));
+        assert_eq!(server.schema_data::<String>(), None);
+    }
+
+    #[tokio::test]
+    async fn test_work_dir_is_locked_while_a_server_runs() {
+        let work_dir = tempdir().unwrap();
+        let work_dir = work_dir.path();
+        let start = |read_only| async move {
+            let config = AppConfigBuilder::new()
+                .with_cache_read_only(read_only)
+                .build();
+            GraphServer::new(work_dir.to_path_buf(), Some(config), Args::default())
+                .await
+                .unwrap()
+                .start_with_port(0)
+                .await
+        };
+        let running = start(false).await.unwrap();
+
+        let error = start(false).await.unwrap_err().to_string();
+        assert!(error.contains("already in use"), "{error}");
+        assert!(error.contains(work_dir.to_str().unwrap()), "{error}");
+        // a read-only server writes nothing and shares the directory
+        let read_only = start(true).await.unwrap();
+        read_only.stop().await;
+        read_only.wait().await.unwrap();
+
+        running.stop().await;
+        running.wait().await.unwrap();
+        let restarted = start(false).await.unwrap();
+        restarted.stop().await;
+        restarted.wait().await.unwrap();
+    }
+
+    // Pometry/v4-storage#167: a request that never completes must not keep the server up.
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn test_stop_does_not_wait_forever_for_a_stuck_request() {
+        let _serial = crate::rayon::TEST_SERIAL.lock();
+        let work_dir = tempdir().unwrap();
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Args::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        let jam = std::sync::Arc::new(parking_lot::Mutex::new(()));
+        let guard = jam.lock();
+        let jam_clone = jam.clone();
+        crate::rayon::WRITE_POOL.spawn_broadcast(move |_| drop(jam_clone.lock()));
+        // waits on the jammed write pool
+        let stuck = tokio::spawn(reqwest::get(format!(
+            "http://localhost:{port}/health?timeout=600"
+        )));
+        sleep(Duration::from_millis(500)).await;
+
+        running.stop().await;
+        let stopped = tokio::time::timeout(Duration::from_secs(20), running.wait()).await;
+        drop(guard);
+        let error = stopped
+            .expect("the server did not stop while a request was stuck")
+            .expect_err("a request cut off at the deadline was not reported");
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert!(stuck.await.unwrap().is_err());
     }
 
     // Builds a GraphQL batch request body containing `n` trivial queries.

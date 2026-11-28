@@ -245,7 +245,7 @@ pub fn graphgen_single_source_shortest_path(c: &mut Criterion) {
         10,
         medium_random_attachment_graph,
         first_node_id,
-        |graph, source| single_source_shortest_path(graph, source.clone(), None),
+        |graph, source| single_source_shortest_path(graph, source.clone(), None).unwrap(),
     );
 }
 
@@ -330,7 +330,7 @@ pub fn graphgen_fast_rp(c: &mut Criterion) {
         5,
         10,
         medium_random_attachment_graph,
-        |graph, _| fast_rp(graph, 32, 0.5, vec![1.0, 1.0, 1.0], Some(1), None),
+        |graph, _| fast_rp(graph, 32, 0.5, vec![1.0, 1.0, 1.0], Some(1), None).unwrap(),
     );
 }
 

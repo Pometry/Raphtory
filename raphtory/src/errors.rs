@@ -1,6 +1,8 @@
 use crate::{
-    algorithms::dynamics::temporal::epidemics::SeedError, core::storage::lazy_vec::IllegalSet,
-    db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
+    algorithms::dynamics::temporal::epidemics::SeedError,
+    core::{entities::nodes::node_ref::NodeRef, storage::lazy_vec::IllegalSet},
+    db::graph::views::filter::model::filter_operator::FilterOperator,
+    prelude::GraphViewOps,
 };
 use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
@@ -19,7 +21,7 @@ use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
     properties::props::{MetadataError, TPropError},
 };
-use raphtory_storage::{mutation::MutationError, stage::StageError};
+use raphtory_storage::{core_ops::CoreGraphOps, mutation::MutationError, stage::StageError};
 use std::{
     fmt::Debug,
     io,
@@ -424,6 +426,15 @@ impl GraphError {
     pub fn no_default_layer<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         let valid_layers = graph.unique_layers().join(", ");
         GraphError::NoDefaultLayer { valid_layers }
+    }
+
+    /// The error for a node reference that does not resolve in `graph`.
+    pub fn node_missing(graph: &impl CoreGraphOps, node: NodeRef) -> Self {
+        let gid = match node {
+            NodeRef::Internal(vid) => graph.node_id(vid),
+            NodeRef::External(gid) => gid.to_owned(),
+        };
+        GraphError::NodeMissingError(gid)
     }
 }
 

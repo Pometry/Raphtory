@@ -52,6 +52,7 @@ impl PyDocument {
     }
 }
 
+/// The embedding vector of a Document.
 #[pyclass(
     name = "Embedding",
     module = "raphtory.vectors",

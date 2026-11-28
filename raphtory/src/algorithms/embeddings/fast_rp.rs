@@ -12,6 +12,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
+    errors::GraphError,
 };
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -35,7 +36,8 @@ pub struct FastRPState {
 ///
 /// # Returns
 ///
-/// An [AlgorithmResult] containing the mapping from the node to its embedding
+/// An [AlgorithmResult] containing the mapping from the node to its embedding, or an error if
+/// `iter_weights` is empty
 ///
 pub fn fast_rp<G>(
     g: &G,
@@ -44,10 +46,15 @@ pub fn fast_rp<G>(
     iter_weights: Vec<f64>,
     seed: Option<u64>,
     threads: Option<usize>,
-) -> TypedNodeState<'static, FastRPState, G>
+) -> Result<TypedNodeState<'static, FastRPState, G>, GraphError>
 where
     G: StaticGraphViewOps,
 {
+    if iter_weights.is_empty() {
+        return Err(GraphError::InvalidValue {
+            reason: "iter_weights must hold at least one weight".to_string(),
+        });
+    }
     let ctx: Context<G, ComputeStateVec> = g.into();
     let m = g.count_nodes() as f64;
     let s = m.sqrt();
@@ -60,7 +67,13 @@ where
     let step1 = {
         let weights = Arc::clone(&weights);
         ATask::new(move |vv| {
-            let l = ((vv.degree() as f64) / (m * 2.0)).powf(beta);
+            let degree = vv.degree();
+            // 0 raised to a negative beta is infinite, so an isolated node keeps its raw vector
+            let l = if degree == 0 {
+                1.0
+            } else {
+                (degree as f64 / (m * 2.0)).powf(beta)
+            };
             let choices = [
                 (l * s.sqrt(), 1.0 / (s * 2.0)),
                 (0.0, 1.0 - (1.0 / s)),
@@ -94,7 +107,7 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner.run(
+    Ok(runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
@@ -110,5 +123,5 @@ where
         num_iters,
         None,
         None,
-    )
+    ))
 }

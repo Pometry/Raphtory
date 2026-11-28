@@ -218,5 +218,5 @@ where
         out_components,
         |distance| OutComponentState { distance },
         None,
-    )))
+    )?))
 }

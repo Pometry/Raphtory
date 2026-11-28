@@ -98,10 +98,16 @@ impl PyRunningGraphServer {
     fn __exit__(
         &mut self,
         py: Python,
-        _exc_type: Py<PyAny>,
+        exc_type: Py<PyAny>,
         _exc_val: Py<PyAny>,
         _exc_tb: Py<PyAny>,
     ) -> PyResult<()> {
-        self.stop_server(py)
+        let stopped = self.stop_server(py);
+        // an error from stopping must not replace the one already leaving the `with` block
+        if exc_type.is_none(py) {
+            stopped
+        } else {
+            Ok(())
+        }
     }
 }

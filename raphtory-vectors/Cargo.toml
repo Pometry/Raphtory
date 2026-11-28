@@ -13,33 +13,35 @@ rust-version.workspace = true
 edition.workspace = true
 
 [dependencies]
-raphtory = { workspace = true, features = ["vectors"] }
-raphtory-api = { workspace = true, features = ["template"] }
-raphtory-core.workspace = true
-raphtory-storage.workspace = true
-ahash.workspace = true
-arrow.workspace = true
-arrow-array.workspace = true
-arrow-schema.workspace = true
-async-openai.workspace = true
-async-trait.workspace = true
-axum.workspace = true
-either.workspace = true
-futures-util.workspace = true
-heed.workspace = true
-itertools.workspace = true
-lancedb.workspace = true
-minijinja.workspace = true
-minijinja-contrib.workspace = true
-moka = { workspace = true, features = ["future"] }
-parking_lot.workspace = true
-roaring.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tempfile.workspace = true
-thiserror.workspace = true
-tokio.workspace = true
-tracing.workspace = true
+# everything is behind the `vectors` feature, so that building the workspace without it
+# doesn't compile lancedb (and the arrow/datafusion versions it pins)
+raphtory = { workspace = true, features = ["vectors"], optional = true }
+raphtory-api = { workspace = true, features = ["template"], optional = true }
+raphtory-core = { workspace = true, optional = true }
+raphtory-storage = { workspace = true, optional = true }
+arrow-array = { workspace = true, optional = true }
+arrow-buffer = { workspace = true, optional = true }
+async-openai = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
+either = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+heed = { workspace = true, optional = true }
+itertools = { workspace = true, optional = true }
+lancedb = { workspace = true, optional = true }
+minijinja = { workspace = true, optional = true }
+minijinja-contrib = { workspace = true, optional = true }
+moka = { workspace = true, features = ["future"], optional = true }
+parking_lot = { workspace = true, optional = true }
+roaring = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+twox-hash = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -53,5 +55,44 @@ rand.workspace = true
 raphtory = { workspace = true, features = ["io"] }
 
 [features]
-python = ["dep:pyo3", "dep:pyo3-arrow", "raphtory/python", "raphtory-api/python", "raphtory/vectors"]
-panic-on-drop = ["raphtory/panic-on-drop"]
+vectors = [
+    "dep:raphtory",
+    "dep:raphtory-api",
+    "dep:raphtory-core",
+    "dep:raphtory-storage",
+    "dep:arrow-array",
+    "dep:arrow-buffer",
+    "dep:async-openai",
+    "dep:async-trait",
+    "dep:axum",
+    "dep:bytes",
+    "dep:either",
+    "dep:futures-util",
+    "dep:heed",
+    "dep:itertools",
+    "dep:lancedb",
+    "dep:minijinja",
+    "dep:minijinja-contrib",
+    "dep:moka",
+    "dep:parking_lot",
+    "dep:roaring",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:tempfile",
+    "dep:thiserror",
+    "dep:tokio",
+    "dep:tracing",
+    "dep:twox-hash",
+]
+python = [
+    "vectors",
+    "dep:pyo3",
+    "dep:pyo3-arrow",
+    "raphtory/python",
+    "raphtory-api/python",
+]
+panic-on-drop = ["raphtory?/panic-on-drop"]
+
+[[test]]
+name = "test_vectors"
+required-features = ["vectors"]

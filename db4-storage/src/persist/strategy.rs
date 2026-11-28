@@ -53,12 +53,14 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn copy_to(&self, src: &Path, dst: &Path) -> Result<(), StorageError>;
 
-    /// Called after every write and checks memory limits to decide if a flush is needed
+    /// Called after every write and checks memory limits to decide if a flush is needed.
+    /// An error is a flush that ran inline and failed; the write itself is in memory.
     fn persist_node_segment(
         &self,
         segment: &Self::NS,
         head: impl DerefMut<Target = MemNodeSegment>,
-    ) where
+    ) -> Result<(), StorageError>
+    where
         Self: Sized;
 
     /// Called after every write and checks memory limits to decide if a flush is needed
@@ -66,14 +68,16 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         &self,
         segment: &Self::ES,
         head: impl DerefMut<Target = MemEdgeSegment>,
-    ) where
+    ) -> Result<(), StorageError>
+    where
         Self: Sized;
 
     fn persist_graph_prop_segment(
         &self,
         segment: &Self::GS,
         head: impl DerefMut<Target = MemGraphPropSegment>,
-    ) where
+    ) -> Result<(), StorageError>
+    where
         Self: Sized;
 
     fn persist_node_type_index(&self, index: &Self::NTI)
@@ -217,24 +221,24 @@ impl PersistenceStrategy for NoOpStrategy {
         &self,
         _segment: &Self::NS,
         _head: impl DerefMut<Target = MemNodeSegment>,
-    ) {
-        // No operation
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 
     fn persist_edge_segment(
         &self,
         _segment: &Self::ES,
         _head: impl DerefMut<Target = MemEdgeSegment>,
-    ) {
-        // No operation
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 
     fn persist_graph_prop_segment(
         &self,
         _segment: &Self::GS,
         _head: impl DerefMut<Target = MemGraphPropSegment>,
-    ) {
-        // No operation
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 
     fn persist_node_type_index(&self, _index: &Self::NTI) {

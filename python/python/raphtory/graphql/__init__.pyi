@@ -129,6 +129,9 @@ class GraphServer(object):
                                    parquet loading is restricted to
                                  * `public_dir` (str | PathLike): directory served as static
                                    files
+                                 * `base_path` (str): the path prefix the server is reached
+                                   under behind a reverse proxy, e.g. `/proxy/1736`; the UI
+                                   then builds its routes and requests under it
 
                                  A section naming none of the above is taken as a server
                                  extension's settings, so which further sections are accepted
@@ -223,7 +226,7 @@ class RunningGraphServer(object):
     """A Raphtory server handler that also enables querying the server"""
 
     def __enter__(self): ...
-    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
+    def __exit__(self, exc_type, _exc_val, _exc_tb): ...
     def get_client(self) -> RaphtoryClient:
         """
         Get the client for the server.
@@ -5679,7 +5682,7 @@ def schema() -> str:
 
 def cli() -> None:
     """
-    Run the Raphtory GraphQL CLI from Python. Uses `sys.argv` for arguments.
+    Run the Raphtory GraphQL CLI from Python with the arguments in `sys.argv`.
 
     Returns:
         None:

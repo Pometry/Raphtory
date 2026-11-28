@@ -17,22 +17,30 @@ use raphtory_api::{
 pub trait NodePropertySchemaOps: Send + Sync {
     fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
     fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
+    fn node_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr>;
     fn node_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
     fn node_visible_metadata_id(&self, name: &str) -> Option<usize>;
+    fn node_visible_metadata_id_and_type(&self, name: &str) -> Option<(usize, PropType)>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
     /// O(1) check: is temporal-prop `prop_id` present on any node in `layer_id`?
     fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool;
     /// O(1) check: is metadata-prop `prop_id` present on any node in `layer_id`?
     fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool;
+    /// O(1) check: does this view show temporal-prop `prop_id` on nodes? The by-id readers ask
+    /// it, so an id that did not come from this view reads as nothing.
+    fn node_shows_temporal_prop(&self, prop_id: usize) -> bool;
+    /// O(1) check: does this view show metadata-prop `prop_id` on nodes?
+    fn node_shows_metadata(&self, prop_id: usize) -> bool;
 }
 
 /// Same as `NodePropertySchemaOps` but for edge properties.
 pub trait EdgePropertySchemaOps: Send + Sync {
     fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
     fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
+    fn edge_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr>;
     fn edge_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
@@ -43,6 +51,11 @@ pub trait EdgePropertySchemaOps: Send + Sync {
     fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool;
     /// O(1) check: is metadata-prop `prop_id` present on any edge in `layer_id`?
     fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool;
+    /// O(1) check: does this view show temporal-prop `prop_id` on edges? The by-id readers ask
+    /// it, so an id that did not come from this view reads as nothing.
+    fn edge_shows_temporal_prop(&self, prop_id: usize) -> bool;
+    /// O(1) check: does this view show metadata-prop `prop_id` on edges?
+    fn edge_shows_metadata(&self, prop_id: usize) -> bool;
 }
 
 /// Marker: delegate `NodePropertySchemaOps` through `Base`.
@@ -63,6 +76,10 @@ where
         self.base().node_visible_temporal_prop_id(name)
     }
     #[inline]
+    fn node_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.base().node_visible_temporal_prop_id_and_type(name)
+    }
+    #[inline]
     fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
         self.base().node_visible_temporal_prop_name(id)
     }
@@ -75,6 +92,10 @@ where
         self.base().node_visible_metadata_id(name)
     }
     #[inline]
+    fn node_visible_metadata_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.base().node_visible_metadata_id_and_type(name)
+    }
+    #[inline]
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().node_visible_metadata_name(id)
     }
@@ -85,6 +106,14 @@ where
     #[inline]
     fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
         self.base().node_layer_has_metadata(layer_id, prop_id)
+    }
+    #[inline]
+    fn node_shows_temporal_prop(&self, prop_id: usize) -> bool {
+        self.base().node_shows_temporal_prop(prop_id)
+    }
+    #[inline]
+    fn node_shows_metadata(&self, prop_id: usize) -> bool {
+        self.base().node_shows_metadata(prop_id)
     }
 }
 
@@ -99,6 +128,10 @@ where
     #[inline]
     fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.base().edge_visible_temporal_prop_id(name)
+    }
+    #[inline]
+    fn edge_visible_temporal_prop_id_and_type(&self, name: &str) -> Option<(usize, PropType)> {
+        self.base().edge_visible_temporal_prop_id_and_type(name)
     }
     #[inline]
     fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
@@ -123,6 +156,14 @@ where
     #[inline]
     fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
         self.base().edge_layer_has_metadata(layer_id, prop_id)
+    }
+    #[inline]
+    fn edge_shows_temporal_prop(&self, prop_id: usize) -> bool {
+        self.base().edge_shows_temporal_prop(prop_id)
+    }
+    #[inline]
+    fn edge_shows_metadata(&self, prop_id: usize) -> bool {
+        self.base().edge_shows_metadata(prop_id)
     }
 }
 
