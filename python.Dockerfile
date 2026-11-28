@@ -4,6 +4,7 @@ ARG BASE_PYTHON_IMAGE_TAG
 FROM rust:${RUST_VERSION} AS build
 ARG BASE_PYTHON_IMAGE_TAG
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends protobuf-compiler libprotobuf-dev
 ENV HOME=/root
 ENV PYENV_ROOT=$HOME/.pyenv
 ENV PATH=$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
@@ -11,7 +12,7 @@ RUN curl -fsSL https://pyenv.run | bash
 RUN PYTHON_VERSION=$(echo ${BASE_PYTHON_IMAGE_TAG} | cut -d'-' -f1) && \
     pyenv install ${PYTHON_VERSION} && \
     pyenv global ${PYTHON_VERSION}
-RUN pip install maturin==1.8.3 patchelf==0.17.2.2
+RUN pip install "maturin>=1.9.4,<2" patchelf==0.17.2.2
 COPY . .
 RUN cd python && maturin build --release
 
