@@ -147,12 +147,12 @@ panic-on-drop = [
 
 [[example]]
 name = "eth_loader"
-required-features = ["io"]
+required-features = ["io", "progress"]
 
 [[example]]
 name = "snb_loader"
-required-features = ["io"]
+required-features = ["io", "progress"]
 
 [[example]]
 name = "lanl_loader"
-required-features = ["io"]
+required-features = ["io", "progress"]

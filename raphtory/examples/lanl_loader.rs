@@ -120,6 +120,19 @@ fn load_lanl_graph(
     Ok(())
 }
 
+/// Usage: `lanl_loader <data_dir> [layers_json] [graph_path]`
+///
+/// `<data_dir>` must contain `nft_sorted/`, `v1_sorted/` and `v2_sorted/`.
+///
+/// Load all three layers into `<data_dir>/../graph`:
+/// ```sh
+/// cargo run --release --example lanl_loader --features io -- /data/lanl
+/// ```
+///
+/// Load only the `nft` and `v2` layers into a chosen graph directory:
+/// ```sh
+/// cargo run --release --example lanl_loader --features io -- /data/lanl '["nft","v2"]' /data/lanl_graph
+/// ```
 fn main() {
     let data_dir = std::env::args()
         .nth(1)
@@ -135,7 +148,7 @@ fn main() {
     let graph_path = std::env::args()
         .nth(3)
         .map(PathBuf::from)
-        .unwrap_or_else(|| data_dir.join("..").join("graph"));
+        .unwrap_or_else(|| data_dir.join("..").join("lanl_graph"));
     let graph = if !graph_path.exists() {
         Graph::new_at_path(&graph_path).unwrap()
     } else {
